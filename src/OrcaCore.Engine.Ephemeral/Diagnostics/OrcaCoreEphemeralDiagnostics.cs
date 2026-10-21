@@ -248,6 +248,18 @@ internal static class OrcaCoreEphemeralDiagnostics
         catch (Exception) { /* Internal release observations are best effort, after actual removal. */ }
     }
 
+    internal static void RecordShutdown(string eventName)
+    {
+        try
+        {
+            LifecycleEvents.Add(1,
+                new KeyValuePair<string, object?>(OrcaCoreDiagnostics.LifecycleEventNameKey, eventName),
+                new KeyValuePair<string, object?>(OrcaCoreDiagnostics.DurableKey, false),
+                new KeyValuePair<string, object?>("orca.lifecycle.origin", "host-shutdown"));
+        }
+        catch (Exception) { /* Listener failures cannot escape an ownership boundary. */ }
+    }
+
     internal static void RecordRetentionSweepFailure()
     {
         try

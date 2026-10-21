@@ -176,6 +176,18 @@ output. Unnamed completion is represented by absence, not an empty/default name.
   alone does not prove settlement. Unaccepted aborted provisional starts are fenced and cleaned
   after settlement in both policy modes, rather than retained as unreachable active instances.
 
+- **Ephemeral host Closed** — irreversible refusal of new/replayed starts and
+  compatible registrations, normally from ApplicationStopping; no host cancellation.
+  Already-initialized pending starts may become Accepted, and accepted queries,
+  waits, commands, ingress, timers, retries and grants keep ordinary behavior.
+- **Ephemeral host Stopping** — only engine-hosted/public StopAsync begins cooperative
+  cancellation, producer sealing and the stable join. Its gate elects acceptance
+  versus abort for starts still outstanding; Closed is not that election.
+- **Host Completed / Incomplete** — detached stop observations. Completed proves no
+  engine-owned user/dependency/commit work remains or can be admitted. Incomplete
+  gives a count/reason and requires the actual dependency owner to remain alive.
+  These are host facts, not additions to WorkflowInstanceStatus. [MG-066–069, NF-032]
+
 ### Events, waits, correlation
 
 - **Event envelope** — the normalized inbound event shape: `EventId` (dedup identity),

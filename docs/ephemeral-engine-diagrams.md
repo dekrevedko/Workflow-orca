@@ -19,6 +19,28 @@ flowchart LR
     H --> I["WorkflowInstanceHandle"]
 ```
 
+Shutdown source candidate (independent source review pending): the existing role owns one
+lifetime singleton; no extra registration or option is introduced. Local wait-token
+cancellation remains separate from host cancellation. An initialization admitted
+before close can finish and become Accepted while Closed; queued pre-Init rejects.
+
+```mermaid
+flowchart LR
+    O[Open] -->|ApplicationStopping; no cancellation| C[Closed]
+    C --> D[Initialized pending starts and accepted work drain]
+    C -->|Engine hosted or public StopAsync| S[Stopping]
+    O -->|Direct StopAsync closes first| S
+    S --> J[Cancel remaining work; seal and join]
+    J -->|Stable zero| F[Completed]
+    J -->|Budget or fault| I[Incomplete; retain actual owner]
+    I --> J
+```
+
+Closed permits events, waits, timers and retries. Acceptance/abort elects at Stopping,
+not at the Closed edge. Completed permits no new live engine work; detached values
+and cached stop results are separate from runtime queries. Required source tests
+and candidate-package drain consumers remain pending.
+
 ## One serialized instance lane
 
 ```mermaid

@@ -210,6 +210,21 @@ IDs as metric labels, and never business payloads by default. These observations
 enumeration or management API. Product conformance is gated by AC-542 and the source/consumer
 tasks; Markdown/provenance checks alone cannot supply it.
 
+### OB-027 Ephemeral host shutdown observations
+The existing orca.lifecycle.events instrument SHALL use origin host-shutdown,
+durable=false and fixed names shutdown-incomplete, shutdown-fault,
+shutdown-callback-failed and shutdown-abortive-disposal. Observations SHALL be bounded,
+best effort and contained; no new instrument/dependency, ID/key/payload/exception
+metric labels or public enumeration is added. Closed emits no host cancellation;
+only Stopping owns cancellation/producer-seal obligations. After Completed no new
+diagnostic dispatch is allowed. Internal provisional abort is not a caller termination.
+
+Incomplete contains only PendingWorkCount and Reason, not stuck-instance identities.
+Operator guidance SHALL recommend inspecting existing snapshots/state and existing
+stuck-step/lifecycle diagnostics before StopAsync, while Open or Closed, to identify
+suspect instances. After Stopping use already captured facts and existing diagnostics;
+do not advertise live state queries or a new stop-time instance list. [MG-068, AC-550/554]
+
 ## 15.4 Logging requirements
 
 ### OB-030 Structured logging only

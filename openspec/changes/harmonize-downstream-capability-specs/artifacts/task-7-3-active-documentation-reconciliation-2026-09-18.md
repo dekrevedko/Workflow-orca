@@ -15,24 +15,24 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 |---:|---|---|
 | 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
-| 3 | `docs/end-to-end-plan.md` | `d439267f6d31cb652510b9472878cddd0427212fad71bf0e38194a30d146c8a5` |
-| 4 | `docs/ephemeral-engine-developer-guide.md` | `b9cf7cbbdbe7e06da4d0034707feb3586ecc6a50506ad91a8d2b7632e197ddca` |
-| 5 | `docs/ephemeral-engine-diagrams.md` | `b9b6eb1ac6aa1179baae2c6e34c0eef72dd3134d2a5aafd9c99c5d441e7338cf` |
+| 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
+| 4 | `docs/ephemeral-engine-developer-guide.md` | `8e5916a62b5154921f50d0cc5cb64edffd60489211e1967d036f696b84241d86` |
+| 5 | `docs/ephemeral-engine-diagrams.md` | `3f4e32e272c0acb5c073bbc44be5af5315c50ec887721d433d0817d4f5add62d` |
 | 6 | `docs/implementation/00-stack-decisions.md` | `f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b` |
-| 7 | `docs/implementation/01-solution-architecture.md` | `530502d6f8d457cd2696834aca42cec43db72c5747d5760ab709fde6cb3de3b3` |
-| 8 | `docs/implementation/02-engineering-conventions.md` | `2e7b90685956840f80202447c0a9cc5495ea63c4d8bbdb6385f392ee68ceea73` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `d8fa1238a510b0abf656e922ec3ab8fd84e733d5b974eb587aebb552ada933fe` |
+| 8 | `docs/implementation/02-engineering-conventions.md` | `44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
-| 10 | `docs/normative-source-map.md` | `61859f4ed681c2d84564b3290779fd32ceb7c6ea61b0f3846496f3ab029f5d9d` |
-| 11 | `docs/production-readiness.md` | `b548b4645866c1b121d42e9c9fc047e973e14763a986010a6a9b96141aa00213` |
-| 12 | `docs/project-technical-overview.md` | `8a52fe45f28b8df8e1614cd442fcc73911dcbdb08105d5779e5377e5d56f3523` |
+| 10 | `docs/normative-source-map.md` | `e0deb47c25dfc5f6d56521fbe82ba4e3491a8fa249d09a26fb360505b0d7d411` |
+| 11 | `docs/production-readiness.md` | `25628254027284e68f5e734885517f57daaf64d75f160416c96bdea0d4003209` |
+| 12 | `docs/project-technical-overview.md` | `5ea7e46bf53caf2a188c7922d8fe66c7f12f2814885f3745b92ec7d8371378d8` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
-| 14 | `docs/specs/03-domain-model-and-glossary.md` | `32f72c7e6dc5bd4d012251c3d5b7cc0041dadfa029ef18cad464f0f96197f2c0` |
-| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `a554287b6412d9db6e385470863a11e53fc6bb1ca8bcf198632b914589ecf17c` |
+| 14 | `docs/specs/03-domain-model-and-glossary.md` | `98160ef5b7e595d9c56927da5d00a5104b897772c1454688422e159d5b581a94` |
+| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `bad2a1512b89e3fd2a09cfc00ea37050e191d4e4147c59f8f6943b7e9e556142` |
 | 16 | `docs/specs/06-requirements-durable-execution.md` | `6446c249abb489dfb1f096aca5ff47339bdcbdcbc7ed8240c990c387b0f2c1d5` |
-| 17 | `docs/specs/09-requirements-management-operations.md` | `03494180531dda191624433ff69f1abc28fbf82f5434749e6811608660500c19` |
-| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `cb863d6de8f92f4923e7cf626ccba39dd3a98e53e6111c523443c132af2b4f7a` |
-| 19 | `docs/specs/12-acceptance-criteria.md` | `4a3bdb4c697611d4d59e9152a1400e32ba7ad3b661122b0d73243d08ecb1a8a6` |
-| 20 | `docs/specs/13-phasing-and-open-questions.md` | `0239429dab5fd3f8d2a8db96d910d355de1fc18b1c2340e5b1e16b65a89a1cf3` |
+| 17 | `docs/specs/09-requirements-management-operations.md` | `c24a44983974023b20d6e59cee0162bf1caf48140ebe307942f006dc7eb5a738` |
+| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `b329822d5deb1e609da4d77c3548a437371806ce12f7a7c9fdf7fc9500671e77` |
+| 19 | `docs/specs/12-acceptance-criteria.md` | `fa6004282da72638e0046407b6f0d86bf58cf26ce6d27ccc9bcf2607c2aed19c` |
+| 20 | `docs/specs/13-phasing-and-open-questions.md` | `05df07467b42e92fecacfc4a00b2b8cc8156c18ca0a75da24410e878810b62fc` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
 | 22 | `docs/specs/16-requirements-durable-driver.md` | `7462935c982e22d0ba8878968d9f117eff05219bea7e3831e181e759bb03fd3a` |
 
@@ -168,3 +168,22 @@ This pending merge combines the Section 4 retention documentation with master
 `1c86c23` publishing updates. Each maintained row records its actual combined
 source. Historical review evidence remains immutable; the final review covers
 this table, its guard pin, the consumer results and the two-parent merge.
+
+## Issue #2 canonical transition (2026-10-19)
+
+Only rows whose active documents this target intentionally changes are refreshed.
+The same target updates their current table hashes and guard-owned digest. Contract
+3c8d33c / verdict 4bd7c3e requires F2 initialized-start acceptance during Closed and
+Stopping-only abort. Guides mark shutdown implementation/package pending, document
+the three drain recipes and count-only diagnosis, and preserve all Section 7B
+obligations. This table is maintained source accountability, not a rewritten verdict
+or independent approval; canonical review is pending and source remains blocked.
+
+## Issue #2 Section 3 source candidate (2026-10-19)
+
+The canonical transition is approved at 2e51fbd / 6253f6c. This maintained table
+refreshes only the current guides and doc 17 rows changed by the coherent shutdown
+source/candidate-package target. They describe implemented candidate behavior and
+all three owner/drain recipes, while explicitly retaining independent source review
+and publication gates. Historical verdicts and canonical approval evidence are
+unchanged. No released-package shutdown capability is inferred from source status.

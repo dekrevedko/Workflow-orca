@@ -1,0 +1,62 @@
+path	hits	file-sha256	next-phase-document-disposition
+CLAUDE.md	1	3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/active-implementation-index.md	0	c2142a8f4d9cd61d90ce4ab122948ed2bdcd19386547bd616dcacb1a4457585b	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/durable-development-store-reset.md	1	5431939248c5e0fd1c3e4bf3723353e1c1e992b6974d27339748f718c9aeefad	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/durable-driver-lane-host.md	2	4b002a2b4410270c512b9d71f955aa57d9d639ae9d1dc280c580ba1eddfbed1f	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/eks-scheduler-handoff.md	2	48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/end-to-end-plan.md	2	d439267f6d31cb652510b9472878cddd0427212fad71bf0e38194a30d146c8a5	Augment: explicit shutdown/disposal sequence for ephemeral host
+docs/ephemeral-engine-developer-guide.md	6	b9cf7cbbdbe7e06da4d0034707feb3586ecc6a50506ad91a8d2b7632e197ddca	Augment: explicit owner, incomplete retention, post-close calls and migration
+docs/ephemeral-engine-diagrams.md	2	b9b6eb1ac6aa1179baae2c6e34c0eef72dd3134d2a5aafd9c99c5d441e7338cf	Augment: owned pending start, close and stable join branches
+docs/github-publishing-status.md	1	71365d6b1d2d75853717a6f170d7843b4b82dfd6c601ddd10987cd4771966a6f	Augment: release limitations updated only after source/package qualification
+docs/implementation/00-stack-decisions.md	1	f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/implementation/01-solution-architecture.md	2	530502d6f8d457cd2696834aca42cec43db72c5747d5760ab709fde6cb3de3b3	Augment: root owner and internal host coordinator
+docs/implementation/02-engineering-conventions.md	1	2e7b90685956840f80202447c0a9cc5495ea63c4d8bbdb6385f392ee68ceea73	Augment: producer/handoff ownership, no callbacks under gate and no self-join
+docs/implementation/03-tdd-workflow.md	0	1c0de7f86f5df3f00251c3563e45ec0979bf606915c05c7d4341533f1fa7a3e8	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/implementation/04-task-protocol.md	0	e3e0fdd732f8c0994ab1d4f0de0c6bb65670acdf9080cb95faf164bc87d3330c	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md	3	af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/implementation/developer-facing-interface-section-06-scoped-deadline-decision-2026-07-29.md	0	80367b901d243f5eec43270be8c6477e467e890d90ef9fdf5634e9976da0e098	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/implementation/KICKOFF.md	0	ba9f5aba41e2fcf695008402f97875d70244c1df5e0a8d4e15b743007004866e	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/implementation/README.md	0	8c36b0a4bdaff6d5ee4f8bcbaaa487e48b18e7ff77d779186976c9aef101930d	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/normative-source-map.md	0	61859f4ed681c2d84564b3290779fd32ceb7c6ea61b0f3846496f3ab029f5d9d	Augment: six requirements and exact numbered/guide crosswalk (zero keyword hits)
+docs/nuget-publishing.md	0	ef3c9e0dd6b8b3a6ffea93aabca29a355d02fcb83735a3edc1409811c3b55d2b	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/observability/resource-governance-dashboard.md	0	cf4d544627132f9690b25cb7e94e303562165cc295afa2387ea043edbc6df42f	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/packages.md	0	ac2c58946cc08759d70fc27f3a7f86fffac739fa65a690051bf160e9dc490695	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/prerelease-notes.md	4	5427399f4a5aafcc00b2fc1ac686274173002b5b51211b42e0496641f7088d1e	Augment: candidate status then source-phase implementation/consumer qualification update
+docs/production-readiness.md	2	b548b4645866c1b121d42e9c9fc047e973e14763a986010a6a9b96141aa00213	Augment: unsupported abortive disposal/RunAsync incomplete path and release qualification
+docs/project-technical-overview.md	3	8a52fe45f28b8df8e1614cd442fcc73911dcbdb08105d5779e5377e5d56f3523	Augment: lifetime service and truthful incomplete ownership
+docs/README.md	0	8143e76d9304f1267569c5c84b12be7bd2b32c9fdc5cfa59f2a6043b620b0302	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/01-concept-and-goals.md	1	36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/02-lessons-from-prior-art.md	3	bf41b0ca428a6f06bd252d58acd36649f42ca54372ddde1efd4ea89dba562680	Augment: durable persistence versus ephemeral join lesson
+docs/specs/03-domain-model-and-glossary.md	2	32f72c7e6dc5bd4d012251c3d5b7cc0041dadfa029ef18cad464f0f96197f2c0	Augment: Open/Stopping/Settled, owner and observer vocabulary
+docs/specs/04-requirements-core-runtime.md	2	ae9540ae3688e804c558096278fcdd1d8b999fe627d277ee7a1074703ecdd0ad	Edit/Augment: mode-qualified CR-031 host stop and cancellation ordering
+docs/specs/05-requirements-events-waits-timers.md	0	a554287b6412d9db6e385470863a11e53fc6bb1ca8bcf198632b914589ecf17c	Augment: producer sealing and entered-callback handoffs (zero keyword hits)
+docs/specs/06-requirements-durable-execution.md	6	6446c249abb489dfb1f096aca5ff47339bdcbdcbc7ed8240c990c387b0f2c1d5	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/07-requirements-saga.md	0	1ac99ba010a8cfb0b1b273d444fe051a7f130d5fe4ad95283f888f53e77b44f1	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/08-requirements-composition.md	0	6f97ed004cef8ee58648b2f41744e4ccf93ddf157a589124c19132067f7e9c9e	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/09-requirements-management-operations.md	9	03494180531dda191624433ff69f1abc28fbf82f5434749e6811608660500c19	Augment: MG-066-069 with retention/identity-error interaction
+docs/specs/10-provider-model-and-extensibility.md	2	cb863d6de8f92f4923e7cf626ccba39dd3a98e53e6111c523443c132af2b4f7a	Augment: PR-041 exact Hosting service ownership and DI protocol
+docs/specs/11-non-functional-requirements.md	0	88b5eef3a814893d29680a30852dda1252f57e1d5414d0c8a794956134b20ca3	Augment: NF-032 bounded observation versus physical stop (zero keyword hits)
+docs/specs/12-acceptance-criteria.md	8	4a3bdb4c697611d4d59e9152a1400e32ba7ad3b661122b0d73243d08ecb1a8a6	Augment: AC-543-554 and preserved existing acceptance scenarios
+docs/specs/13-phasing-and-open-questions.md	0	0239429dab5fd3f8d2a8db96d910d355de1fc18b1c2340e5b1e16b65a89a1cf3	Augment: host stop versus deferred workflow commands (zero keyword hits)
+docs/specs/14-driving-scenario-eks-job-scheduler.md	0	a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/15-requirements-observability-otel.md	2	6fff324dcf5c690202339ba22003e7b3b209cb84771b2f2034a50a5f4f59377b	Augment: OB-027 fixed host-shutdown events on existing instrument
+docs/specs/16-requirements-durable-driver.md	7	7462935c982e22d0ba8878968d9f117eff05219bea7e3831e181e759bb03fd3a	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/17-public-authoring-contract.cs	0	41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/17-selected-mode-capability-matrix.md	18	424de909757ec234928a1b27829f158c0043869ef1393d9fc5225d44f60bcd44	Augment: full signatures, owner table, distinct timeout taxonomy and post-close errors
+docs/specs/18-semantic-appendix.md	0	787b80e202d2b4ef199bbf8375e6638c77bf798f2eaf4e0b83924173c773dfa9	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+docs/specs/README.md	0	d1e97db536f871bf12edb73947e4910ce89935c214239695549ebb29b3feffd3	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/developer-facing-surface/spec.md	5	0659f2f385c28613b5c1bd4c572b88c87f1deb8ea80aaa185a28685d9dd50ad2	Append exact two ADDED blocks after contract approval; existing blocks unchanged
+openspec/specs/durable-persistence-and-outbox/spec.md	0	691031135a18e50eb82944960f2249c3c01d653745283d4f2dcb4662eedad0d8	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/durable-runtime/spec.md	6	bdc574beee3acc0069773a11f668b4894d9531e38c97d94e5a5765deeb3cfa1c	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/event-driven-prototype/spec.md	0	e7acef58398ad572c94b8fec658cfde043ba56c1338d55855a120b62657830c6	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/event-routing-and-waits/spec.md	0	e51e4deb0941936d000192a19cd8eeca779a378249b4d8aecb597e289c2ab296	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/management-and-querying/spec.md	8	5b1393e9b093bc46b5fc7e61e46f71b054883f51523acd46cbd477fc19e317d7	Append exact four ADDED blocks after contract approval; existing blocks unchanged
+openspec/specs/quality-and-verification/spec.md	3	0c1dc289e838c5837448c3352f1f6b6a7af34bf615b124d7f117ccf04e6e4cb3	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/repository-foundation/spec.md	0	4baa0211862fb910a256f1ab99ca4a2ccf9fc4fdae5c6064ee9a909755aac89d	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/runtime-resource-governance/spec.md	1	b6599a9c9b2a60c78640aa8682f000230897e5ec6abf08359dba85c675d3b924	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/saga-orchestration/spec.md	0	01e1664c8a78cd6c00c35f2e6aade8b9cbaa1de039da52dc13f7376b7781b418	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/state-driven-runtime/spec.md	0	d9ea3cbc2dcf52f891250c71698c16ffa9ca11f9a6101af99bbf86364aa9305d	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/structured-fiber-execution/spec.md	0	cab0a021e2c0aae1f09bff2fcdac0a533ec33309c938db4777c1c0c1aebaeecf	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/workflow-authoring/spec.md	1	1a2bf4b8cfd5c1d921e18d6dfda19cf195bec1c13c811df646b320a5152d9a21	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+openspec/specs/workflow-contracts/spec.md	1	729a9b153328524b14c00a8d8ae341f9f6c80662f1b883c7400b002508e952c5	Retain: no shutdown-owned edit; individual matched contexts, if any, remain unchanged
+README.md	2	9949c1366e5fea1193ef5254d17cc9777bf8eea5fa8d0a9b8e3e5330e3232bda	Augment: issue remains open until reviewed source; implementation status updated at qualification

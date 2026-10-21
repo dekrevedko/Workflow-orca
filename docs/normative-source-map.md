@@ -111,6 +111,17 @@ name and cross-reference; reshape task `9.6` owns the registry's final membershi
 
 ---
 
+Issue #2 shutdown adds six blocks (surface 2, management 4), with MG-066–069 in 09,
+PR-041 in 10, NF-032 in 11, OB-027 in 15 and AC-543–554 in 12. Docs 03/04/05 define
+Closed/drain, initialized-start acceptance and Stopping-only cancellation; doc 17
+owns the exact seven declarations, namespace/assembly and operation/error table.
+The authoring-only declaration companion has no hosting additions and is explicitly
+excluded; executable API/compile/package baselines remain unchanged until source.
+The transition ledger resolves each of 120 base occurrences individually and covers
+all 61 files, including zero-hit owners. Contract approval is 3c8d33c / 4bd7c3e; the
+F2 transition and later source remain separately reviewed. Issue #1's completed
+change archival and path/provenance refreeze belong to a later maintenance target.
+
 ## 3. Document status
 
 Every file under `docs/` is exactly one of these.

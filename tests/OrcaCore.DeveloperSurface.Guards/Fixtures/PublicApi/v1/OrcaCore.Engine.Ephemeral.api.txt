@@ -5,11 +5,26 @@ type public sealed class OrcaCore.Hosting.EphemeralEngineHostOptions attributes 
   property [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralTerminalRetentionPolicy? TerminalRetention { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
   property [OrcaCore]OrcaCore.Hosting.StructuredExecutionHostOptions! StructuredExecution { get:public; init:public }
   property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.TransientPoolDefinition!]! TransientPools { get:public; init:public }
+type public sealed class OrcaCore.Hosting.EphemeralHostShutdownIncompleteException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownResult+Incomplete! Result { get:public }
+type public enum OrcaCore.Hosting.EphemeralHostShutdownIncompleteReason : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownIncompleteReason DeadlineElapsed = 0
+  field public const [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownIncompleteReason ObservationCancelled = 1
+  field public const [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownIncompleteReason ShutdownFaulted = 2
+type public abstract class OrcaCore.Hosting.EphemeralHostShutdownResult
+type public sealed class OrcaCore.Hosting.EphemeralHostShutdownResult+Completed : [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownResult~
+type public sealed class OrcaCore.Hosting.EphemeralHostShutdownResult+Incomplete : [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownResult~
+  property [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownIncompleteReason Reason { get:public }
+  property [System.Private.CoreLib]System.Int64 PendingWorkCount { get:public }
+type public sealed class OrcaCore.Hosting.EphemeralHostStoppingException : [OrcaCore]OrcaCore.OrcaCoreException~
 type public sealed class OrcaCore.Hosting.EphemeralTerminalRetentionPolicy
   method public static Create([System.Private.CoreLib]System.Int32 maxRetainedInstances, [System.Private.CoreLib]System.TimeSpan maxAge, [System.Private.CoreLib]System.TimeSpan sweepInterval) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralTerminalRetentionPolicy!
   property [System.Private.CoreLib]System.Int32 MaxRetainedInstances { get:public }
   property [System.Private.CoreLib]System.TimeSpan MaxAge { get:public }
   property [System.Private.CoreLib]System.TimeSpan SweepInterval { get:public }
+type public interface OrcaCore.Hosting.IEphemeralWorkflowHostLifetime
+  method public abstract StopAsync([System.Private.CoreLib]System.TimeSpan timeout, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.EphemeralHostShutdownResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
 type public sealed class OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   method public AddWorkflow<TInput, TOutput>([OrcaCore]OrcaCore.EphemeralWorkflowDefinition`2[!!TInput?, !!TOutput?]! definition) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder! where [TInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]; TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
   method public AddWorkflow<TInput>([OrcaCore]OrcaCore.EphemeralWorkflowDefinition`1[!!TInput?]! definition) -> [OrcaCore.Engine.Ephemeral]OrcaCore.Hosting.OrcaCoreEphemeralEngineBuilder! where [TInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]

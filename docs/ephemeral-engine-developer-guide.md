@@ -28,6 +28,12 @@ The engine role is mutually exclusive with the durable engine role in one servic
 There is no catch-all registration method, configuration-binder overload, hosted-service toggle,
 or serializer replacement hook.
 
+The separate shutdown amendment specifies seven engine-owned OrcaCore.Hosting
+types, including IEphemeralWorkflowHostLifetime, automatically registered by this
+same role. **Shutdown is implemented in the issue #2 source/candidate-package target;
+independent source approval and publication are pending**. Doc 17 defines the exact surface. This is no additional option/registration, fingerprint or API in
+published 0.1.0-preview.1. The authoring companion adds no hosting declaration.
+
 ## Authoring model
 
 Start a definition through `Workflow.Ephemeral<TState>(DefinitionId, DefinitionVersion)`. The
@@ -84,6 +90,14 @@ An instance handle provides:
 
 Local cancellation of `WaitForOutputAsync` cancels only the caller's wait, not the workflow.
 
+The shutdown contract adds a compatible-registration/start rejection only from
+Closed, preserving static HostIncompatible failures. A queued start still before
+Init rejects at Closed; initialization already admitted may complete its first step
+and return Accepted during Closed. Acceptance/abort elects only at Stopping, so
+awaiting pending starts during drain does not manufacture a host-stopping error
+after the first step's effects. Authoritative original errors/cancellation remain.
+These semantics are implemented in the source candidate; published older binaries retain their earlier behavior.
+
 ## Retained-instance lifetime
 
 The null/omitted policy keeps accepted instances and their keys for the host lifetime and adds
@@ -132,6 +146,15 @@ Background sweep cleanup failures are contained and do not stop later sweeps. Th
 Diagnostic listeners cannot propagate failures through the timer callback. This does not
 hide cleanup exceptions from synchronous caller-triggered lifetime operations.
 
+For the candidate shutdown protocol, Closed keeps normal accepted
+queries/waits/commands/ingress, retirement and key lifetime; it never queues host
+cancellation. Pending initialized starts may publish Accepted during Closed. Stopping
+alone seals new live operations and elects provisional abort, while retaining every
+physical owner and pre-admitted pin. Completed freezes remaining metadata; detached
+values survive, but a fresh terminal output query still rejects before decoding.
+The ordinary start-to-observe retirement gap remains, so retain independent effect
+deduplication and do not use not-found/host-stopping as safe retry instructions.
+
 ## Waits and external event ingress
 
 Ephemeral `Wait` is an in-process suspension owned by the ephemeral engine. The application surface
@@ -163,3 +186,57 @@ configuration and expected counts for the target under review.
 
 The superseded pre-v1 guide is preserved, unchanged, at
 [`archive/plans/ephemeral-engine-developer-guide.md`](archive/plans/ephemeral-engine-developer-guide.md).
+
+## Shutdown drain recipes (candidate packages; review pending)
+
+PR-041/MG-066–069 are implemented in the Section 3 source candidate, including
+the seven declarations and callback/physical-work join. The ordinary package-only
+consumer in [the source target](../openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-consumer/README.md)
+exercises these ownership recipes. Source approval and release publication remain pending.
+
+1. **Generic Host ordered drainer.** Register the engine role, then an application
+   IHostedService drainer. Set/retain HostOptions.ServicesStopConcurrently=false.
+   Reverse stop order calls the drainer before the engine. ApplicationStopping only
+   closes new starts/registrations; initialized pending starts and accepted work
+   continue. Stop the application's submitters, join pending starts, and await the
+   returned handles, preserving event delivery/dependencies needed by those workflows.
+   Use the drainer StopAsync token, not the already-cancelled ApplicationStopping
+   token, for local drain waits. Return on completion or budget expiry so the engine
+   StopAsync can enter Stopping and cancel/join anything left. All phases share
+   HostOptions.ShutdownTimeout; concurrent stops do not guarantee a drain window.
+   Keep required ingress/dependency-service stops after drain. Never block an
+   ApplicationStopping callback to perform this wait.
+2. **Explicitly owned host.** Keep IHost in an application session/supervisor; start
+   it, stop submitters, await pending initialized starts and accepted handles with
+   an app drain budget, then call the engine lifetime StopAsync. ApplicationStopping
+   may already mean Closed without cancellation. No concurrent engine/IHost stop may
+   race the intended drain. Retain IHost on Incomplete, reobserve later, and only after
+   Completed finish IHost.StopAsync/other hosted stops and dispose. Catch/reobserve
+   an incomplete explicit IHost.StopAsync when using the ordered drainer too.
+3. **Plain DI.** There is no close-only public engine call. Close the application's
+   own submission gate and join every submitter/pending start, then await accepted
+   handles while keeping ingress/dependencies alive. Engine admission remains Open,
+   so all submitters must be controlled. On drain completion or expiry call StopAsync
+   to close and cancel/join anything left. Incomplete retains the actual provider,
+   scopes and external dependencies; reobserve rather than dispose.
+
+After Stopping begins new live handle/snapshot/state/output/wait/command/ingress
+operations reject, preserving original-ID not-found/mismatch precedence. Admitted
+operations still finish normally and are joined. After Completed there is no new
+engine work, DI/user code, timer, diagnostic or commit: only passive registered
+identity, previously detached values and cached Completed remain available.
+
+Incomplete has Reason/PendingWorkCount, not stuck-instance identities. **Before
+calling stop**, inspect existing snapshots/state and stuck-step/lifecycle diagnostics
+to identify and record suspect instances. Once Stopping rejects live queries use
+those captured facts and existing diagnostics, not a new stop-time instance list.
+The shutdown metrics use bounded fixed labels and contain no IDs.
+
+Migration: the former no-op hosted stop now throws on Incomplete, possibly aggregated
+by Generic Host. Run/RunAsync still disposes in finally even if stop throws; it cannot
+retain dependencies for noncooperative incomplete work. Do not use unconditional
+using/finally around that outcome. One explicit owner serializes disposal; raw
+provider disposal only closes as unsupported abortive teardown, not a join or veto.
+The Section 3 qualification record binds the candidate-package recipe results to
+the frozen source. This is candidate guidance; use a published package containing
+this change before relying on it in a released application.

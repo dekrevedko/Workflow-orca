@@ -24,11 +24,15 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
             return new OrcaCoreEphemeralEngineBuilder(services);
         }
 
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(IEphemeralWorkflowHostLifetime)))
+            throw new ArgumentException("The ephemeral host lifetime is reserved for the engine role.", nameof(services));
+
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton(provider => new EphemeralWorkflowEngine(
             provider.GetRequiredService<TimeProvider>(),
             copied,
             provider));
+        services.AddSingleton<IEphemeralWorkflowHostLifetime>(provider => provider.GetRequiredService<EphemeralWorkflowEngine>().HostLifetime);
         services.TryAddSingleton(provider =>
         {
             var registry = new EphemeralWorkflowDefinitionRegistry(
@@ -96,15 +100,21 @@ public sealed class OrcaCoreEphemeralEngineBuilder
 
 internal sealed class OrcaCoreEphemeralWorkflowCatalogReadinessHostedService : IHostedService
 {
+    private readonly EphemeralHostLifetime lifetime;
     public OrcaCoreEphemeralWorkflowCatalogReadinessHostedService(
-        IWorkflowDefinitionRegistry registry)
+        IWorkflowDefinitionRegistry registry, IEphemeralWorkflowHostLifetime lifetime)
     {
         ArgumentNullException.ThrowIfNull(registry);
+        this.lifetime = (EphemeralHostLifetime)lifetime;
     }
 
     public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 
-    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public async Task StopAsync(CancellationToken cancellationToken)
+    {
+        if (await lifetime.StopHostedAsync(cancellationToken).ConfigureAwait(false) is EphemeralHostShutdownResult.Incomplete incomplete)
+            throw new EphemeralHostShutdownIncompleteException(incomplete);
+    }
 }
 
 internal sealed record EngineRoleRegistration(string Role, string OptionsFingerprint)

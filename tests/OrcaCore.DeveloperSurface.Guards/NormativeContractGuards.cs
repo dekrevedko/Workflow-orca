@@ -58,7 +58,7 @@ public sealed partial class NormativeContractInfrastructureGuards
         Contract.RuntimeCreatedValues.Should().HaveCount(5).And.OnlyHaveUniqueItems();
         Contract.WorkflowDiagnostics.Should().HaveCount(27).And.OnlyHaveUniqueItems();
         Contract.DagDiagnostics.Should().HaveCount(7).And.OnlyHaveUniqueItems();
-        Contract.FailureCodes.Should().HaveCount(26).And.OnlyHaveUniqueItems();
+        Contract.FailureCodes.Should().HaveCount(28).And.OnlyHaveUniqueItems();
         Contract.AllowedFriends.Should().Equal(
             "OrcaCore->OrcaCore.Core",
             "OrcaCore->OrcaCore.Dag",
@@ -82,7 +82,7 @@ public sealed partial class NormativeContractInfrastructureGuards
         Contract.Diagnostics.Select(x => x.Name).Should().OnlyHaveUniqueItems();
         Contract.Diagnostics.Select(x => x.Meaning).Should().OnlyHaveUniqueItems();
         Contract.Failures.Select(x => x.Code).Should().Equal(Contract.FailureCodes);
-        Contract.Ownership.Should().HaveCount(13);
+        Contract.Ownership.Should().HaveCount(14);
     }
 
     [Fact]
@@ -376,6 +376,8 @@ public sealed class NormativeContractProductGuards
             x.Family.StartsWith("Workflow strong values", StringComparison.Ordinal));
         var dagOwner = Contract.Ownership.Single(x =>
             x.Family.StartsWith("`DagNodeId`", StringComparison.Ordinal));
+        var shutdownOwner = Contract.Ownership.Single(x =>
+            x.Family.StartsWith("Ephemeral lifetime, shutdown result", StringComparison.Ordinal));
         using var scope = new AssertionScope();
         foreach (var name in expectedTypes)
         {
@@ -385,9 +387,9 @@ public sealed class NormativeContractProductGuards
             {
                 var failure = Contract.Failures.SingleOrDefault(x =>
                     Regex.Match(x.Owner, "^`(?<type>[^`]+)`$").Groups["type"].Value == name);
-                var expectedOwner = failure?.Code.StartsWith("DAG-", StringComparison.Ordinal) == true
-                    ? dagOwner
-                    : workflowOwner;
+                var expectedOwner = failure?.Code.StartsWith("WF-EPHEMERAL-", StringComparison.Ordinal) == true
+                    ? shutdownOwner
+                    : failure?.Code.StartsWith("DAG-", StringComparison.Ordinal) == true ? dagOwner : workflowOwner;
                 matches[0].Namespace.Should().Be(expectedOwner.Namespace);
                 matches[0].Assembly.GetName().Name.Should().Be(expectedOwner.Assembly);
             }

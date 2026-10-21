@@ -195,3 +195,14 @@ from application-issued termination metrics.
 
 The sample may intentionally use the development/test in-memory provider so it can build and
 smoke-test without external infrastructure, but it must not imply restart durability.
+
+The issue #2 source/candidate-package target implements shutdown; independent
+source approval and release publication remain separate gates. Its ephemeral
+lifetime is automatically owned by the existing engine role. Use the engine guide's
+ordered Generic Host drainer (registered after the engine; sequential stops and one
+shared budget), explicit-host owner, or controlled plain-DI submitters. Retain the
+actual host/provider/scopes on Incomplete. Drain initialized pending starts to Accepted
+before awaiting their handles; only Stopping elects abort. Capture existing stuck-step/
+lifecycle diagnostics before stop, since Incomplete has only a count. The Section 3
+package-only consumer exercises dependency sentinels and all three recipes; sample
+source is unchanged. Earlier published binaries do not acquire this API from these docs.

@@ -40,13 +40,17 @@ internal sealed class StepExecutor<TState>
             .ConfigureAwait(false);
         using var stateAccess = await instance.EnterStateAccessAsync(cancellationToken).ConfigureAwait(false);
         var timedOut = 0;
-        using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var timeoutCancellation = instance.Lifetime.CreateCancellationScope(cancellationToken);
         using var timeoutTimer = stepNode.Policies.Timeout is { } timeout
             ? timeProvider.CreateTimer(
                 _ =>
                 {
+                    if (!instance.Lifetime.TryEnterCallback(out var callback)) return;
+                    using var callbackOwnership = callback;
+                    using var sourceOwnership = timeoutCancellation.TryOwn();
+                    if (sourceOwnership is null) return;
                     Interlocked.Exchange(ref timedOut, 1);
-                    timeoutCancellation.Cancel();
+                    _ = timeoutCancellation.CancelAsync();
                 },
                 null,
                 timeout.Duration,
@@ -65,7 +69,11 @@ internal sealed class StepExecutor<TState>
             instance.StartStep(stepPath, stepStartedAt, stepNode.Policies.Timeout?.Duration);
             using var stuckTimer = stuckStepThreshold is { } threshold
                 ? timeProvider.CreateTimer(
-                    _ => instance.MarkStuckStep(stepPath, timeProvider.GetUtcNow()),
+                    _ =>
+                    {
+                        if (!instance.Lifetime.TryEnterCallback(out var callback)) return;
+                        using (callback) instance.MarkStuckStep(stepPath, timeProvider.GetUtcNow());
+                    },
                     null,
                     threshold,
                     Timeout.InfiniteTimeSpan)
@@ -80,7 +88,7 @@ internal sealed class StepExecutor<TState>
                     timeProvider,
                     forEachItem);
                 var result = await instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
-                    () => step.ExecuteAsync(context, executionToken).AsTask()).ConfigureAwait(false);
+                    () => timeoutCancellation.RunAsync(() => step.ExecuteAsync(context, executionToken).AsTask())).ConfigureAwait(false);
                 cancellationToken.ThrowIfCancellationRequested();
                 var stepCompletedAt = timeProvider.GetUtcNow();
                 instance.CompleteStep(stepPath, stepCompletedAt);

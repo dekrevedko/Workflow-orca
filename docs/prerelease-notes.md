@@ -15,8 +15,20 @@ Current limitations:
   consumer qualification; approval alone does not add the policy to these binaries:
   [issue #1](https://github.com/dekrevedko/Workflow-orca/issues/1).
 - Applications must request cancellation and settle active work before disposing dependencies.
-  Host shutdown does not yet provide an integrated stop-and-join guarantee:
+  Host stop-and-join is implemented in the issue #2 source/candidate-package target,
+  pending independent source approval and publication; these earlier release binaries do not include it:
   [issue #2](https://github.com/dekrevedko/Workflow-orca/issues/2).
 - Native AOT and trimming are not qualified:
   [issue #3](https://github.com/dekrevedko/Workflow-orca/issues/3).
 - Durable DAG execution remains incomplete. Packaging does not complete its implementation gates.
+
+Shutdown source candidate (issue #2): its hosted StopAsync throws on
+Incomplete, possibly aggregated, where the old no-op stop returned cleanly.
+Run/RunAsync still disposes in finally; only an explicit actual owner can retain
+dependencies after incomplete work. Use the engine guide's ordered sequential
+Generic Host drainer within the shared shutdown budget, an explicit host owner,
+or a plain-DI submission gate, then StopAsync and Completed before disposal.
+ApplicationStopping only closes; initialized pending starts can still become Accepted.
+Disposable job hosts used for memory bounding above are not a stop guarantee.
+This is guidance for the implemented source/candidate packages; these earlier release
+binaries do not include it. Publication follows independent source/consumer approval.

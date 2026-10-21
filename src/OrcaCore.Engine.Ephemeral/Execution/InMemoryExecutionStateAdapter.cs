@@ -83,7 +83,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 instance.CreatedAt.Add(workflowTimeout));
         }
 
-        await RunUntilBoundaryAsync(cancellationToken).ConfigureAwait(false);
+        using var executionCancellation = instance.CreateLinkedExecutionToken(cancellationToken);
+        try { await RunUntilBoundaryAsync(executionCancellation.Token).ConfigureAwait(false); }
+        catch (OperationCanceledException error) when (!cancellationToken.IsCancellationRequested &&
+            instance.Lifetime.IsStoppingCancellation(error, executionCancellation.Token))
+        {
+            throw new global::OrcaCore.Hosting.EphemeralHostStoppingException();
+        }
         return instance;
     }
 
@@ -99,6 +105,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             plan.CompilerOptions.MaxInternalInstructionsPerQuantum);
         while (true)
         {
+            instance.Lifetime.RequireExecution();
             cancellationToken.ThrowIfCancellationRequested();
             if (LifecycleMachine.TerminalStatuses.Contains(instance.Status))
             {
@@ -398,29 +405,27 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
 
         await using var ownedGovernanceLease = governanceLease;
         var timedOut = 0;
-        TaskCompletionSource? timeoutReached = null;
-        using var timeoutCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        TaskCompletionSource? timeoutReached = instruction.Policy.Timeout.HasValue
+            ? new(TaskCreationOptions.RunContinuationsAsynchronously) : null;
+        using var timeoutCancellation = instance.Lifetime.CreateCancellationScope(cancellationToken);
         using var timeoutTimer = instruction.Policy.Timeout is { } timeout
             ? timeProvider.CreateTimer(
                 _ =>
                 {
+                    if (!instance.Lifetime.TryEnterCallback(out var callback)) return;
+                    using var callbackOwnership = callback;
+                    using var sourceOwnership = timeoutCancellation.TryOwn();
+                    if (sourceOwnership is null) return;
                     Interlocked.Exchange(ref timedOut, 1);
                     // Deliver cancellation before waking the turn: otherwise it can
                     // dispose this source while the timer callback still needs it.
-                    try { timeoutCancellation.Cancel(); }
-                    catch (ObjectDisposedException) { /* Physical completion won disposal before this callback. */ }
-                    finally { timeoutReached?.TrySetResult(); }
+                    _ = timeoutCancellation.CancelAsync();
+                    timeoutReached?.TrySetResult();
                 },
                 null,
                 timeout,
                 Timeout.InfiniteTimeSpan)
             : null;
-        if (timeoutTimer is not null)
-        {
-            timeoutReached = new TaskCompletionSource(
-                TaskCreationOptions.RunContinuationsAsynchronously);
-        }
-
         var executionToken = timeoutTimer is null ? cancellationToken : timeoutCancellation.Token;
         var maxAttempts = instruction.Policy.Retry?.MaxAttempts ?? 1;
         var attempt = checked(updatedFiber.RetryAttempt + 1);
@@ -436,7 +441,11 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         instance.StartStep(instruction.Path, stepStartedAt, instruction.Policy.Timeout);
         using var stuckTimer = stuckStepThreshold is { } threshold
             ? timeProvider.CreateTimer(
-                _ => instance.MarkStuckStep(instruction.Path, timeProvider.GetUtcNow()),
+                _ =>
+                {
+                    if (!instance.Lifetime.TryEnterCallback(out var ownership)) return;
+                    using (ownership) instance.MarkStuckStep(instruction.Path, timeProvider.GetUtcNow());
+                },
                 null,
                 threshold,
                 Timeout.InfiniteTimeSpan)
@@ -468,7 +477,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider,
                     forEachItem);
                 var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
-                    () => rootStep.ExecuteAsync(stepContext, executionToken).AsTask());
+                    () => timeoutCancellation.RunAsync(() => rootStep.ExecuteAsync(stepContext, executionToken).AsTask()));
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
                         timeoutReached.Task &&
@@ -509,7 +518,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 var localState = codec.Deserialize(localPayload) ??
                     throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException("Branch state deserialized to null.");
                 var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
-                    () => StructuredInvocationCache.ExecuteStepAsync(
+                    () => timeoutCancellation.RunAsync(() => StructuredInvocationCache.ExecuteStepAsync(
                     branch.Input.BranchStateType,
                     step,
                     localState,
@@ -518,7 +527,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider,
                     forEachItem,
                     resourceLease: null,
-                    cancellationToken: executionToken).AsTask());
+                    cancellationToken: executionToken).AsTask()));
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
                         timeoutReached.Task &&
@@ -555,6 +564,14 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         {
             instance.CompleteStep(instruction.Path, timeProvider.GetUtcNow());
             result = TimedOutStepResult(operationId, attempt, instruction);
+        }
+        catch (OperationCanceledException error) when (cancellationToken.IsCancellationRequested &&
+            error.CancellationToken == executionToken)
+        {
+            // Normalize cancellation propagated through a step-timeout child source
+            // to the admitted execution token. Unrelated original errors retain
+            // their identity even if Stopping happens concurrently.
+            throw new OperationCanceledException(error.Message, error, cancellationToken);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {

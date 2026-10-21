@@ -14,6 +14,7 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider) : IDispos
     private int disposed;
 
     internal bool IsDispatching => Volatile.Read(ref dispatching) != 0;
+    internal global::OrcaCore.Hosting.EphemeralHostLifetime? HostLifetime { get; set; }
 
     internal void SetDueDispatcher(Func<CancellationToken, Task> dispatcher)
     {
@@ -141,17 +142,20 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider) : IDispos
 
     private void SignalDue()
     {
+        global::OrcaCore.Hosting.EphemeralHostLifetime.Lease? ownership = null;
+        if (HostLifetime is { } host && !host.TryEnterCallback(out ownership)) return;
         if (Volatile.Read(ref disposed) != 0 ||
             dispatchDueAsync is null ||
             Interlocked.CompareExchange(ref dispatching, 1, 0) != 0)
         {
+            ownership?.Dispose();
             return;
         }
 
-        _ = DispatchDueSafelyAsync();
+        _ = DispatchDueSafelyAsync(ownership);
     }
 
-    private async Task DispatchDueSafelyAsync()
+    private async Task DispatchDueSafelyAsync(IDisposable? ownership)
     {
         var failed = false;
         try
@@ -161,15 +165,18 @@ internal sealed class EphemeralTimerService(TimeProvider timeProvider) : IDispos
         catch (Exception)
         {
             failed = true;
-            RearmReleasedDueTimers();
+            try { if (Volatile.Read(ref disposed) == 0) RearmReleasedDueTimers(); }
+            catch (Exception) { HostLifetime?.Fault(); }
         }
         finally
         {
-            Volatile.Write(ref dispatching, 0);
-            if (!failed && HasUnclaimedDueTimers())
+            try
             {
-                SignalDue();
+                Volatile.Write(ref dispatching, 0);
+                if (!failed && Volatile.Read(ref disposed) == 0 && HasUnclaimedDueTimers()) SignalDue();
             }
+            catch (Exception) { HostLifetime?.Fault(); }
+            finally { ownership?.Dispose(); }
         }
     }
 

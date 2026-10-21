@@ -1,0 +1,96 @@
+{
+  "stage": "ProposedContractReviewPending",
+  "baseCommit": "fa88986aaac219c998b15e96748efdf2f245de51",
+  "semanticApprovalEligible": false,
+  "contractApproval": null,
+  "canonicalApproval": null,
+  "sourceApproval": null,
+  "publicApiPath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/contract-public-api-2026-10-18.md",
+  "publicApiNormalizedSha256": "18a9c42cf797ac87c7ab4faa4c3c9549b9b3272aeea386175cd94d6ae9e29068",
+  "pendingCanonicalOperations": [
+    {
+      "capability": "developer-facing-surface",
+      "count": 2,
+      "turnsGreenChange": "add-ephemeral-host-shutdown",
+      "turnsGreenTask": "2.2"
+    },
+    {
+      "capability": "management-and-querying",
+      "count": 4,
+      "turnsGreenChange": "add-ephemeral-host-shutdown",
+      "turnsGreenTask": "2.2"
+    }
+  ],
+  "requirements": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Ephemeral host shutdown has one supported observation contract",
+      "operation": "ADDED",
+      "deltaBlockSha256": "6dc7fce06a29742d54ce23bc63644852d62c8236e7b3506f03733c5f13271ce5",
+      "canonicalBlockSha256": null,
+      "state": "PendingAddition"
+    },
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Ephemeral host shutdown preserves dependency ownership",
+      "operation": "ADDED",
+      "deltaBlockSha256": "389568673e999728c85dd4bbf2e8984089ecb677d23b18786ce136ee920847e0",
+      "canonicalBlockSha256": null,
+      "state": "PendingAddition"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Ephemeral host shutdown closes admission atomically",
+      "operation": "ADDED",
+      "deltaBlockSha256": "4d3c58896c04d76126fd4ddd7becb7b0e84c7e9e9b66235e8a4b8b731bcff355",
+      "canonicalBlockSha256": null,
+      "state": "PendingAddition"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Completed ephemeral host shutdown proves host-wide quiescence",
+      "operation": "ADDED",
+      "deltaBlockSha256": "aded32c0918e3f2cd8bf2e9c3a0b535455d21182b434a4f411c39aecbc925134",
+      "canonicalBlockSha256": null,
+      "state": "PendingAddition"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Incomplete ephemeral host shutdown preserves truthful ownership",
+      "operation": "ADDED",
+      "deltaBlockSha256": "5f735fd7e411a39157f7241ae5bef7641f0d54cf049724d3ea17e58b8e6829d3",
+      "canonicalBlockSha256": null,
+      "state": "PendingAddition"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Repeated ephemeral host shutdown observes one irreversible stop",
+      "operation": "ADDED",
+      "deltaBlockSha256": "3ad75931371674f27e36afd2497ec9c4f1f22a0909a018da185535ef1227d4cb",
+      "canonicalBlockSha256": null,
+      "state": "PendingAddition"
+    }
+  ],
+  "futureRegistryRecords": [
+    {
+      "id": "ephemeral-shutdown-developer-facing-surface",
+      "capability": "developer-facing-surface",
+      "requirementCount": 2,
+      "stage": "NotInstalledBeforeApproval",
+      "owningChange": "add-ephemeral-host-shutdown",
+      "contractReviewTask": "1.4",
+      "canonicalReviewTask": "2.2",
+      "sourceReviewTask": "3.5"
+    },
+    {
+      "id": "ephemeral-shutdown-management-and-querying",
+      "capability": "management-and-querying",
+      "requirementCount": 4,
+      "stage": "NotInstalledBeforeApproval",
+      "owningChange": "add-ephemeral-host-shutdown",
+      "contractReviewTask": "1.4",
+      "canonicalReviewTask": "2.2",
+      "sourceReviewTask": "3.5"
+    }
+  ]
+}

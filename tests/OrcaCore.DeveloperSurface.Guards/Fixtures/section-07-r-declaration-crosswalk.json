@@ -3,13 +3,13 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 351,
-    "physicalDeclarations": 1456,
-    "activeFiles": 203,
-    "activeDeclarations": 768,
+    "physicalFiles": 358,
+    "physicalDeclarations": 1497,
+    "activeFiles": 209,
+    "activeDeclarations": 809,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
-    "outOfBandFixtureFiles": 17,
+    "outOfBandFixtureFiles": 18,
     "outOfBandFixtureDeclarations": 0,
     "inactiveProjectFiles": 0,
     "inactiveProjectDeclarations": 0,
@@ -654,6 +654,12 @@
       "declarations": 0
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/EphemeralShutdownConstruction/Forbidden.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/EphemeralShutdownConstruction/EphemeralShutdownConstruction.csproj",
+      "status": "out-of-band-fixture",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ExactAuthoring/Authoring.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ExactAuthoring/ExactAuthoring.csproj",
       "status": "out-of-band-fixture",
@@ -742,6 +748,18 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownSurfaceGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 5
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/ExecutableBehaviorContractGuards.cs",
@@ -1702,6 +1720,30 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
       "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/HostShutdownTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 9
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/ShutdownBoundaryTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 10
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/ShutdownDrainTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 5
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/ShutdownOwnershipTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 10
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Support/EphemeralEventRouterTestExtensions.cs",

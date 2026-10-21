@@ -94,6 +94,12 @@ The runtime source under `src/`, public API baselines, canonical specs, active t
 and implementation approval states were not changed. No commits, branches, tags, pushes, releases,
 or registry publications were created during the initial preparation audit.
 
+Issue #2's shutdown contract (3c8d33c / 4bd7c3e) and F2 canonical transition
+(2e51fbd / 6253f6c) are approved and checkpointed. The Section 3 source/candidate-
+package target implements the seven lifetime/result/exception declarations and
+qualifies the three drain recipes. Independent source approval, a push, a PR and
+release publication remain pending; no published shutdown API is claimed here.
+
 ## Validation
 
 Windows and a clean Linux container with SDK `10.0.402` both built the complete solution in

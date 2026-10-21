@@ -218,3 +218,15 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Ephemeral host drain and producer sealing
+
+For MG-066/067, Closed SHALL leave accepted-instance event matching, new output
+waits, delays, timers, retries and resource continuations operational. An already-
+initialized pending start can complete normally during Closed. From Stopping, no
+new live ingress/wait or business attempt is admitted; entered callbacks, dispatcher
+turns, timer disposal, first cancellation dispatch and required fences/notifications
+remain owned and joined. Successor ownership precedes predecessor release. After
+Completed, late sealed trampolines only check the gate and return, without user/DI
+access, rearming or commits. This changes no durable acceptance/reminder guarantee.
+The timing and handoff tests are AC-547/548/550/552, not wall-clock sleeps.

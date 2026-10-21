@@ -64,6 +64,11 @@ handles expose typed `StartOrGetAsync` in both modes, with durable mode providin
 binding. Ephemeral start bindings instead follow the retained-instance lifetime in MG-058;
 an expired key can create a new execution even if the earlier execution produced effects.
 
+MG-066–069 add an ephemeral host-lifetime precondition, not a workflow retry,
+pause/resume/archive/purge command. Typed definition handles still own starts.
+Closed refuses new/replayed starts but allows already-initialized pending starts
+and accepted-instance work to finish; Stopping alone seals live operations.
+
 ### MG-011 Durable management commands are deferred
 Public `Pause`, `Resume`, failed-instance/step management `Retry`, `GetHistory`, `Archive`, and
 `Purge` are deferred in both modes. They SHALL be absent from assemblies and compile fixtures.
@@ -188,6 +193,11 @@ equal values compose idempotently and differing values conflict before service m
 All positive intervals within those ceilings, including one tick, are valid; very small intervals
 can cause continuously busy sweeps/CPU overhead and SHALL be documented without silent clamping.
 
+Closed does not unbind accepted records or alter this policy; accepted operations,
+idle retirement and normal not-found races continue during drain. Stopping seals
+and joins retention producers, and Completed freezes retained metadata until owner
+disposal. New/replayed starts remain refused throughout Closed and later. [MG-066/067]
+
 ### MG-055 Physical settlement and provisional aborts
 Accepted active, waiting, delayed or cancellation-requested work, and terminal work with
 unsettled owned root/branch/item attempts, callbacks, continuations or commits, SHALL be
@@ -203,6 +213,12 @@ No facade binding, start-key binding or handle is published. It stays outside th
 retention budget and is released eagerly after physical settlement even with retention off.
 If atomic acceptance wins, return `Accepted`; later start-token cancellation cannot cancel the
 accepted workflow. An abort error is not evidence that no step/effect ran or that retry is safe.
+
+Host closure is not an additional provisional-start error: initialization admitted
+before Closed can finish and publish Accepted during drain. Only still-unaccepted
+starts losing the Stopping election use the host-stopping abort path, preserving
+authoritative original errors and physical settlement. Existing start-token and
+post-Init exception abort rules above remain unchanged. [MG-066, AC-546]
 
 ### MG-056 One complete ephemeral retirement unit
 Retirement SHALL remove the runtime instance, retained state/output/failure ownership, facade
@@ -557,3 +573,68 @@ defensively copies the collection; requires version zero exactly when empty; and
 complete v1 sequence `1..Version`. `AppendAsync` copies one non-empty batch numbered exactly
 `expectedVersion + 1..expectedVersion + count` and commits all or returns expected-version
 `Conflict`; partial or empty append is non-conforming.
+
+## Ephemeral host lifetime
+
+### MG-066 Admission closes before shutdown cancellation
+The host SHALL progress irreversibly Open -> Closed -> Stopping -> Completed.
+ApplicationStopping SHALL establish only Closed from token state even if callback
+notification is blocked. New/replayed/conflicting starts and compatible registrations
+SHALL fail as host-stopping before serialization/mutation; preserve ordinary token/
+argument and metadata-only static HostIncompatible precedence. Queued pre-Init starts
+SHALL reject at Closed; starts whose initialization admission already won SHALL
+proceed normally and MAY publish Accepted during Closed. Accepted work SHALL retain
+normal queries, new waits, commands, ingress, timers, retries/grants and retention.
+Only public or engine-hosted StopAsync SHALL enter Stopping, closing first if needed.
+Acceptance/abort SHALL elect at Stopping; only still-unaccepted losers SHALL be
+caller-independently fenced with original-error/cancellation and terminal precedence.
+Close SHALL wait on no start semaphore/lane and run no user code under its gate.
+
+From Stopping, metadata-only original-ID not-found/identity/state-type mismatch
+precedence SHALL remain. Otherwise new live GetInstanceAsync, snapshot/state/output
+queries, output waits, cancellation/termination and ingress SHALL fail as stopping:
+they can acquire runtime state/pins, decode, invoke callbacks/dependencies or commit.
+Already admitted work SHALL finish with normal outcomes and stay joined. Passive
+registered-definition handle identity lookup on an already-resolved registry and
+previously detached caller values remain available. Closure SHALL NOT expire a key,
+replace an ID, prove a start never ran or authorize effect-safe replay.
+
+### MG-067 Completed means stable host-wide physical quiescence
+Completed SHALL require stable zero after sealing every producer: pre-handle starts,
+operations/lanes, root/branch/item attempts and capacity release, retry/resource/yield,
+first cancellation dispatch/handlers, entered timers/dispatch/sweeps, commits,
+notifications and cleanup handoffs. Successors SHALL own before predecessors release.
+An empty registry, logical terminal, disposed timer or replaceable WhenSettled task
+snapshot SHALL NOT suffice. Stopping SHALL admit only entered work and required
+fences/cleanup, preserve immutable terminals and hold noncooperative physical slots.
+Stop observers SHALL not wait for themselves; dependency-using handoffs remain owned.
+After Completed no engine path SHALL create work, use DI/user code, arm timers,
+dispatch diagnostics/notifications or commit. Live operations remain rejected even
+for terminal retained results; metadata is frozen until ordinary owner disposal.
+Pure validation/identity errors, passive definition-handle identity, detached values
+and cached Completed are allowed; the fast path SHALL not call TimeProvider or
+create observation resources. Actual owner disposal releases already joined storage.
+
+### MG-068 Incomplete reports ownership without claiming stop
+DeadlineElapsed, ObservationCancelled and ShutdownFaulted SHALL be the exact reasons;
+PendingWorkCount SHALL be a detached nonnegative obligation count, not instance/body/
+thread/byte identity, and Incomplete SHALL retain at least one real/faulted proof
+obligation. Faulted accounting/sealing SHALL fail closed. First asynchronous
+cancellation dispatch, linked propagation and entered handlers SHALL stay owned;
+repeating CancelAsync does not prove the first finished. Blocked handlers SHALL not
+block an observer deadline inline. Throwing callbacks SHALL be contained, diagnosed
+and settled without preventing independent progress. No deadline/fence/result SHALL
+fabricate physical release. The owner SHALL retain actual DI dependencies. [NF-032]
+
+### MG-069 Stop observations share one irreversible operation
+StopAsync SHALL validate exact timeout ticks first (InfiniteTimeSpan or zero through
+4,294,967,294ms), then public pre-cancelled token (no effect), then root disposal.
+Admitted public/hosted calls start Stopping or join the shared operation; zero observes
+immediately, infinite is explicitly unbounded, and finite monotonic budgets include
+queued work. Hosted entry SHALL start Stopping even with an exhausted host token.
+Decision precedence SHALL be accounting fault, stable completion, local cancellation,
+then deadline. Admitted cancellation SHALL return Incomplete, never cancel the join
+or other observers. Later observations can see actual completion; accounting faults
+stay incomplete. Roots are independent; no observer/token/result history accumulates.
+Hosted stop SHALL return only for Completed, otherwise throw the typed incomplete
+exception. Exact signatures/validation are in doc 17 and PR-041.

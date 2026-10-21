@@ -233,6 +233,36 @@ all values. It adds no role entry point, provider SPI, friend, binder or seriali
 Ephemeral terminal retirement is host-local and independent of durable provider retention;
 mandatory unaccepted-abort settlement cleanup applies even when that policy is omitted.
 
+PR-041 adds one automatically owned ephemeral lifetime singleton to this same role,
+not another role entry or option. Its types remain engine-owned in OrcaCore.Hosting;
+the existing TerminalRetention fingerprint and provider boundary stay unchanged.
+
+### PR-041 Ephemeral lifetime service and application disposal owner
+OrcaCore.Engine.Ephemeral SHALL own exactly the seven doc-17 shutdown declarations
+in OrcaCore.Hosting, including nested Completed/Incomplete, with internal construction
+and the one StopAsync signature. The existing role SHALL reserve one singleton per
+root, identical from child scopes; equal role/options remain idempotent. A conflicting
+application descriptor before first registration SHALL fail ArgumentException for
+services before mutation. No option, fingerprint value, role toggle, dependency,
+serializer seam or friend SHALL be added. API/compile/package baselines change only
+with implementing source, not this canonical transition.
+
+One explicit application owner SHALL retain the actual host/provider/scopes/external
+dependencies on Incomplete, reobserve, and dispose only after Completed and other
+hosted stops. Ordered Generic Host drain SHALL register an application IHostedService
+after the engine, stop sequentially (ServicesStopConcurrently=false), await its own
+pending starts/handles using the shared HostOptions.ShutdownTimeout token, and keep
+required ingress/dependencies alive. Concurrent stops promise no drain window. An
+explicit host owner MAY instead await controlled starts/handles before engine stop,
+without a concurrent host/engine stop. Plain DI SHALL first close its own submission
+gate, join submitters/pending starts and drain handles while engine admission stays
+Open, then call StopAsync. No plain-DI close-only API is introduced. Drain-budget
+expiry SHALL proceed to stop; no incomplete outcome authorizes provider disposal.
+RunAsync now surfaces incomplete hosted stop as an exception, possibly aggregated,
+but still disposes in finally; that pattern SHALL NOT claim incomplete ownership
+safety. Raw disposal only closes as abortive teardown and does not start a join,
+veto external disposal or prove physical stop. [MG-066–069, NF-032]
+
 ## 10.6 Internal design conventions (extensibility-adjacent)
 
 ### PR-050 Explicit outcome primitives

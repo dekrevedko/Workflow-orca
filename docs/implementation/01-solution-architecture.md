@@ -182,6 +182,14 @@ compilation.
   `WorkflowActivationCommitted`, and `GovernanceOwnershipConfirmed`. They expose fixed-codec
   immutable facts only and do not create a public authoring/runtime API.
 
+The ephemeral shutdown amendment preserves these package tiers: its lifetime and
+closed result/errors are owned by Engine.Ephemeral in OrcaCore.Hosting. One explicit
+application session owns the actual provider/host/scopes, retaining them across
+Incomplete. An ordered Generic Host drainer or explicit-host owner drains initialized
+pending starts/handles before Stopping; plain DI controls its own submission gate
+before stop. No hidden provider, public Close seam or new friend is permitted.
+Implementing source/consumer qualification remains pending.
+
 ## 4. Port catalog (interfaces allowed here; signatures indicative, not code)
 
 Provider ports and their commit DTOs are advanced contracts in `OrcaCore.Provider.Abstractions`

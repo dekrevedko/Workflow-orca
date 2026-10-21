@@ -15,18 +15,38 @@ internal sealed class EphemeralWorkflowEventRouter(
     private readonly object gate = new();
     private readonly Dictionary<(InstanceId InstanceId, string EventId), string> accepted = [];
 
-    internal ValueTask<EphemeralEventRouteResult> RouteAsync(
+    internal async ValueTask<EphemeralEventRouteResult> RouteAsync(
         WorkflowInboundEvent inboundEvent,
-        CancellationToken cancellationToken = default) =>
-        RouteCoreAsync(inboundEvent, payloadBytes: null, cancellationToken);
+        CancellationToken cancellationToken = default)
+    {
+        using var admission = Admit(inboundEvent, cancellationToken);
+        return await RouteCoreAsync(inboundEvent, payloadBytes: null, cancellationToken).ConfigureAwait(false);
+    }
 
-    internal ValueTask<EphemeralEventRouteResult> RouteAsync<TPayload>(
+    internal async ValueTask<EphemeralEventRouteResult> RouteAsync<TPayload>(
         WorkflowInboundEvent<TPayload> inboundEvent,
-        CancellationToken cancellationToken = default) =>
-        RouteCoreAsync(
+        CancellationToken cancellationToken = default)
+    {
+        using var admission = Admit(inboundEvent, cancellationToken);
+        return await RouteCoreAsync(
             inboundEvent,
             CoreWorkflowValueCodec.Serialize(inboundEvent.Payload, typeof(TPayload)),
-            cancellationToken);
+            cancellationToken).ConfigureAwait(false);
+    }
+
+    private global::OrcaCore.Hosting.EphemeralHostLifetime.Lease Admit(WorkflowInboundEvent inboundEvent, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(inboundEvent);
+        token.ThrowIfCancellationRequested();
+        lock (engine.VisibilityGate)
+        {
+            if (inboundEvent.Route is WorkflowEventRoute.Direct direct &&
+                (!registry.TryGetInstance(direct.InstanceId, out _) || !engine.TryGetFacadeInstance(direct.InstanceId, out var instance) || instance!.Lifetime.IsRetired))
+                throw FacadeValueFactory.InstanceNotFound(direct.InstanceId);
+            engine.HostLifetime.RequireRunning();
+            return engine.HostLifetime.Own();
+        }
+    }
 
     private ValueTask<EphemeralEventRouteResult> RouteCoreAsync(
         WorkflowInboundEvent inboundEvent,

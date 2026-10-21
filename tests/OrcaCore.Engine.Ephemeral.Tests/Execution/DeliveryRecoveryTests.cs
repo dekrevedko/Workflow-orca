@@ -100,7 +100,7 @@ public sealed class DeliveryRecoveryTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public void TerminalCommand_CancelsOutstandingTimersAndWaits(bool terminate)
+    public async Task TerminalCommand_CancelsOutstandingTimersAndWaits(bool terminate)
     {
         var instance = Create();
         var timer = instance.EnterDelay(null, Now);
@@ -110,6 +110,8 @@ public sealed class DeliveryRecoveryTests
         timer.SetCancel(() => cancelledTimers++);
         wait.SetCancelLoser(() => cancelledWaits++);
         using var token = instance.CreateLinkedExecutionToken(CancellationToken.None);
+        var cancellationObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellationObservation = token.Token.Register(() => cancellationObserved.TrySetResult());
 
         var terminal = terminate ? instance.Terminate(Now.AddSeconds(1)) : instance.Cancel(Now.AddSeconds(1));
 
@@ -117,7 +119,11 @@ public sealed class DeliveryRecoveryTests
         cancelledTimers.Should().Be(1);
         cancelledWaits.Should().Be(1);
         instance.HasUnresolvedRuntimeWork.Should().BeFalse();
-        if (!terminate) token.IsCancellationRequested.Should().BeTrue();
+        if (!terminate)
+        {
+            await cancellationObserved.Task.WaitAsync(TimeSpan.FromSeconds(10), TestContext.Current.CancellationToken);
+            token.IsCancellationRequested.Should().BeTrue();
+        }
     }
 
     [Fact]

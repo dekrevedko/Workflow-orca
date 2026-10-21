@@ -51,7 +51,8 @@
     "WF-OUTPUT-UNAVAILABLE", "WF-STEP-UNHANDLED", "SFE-JOIN-FAILED", "DAG-RUN-NOT-FOUND",
     "DAG-RUN-DEFINITION-MISMATCH", "DAG-DEFINITION-REGISTRATION-CONFLICT",
     "DAG-START-IDEMPOTENCY-CONFLICT", "DAG_INPUT_MAPPING_INVALID", "CHILD_FAILED",
-    "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED"
+    "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED",
+    "WF-EPHEMERAL-HOST-STOPPING", "WF-EPHEMERAL-SHUTDOWN-INCOMPLETE"
   ],
   "allowedFriends": [
     "OrcaCore->OrcaCore.Core",
@@ -126,13 +127,16 @@
     {"code":"DAG-DEFINITION-REGISTRATION-CONFLICT","owner":"`DagDefinitionRegistrationConflictException`"}, {"code":"DAG-START-IDEMPOTENCY-CONFLICT","owner":"`DagStartIdempotencyConflictException`"},
     {"code":"DAG_INPUT_MAPPING_INVALID","owner":"opaque mapper access/projector failure before child start"},
     {"code":"CHILD_FAILED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_TIMED_OUT","owner":"normalized DAG child terminal failure"},
-    {"code":"CHILD_TERMINATED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_CANCELLED","owner":"normalized DAG child terminal failure"}
+    {"code":"CHILD_TERMINATED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_CANCELLED","owner":"normalized DAG child terminal failure"},
+    {"code":"WF-EPHEMERAL-HOST-STOPPING","owner":"`EphemeralHostStoppingException`"},
+    {"code":"WF-EPHEMERAL-SHUTDOWN-INCOMPLETE","owner":"`EphemeralHostShutdownIncompleteException`"}
   ],
   "ownership": [
     {"family":"Workflow strong values (all §17.2.1 values except `DagNodeId` and `DagRunId`), workflow authoring/definitions/references, ordinary handles/events/results/errors","namespace":"OrcaCore","assembly":"OrcaCore"},
     {"family":"`DagNodeId`, `DagRunId`, DAG authoring/definitions/references/handles/results/errors","namespace":"OrcaCore.Dag","assembly":"OrcaCore.Dag"},
     {"family":"`StructuredExecutionHostOptions`, `StepExecutionThrottle`","namespace":"OrcaCore.Hosting","assembly":"OrcaCore"},
     {"family":"`EphemeralEngineHostOptions`, `EphemeralTerminalRetentionPolicy`, `TransientPoolDefinition`, ephemeral registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Engine.Ephemeral"},
+    {"family":"Ephemeral lifetime, shutdown result (including nested Completed/Incomplete), incomplete-reason enum and two shutdown exceptions","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Engine.Ephemeral"},
     {"family":"`DurableEngineHostOptions`, `DurableResourcePoolOptions`, `DurableResourcePoolDefinition`, durable engine/ingress registration extension","namespace":"OrcaCore.Hosting","assembly":"OrcaCore.Durable.Hosting"},
     {"family":"`DagHostOptions`, DAG registration extension","namespace":"OrcaCore.Dag.Hosting","assembly":"OrcaCore.Dag.Hosting"},
     {"family":"Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result","namespace":"OrcaCore.Runtime.Protocol.ResourceGovernance","assembly":"OrcaCore.Runtime.Protocol"},
