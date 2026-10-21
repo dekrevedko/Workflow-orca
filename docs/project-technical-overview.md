@@ -36,7 +36,7 @@ source/test roots remain removed, and durable storage providers beyond PostgreSQ
 require a future amendment and complete current certification. Hosting packages register internal
 runtimes, continuation processing, operational services, and telemetry.
 
-The implementation-pending shutdown contract adds one engine-owned lifetime beside
+The issue #2 source candidate implements one engine-owned shutdown lifetime beside
 the shared registry. Closed rejects new/replayed starts and compatible registrations
 without cancelling; starts already past initialization admission and accepted work
 can drain. Stopping is entered only by engine-hosted/public StopAsync and joins all

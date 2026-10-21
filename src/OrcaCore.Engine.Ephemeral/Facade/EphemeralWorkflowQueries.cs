@@ -9,7 +9,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry
 {
     private EphemeralInstanceLifetime.WorkLease Pin(
         InstanceId id, out IWorkflowInstance runtime, out InstanceBinding binding,
-        DefinitionId? expectedId = null, DefinitionVersion? expectedVersion = null)
+        DefinitionId? expectedId = null, DefinitionVersion? expectedVersion = null, Type? requestedType = null)
     {
         lock (gate)
         {
@@ -18,6 +18,9 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry
                 throw FacadeValueFactory.InstanceNotFound(id);
             if (expectedId is not null && (!found.DefinitionId.Equals(expectedId) || !found.DefinitionVersion.Equals(expectedVersion)))
                 throw FacadeValueFactory.InstanceDefinitionMismatch(id, expectedId, found.DefinitionId);
+            if (requestedType is not null && instance.StateType != requestedType)
+                throw FacadeValueFactory.StateTypeMismatch(id, instance.StateType, requestedType);
+            engine.HostLifetime.RequireRunning();
             if (!instance.Lifetime.TryPin(out var pin)) throw FacadeValueFactory.InstanceNotFound(id);
             runtime = instance;
             binding = found;
@@ -55,10 +58,8 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry
     private async ValueTask<object?> GetStateAsync(InstanceBinding binding, Type requestedType, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        using var pin = Pin(binding.InstanceId, out var runtime, out _);
+        using var pin = Pin(binding.InstanceId, out var runtime, out _, requestedType: requestedType);
         await ObservePin(binding.InstanceId).ConfigureAwait(false);
-        if (runtime.StateType != requestedType)
-            throw FacadeValueFactory.StateTypeMismatch(binding.InstanceId, runtime.StateType, requestedType);
         return runtime.CopyState();
     }
 

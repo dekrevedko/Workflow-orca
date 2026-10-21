@@ -174,6 +174,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
 
         lock (gate)
         {
+            using var registrationOwnership = engine.HostLifetime.AdmitStart();
             if (registrations.TryGetValue(key, out var existing))
             {
                 return existing.Fingerprint.Equals(fingerprint)
@@ -285,6 +286,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
     {
         ArgumentNullException.ThrowIfNull(idempotencyKey);
         cancellationToken.ThrowIfCancellationRequested();
+        using var startOwnership = engine.HostLifetime.AdmitStart();
         var inputFingerprint = FacadeValueFactory.PayloadFingerprint(input);
 
         await startGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -295,6 +297,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             EphemeralInstanceLifetime.WorkLease? replayPin = null;
             lock (gate)
             {
+                engine.HostLifetime.RequireOpen();
                 if (starts.TryGetValue(idempotencyKey.Value, out var existing))
                 {
                     if (!engine.TryGetFacadeInstance(existing.InstanceId, out var retained) ||
@@ -353,6 +356,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
                 if (!engine.TryAcceptStart(snapshot.InstanceId, cancellationToken))
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    if (engine.HostLifetime.IsStopping) throw new global::OrcaCore.Hosting.EphemeralHostStoppingException();
                     throw FacadeValueFactory.InstanceNotFound(snapshot.InstanceId);
                 }
                 instances.Add(snapshot.InstanceId, instance);

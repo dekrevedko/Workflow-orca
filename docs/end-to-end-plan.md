@@ -47,14 +47,14 @@ test use `AddOrcaCoreInMemoryDurableProvider`; production certification covers
 `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)` and
 `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`.
 
-Ephemeral shutdown is a later, implementation-pending journey: use the same engine
+The issue #2 source candidate implements ephemeral shutdown: use the same engine
 role's reserved IEphemeralWorkflowHostLifetime singleton. Close submitters, drain
 pending initialized starts and accepted handles, then observe StopAsync; retain the
 actual host/provider/scopes on Incomplete and dispose only after Completed. Generic
 Host ApplicationStopping closes admission without cancelling; a sequential hosted
 drainer runs before engine stop, with one HostOptions.ShutdownTimeout budget. Plain
 DI controls its own submitters. PR-041 and the engine guide define all three recipes;
-source/consumer qualification is still required.
+independent source/consumer approval and publication remain pending.
 
 ## Validation lanes
 

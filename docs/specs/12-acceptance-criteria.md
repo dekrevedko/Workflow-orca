@@ -571,7 +571,7 @@ first-release evidence for AC-512…517.
   best-effort internal eviction only after removal; metric labels contain no instance/key IDs.
   Sharing a termination primitive does not alter this classification. [MG-020, OB-026]
 
-### Ephemeral host shutdown acceptance (source implementation pending)
+### Ephemeral host shutdown acceptance (source candidate under review)
 
 - **AC-543** Exact seven-type surface, constructor restrictions, reserved singleton,
   child-scope identity, conflict-before-mutation, unchanged options/fingerprint. [PR-041]

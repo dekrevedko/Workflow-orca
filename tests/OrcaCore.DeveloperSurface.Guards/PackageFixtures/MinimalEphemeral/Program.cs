@@ -31,6 +31,31 @@ _ = (Func<OrcaCoreEphemeralEngineBuilder, IWorkflowDefinitionRegistry, Input, Ca
 _ = (Func<WorkflowDefinitionNotRegisteredException,
     (DefinitionId, DefinitionVersion, DefinitionFingerprint)>)MissingDefinitionIdentity;
 
+
+static async ValueTask<string> ObserveEphemeralShutdownAsync(IEphemeralWorkflowHostLifetime lifetime, CancellationToken token)
+{
+    try
+    {
+        EphemeralHostShutdownResult result = await lifetime.StopAsync(TimeSpan.Zero, token);
+        _ = lifetime.StopAsync(Timeout.InfiniteTimeSpan);
+        return result switch
+        {
+            EphemeralHostShutdownResult.Completed => "completed",
+            EphemeralHostShutdownResult.Incomplete pending => pending.Reason switch
+            {
+                EphemeralHostShutdownIncompleteReason.DeadlineElapsed => $"deadline:{pending.PendingWorkCount}",
+                EphemeralHostShutdownIncompleteReason.ObservationCancelled => $"cancelled:{pending.PendingWorkCount}",
+                EphemeralHostShutdownIncompleteReason.ShutdownFaulted => $"faulted:{pending.PendingWorkCount}",
+                _ => throw new InvalidOperationException()
+            },
+            _ => throw new InvalidOperationException()
+        };
+    }
+    catch (EphemeralHostStoppingException stopping) { return stopping.Code; }
+    catch (EphemeralHostShutdownIncompleteException incomplete) { return incomplete.Result.Reason.ToString(); }
+}
+_ = (Func<IEphemeralWorkflowHostLifetime, CancellationToken, ValueTask<string>>)ObserveEphemeralShutdownAsync;
+
 internal sealed record Input(int Value, CorrelationId Correlation);
 internal sealed record State(int Value, CorrelationId Correlation);
 internal sealed record Output(int Value);

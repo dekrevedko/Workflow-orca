@@ -99,6 +99,31 @@ _ = (Func<IWorkflowEventIngress, IWorkflowEventDispatcher, IWorkflowDefinitionRe
     EphemeralWorkflowDefinition<Input>, DurableWorkflowDefinition<Input>, WorkflowOutboundEvent,
     CancellationToken, ValueTask>)ExerciseBoundaryAsync;
 
+
+static async ValueTask<string> ObserveEphemeralShutdownAsync(IEphemeralWorkflowHostLifetime lifetime, CancellationToken token)
+{
+    try
+    {
+        EphemeralHostShutdownResult result = await lifetime.StopAsync(TimeSpan.Zero, token);
+        _ = lifetime.StopAsync(Timeout.InfiniteTimeSpan);
+        return result switch
+        {
+            EphemeralHostShutdownResult.Completed => "completed",
+            EphemeralHostShutdownResult.Incomplete pending => pending.Reason switch
+            {
+                EphemeralHostShutdownIncompleteReason.DeadlineElapsed => $"deadline:{pending.PendingWorkCount}",
+                EphemeralHostShutdownIncompleteReason.ObservationCancelled => $"cancelled:{pending.PendingWorkCount}",
+                EphemeralHostShutdownIncompleteReason.ShutdownFaulted => $"faulted:{pending.PendingWorkCount}",
+                _ => throw new InvalidOperationException()
+            },
+            _ => throw new InvalidOperationException()
+        };
+    }
+    catch (EphemeralHostStoppingException stopping) { return stopping.Code; }
+    catch (EphemeralHostShutdownIncompleteException incomplete) { return incomplete.Result.Reason.ToString(); }
+}
+_ = (Func<IEphemeralWorkflowHostLifetime, CancellationToken, ValueTask<string>>)ObserveEphemeralShutdownAsync;
+
 internal sealed record Input(CorrelationId Correlation);
 internal sealed record State(CorrelationId Correlation);
 internal sealed record Approval(bool Approved);

@@ -1,4 +1,6 @@
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Hosting;
+using OrcaCore.Engine.Ephemeral.Diagnostics;
 
 namespace OrcaCore.Engine.Ephemeral.Execution;
 
@@ -28,6 +30,9 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     private bool aborting;
     private bool terminal;
     private bool retired;
+    private EphemeralHostLifetime? host;
+    private EphemeralHostLifetime.Lease? provisionalOwner;
+    private EphemeralHostLifetime.Lease? activeOwner;
 
     internal InstanceId InstanceId => instanceId;
     internal bool IsAccepted { get { lock (gate) return accepted; } }
@@ -38,7 +43,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     internal CancellationToken TerminalCancellation => terminalCancellation.Token;
     internal Task WhenSettled { get { lock (gate) return settled.Task; } }
 
-    internal void Initialize(Action remove, Func<InstanceId, EphemeralWorkKind, ValueTask>? observer, object visibilityGate, Action<EphemeralInstanceLifetime> onChanged)
+    internal void Initialize(Action remove, Func<InstanceId, EphemeralWorkKind, ValueTask>? observer, object visibilityGate, Action<EphemeralInstanceLifetime> onChanged, EphemeralHostLifetime? hostLifetime = null)
     {
         gate = visibilityGate; // Set before the first registry publication.
         lock (gate)
@@ -47,6 +52,9 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
             if (removeInstance is not null) throw new InvalidOperationException("Lifetime is already initialized.");
             removeInstance = remove;
             completionPending = observer;
+            host = hostLifetime;
+            provisionalOwner = host?.Own();
+            activeOwner = host?.Own();
         }
     }
 
@@ -57,7 +65,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
             if (retired) { lease = null; return false; }
             if (owned == 0) settled = NewCompletion();
             checked { owned++; }
-            lease = new WorkLease(this);
+            lease = new WorkLease(this, hostOwner: host?.Own());
             return true;
         }
     }
@@ -68,7 +76,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         {
             if (retired) { lease = null; return false; }
             checked { pins++; }
-            lease = new WorkLease(this, pin: true);
+            lease = new WorkLease(this, pin: true, hostOwner: host?.Own());
             return true;
         }
     }
@@ -113,6 +121,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     internal bool TryAccept(CancellationToken callerToken)
     {
         TaskCompletionSource? completed;
+        EphemeralHostLifetime.Lease? publication;
         lock (gate)
         {
             if (!startPending) return accepted;
@@ -121,32 +130,144 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
             startPending = false;
             owned--;
             completed = owned == 0 ? settled : null;
+            publication = provisionalOwner;
+            provisionalOwner = null;
         }
-        if (completed is not null) changed?.Invoke(this);
-        completed?.TrySetResult();
+        try
+        {
+            if (completed is not null) changed?.Invoke(this);
+            completed?.TrySetResult();
+        }
+        finally { publication?.Dispose(); }
         return true;
     }
 
     internal void SignalTerminal()
     {
+        EphemeralHostLifetime.Lease? active;
         lock (gate)
         {
             if (terminal) return;
             terminal = true;
+            active = activeOwner;
+            activeOwner = null;
         }
-        // Cancellation may run continuations; it must never happen under the lifetime gate.
-        terminalCancellation.Cancel();
+        try { _ = DispatchCancellation(terminalCancellation); }
+        finally { active?.Dispose(); }
     }
 
     internal void Abort()
     {
+        EphemeralHostLifetime.Lease? publication;
         lock (gate)
         {
             if (!startPending) return;
             if (!terminal) throw new InvalidOperationException("Abort requires the owning-lane terminal fence.");
             startPending = false;
+            publication = provisionalOwner;
+            provisionalOwner = null;
         }
-        Release();
+        try { Release(); }
+        finally { publication?.Dispose(); }
+    }
+
+    internal void RequireExecution() => host?.RequireExecution();
+    internal bool IsStoppingCancellation(OperationCanceledException error, CancellationToken executionToken) =>
+        host?.IsStoppingCancellation(error, executionToken) == true;
+
+    internal bool TryEnterCallback(out IDisposable? ownership)
+    {
+        lock (gate)
+        {
+            if (retired) { ownership = null; return false; }
+            EphemeralHostLifetime.Lease? callback = null;
+            if (host is not null && !host.TryEnterCallback(out callback)) { ownership = null; return false; }
+            TryOwn(out var work);
+            ownership = new CallbackLease(work!, callback);
+            return true;
+        }
+    }
+
+    // Own the first dispatch, including its handlers and linked propagation. Never
+    // call Cancel inline on a lane, a system timer, or the stopping caller.
+    internal async Task DispatchCancellation(CancellationTokenSource source)
+    {
+        using var ownership = Own();
+        try { await source.CancelAsync().ConfigureAwait(false); }
+        catch (Exception) { OrcaCoreEphemeralDiagnostics.RecordShutdown("shutdown-callback-failed"); }
+    }
+
+    internal CancellationScope CreateCancellationScope(CancellationToken parent) => new(this, parent);
+
+    // Logical timeout may finish before either physical work or CancelAsync's
+    // queued handlers. Disposing their source at that boundary can silently
+    // discard handlers, so each participant retains it through its own return.
+    internal sealed class CancellationScope : IDisposable
+    {
+        private readonly EphemeralInstanceLifetime lifetime;
+        private readonly object scopeGate = new();
+        private readonly CancellationTokenSource source = new();
+        private readonly CancellationTokenRegistration parentRegistration;
+        private int references = 1;
+        private int disposed;
+
+        internal CancellationScope(EphemeralInstanceLifetime lifetime, CancellationToken parent)
+        {
+            this.lifetime = lifetime;
+            parentRegistration = parent.UnsafeRegister(static state =>
+            {
+                var scope = (CancellationScope)state!;
+                using var entered = scope.TryOwn();
+                if (entered is not null) _ = scope.CancelAsync();
+            }, this);
+        }
+
+        internal CancellationToken Token => source.Token;
+
+        internal IDisposable? TryOwn()
+        {
+            lock (scopeGate)
+            {
+                if (references == 0) return null;
+                checked { references++; }
+                return new ScopeLease(this);
+            }
+        }
+
+        internal async Task<T> RunAsync<T>(Func<Task<T>> operation)
+        {
+            using var ownership = TryOwn() ?? throw new ObjectDisposedException(nameof(CancellationScope));
+            return await operation().ConfigureAwait(false);
+        }
+
+        internal async Task CancelAsync()
+        {
+            using var lifetimeOwnership = lifetime.Own();
+            using var ownership = TryOwn() ?? throw new ObjectDisposedException(nameof(CancellationScope));
+            await lifetime.DispatchCancellation(source).ConfigureAwait(false);
+        }
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref disposed, 1) == 0) Release();
+        }
+
+        private void Release()
+        {
+            bool final;
+            lock (scopeGate) final = --references == 0;
+            if (final)
+            {
+                parentRegistration.Unregister();
+                source.Dispose();
+            }
+        }
+
+        private sealed class ScopeLease(CancellationScope scope) : IDisposable
+        {
+            private CancellationScope? owner = scope;
+            public void Dispose() => Interlocked.Exchange(ref owner, null)?.Release();
+        }
     }
 
     internal bool TryBeginAbort()
@@ -242,9 +363,25 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
 
     private static TaskCompletionSource NewCompletion() => new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    internal sealed class WorkLease(EphemeralInstanceLifetime owner, bool pin = false) : IDisposable
+    private sealed class CallbackLease(IDisposable work, IDisposable? callback) : IDisposable
+    {
+        public void Dispose()
+        {
+            try { work.Dispose(); }
+            finally { callback?.Dispose(); }
+        }
+    }
+
+    internal sealed class WorkLease(EphemeralInstanceLifetime owner, bool pin = false, EphemeralHostLifetime.Lease? hostOwner = null) : IDisposable
     {
         private EphemeralInstanceLifetime? lifetime = owner;
-        public void Dispose() => Interlocked.Exchange(ref lifetime, null)?.Release(pin);
+        public void Dispose()
+        {
+            var current = Interlocked.Exchange(ref lifetime, null);
+            if (current is null) return;
+            try { current.Release(pin); }
+            catch (Exception) { current.host?.Fault(); throw; }
+            finally { hostOwner?.Dispose(); }
+        }
     }
 }

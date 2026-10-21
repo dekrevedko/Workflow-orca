@@ -94,11 +94,11 @@ The runtime source under `src/`, public API baselines, canonical specs, active t
 and implementation approval states were not changed. No commits, branches, tags, pushes, releases,
 or registry publications were created during the initial preparation audit.
 
-Issue #2 shutdown contract checkpoint 3c8d33c / verdict 4bd7c3e is approved, and the
-F2 canonical transition is under separate review. The seven proposed lifetime/result/
-exception declarations and three drain recipes remain implementation/package pending;
-do not infer a published shutdown API from Markdown or green Infrastructure. A source
-and candidate-package consumer target must precede publication claims.
+Issue #2's shutdown contract (3c8d33c / 4bd7c3e) and F2 canonical transition
+(2e51fbd / 6253f6c) are approved and checkpointed. The Section 3 source/candidate-
+package target implements the seven lifetime/result/exception declarations and
+qualifies the three drain recipes. Independent source approval, a push, a PR and
+release publication remain pending; no published shutdown API is claimed here.
 
 ## Validation
 

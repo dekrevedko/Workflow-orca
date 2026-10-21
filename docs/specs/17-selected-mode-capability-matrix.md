@@ -2075,7 +2075,7 @@ This single serialization point is a deliberate first-release correctness tradeo
 EKS scheduling. Future sharding requires an amendment that assigns pools to governance partitions
 and forbids or coordinates cross-partition atomic requests; v1 never silently splits one request.
 
-### Ephemeral host shutdown lifetime (PR-041; implementing source pending)
+### Ephemeral host shutdown lifetime (PR-041; source candidate under review)
 
 The exact additional namespace/assembly owner is OrcaCore.Hosting in
 OrcaCore.Engine.Ephemeral. These seven declarations are the canonical source target,
@@ -2129,6 +2129,11 @@ public sealed class EphemeralHostShutdownIncompleteException : global::OrcaCore.
 The result is classes, not records; no generated equality/deconstruction, public
 factories/constructors, extra enum values, options or fingerprints are authorized.
 Inherited codes are `WF-EPHEMERAL-HOST-STOPPING` and `WF-EPHEMERAL-SHUTDOWN-INCOMPLETE`.
+
+| Shutdown failure code | Runtime-created exception |
+|---|---|
+| `WF-EPHEMERAL-HOST-STOPPING` | `EphemeralHostStoppingException` |
+| `WF-EPHEMERAL-SHUTDOWN-INCOMPLETE` | `EphemeralHostShutdownIncompleteException` |
 Exact timeout validation is InfiniteTimeSpan or zero through 4,294,967,294ms by ticks,
 then public pre-cancelled token (no effect), then disposal. Zero enters Stopping and
 observes immediately; pending finite budgets use monotonic TimeProvider and include
@@ -2373,7 +2378,7 @@ OrcaCore guarantees stable identity, at-least-once invocation, event deduplicati
 lease accounting; it does not claim exactly-once external API calls or external fence
 enforcement.
 
-PR-041's seven-type family is an engine-owned source-pending addition, not a new
+PR-041's seven-type family is implemented in the engine-owned source candidate, not a new
 package or dependency. The existing ephemeral role reserves one singleton lifetime
 per root, identical through scopes. Equal options remain idempotent; an application
 descriptor for it before first role registration fails ArgumentException for services

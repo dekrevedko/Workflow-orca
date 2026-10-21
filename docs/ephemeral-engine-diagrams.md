@@ -19,7 +19,7 @@ flowchart LR
     H --> I["WorkflowInstanceHandle"]
 ```
 
-Shutdown contract addition (implementation pending): the existing role owns one
+Shutdown source candidate (independent source review pending): the existing role owns one
 lifetime singleton; no extra registration or option is introduced. Local wait-token
 cancellation remains separate from host cancellation. An initialization admitted
 before close can finish and become Accepted while Closed; queued pre-Init rejects.

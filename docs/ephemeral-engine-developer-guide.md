@@ -30,8 +30,8 @@ or serializer replacement hook.
 
 The separate shutdown amendment specifies seven engine-owned OrcaCore.Hosting
 types, including IEphemeralWorkflowHostLifetime, automatically registered by this
-same role. **Shutdown implementation and packages are pending**; doc 17 defines the
-target surface. This is no additional option/registration, fingerprint or API in
+same role. **Shutdown is implemented in the issue #2 source/candidate-package target;
+independent source approval and publication are pending**. Doc 17 defines the exact surface. This is no additional option/registration, fingerprint or API in
 published 0.1.0-preview.1. The authoring companion adds no hosting declaration.
 
 ## Authoring model
@@ -96,7 +96,7 @@ Init rejects at Closed; initialization already admitted may complete its first s
 and return Accepted during Closed. Acceptance/abort elects only at Stopping, so
 awaiting pending starts during drain does not manufacture a host-stopping error
 after the first step's effects. Authoritative original errors/cancellation remain.
-These are implementation-pending semantics, not current binary behavior.
+These semantics are implemented in the source candidate; published older binaries retain their earlier behavior.
 
 ## Retained-instance lifetime
 
@@ -146,7 +146,7 @@ Background sweep cleanup failures are contained and do not stop later sweeps. Th
 Diagnostic listeners cannot propagate failures through the timer callback. This does not
 hide cleanup exceptions from synchronous caller-triggered lifetime operations.
 
-For the implementation-pending shutdown protocol, Closed keeps normal accepted
+For the candidate shutdown protocol, Closed keeps normal accepted
 queries/waits/commands/ingress, retirement and key lifetime; it never queues host
 cancellation. Pending initialized starts may publish Accepted during Closed. Stopping
 alone seals new live operations and elects provisional abort, while retaining every
@@ -187,10 +187,12 @@ configuration and expected counts for the target under review.
 The superseded pre-v1 guide is preserved, unchanged, at
 [`archive/plans/ephemeral-engine-developer-guide.md`](archive/plans/ephemeral-engine-developer-guide.md).
 
-## Shutdown drain recipes (implementation pending)
+## Shutdown drain recipes (candidate packages; review pending)
 
-These describe PR-041/MG-066–069 after source/package qualification. The seven
-declarations, callbacks and owning tests are not implemented by canonical text.
+PR-041/MG-066–069 are implemented in the Section 3 source candidate, including
+the seven declarations and callback/physical-work join. The ordinary package-only
+consumer in [the source target](../openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-consumer/README.md)
+exercises these ownership recipes. Source approval and release publication remain pending.
 
 1. **Generic Host ordered drainer.** Register the engine role, then an application
    IHostedService drainer. Set/retain HostOptions.ServicesStopConcurrently=false.
@@ -235,5 +237,6 @@ by Generic Host. Run/RunAsync still disposes in finally even if stop throws; it 
 retain dependencies for noncooperative incomplete work. Do not use unconditional
 using/finally around that outcome. One explicit owner serializes disposal; raw
 provider disposal only closes as unsupported abortive teardown, not a join or veto.
-Source tasks 3.1–3.5 must prove these recipes with candidate packages before this
-section becomes executable release guidance.
+The Section 3 qualification record binds the candidate-package recipe results to
+the frozen source. This is candidate guidance; use a published package containing
+this change before relying on it in a released application.

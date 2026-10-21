@@ -11,6 +11,9 @@ using OrcaCore.Engine.Ephemeral.Diagnostics;
 using OrcaCore.Engine.Ephemeral.Execution;
 using OrcaCore.Engine.Ephemeral.Governance;
 using OrcaCore.Engine.Ephemeral.Timers;
+using OrcaCore.Hosting;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace OrcaCore.Engine.Ephemeral;
 
@@ -25,6 +28,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     private readonly EphemeralRetentionCoordinator retention;
     internal object VisibilityGate => retention.Gate;
     internal EphemeralRetentionCoordinator Retention => retention;
+    internal EphemeralHostLifetime HostLifetime { get; }
     internal Func<InstanceId, ValueTask>? OperationPinAcquired => options.OperationPinAcquired;
     internal event Action? GovernanceWaitStarting
     {
@@ -106,14 +110,18 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxConsumedEventIdsPerInstance);
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(options.MaxLifecycleEventsPerInstance);
 
+        var applicationStopping = serviceProvider?.GetService<IHostApplicationLifetime>()?.ApplicationStopping ?? CancellationToken.None;
         this.timeProvider = timeProvider;
         this.options = options;
         this.instanceRegistry = instanceRegistry;
         this.executionLane = executionLane;
         this.serviceProvider = serviceProvider;
-        retention = new EphemeralRetentionCoordinator(timeProvider, options.TerminalRetention);
+        HostLifetime = new EphemeralHostLifetime(timeProvider, new object(), StopOwnedWorkAsync);
+        retention = new EphemeralRetentionCoordinator(timeProvider, options.TerminalRetention, HostLifetime);
+        executionLane.HostLifetime = HostLifetime;
         governance = new ResourceGovernanceCoordinator(options);
         timerService = new EphemeralTimerService(timeProvider);
+        timerService.HostLifetime = HostLifetime;
         yieldContinuationScheduler = new YieldContinuationScheduler(executionLane);
         interpreterFactory = new InterpreterFactory(
             timeProvider,
@@ -123,6 +131,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             options,
             serviceProvider);
         timerService.SetDueDispatcher(FireDueTimersCoreAsync);
+        HostLifetime.Attach(applicationStopping);
     }
 
     private static InstanceExecutionLane CreateExecutionLane(EphemeralWorkflowEngineOptions options)
@@ -132,7 +141,45 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         return new InstanceExecutionLane(options.LaneWorkItemEnqueued);
     }
 
-    public void Dispose() { retention.Dispose(); timerService.Dispose(); }
+    public void Dispose() { HostLifetime.Dispose(); retention.Dispose(); timerService.Dispose(); }
+
+    private async Task StopOwnedWorkAsync()
+    {
+        // A failed producer cleanup loses the proof, but must not prevent the
+        // remaining producers from sealing or other instances from cancelling.
+        try { retention.Dispose(); }
+        catch (Exception) { HostLifetime.Fault(); }
+        try { timerService.Dispose(); }
+        catch (Exception) { HostLifetime.Fault(); }
+        var pending = instanceRegistry.List().OfType<IWorkflowInstance>().Select(StopInstanceAsync).ToArray();
+        await Task.WhenAll(pending).ConfigureAwait(false);
+    }
+
+    private async Task StopInstanceAsync(IWorkflowInstance instance)
+    {
+        if (!instance.Lifetime.TryOwn(out var ownership)) return;
+        using var stopOwnership = ownership;
+        instance.SignalCancellation();
+        if (!instance.Lifetime.IsAccepted)
+        {
+            instance.Lifetime.TryBeginAbort();
+            await executionLane.RunAsync(instance.InstanceId, _ =>
+            {
+                if (!LifecycleMachine.TerminalStatuses.Contains(instance.ToSnapshot().Status))
+                    CommitSnapshot(instance.Terminate(timeProvider.GetUtcNow()));
+                return Task.CompletedTask;
+            }, CancellationToken.None).ConfigureAwait(false);
+            // The start owns publication until its own error/acceptance decision.
+            // Fencing cannot retire it while its return path still uses the unit.
+        }
+        else
+            await executionLane.RunAsync(instance.InstanceId, _ =>
+            {
+                if (!LifecycleMachine.TerminalStatuses.Contains(instance.ToSnapshot().Status))
+                    CommitSnapshot(instance.Cancel(timeProvider.GetUtcNow()));
+                return Task.CompletedTask;
+            }, CancellationToken.None).ConfigureAwait(false);
+    }
 
     internal bool IsTimerDispatching => timerService.IsDispatching;
 
@@ -277,6 +324,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         }
 
         var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        using var startOwnership = HostLifetime.AdmitStart();
         WorkflowInstance<TState>? instance = null;
         try
         {
@@ -284,6 +332,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 instanceId,
                 async laneCancellationToken =>
                 {
+                    HostLifetime.RequireOpen();
                     var interpreter = interpreterFactory.Create<TState>();
                     instance = await interpreter.RunAsync(
                         definition,
@@ -293,10 +342,11 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                         {
                             instance = initializedInstance;
                             initializedInstance.Lifetime.Initialize(
-                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending, retention.Gate, retention.Changed);
+                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending, retention.Gate, retention.Changed, HostLifetime);
                             retention.Track(initializedInstance.Lifetime);
                             instanceRegistry.Save(initializedInstance);
                             CommitSnapshot(initializedInstance.ToSnapshot());
+                            if (HostLifetime.IsStopping) initializedInstance.SignalCancellation();
                         },
                         committed => CommitSnapshot(committed),
                         laneCancellationToken).ConfigureAwait(false);
@@ -305,6 +355,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 },
                 cancellationToken).ConfigureAwait(false);
 
+            if (HostLifetime.IsStopping) throw new EphemeralHostStoppingException();
             snapshot = instance is null
                 ? snapshot
                 : await yieldContinuationScheduler
@@ -873,8 +924,11 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         }
     }
 
-    internal bool TryAcceptStart(InstanceId instanceId, CancellationToken callerToken) =>
-        TryGetFacadeInstance(instanceId, out var instance) && instance!.Lifetime.TryAccept(callerToken);
+    internal bool TryAcceptStart(InstanceId instanceId, CancellationToken callerToken)
+    {
+        lock (VisibilityGate)
+            return !HostLifetime.IsStopping && TryGetFacadeInstance(instanceId, out var instance) && instance!.Lifetime.TryAccept(callerToken);
+    }
 
     internal Task AbortProvisionalStartAsync(InstanceId instanceId) =>
         TryGetFacadeInstance(instanceId, out var instance)

@@ -22,6 +22,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly List<RuntimeTimerRecord> activeTimers = [];
     private readonly Dictionary<string, long> stepOccurrences = new(StringComparer.Ordinal);
     private readonly CancellationTokenSource cancellationSource = new();
+    private readonly object cancellationGate = new();
+    private Task? cancellationDispatch;
     private readonly object snapshotGate = new();
     private readonly SemaphoreSlim stateAccess = new(1, 1);
     private readonly int maxConsumedEventIds;
@@ -60,6 +62,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         this.maxLifecycleEvents = maxLifecycleEvents;
         InstanceId = instanceId;
         Lifetime = new EphemeralInstanceLifetime(instanceId);
+        Lifetime.RegisterCleanup(cancellationSource, cancellationSource.Dispose);
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         State = state;
@@ -811,10 +814,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     internal void SignalCancellation()
     {
-        if (!cancellationSource.IsCancellationRequested)
-        {
-            cancellationSource.Cancel();
-        }
+        lock (cancellationGate)
+            cancellationDispatch ??= Lifetime.DispatchCancellation(cancellationSource);
     }
 
     internal EphemeralWorkflowInstanceSnapshot ToSnapshot()

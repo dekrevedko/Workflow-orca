@@ -15,23 +15,23 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 |---:|---|---|
 | 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
-| 3 | `docs/end-to-end-plan.md` | `6f7882e66cf2faa740e38320659539fc97029d74d8986ccbc2174138b82427e7` |
-| 4 | `docs/ephemeral-engine-developer-guide.md` | `4f67d53a0e5fe7766670e764fd3eb4899a078c98ec1934a21501809e20d65059` |
-| 5 | `docs/ephemeral-engine-diagrams.md` | `a22283b7eb640257234369a4407564937403dbd030f4cbd2c9f32a5ac9a9be13` |
+| 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
+| 4 | `docs/ephemeral-engine-developer-guide.md` | `8e5916a62b5154921f50d0cc5cb64edffd60489211e1967d036f696b84241d86` |
+| 5 | `docs/ephemeral-engine-diagrams.md` | `3f4e32e272c0acb5c073bbc44be5af5315c50ec887721d433d0817d4f5add62d` |
 | 6 | `docs/implementation/00-stack-decisions.md` | `f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b` |
 | 7 | `docs/implementation/01-solution-architecture.md` | `d8fa1238a510b0abf656e922ec3ab8fd84e733d5b974eb587aebb552ada933fe` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
 | 10 | `docs/normative-source-map.md` | `e0deb47c25dfc5f6d56521fbe82ba4e3491a8fa249d09a26fb360505b0d7d411` |
-| 11 | `docs/production-readiness.md` | `84aee899a95844c527b821a822cacc307a20a76c3a6d739c9e764d5e2882f058` |
-| 12 | `docs/project-technical-overview.md` | `bcaef81237a6b9c69474350bea82f1db01bd09dce9c59fd026d69e6215f4e79c` |
+| 11 | `docs/production-readiness.md` | `25628254027284e68f5e734885517f57daaf64d75f160416c96bdea0d4003209` |
+| 12 | `docs/project-technical-overview.md` | `5ea7e46bf53caf2a188c7922d8fe66c7f12f2814885f3745b92ec7d8371378d8` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
 | 14 | `docs/specs/03-domain-model-and-glossary.md` | `98160ef5b7e595d9c56927da5d00a5104b897772c1454688422e159d5b581a94` |
 | 15 | `docs/specs/05-requirements-events-waits-timers.md` | `bad2a1512b89e3fd2a09cfc00ea37050e191d4e4147c59f8f6943b7e9e556142` |
 | 16 | `docs/specs/06-requirements-durable-execution.md` | `6446c249abb489dfb1f096aca5ff47339bdcbdcbc7ed8240c990c387b0f2c1d5` |
 | 17 | `docs/specs/09-requirements-management-operations.md` | `c24a44983974023b20d6e59cee0162bf1caf48140ebe307942f006dc7eb5a738` |
 | 18 | `docs/specs/10-provider-model-and-extensibility.md` | `b329822d5deb1e609da4d77c3548a437371806ce12f7a7c9fdf7fc9500671e77` |
-| 19 | `docs/specs/12-acceptance-criteria.md` | `02eee4679a4a42c8771072971077dcc9675a296bd52d8c476b4f0260e9e7281a` |
+| 19 | `docs/specs/12-acceptance-criteria.md` | `fa6004282da72638e0046407b6f0d86bf58cf26ce6d27ccc9bcf2607c2aed19c` |
 | 20 | `docs/specs/13-phasing-and-open-questions.md` | `05df07467b42e92fecacfc4a00b2b8cc8156c18ca0a75da24410e878810b62fc` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
 | 22 | `docs/specs/16-requirements-durable-driver.md` | `7462935c982e22d0ba8878968d9f117eff05219bea7e3831e181e759bb03fd3a` |
@@ -178,3 +178,12 @@ Stopping-only abort. Guides mark shutdown implementation/package pending, docume
 the three drain recipes and count-only diagnosis, and preserve all Section 7B
 obligations. This table is maintained source accountability, not a rewritten verdict
 or independent approval; canonical review is pending and source remains blocked.
+
+## Issue #2 Section 3 source candidate (2026-10-19)
+
+The canonical transition is approved at 2e51fbd / 6253f6c. This maintained table
+refreshes only the current guides and doc 17 rows changed by the coherent shutdown
+source/candidate-package target. They describe implemented candidate behavior and
+all three owner/drain recipes, while explicitly retaining independent source review
+and publication gates. Historical verdicts and canonical approval evidence are
+unchanged. No released-package shutdown capability is inferred from source status.
