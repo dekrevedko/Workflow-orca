@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 18,
+  "schemaVersion": 19,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -700,7 +700,7 @@
       "id": "ephemeral-shutdown-developer-facing-surface",
       "owningChange": "add-ephemeral-host-shutdown",
       "capability": "developer-facing-surface",
-      "stage": "CanonicalApprovedSourcePending",
+      "stage": "SourceApproved",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -726,15 +726,15 @@
         "3.5"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-transition-independent-review-verdict-2026-10-19.md",
-      "sourceApprovalEvidencePath": null,
-      "ownershipApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-independent-review-verdict-2026-10-19.md",
+      "ownershipApprovalEvidencePath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-independent-review-verdict-2026-10-19.md",
       "authoringCompanionDisposition": "ExcludedNoHostingDeclarations"
     },
     {
       "id": "ephemeral-shutdown-management-and-querying",
       "owningChange": "add-ephemeral-host-shutdown",
       "capability": "management-and-querying",
-      "stage": "CanonicalApprovedSourcePending",
+      "stage": "SourceApproved",
       "declaredRequirementCount": 4,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -770,8 +770,8 @@
         "3.5"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-transition-independent-review-verdict-2026-10-19.md",
-      "sourceApprovalEvidencePath": null,
-      "ownershipApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-independent-review-verdict-2026-10-19.md",
+      "ownershipApprovalEvidencePath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-independent-review-verdict-2026-10-19.md",
       "authoringCompanionDisposition": "ExcludedNoHostingDeclarations"
     }
   ],
@@ -784,5 +784,14 @@
     "verdictSha256": "12f99ea87b68d9bb1a4f6b7abb6229c7be53a02a1a514e8635c493553ee952c5",
     "artifactPath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-canonical-binding-2026-10-19.md",
     "artifactNormalizedSha256": "f1dd54553676389876fe3846098675ed249e8d46ed467c531cb886ad63582ca0"
+  },
+  "ephemeralShutdownSourceEvidence": {
+    "checkpointCommit": "789c1b74bb6a057bb39fd6191cc8a95140f39763",
+    "checkpointParent": "6253f6cd57f81afdde709ad705e9ba686a2818a2",
+    "checkpointTree": "fac02f62a3ef0fdebb975f496001b3e27b00ed5f",
+    "approvalEvidenceCommit": "b3cd5affdaadcdaf9a9c6a91e8ea523ed8551770",
+    "verdictPath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-independent-review-verdict-2026-10-19.md",
+    "verdictBytes": 6364,
+    "verdictSha256": "d2ea311bdd255dcdf4171b237646eb8a845a9e019173e8407888db01ffe589ae"
   }
 }

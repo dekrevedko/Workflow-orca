@@ -399,6 +399,7 @@ public sealed class PhysicalOwnershipTests
         var handle = host.Register(host.Definition(capacity: capacity, timeout: true));
         var first = host.Start(handle, "slot-first");
         Task<WorkflowStartResult<WorkflowInstanceHandle>>? second = null;
+        IWorkflowInstance? secondRuntime = null;
         var secondCommitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         try
         {
@@ -408,7 +409,10 @@ public sealed class PhysicalOwnershipTests
             host.Engine.InstanceCommitted += id =>
             {
                 if (id != firstInstance.InstanceId && host.Engine.TryGetFacadeInstance(id, out var current) && current!.ToSnapshot().Status == WorkflowInstanceStatus.Completed)
+                {
+                    secondRuntime = current;
                     secondCommitted.TrySetResult();
+                }
             };
             second = host.Start(handle, "slot-second");
             await host.GovernanceWait.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
@@ -417,7 +421,13 @@ public sealed class PhysicalOwnershipTests
             await secondCommitted.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
             var secondInstance = (await second.WaitAsync(Guard, TestContext.Current.CancellationToken)).GetHandleOrThrow();
             body.Attempts.Should().Be(2);
-            (await secondInstance.GetSnapshotAsync(TestContext.Current.CancellationToken)).Status.Should().Be(WorkflowInstanceStatus.Completed);
+            if (bounded)
+            {
+                // Either instance can settle first; count pressure may retire the second public handle.
+                secondRuntime!.ToSnapshot().Status.Should().Be(WorkflowInstanceStatus.Completed);
+            }
+            else
+                (await secondInstance.GetSnapshotAsync(TestContext.Current.CancellationToken)).Status.Should().Be(WorkflowInstanceStatus.Completed);
             host.Initialized!.ToSnapshot().Status.Should().Be(WorkflowInstanceStatus.Failed,
                 "the old terminal state stays immutable even if count pressure later retires its public handle");
         }

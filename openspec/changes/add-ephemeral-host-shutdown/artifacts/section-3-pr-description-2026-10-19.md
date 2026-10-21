@@ -1,4 +1,6 @@
-# Proposed PR: Add cooperative shutdown and drain ownership for ephemeral hosts
+# Add cooperative shutdown and drain ownership for ephemeral hosts
+
+Addresses #2.
 
 Ephemeral hosted stop previously returned without cancelling or joining workflows,
 allowing dependency disposal while their physical work was still running. The new
@@ -20,6 +22,14 @@ packages retain their prior behavior. Run/RunAsync still disposes in finally whe
 host stop throws; applications needing to retain Incomplete work must explicitly
 own the host/provider/scopes and external dependencies.
 
-This is review material only. Push and PR publication remain unauthorized pending
-the independent Section 3 source/consumer review. Preserve checkpoint/verdict
-ancestry with merge commits; no squash.
+The publication follow-up removes settlement-order and synchronous-cancellation
+assumptions in two tests without changing product source or removing any slot,
+attempt, timer or wait checks.
+The source checkpoint and its independent approval are preserved as separate commits.
+
+Publication validation: OpenSpec strict 23/23, Infrastructure 256/256, and 40
+consecutive unfiltered 352-case `dotnet test` runs launched as 20 concurrent pairs.
+The PR's CI re-runs the unit, provider/integration, package and coverage gates.
+
+Follow-up: consolidate the ephemeral lane's ownership hooks into Core's work lane
+in a later change so future channel fixes do not need to be maintained twice.

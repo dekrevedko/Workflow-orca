@@ -34,6 +34,11 @@ public sealed class EphemeralShutdownTransitionGuards
     private const string CanonicalVerdictSha = "12f99ea87b68d9bb1a4f6b7abb6229c7be53a02a1a514e8635c493553ee952c5";
     private const string CanonicalBinding = Prefix + "artifacts/section-3-canonical-binding-2026-10-19.md";
     private const string CanonicalBindingSha = "f1dd54553676389876fe3846098675ed249e8d46ed467c531cb886ad63582ca0";
+    private const string SourceCheckpoint = "789c1b74bb6a057bb39fd6191cc8a95140f39763";
+    private const string SourceTree = "fac02f62a3ef0fdebb975f496001b3e27b00ed5f";
+    private const string SourceVerdictCommit = "b3cd5affdaadcdaf9a9c6a91e8ea523ed8551770";
+    private const string SourceVerdict = Prefix + "artifacts/section-3-independent-review-verdict-2026-10-19.md";
+    private const string SourceVerdictSha = "d2ea311bdd255dcdf4171b237646eb8a845a9e019173e8407888db01ffe589ae";
 
     [Fact]
     public void ContractApproval_BindsExactCheckpointAndVerdictThroughGit()
@@ -64,20 +69,21 @@ public sealed class EphemeralShutdownTransitionGuards
     }
 
     [Fact]
-    public void CanonicalApproved_SourceRemainsReviewPending_AndEarlierRecordsStayExact()
+    public void SourceApproved_EarlierRecordsStayExact_AndApprovedSourceScopeIsPreserved()
     {
         using var fixture = Load();
         var current = fixture.RootElement;
-        current.GetProperty("schemaVersion").GetInt32().Should().Be(18);
-        var before = JsonNode.Parse(Git("show", CanonicalVerdictCommit + ":" + Registry))!.AsObject();
+        current.GetProperty("schemaVersion").GetInt32().Should().Be(19);
+        var before = JsonNode.Parse(Git("show", SourceVerdictCommit + ":" + Registry))!.AsObject();
         var after = JsonNode.Parse(current.GetRawText())!.AsObject();
-        after.Remove("ephemeralShutdownCanonicalEvidence");
+        after.Remove("ephemeralShutdownSourceEvidence");
         foreach (var record in after["shutdownPendingAmendments"]!.AsArray())
         {
-            record!["stage"] = "ContractApprovedCanonicalReviewPending";
-            record["canonicalApprovalEvidencePath"] = null;
+            record!["stage"] = "CanonicalApprovedSourcePending";
+            record["sourceApprovalEvidencePath"] = null;
+            record["ownershipApprovalEvidencePath"] = null;
         }
-        after["schemaVersion"] = 17;
+        after["schemaVersion"] = 18;
         JsonNode.DeepEquals(before, after).Should().BeTrue("all earlier approval records remain exact");
         var records = current.GetProperty("shutdownPendingAmendments").EnumerateArray().ToArray();
         records.Select(x => S(x, "capability")).Should().Equal("developer-facing-surface", "management-and-querying");
@@ -86,7 +92,7 @@ public sealed class EphemeralShutdownTransitionGuards
             var cap = S(record, "capability");
             S(record, "id").Should().Be("ephemeral-shutdown-" + cap);
             S(record, "owningChange").Should().Be(Change);
-            S(record, "stage").Should().Be("CanonicalApprovedSourcePending");
+            S(record, "stage").Should().Be("SourceApproved");
             record.GetProperty("pendingCanonicalOperationCount").GetInt32().Should().Be(0);
             record.GetProperty("declaredRequirementCount").GetInt32().Should().Be(cap == "developer-facing-surface" ? 2 : 4);
             S(record, "contractApprovalTask").Should().Be("1.4");
@@ -96,7 +102,7 @@ public sealed class EphemeralShutdownTransitionGuards
             S(record, "authoringCompanionDisposition").Should().Be("ExcludedNoHostingDeclarations");
             S(record, "canonicalApprovalEvidencePath").Should().Be(CanonicalVerdict);
             foreach (var key in new[] { "sourceApprovalEvidencePath", "ownershipApprovalEvidencePath" })
-                record.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null);
+                S(record, key).Should().Be(SourceVerdict);
             record.GetProperty("sourceTasks").EnumerateArray().Select(x => x.GetString())
                 .Should().Equal("3.1", "3.2", "3.3", "3.4", "3.5");
             var tasks = Read(Prefix + "tasks.md");
@@ -105,16 +111,16 @@ public sealed class EphemeralShutdownTransitionGuards
                     tasks.Should().Contain("`" + path.GetString() + "`");
         }
         Regex.Matches(Read(Prefix + "tasks.md"), @"(?m)^- \[x\] (\d+\.\d+) ")
-            .Select(x => x.Groups[1].Value).Should().Equal("1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "3.1", "3.2", "3.3", "3.4");
-        Git("diff", "--name-only", CanonicalVerdictCommit, "--", "Directory.Packages.props", "global.json",
+            .Select(x => x.Groups[1].Value).Should().Equal("1.1", "1.2", "1.3", "1.4", "2.1", "2.2", "3.1", "3.2", "3.3", "3.4", "3.5");
+        Git("diff", "--name-only", CanonicalVerdictCommit, SourceCheckpoint, "--", "Directory.Packages.props", "global.json",
             "docs/specs/17-public-authoring-contract.cs").Trim().Should().BeEmpty();
-        Git("diff", "--name-only", CanonicalVerdictCommit, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries)
+        Git("diff", "--name-only", CanonicalVerdictCommit, SourceCheckpoint, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal),
-                "this source candidate owns only the ephemeral runtime, with no new dependency or friend edge");
+                "the approved source checkpoint owns only the ephemeral runtime, with no new dependency or friend edge");
     }
 
     [Fact]
-    public void CanonicalApproval_BindsItsCheckpointAndSoleVerdictChildThroughGit()
+    public void CanonicalAndSourceApprovals_BindTheirCheckpointsAndSoleVerdictChildrenThroughGit()
     {
         using var fixture = Load();
         var evidence = fixture.RootElement.GetProperty("ephemeralShutdownCanonicalEvidence");
@@ -136,6 +142,27 @@ public sealed class EphemeralShutdownTransitionGuards
         Hash(bytes).Should().Be(CanonicalVerdictSha);
         Encoding.UTF8.GetBytes(Git("show", CanonicalVerdictCommit + ":" + CanonicalVerdict)).Should().Equal(bytes);
         Read(CanonicalVerdict).Should().Contain("APPROVE");
+        ValidateSourceApproval(fixture.RootElement.GetProperty("ephemeralShutdownSourceEvidence"));
+    }
+
+    private static void ValidateSourceApproval(JsonElement evidence)
+    {
+        S(evidence, "checkpointCommit").Should().Be(SourceCheckpoint);
+        S(evidence, "checkpointParent").Should().Be(CanonicalVerdictCommit);
+        S(evidence, "checkpointTree").Should().Be(SourceTree);
+        S(evidence, "approvalEvidenceCommit").Should().Be(SourceVerdictCommit);
+        S(evidence, "verdictPath").Should().Be(SourceVerdict);
+        S(evidence, "verdictSha256").Should().Be(SourceVerdictSha);
+        evidence.GetProperty("verdictBytes").GetInt32().Should().Be(6364);
+        Git("show", "-s", "--format=%P", SourceCheckpoint).Trim().Should().Be(CanonicalVerdictCommit);
+        Git("show", "-s", "--format=%T", SourceCheckpoint).Trim().Should().Be(SourceTree);
+        Git("show", "-s", "--format=%P", SourceVerdictCommit).Trim().Should().Be(SourceCheckpoint);
+        Git("diff-tree", "--no-commit-id", "--name-only", "-r", SourceVerdictCommit).Trim().Should().Be(SourceVerdict);
+        var bytes = File.ReadAllBytes(PathOf(SourceVerdict));
+        bytes.Should().HaveCount(6364);
+        Hash(bytes).Should().Be(SourceVerdictSha);
+        Encoding.UTF8.GetBytes(Git("show", SourceVerdictCommit + ":" + SourceVerdict)).Should().Equal(bytes);
+        Read(SourceVerdict).Should().Contain("## Verdict: APPROVE");
     }
 
     [Fact]
