@@ -1,7 +1,7 @@
 # Assessment harness controls — 2026-10-21
 
 The Python controls are synthetic record mutations, never native execution credit.
-The current eighteen controls cover missing scenarios/hosts, broken JIT, impossible
+The current nineteen controls cover missing scenarios/hosts, broken JIT, impossible
 claims and reflection settings, lost conditions, missing assertions, shortened
 measurement denominators, mislabeled memory, unclassified/changed/dropped warnings
 and fixture rejection as execution evidence. Targeted diagnostic controls assert their intended failure
@@ -10,7 +10,7 @@ omitted a formerly classified diagnostic if it no longer appeared. The corrected
 runner retains that identity with actual count zero, which fails count matching
 unless an explicit Corrected/expectedCount=0 decision and its evidence exist.
 A companion control accepts that explicit correction and keeps the zero-count row.
-All eighteen controls now pass; the initial failure log is retained locally.
+All nineteen controls now pass; the initial failure log is retained locally.
 
 The public consumer control executes sixteen assertion journeys against packages,
 and the local repeated composition control completed thirty runs. Native receipt
@@ -29,3 +29,10 @@ Register/Start phase markers remove stale DefinitionBuild labels. Both fixes pas
 the unchanged sixteen-scenario JIT assertions; final native reruns must expose the
 underlying product failures, with neither timeout nor ASSERTION accepted as an
 unsupported profile. No product source or existing runtime test changed.
+
+Emitter attribution is derived from the actual compiled namespaces: the conditional
+ORCACORE_CORE_CODEC_COPY namespace Core.Internal denotes the linked Core assembly,
+while the original OrcaCore.Internal copy belongs to OrcaCore. A parser control
+checks both forms and the original raw line. The intermediate classified native
+run reproduced behavior but had the former copy misattributed; final qualification
+is rerun with the corrected parser and source/package/harness identities.

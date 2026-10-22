@@ -74,10 +74,11 @@ def diagnostics(log, app, cache):
         if identity not in rows:
             analysis = re.match(r"(?:Trim|AOT) analysis ([^:]+):", message)
             member = analysis.group(1) if analysis else "not separately supplied; exact diagnostic message retained"
-            # The codec/converters live in assembly OrcaCore despite their Core.Internal namespace.
-            assembly = ("OrcaCore" if member.startswith(("OrcaCore.Core.Internal.FixedWorkflowValueCodec", "OrcaCore.Core.Internal.WorkflowFailureJsonConverter"))
+            # ORCACORE_CORE_CODEC_COPY compiles the linked codec into Core.Internal;
+            # the original OrcaCore copy uses OrcaCore.Internal (see both project files).
+            assembly = ("OrcaCore.Core" if member.startswith("OrcaCore.Core.")
                         else "OrcaCore.Engine.Ephemeral" if member.startswith("OrcaCore.Engine.Ephemeral.")
-                        else "OrcaCore.Core" if member.startswith("OrcaCore.Core.")
+                        else "OrcaCore" if member.startswith("OrcaCore.Internal.")
                         else Path(location).stem if location.lower().endswith(".dll") else "NativeConsumer" if ".cs(" in location else "native tool / exact original retained")
             referenced = re.search(r"(?:Using member |call to |Call to )'([^']+)'", message)
             rows[identity] = dict(identity=identity, code=code, severity=severity, message=message,

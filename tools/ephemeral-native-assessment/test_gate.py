@@ -1,8 +1,10 @@
 """Synthetic tamper controls, never native execution evidence."""
 import copy
 import unittest
+import tempfile
+from pathlib import Path
 from gate import validate_platform
-from run_assessment import apply_classifications
+from run_assessment import apply_classifications, diagnostics
 
 IDS = [f"AOT-{n:02d}" for n in range(1, 17)]
 FLAVORS = ["jit", "trimmed", "aot", "trimmed-json-reflection", "aot-json-reflection"]
@@ -50,6 +52,16 @@ class GateTests(unittest.TestCase):
                "affectedCases": ["AOT-01"], "count": count, "expectedCount": expected_count, "disposition": disposition}
         cell.update(diagnostics=[row], observedDiagnosticCounts={row["identity"]: count}, outcome="AssessedConditional")
         return cell
+
+    def test_linked_codec_reports_its_actual_emitting_assembly(self):
+        with tempfile.TemporaryDirectory(prefix="oc3-diagnostic-") as folder:
+            log = Path(folder) / "publish.log"
+            lines = [f"ILC : warning IL2026: Trim analysis {ns}.FixedWorkflowValueCodec.Serialize(Object,Type): Using member 'System.Text.Json.JsonSerializer.Serialize()' [<consumer>/app.csproj]" for ns in ["OrcaCore.Core.Internal", "OrcaCore.Internal"]]
+            log.write_text("\n".join(lines), encoding="utf-8")
+            rows = diagnostics(log, "<unused-app>", "<unused-cache>")
+            self.assertEqual([r["emittingAssembly"] for r in rows], ["OrcaCore.Core", "OrcaCore"])
+            self.assertEqual(rows[0]["member"], "OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object,Type)")
+            self.assertEqual(rows[0]["originals"], [lines[0]])
 
     def test_valid_synthetic_record(self):
         self.assertTrue(self.accept(fixture()))
