@@ -274,7 +274,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "e7b975df3e0e42ba568c0ac4f1356def496701a1fd53e5a5808180eade642578";
+        "492fb060d5046e7cd8b3cc088248fbef0eb631ed1110cd7ff6556f6383bd490a";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -319,9 +319,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 18;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 19;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "81cf9d8c6cfa653aef653a1185d598bb93ec1b750ba76fddea1d1a2120094028";
+        "6e769382b7e2ddbcb25e16e8a502592a63e9dfdafadd9e1c7c7de161d096dff9";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -373,7 +373,8 @@ public sealed class OpenSpecCorpusGuards
         ,
             ("openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-openspec-provenance-2026-10-16.md", "833de7f663e22f4faae4c6be66f1f4ca83cb392ed13834a4824957dac2e90ccf"),
             ("openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-openspec-provenance-2026-10-16.md", "8b4e385a0a79816e583b54b3bee269d11f2b3c0b14bbc7493246ac7d7d43c0bb"),
-            ("openspec/changes/add-ephemeral-host-shutdown/artifacts/contract-openspec-provenance-2026-10-18.md", "87f527a9a3cc39c6519fe75f860908778f705009fe23381e005104804f16c5e0")
+            ("openspec/changes/add-ephemeral-host-shutdown/artifacts/contract-openspec-provenance-2026-10-18.md", "87f527a9a3cc39c6519fe75f860908778f705009fe23381e005104804f16c5e0"),
+            ("openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-openspec-provenance-2026-10-19.md", "e7b975df3e0e42ba568c0ac4f1356def496701a1fd53e5a5808180eade642578")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
