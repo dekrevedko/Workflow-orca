@@ -50,3 +50,12 @@ and evidence/docs. Durable providers, dynamic DLL/plugin loading, alternate
 serializers, broad library compatibility metadata and product fixes are outside
 that initial source target. Issue #1 archival and Core lane consolidation remain
 separate maintenance work.
+
+## Task 2 clarification under the contract approval (2026-10-21)
+
+The immutable contract is checkpoint eea51c9 with verdict-only child dbd829e.
+F1 preserves all six SDK-default cells and adds four explicitly labelled trimmed/
+AOT JSON-reflection-enabled diagnostic cells, at most conditional. Their results
+cannot replace a default failure. DefinitionCompilerOptions.cs:58 is added to the
+new static inventory; the approved dated inventory remains immutable. No product
+source, API, serializer or dependency amendment is implied.

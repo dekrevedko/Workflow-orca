@@ -3058,3 +3058,15 @@ identity and detached/cached data remain; no DI/user work, timers, diagnostics,
 notifications or commits. Incomplete reports an obligation count, not identities;
 inspect existing stuck-step/state diagnostics before calling stop. The typed stopping
 and incomplete exceptions add the two stable codes above with internal constructors.
+
+## Native publishing assessment candidate (2026-10-21)
+
+NF-033 / AC-555–562 assess an ordinary package-only ephemeral journey: native Windows
+Server 2025 x64 and Ubuntu 24.04 LTS x64, untrimmed JIT, trimmed JIT and Native AOT.
+This adds no declaration to §17.4 or the authoring companion and no executable API,
+compile, package, dependency or friend baseline change. The six base cells leave
+JsonSerializerIsReflectionEnabledByDefault unset; default failures retain their exact
+public phase/code/messages. Four separate switch-enabled diagnostic cells are at most
+conditional, never replacements. All fixed-codec, typed-step, retry/composition and
+physical DI ownership contracts remain intact. See the task-2 protocol and candidate
+assessment report; no profile is qualified by contract/canonical text alone.

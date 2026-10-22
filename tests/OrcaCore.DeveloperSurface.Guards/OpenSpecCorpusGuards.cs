@@ -274,7 +274,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "492fb060d5046e7cd8b3cc088248fbef0eb631ed1110cd7ff6556f6383bd490a";
+        "64b80c3defb2c055376dc3c03c02819e835a2b633e94f2b2006731e26858d12c";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -319,9 +319,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 19;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 20;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "6e769382b7e2ddbcb25e16e8a502592a63e9dfdafadd9e1c7c7de161d096dff9";
+        "eda81ed6ab0eb369eefba2872ff7687030c7f1f47f460d9cca5b81026a471484";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -374,7 +374,8 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/add-ephemeral-terminal-retention/artifacts/contract-r1-openspec-provenance-2026-10-16.md", "833de7f663e22f4faae4c6be66f1f4ca83cb392ed13834a4824957dac2e90ccf"),
             ("openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-openspec-provenance-2026-10-16.md", "8b4e385a0a79816e583b54b3bee269d11f2b3c0b14bbc7493246ac7d7d43c0bb"),
             ("openspec/changes/add-ephemeral-host-shutdown/artifacts/contract-openspec-provenance-2026-10-18.md", "87f527a9a3cc39c6519fe75f860908778f705009fe23381e005104804f16c5e0"),
-            ("openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-openspec-provenance-2026-10-19.md", "e7b975df3e0e42ba568c0ac4f1356def496701a1fd53e5a5808180eade642578")
+            ("openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-openspec-provenance-2026-10-19.md", "e7b975df3e0e42ba568c0ac4f1356def496701a1fd53e5a5808180eade642578"),
+            ("openspec/changes/assess-ephemeral-native-aot/artifacts/contract-openspec-provenance-2026-10-20.md", "492fb060d5046e7cd8b3cc088248fbef0eb631ed1110cd7ff6556f6383bd490a")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -494,7 +495,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "94f5a3a39381191ebb21bcbf15b0949cc6230690b0451d1976362c2c4617e19f";
+        "16bd8d47aff374cc58f1acafceb47bb78a783abcf66449cf66075d6f0047b75b";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +

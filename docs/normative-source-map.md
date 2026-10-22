@@ -192,3 +192,14 @@ point, and silently ignores anything approved later or not named in its own inpu
 
 The structural fix is in `CLAUDE.md`: a sync gate must enumerate its **targets** (every capability,
 every mapped file in §2), never only its own inputs.
+
+## Native publishing assessment candidate (2026-10-21)
+
+The four issue #3 quality-and-verification additions map to NF-033 in 11 and
+AC-555–562 in 12. Cross-capability owners 10/13/17 retain the fixed-codec, DI and
+no-new-API rules; the authoring-only declaration companion and all product/baseline
+inputs are explicitly unchanged. Contract authority: eea51c9 / verdict-only dbd829e.
+Task 2's F1 clarification preserves six SDK-default cells and adds four labelled,
+at-most-conditional JSON-reflection extras. The append-only canonical candidate is
+byte-equal to the updated deltas. Assessment/source approval remains unset; native
+evidence, diagnostics and the whole target still require independent review.

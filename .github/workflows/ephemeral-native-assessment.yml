@@ -1,0 +1,87 @@
+name: Public ephemeral native publishing assessment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["codex/issue-3-native-evidence"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ephemeral-native-assessment-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    name: One exact candidate feed
+    runs-on: windows-2025
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build unchanged product source and pack twelve packages once
+        shell: pwsh
+        run: |
+          dotnet build OrcaCore.slnx -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate source build failed' }
+          ./tests/OrcaCore.DeveloperSurface.Guards/pack-exact-package-feed.ps1 -NoBuild -OutputDirectory "${{ github.workspace }}/artifacts/phase0-packages"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-assessment-candidate-feed
+          path: artifacts/phase0-packages/*.nupkg
+
+  native:
+    name: Native ${{ matrix.os }}
+    needs: packages
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: native-assessment-candidate-feed
+          path: ${{ runner.temp }}/oc3-feed
+      - name: Ubuntu Native AOT prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Negative consistency controls
+        run: python -B -X utf8 -m unittest discover -s tools/ephemeral-native-assessment -p test_gate.py
+      - name: Publish and run all default and labelled diagnostic cells
+        shell: pwsh
+        run: |
+          python -B -X utf8 tools/ephemeral-native-assessment/run_assessment.py --repository "${{ github.workspace }}" --feed "${{ runner.temp }}/oc3-feed" --work "${{ runner.temp }}/oc3-work" --output "${{ runner.temp }}/oc3-evidence"
+          if ($LASTEXITCODE -ne 0) { throw 'Native assessment is incomplete, unclassified or inconsistent; inspect retained raw evidence' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-assessment-${{ matrix.os }}
+          path: ${{ runner.temp }}/oc3-evidence
+
+  records:
+    name: Both native records use the same source and packages
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-assessment-*
+          path: evidence
+      - run: python -B -X utf8 tools/ephemeral-native-assessment/gate.py evidence/native-assessment-windows-2025/report.json evidence/native-assessment-ubuntu-24.04/report.json

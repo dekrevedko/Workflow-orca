@@ -240,3 +240,14 @@ provider disposal only closes as unsupported abortive teardown, not a join or ve
 The Section 3 qualification record binds the candidate-package recipe results to
 the frozen source. This is candidate guidance; use a published package containing
 this change before relying on it in a released application.
+
+## Native publishing assessment candidate (2026-10-21)
+
+The issue #3 contract is checkpointed (eea51c9 / dbd829e); task 2 assessment is pending.
+Do not treat its Native AOT recipes as qualified until native execution and independent
+review exist. The public consumer covers named steps, typed values, retry/composition,
+codec negatives and the same Closed/Stopping/Completed ownership rules taught here.
+SDK-default trimmed/AOT runs are retained even if JSON metadata fails at registration.
+Extra JSON-reflection-enabled runs are explicitly labelled and at most conditional;
+they do not configure the private codec or repair a default result. Reproduction and
+exact pending status live in tools/ephemeral-native-assessment/README.md.

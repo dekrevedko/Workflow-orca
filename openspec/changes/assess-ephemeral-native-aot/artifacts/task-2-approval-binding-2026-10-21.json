@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "stage": "ContractApprovedAssessmentPending",
+  "change": "assess-ephemeral-native-aot",
+  "contractCheckpoint": "eea51c9c2ba14d6b3bd0c963a3b5a38873fe1416",
+  "contractParent": "7895262a21f19741c0b5b7fbad30907bccff2cbb",
+  "contractTree": "16c371baf6c40c779e9b11e0fa83ae4b814c87dc",
+  "contractVerdictCommit": "dbd829e2104fba70f6f678513fcaa08bf17a6045",
+  "contractVerdictPath": "openspec/changes/assess-ephemeral-native-aot/artifacts/contract-independent-review-verdict-2026-10-20.md",
+  "contractVerdictSha256": "96f2921dd457800fb9723cdb9220cc430642ab6677e508914458ff6ebcff3d41",
+  "canonicalApprovalEvidencePath": null,
+  "assessmentApprovalEvidencePath": null,
+  "sourceApprovalEvidencePath": null,
+  "productSourceAmendment": false,
+  "clarification": "F1: six SDK-default cells plus four labelled JSON-reflection-enabled extras; extras at most conditional",
+  "pendingReviewTask": "2.4"
+}

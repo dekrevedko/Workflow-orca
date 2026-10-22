@@ -61,6 +61,30 @@ while its compatibility result remains unsupported. No result SHALL imply librar
 wide, other-type, other-RID or other-version compatibility. Independent final review
 SHALL approve the interpretation before publication.
 
+The six base cells SHALL leave JsonSerializerIsReflectionEnabledByDefault unset.
+Every trimmed/AOT base artifact SHALL be executed first with SDK defaults, recording
+its effective JsonSerializer.IsReflectionEnabledByDefault value, phase, exact
+exception/inner-exception types and messages, and public error code/diagnostics.
+A definition rejection SHALL NOT be relabeled a codec failure merely because JSON
+metadata resolution caused it. Publish failure SHALL retain its own actual cause.
+
+Four additional diagnostic cells (trimmed and AOT on each OS) SHALL explicitly set
+JsonSerializerIsReflectionEnabledByDefault=true. They SHALL retain separate artifact,
+property and result identities and SHALL NOT replace or repair the default cells.
+The switch is a candidate LocalRequirement, with all IL2026/IL3050 and other findings
+individually accounted for. These extra cells SHALL be at most AssessedConditional
+if every required scenario passes; unsupported or blocked cells remain so. No
+product JSON options, TypeInfoResolver, codec hook or broad suppression is added.
+Extra-cell measurements SHALL keep that condition and never imply default support.
+
+#### Scenario: SDK-default JSON metadata resolution rejects a declared type
+- **WHEN** a default trimmed/AOT executable fails before the first accepted workflow
+- **THEN** its exact public rejection and exception chain are retained, later cases name that causal boundary, and separate switch-enabled discovery cannot turn this default cell green
+
+#### Scenario: A switch-enabled diagnostic cell reaches later runtime paths
+- **WHEN** the explicitly labelled extra artifact runs with JSON reflection enabled
+- **THEN** later facade/generic/codec behavior and available measurements are recorded under that extra identity, with at most a conditional conclusion and every diagnostic classified
+
 #### Scenario: Native publication fails at the fixed codec
 - **WHEN** a reproducible diagnostic or runtime failure prevents a required native journey
 - **THEN** the report preserves the failure and marks downstream native cases BlockedUpstream rather than Passed, while a green record-validation job makes no native-support claim
@@ -71,7 +95,7 @@ SHALL approve the interpretation before publication.
 
 ### Requirement: Published compatibility evidence executes the selected ephemeral scenarios
 The published artifacts SHALL execute the sixteen scenarios AOT-01 through AOT-16
-in assess-ephemeral-native-aot's reviewed contract-consumer-protocol-2026-10-20.md, covering typed registration,
+in assess-ephemeral-native-aot's task-2-consumer-protocol-2026-10-21.md, covering typed registration,
 reference and value payloads, named DI construction, detached state/output, local
 output-wait cancellation, workflow cancellation, physical shutdown ownership,
 retry identity/attempts, bounded root Parallel and ForEach behavior, and fixed-codec

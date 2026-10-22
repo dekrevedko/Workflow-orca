@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 358,
-    "physicalDeclarations": 1497,
-    "activeFiles": 209,
-    "activeDeclarations": 809,
+    "physicalFiles": 359,
+    "physicalDeclarations": 1500,
+    "activeFiles": 210,
+    "activeDeclarations": 812,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 18,
@@ -814,6 +814,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/NativePublishingAssessmentGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 3
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs",
