@@ -2,6 +2,7 @@
 import copy
 import unittest
 from gate import validate_platform
+from run_assessment import apply_classifications
 
 IDS = [f"AOT-{n:02d}" for n in range(1, 17)]
 FLAVORS = ["jit", "trimmed", "aot", "trimmed-json-reflection", "aot-json-reflection"]
@@ -18,6 +19,8 @@ def fixture():
             "effectiveReflection": flavor == "jit" or flavor.endswith("-json-reflection"),
             "outcome": "AssessedConditional" if flavor.endswith("-json-reflection") else "AssessedCompatible",
             "publishExitCode": 0, "diagnostics": [], "runtimeFindings": [],
+            "runtimeSettings": {"frameworkDescription": ".NET fixture", "runtimeVersion": "10.0.0",
+                "dynamicCodeSupported": not flavor.startswith("aot"), "serverGc": False, "gcLatencyMode": "Interactive"},
             "localRequirements": ([{"name": "JsonSerializerIsReflectionEnabledByDefault", "value": True, "disposition": "LocalRequirement",
                                     "proof": "synthetic control", "replacesDefault": False}] if flavor.endswith("-json-reflection") else []),
             "cases": [{"id": key, "outcome": "Passed", "assertions": 20, "exceptions": [], "observations": []} for key in IDS],
@@ -43,7 +46,7 @@ class GateTests(unittest.TestCase):
     def warning(self, report, *, disposition="LocalRequirement", count=1, expected_count=1):
         cell = report["cells"][1]
         row = {"identity": "b" * 64, "code": "IL2026", "message": "synthetic warning",
-               "location": "fixture/PublicApi.dll", "rationale": "bounded synthetic fixture", "proof": "unit fixture only",
+               "location": "fixture/PublicApi.dll", "emittingAssembly": "PublicApi", "member": "Fixture.PublicApi.Call()", "rationale": "bounded synthetic fixture", "proof": "unit fixture only",
                "affectedCases": ["AOT-01"], "count": count, "expectedCount": expected_count, "disposition": disposition}
         cell.update(diagnostics=[row], observedDiagnosticCounts={row["identity"]: count}, outcome="AssessedConditional")
         return cell
@@ -74,6 +77,10 @@ class GateTests(unittest.TestCase):
         report = fixture(); self.warning(report, count=2, expected_count=1)
         with self.assertRaisesRegex(ValueError, "diagnostic count drift"): self.accept(report)
 
+    def test_missing_observed_runtime_settings(self):
+        report = fixture(); report["cells"][0].pop("runtimeSettings")
+        with self.assertRaisesRegex(ValueError, "runtime/GC settings"): self.accept(report)
+
     def test_missing_native_host(self):
         self.reject(lambda r: r["host"].update(qualified=False))
 
@@ -89,6 +96,23 @@ class GateTests(unittest.TestCase):
     def test_dropped_diagnostic(self):
         report = fixture(); self.warning(report)["diagnostics"].clear()
         with self.assertRaisesRegex(ValueError, "dropped or invented"): self.accept(report)
+
+    def test_runner_rejects_a_classified_finding_that_disappears(self):
+        report = fixture()
+        cell = self.warning(report)
+        prior = copy.deepcopy(cell["diagnostics"])
+        cell["diagnostics"] = []
+        apply_classifications(cell, {"diagnostics": prior})
+        with self.assertRaisesRegex(ValueError, "diagnostic count drift"): self.accept(report)
+
+    def test_runner_keeps_an_explicitly_corrected_zero_count_finding(self):
+        report = fixture()
+        cell = self.warning(report, disposition="Corrected", count=0, expected_count=0)
+        prior = copy.deepcopy(cell["diagnostics"])
+        cell["diagnostics"] = []
+        apply_classifications(cell, {"diagnostics": prior})
+        self.assertEqual(cell["diagnostics"][0]["count"], 0)
+        self.assertTrue(self.accept(report))
 
     def test_extra_loses_its_feature_condition(self):
         self.reject(lambda r: r["cells"][-1].update(localRequirements=[]))

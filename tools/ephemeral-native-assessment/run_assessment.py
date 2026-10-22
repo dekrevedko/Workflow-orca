@@ -72,10 +72,18 @@ def diagnostics(log, app, cache):
         normalized = original.replace(str(app), "<consumer>").replace(str(cache), "<nuget>")
         identity = digest(normalized.encode("utf-8"))
         if identity not in rows:
+            analysis = re.match(r"(?:Trim|AOT) analysis ([^:]+):", message)
+            member = analysis.group(1) if analysis else "not separately supplied; exact diagnostic message retained"
+            # The codec/converters live in assembly OrcaCore despite their Core.Internal namespace.
+            assembly = ("OrcaCore" if member.startswith(("OrcaCore.Core.Internal.FixedWorkflowValueCodec", "OrcaCore.Core.Internal.WorkflowFailureJsonConverter"))
+                        else "OrcaCore.Engine.Ephemeral" if member.startswith("OrcaCore.Engine.Ephemeral.")
+                        else "OrcaCore.Core" if member.startswith("OrcaCore.Core.")
+                        else Path(location).stem if location.lower().endswith(".dll") else "NativeConsumer" if ".cs(" in location else "native tool / exact original retained")
+            referenced = re.search(r"(?:Using member |call to |Call to )'([^']+)'", message)
             rows[identity] = dict(identity=identity, code=code, severity=severity, message=message,
                                   location=location, normalized=normalized, originals=[], count=0,
-                                  emittingAssembly=Path(location).stem if location.lower().endswith(".dll") else "NativeConsumer" if ".cs(" in location else "native tool / see original location",
-                                  member=(re.search(r"Using member '([^']+)'", message).group(1) if re.search(r"Using member '([^']+)'", message) else "not separately supplied; exact diagnostic message retained"))
+                                  emittingAssembly=assembly, member=member,
+                                  referencedMember=referenced.group(1) if referenced else "see exact message")
         rows[identity]["count"] += 1
         rows[identity]["originals"].append(original)
     return list(rows.values())
@@ -137,6 +145,14 @@ def apply_classifications(cell, known):
         for key in ["disposition", "rationale", "proof", "expectedCount", "affectedCases"]:
             row[key] = classification.get(key)
     cell["observedDiagnosticCounts"] = {row["identity"]: row["count"] for row in cell["diagnostics"]}
+    # Keep a missing prior identity in the ledger with its actual zero count.
+    # Only an explicit Corrected/expectedCount=0 decision can accept its absence.
+    observed_ids = set(cell["observedDiagnosticCounts"])
+    for identity, prior in diagnostic_map.items():
+        if identity not in observed_ids:
+            row = dict(prior)
+            row.update(count=0, originals=[])
+            cell["diagnostics"].append(row)
     runtime_map = {row["id"]: row for row in known.get("runtimeFindings", [])}
     cell["runtimeFindings"] = []
     for case in cell["cases"]:
@@ -175,6 +191,12 @@ def run(args):
     report = dict(schemaVersion=1, sourceSha=source, host=host, packageHashes=package_hashes, cells=[],
                   claim="Profile-specific candidate assessment, pending independent review; no product support promise")
     tool_root = repo / "tools/ephemeral-native-assessment"
+    report["runtimeEnvironment"] = {key: os.environ.get(key) for key in [
+        "DOTNET_gcServer", "DOTNET_GCServer", "COMPlus_gcServer", "DOTNET_gcConcurrent", "DOTNET_GCConcurrent", "COMPlus_gcConcurrent",
+        "DOTNET_TieredCompilation", "COMPlus_TieredCompilation", "DOTNET_TieredPGO", "COMPlus_TieredPGO",
+        "DOTNET_TC_QuickJit", "COMPlus_TC_QuickJit", "DOTNET_ReadyToRun", "COMPlus_ReadyToRun"]}
+    report["workloadIdentity"] = dict(measuredCases=sorted(MEASURED), caseSourceSha256=digest((tool_root / "consumer/Cases.cs").read_bytes()),
+        inputScope="Literal DTO/value/item payloads and generic shapes in Cases.cs; fresh workflow/instance/operation identities per process are not equal-input hashes")
     report["harnessFiles"] = {p.relative_to(tool_root).as_posix(): digest(p.read_bytes()) for p in sorted(tool_root.rglob("*"))
                               if p.is_file() and "__pycache__" not in p.parts and p.suffix in [".py", ".cs", ".csproj", ".json"]}
     executables = {}
@@ -220,9 +242,14 @@ def run(args):
             artifacts = {p.relative_to(publish).as_posix(): dict(bytes=p.stat().st_size, sha256=digest(p.read_bytes())) for p in sorted(publish.rglob("*")) if p.is_file()}
             save(cell_output / "artifact-closure.json", artifacts)
             native_closure(executable, cell_output, env)
+            runtimeconfig = publish / "NativeConsumer.runtimeconfig.json"
+            cell["emittedRuntimeConfig"] = json.loads(runtimeconfig.read_text(encoding="utf-8")) if runtimeconfig.exists() else None
+            if runtimeconfig.exists(): shutil.copyfile(runtimeconfig, cell_output / runtimeconfig.name)
+            cell["runtimeConfigNote"] = "Exact emitted config retained when present; Native AOT may embed configuration instead of emitting a runtimeconfig file"
             result = child(executable, ["--all"], cell_output / "functional")
             cell["cases"] = result["report"]["cases"]
             cell["effectiveReflection"] = result["report"]["jsonReflectionEnabled"]
+            cell["runtimeSettings"] = result["report"]["runtimeSettings"]
             loaded = {}
             for module in result["report"]["loadedModulePaths"]:
                 path = Path(module)
@@ -249,7 +276,7 @@ def run(args):
                 result = child(executables[flavor], ["--measure"], output / flavor / f"{phase}-{round_number:02d}")
                 sample = dict(passed=result["exitCode"] == 0 and all(c["outcome"] == "Passed" for c in result["report"]["cases"]),
                               startupMs=result["startupMs"], quiescentElapsedMs=result["quiescentElapsedMs"],
-                              quiescentCounters=result["report"]["quiescentCounters"], round=round_number, order=order)
+                              quiescentCounters=result["report"]["quiescentCounters"], runtimeSettings=result["report"]["runtimeSettings"], round=round_number, order=order)
                 cells[flavor]["measurements"][phase].append(sample)
                 save(output / "report.json", report)
     for cell in report["cells"]:

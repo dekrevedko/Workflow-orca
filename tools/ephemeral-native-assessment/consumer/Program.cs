@@ -46,6 +46,16 @@ try
         json.WriteNumber("schemaVersion", 1);
         json.WriteBoolean("jsonReflectionEnabled", JsonSerializer.IsReflectionEnabledByDefault);
         json.WriteString("mode", mode);
+        json.WriteStartObject("runtimeSettings");
+        json.WriteString("frameworkDescription", System.Runtime.InteropServices.RuntimeInformation.FrameworkDescription);
+        json.WriteString("runtimeVersion", Environment.Version.ToString());
+        json.WriteBoolean("dynamicCodeSupported", System.Runtime.CompilerServices.RuntimeFeature.IsDynamicCodeSupported);
+        json.WriteBoolean("serverGc", System.Runtime.GCSettings.IsServerGC);
+        json.WriteString("gcLatencyMode", System.Runtime.GCSettings.LatencyMode.ToString());
+        if (AppContext.TryGetSwitch("System.Runtime.TieredCompilation", out var tiered)) json.WriteBoolean("tieredCompilationAppContextOverride", tiered);
+        else json.WriteNull("tieredCompilationAppContextOverride");
+        json.WriteString("tieringObservation", "Only explicit AppContext/config/environment settings are observable here; null means no such override, not a measured JIT tier.");
+        json.WriteEndObject();
         json.WriteStartArray("cases");
         foreach (var result in results)
         {

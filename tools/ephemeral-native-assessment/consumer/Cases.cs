@@ -67,7 +67,10 @@ public static class Cases
     }
     private static async Task<(WorkflowInstanceHandle<Data> Instance, Task Driver)> BeginBlocked(Owner owner, Session session)
     {
-        var handle = owner.Registry.Register(ReferenceDefinition(true)).GetHandleOrThrow();
+        var definition = ReferenceDefinition(true);
+        Probe.Phase = "Register";
+        var handle = owner.Registry.Register(definition).GetHandleOrThrow();
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync("blocked", StartIdempotencyKey.Create("blocked"))).GetHandleOrThrow();
         session.Clock.Advance(TimeSpan.FromSeconds(10));
         await session.Entered.Task.WaitAsync(Probe.Guard);
@@ -108,8 +111,14 @@ public static class Cases
     {
         var session = new Session { Block = true };
         await using var owner = new Owner(session);
-        var handle = owner.Registry.Register(ReferenceDefinition()).GetHandleOrThrow();
+        var definition = ReferenceDefinition();
+        Probe.Phase = "Register";
+        var handle = owner.Registry.Register(definition).GetHandleOrThrow();
+        Probe.Phase = "StartBeforeDrain";
         var pending = handle.StartOrGetAsync("draining", StartIdempotencyKey.Create("draining")).AsTask();
+        // A pre-entry product fault must be observed, not hidden by the entry watchdog.
+        await Task.WhenAny(pending, session.Entered.Task).WaitAsync(Probe.Guard);
+        if (pending.IsCompleted) await pending;
         await session.Entered.Task.WaitAsync(Probe.Guard);
         Probe.Phase = "ClosedDrain";
         owner.Close();
@@ -141,8 +150,10 @@ public static class Cases
         var definition = Workflow.Ephemeral<Data>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(text => new Data { Text = text }).Then<ReferenceStep>().WithRetry(2)
             .End(state => state.Value.Text, WorkflowOutcomeName.Create("retried")).Build();
+        Probe.Phase = "Register";
         var handle = owner.Registry.Register(definition).GetHandleOrThrow();
         Probe.Phase = "Retry";
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync("retry", StartIdempotencyKey.Create("retry"))).GetHandleOrThrow();
         Probe.Check(await instance.WaitForOutputAsync() == "retry!", "eligible retry completes");
         var attempts = session.Attempts.ToArray();
@@ -161,7 +172,9 @@ public static class Cases
                 .Branch<ItemState>(AuthoredBranchId.Create("b"), _ => new ItemState(1, 20), b => b.Then<ItemStep>().Delay(TimeSpan.FromSeconds(10)).Then<ItemFinishStep>().Return(s => s.Value.Number)))
             .WhenAll((parent, values) => new FanState { Values = values.Select(v => v.Result).ToArray(), Merges = parent.Value.Merges + 1 })
             .End(s => s.Value.Values, WorkflowOutcomeName.Create("parallel")).Build();
+        Probe.Phase = "Register";
         var handle = owner.Registry.Register(definition).GetHandleOrThrow();
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync("fan", StartIdempotencyKey.Create("parallel"))).GetHandleOrThrow();
         session.Clock.Advance(TimeSpan.FromSeconds(10));
         await session.TwoEntered.Task.WaitAsync(Probe.Guard);
@@ -200,7 +213,9 @@ public static class Cases
                 }).End(s => s.Value.Values, WorkflowOutcomeName.Create("outcomes")).Build()
             : root.WhenAll((parent, values) => new FanState { Values = values.Select(v => v.Result).ToArray(), Merges = parent.Value.Merges + 1 })
                 .End(s => s.Value.Values, WorkflowOutcomeName.Create("items")).Build();
+        Probe.Phase = "Register";
         var handle = owner.Registry.Register(definition).GetHandleOrThrow();
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync("fan", StartIdempotencyKey.Create("items"))).GetHandleOrThrow();
         session.Clock.Advance(TimeSpan.FromSeconds(10));
         await session.TwoEntered.Task.WaitAsync(Probe.Guard);
@@ -237,11 +252,14 @@ public static class Cases
         var definition = Workflow.Ephemeral<Data>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<Link>(input => new Data { Text = input.Text }).Then<ReferenceStep>()
             .End(s => s.Value.Text, WorkflowOutcomeName.Create("bad-input")).Build();
+        Probe.Phase = "Register";
         var handle = owner.Registry.Register(definition).GetHandleOrThrow();
         var input = new Link { Text = "cycle" }; input.Next = input;
         Probe.Phase = "InputBoundary";
         var error = await Probe.Error(async () => await handle.StartOrGetAsync(input, StartIdempotencyKey.Create("bad-input")));
         Probe.Observations.Add(error?.ToString() ?? "no exception");
+        if (error is not null and not JsonException)
+            System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(error).Throw();
         Probe.Check(error is JsonException, "public fixed-codec JsonException at input boundary");
         Probe.Check(error!.Message.Contains("Cyclic payload graph", StringComparison.Ordinal), "specific cycle cause retained");
     }
@@ -256,8 +274,10 @@ public static class Cases
                 item => new Data { Text = item.Item }, body => body.Then<ReferenceStep>().Return(s => s.Value.Text))
             .WhenAll((parent, _) => parent.Value)
             .End(s => s.Value.Text, WorkflowOutcomeName.Create("byte-limit")).Build();
+        Probe.Phase = "Register";
         var handle = owner.Registry.Register(definition).GetHandleOrThrow();
         Probe.Phase = "EncodedItemSnapshotBoundary";
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync(new string('x', 300 * 1024), StartIdempotencyKey.Create("byte-limit"))).GetHandleOrThrow();
         var snapshot = await instance.GetSnapshotAsync();
         Probe.Check(snapshot.Status == WorkflowInstanceStatus.Failed && snapshot.Failure?.Code == "SFE-LIMIT-011", "fixed 256 KiB item snapshot limit has the existing public failure code");
@@ -276,8 +296,10 @@ public static class Cases
         var definition = Workflow.Ephemeral<StrongData>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<StrongData>(input => input).Then<StrongStep>()
             .End(s => s.Value, WorkflowOutcomeName.Create("strong")).Build();
+        Probe.Phase = "Register";
         var handle = owner.Registry.Register(definition).GetHandleOrThrow();
         Probe.Phase = "StrongValues";
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync(original, StartIdempotencyKey.Create("strong"))).GetHandleOrThrow();
         var actual = await instance.WaitForOutputAsync();
         Probe.Check(actual.Key.Equals(original.Key) && actual.Name.Equals(original.Name), "ordinal whitespace/case/non-ASCII strong values round trip");
@@ -289,7 +311,10 @@ public static class Cases
         Probe.Phase = "IndependentRoots";
         await first.DisposeAsync();
         Probe.Check(first.Disposed && second.Alive, "first root disposal leaves second root and scope alive");
-        var handle = second.Registry.Register(ReferenceDefinition()).GetHandleOrThrow();
+        var definition = ReferenceDefinition();
+        Probe.Phase = "Register";
+        var handle = second.Registry.Register(definition).GetHandleOrThrow();
+        Probe.Phase = "Start";
         var instance = (await handle.StartOrGetAsync("root2", StartIdempotencyKey.Create("root2"))).GetHandleOrThrow();
         Probe.Check((await instance.WaitForOutputAsync()).Text == "root2!", "second root remains independently usable");
         Probe.Check(second.ScopedSharesLifetime, "child scope resolves its root's lifetime");

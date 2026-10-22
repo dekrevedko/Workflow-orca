@@ -25,7 +25,7 @@ def validate_diagnostic(row):
     require(type(count) is int and count >= 0 and count == row.get("expectedCount"), "diagnostic count drift")
     disposition = row.get("disposition")
     require(disposition in {"Corrected", "Unsupported", "LocalRequirement"}, "unclassified diagnostic")
-    require(all(row.get(key) for key in ["identity", "code", "message", "location", "rationale", "proof"]), "incomplete individual diagnostic")
+    require(all(row.get(key) for key in ["identity", "code", "message", "location", "emittingAssembly", "member", "rationale", "proof"]), "incomplete individual diagnostic")
     require(count == 0 if disposition == "Corrected" else count > 0, "finding disposition contradicts its final count")
     require(isinstance(row.get("affectedCases"), list) and row["affectedCases"], "finding lacks affected cases")
     require(set(row["affectedCases"]).issubset(IDS), "unknown affected scenario")
@@ -47,6 +47,12 @@ def validate_platform(report, *, allow_test_fixture=False):
         require(type(cell.get("effectiveReflection")) is bool or cell.get("publishExitCode") != 0, "missing effective feature value")
         if cell.get("publishExitCode") == 0:
             require(cell["effectiveReflection"] == (extra or flavor == "jit"), "runtime feature differs from recorded SDK-default/explicit setting")
+        if cell.get("publishExitCode") == 0:
+            settings = cell.get("runtimeSettings", {})
+            require(settings.get("frameworkDescription") and settings.get("runtimeVersion")
+                    and type(settings.get("serverGc")) is bool and settings.get("gcLatencyMode")
+                    and settings.get("dynamicCodeSupported") == (not flavor.startswith("aot")),
+                    "missing or inconsistent observed runtime/GC settings")
         outcome = cell.get("outcome")
         require(outcome in {"AssessedCompatible", "AssessedConditional", "AssessedUnsupported"}, "incomplete cell")
         require(not extra or outcome != "AssessedCompatible", "extra cell cannot be unconditional")
