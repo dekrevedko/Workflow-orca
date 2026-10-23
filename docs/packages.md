@@ -27,6 +27,52 @@ The [NuGet.org publishing run](https://github.com/dekrevedko/Workflow-orca/actio
 verified all twelve public versions and their source metadata. A fresh external consumer
 restored exclusively from NuGet.org and ran the typed workflow, returning `42`.
 
+### Install from GitHub Packages
+
+The additional NuGet feed is `https://nuget.pkg.github.com/dekrevedko/index.json`.
+GitHub requires authentication even for public NuGet packages. For local use, provide
+a classic personal access token with `read:packages` through a secret store or an
+environment variable. Keep credentials out of committed configuration. Actions in
+the linked repository use their `GITHUB_TOKEN` instead. See
+[GitHub's registry guide](https://docs.github.com/en/packages/working-with-a-github-packages-registry/working-with-the-nuget-registry).
+
+Use an explicit `NuGet.Config` to route OrcaCore packages to GitHub and other
+dependencies to NuGet.org:
+
+```xml
+<configuration>
+  <packageSources>
+    <clear />
+    <add key="github" value="https://nuget.pkg.github.com/dekrevedko/index.json" />
+    <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+  </packageSources>
+  <packageSourceMapping>
+    <packageSource key="github">
+      <package pattern="OrcaCore" />
+      <package pattern="OrcaCore.*" />
+    </packageSource>
+    <packageSource key="nuget.org">
+      <package pattern="*" />
+    </packageSource>
+  </packageSourceMapping>
+</configuration>
+```
+
+With `GH_PACKAGES_READ_TOKEN` already supplied securely, authenticate for this shell
+and restore the project:
+
+```powershell
+$env:NuGetPackageSourceCredentials_github = "Username=YOUR_GITHUB_USERNAME;Password=$env:GH_PACKAGES_READ_TOKEN;ValidAuthenticationTypes=Basic"
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2 --no-restore
+dotnet restore YourProject.csproj --configfile NuGet.Config
+```
+
+The release workflow verifies this route with a fresh package cache, checks that all
+twelve OrcaCore packages actually came from GitHub, and compares their downloaded
+SHA-256 hashes with the original release assets. Availability requires the
+`Publish and verify GitHub Packages` job to succeed. NuGet.org remains available
+without a GitHub credential.
+
 ### Install from GitHub release downloads
 
 Download and extract the `orcacore-packages` artifact from a successful CI run, or download all
@@ -84,7 +130,7 @@ final publishing job and needs no additional secrets. After the workflow exists 
 branch, it can also be run manually with a prerelease version. Stable versions are rejected.
 Do not reuse a published version; choose a new version for changed source.
 
-The [NuGet.org publishing guide](nuget-publishing.md) covers the one-time trusted publisher
-setup and publishing an existing GitHub prerelease without rebuilding it. The GitHub Packages
-registry is a separate destination and is not configured. Signing, SourceLink, and stable API
+The [publishing guide](nuget-publishing.md) covers NuGet.org trusted publishing and
+mirroring an existing prerelease to GitHub Packages without rebuilding it. The
+registries use separate authentication and permissions. Signing, SourceLink, and stable API
 compatibility remain outside this prerelease workflow.
