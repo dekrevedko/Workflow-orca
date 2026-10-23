@@ -3058,3 +3058,18 @@ identity and detached/cached data remain; no DI/user work, timers, diagnostics,
 notifications or commits. Incomplete reports an obligation count, not identities;
 inspect existing stuck-step/state diagnostics before calling stop. The typed stopping
 and incomplete exceptions add the two stable codes above with internal constructors.
+
+## Native publishing assessment (approved 2026-10-21)
+
+NF-033 / AC-555–562 have an independently approved native assessment (7639189 /
+verdict baae5ad): the ordinary package-only ephemeral journey passes all sixteen
+JIT scenarios on Windows Server 2025 x64 and Ubuntu 24.04 LTS x64. Trimmed and
+Native AOT builds are AssessedUnsupported with SDK defaults and with the separately
+labelled JSON-reflection switch enabled. Exact phase/code/messages, individual
+warnings and unavailable unsupported-workload measurements are retained.
+
+No declaration in §17.4 or the authoring companion changes, nor any product API,
+compile/package baseline, dependency, friend or fixed-codec/DI ownership rule.
+The six default cells and four extras remain separate; these observations apply
+only to the tested consumer/package/toolchain profile. Any product compatibility
+remediation needs a separate amendment.

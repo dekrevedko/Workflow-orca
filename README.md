@@ -180,3 +180,12 @@ dotnet run --project samples/OrcaCore.Examples/OrcaCore.Examples.csproj
 The superseded prototype and its original solution metadata are preserved under
 [`archive/legacy-poc/`](archive/legacy-poc/); the root `src/`, `tests/`, samples,
 benchmarks, and solution are the active implementation.
+
+## Native publishing assessment (approved 2026-10-21)
+
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+The public-package consumer passes all sixteen JIT scenarios on Windows Server 2025
+and Ubuntu 24.04. Trimmed and Native AOT defaults and JSON-reflection-enabled extras
+are unsupported for this exact tested profile. No Native AOT/trimming support is
+promised. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
+for the tested packages, toolchain, raw evidence and reproduction instructions.

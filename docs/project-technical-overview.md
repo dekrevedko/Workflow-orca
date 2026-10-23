@@ -183,3 +183,13 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Native publishing assessment (approved 2026-10-21)
+
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+Its empty public API amendment catalogue leaves product code and the fixed codec
+unchanged. The exact public-package consumer passes both native JIT controls;
+all trimmed/AOT defaults and separately labelled JSON-reflection extras remain
+unsupported. The approved report retains individual diagnostics, runtime failures,
+closure and JIT measurements, with no cross-OS or universal faster/smaller claim.
+Product remediation and Core work-lane consolidation remain separate changes.

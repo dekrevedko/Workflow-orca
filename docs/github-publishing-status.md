@@ -146,3 +146,18 @@ No separate stable-release threshold is introduced by this decision. The publica
 above records the subsequent successful GitHub runs and release, followed by verified
 NuGet.org publication. The initial preparation audit configured GitHub release downloads;
 external registry publishing was added in PR #5.
+
+## Native publishing assessment (approved 2026-10-21)
+
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+The native run used exact 0.0.0-phase0 candidate packages; it changes no published
+release. Both JIT controls pass all sixteen scenarios; trimmed/AOT defaults and
+labelled reflection-enabled extras are unsupported for that exact tested profile.
+A green assessment-record gate validates those conclusions without granting
+library-wide Native AOT compatibility.
+
+The human authorized publication and a PR after the checkpoint/verdict binding,
+with a merge commit only after CI is green. This does not authorize a package
+release or product remediation. The assessment workflow now uses manual dispatch;
+its temporary evidence-branch push trigger has been removed. The original native
+receipts and independent verdict remain immutable.

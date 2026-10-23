@@ -294,3 +294,12 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Native publishing assessment (approved 2026-10-21)
+
+The independently approved issue #3 assessment (NF-033, AC-555–562; 7639189 /
+verdict baae5ad) uses the existing three-package ephemeral closure and named DI
+steps. Both native JIT controls pass; trimmed/AOT defaults and reflection-enabled
+extras are unsupported for that exact profile. It adds no provider, role,
+fingerprint, friend, codec resolver or serializer hook. PR-016 and PR-041 remain
+unchanged; any compatibility remediation needs its own reviewed amendment.

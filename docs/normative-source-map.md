@@ -192,3 +192,16 @@ point, and silently ignores anything approved later or not named in its own inpu
 
 The structural fix is in `CLAUDE.md`: a sync gate must enumerate its **targets** (every capability,
 every mapped file in §2), never only its own inputs.
+
+## Native publishing assessment (approved 2026-10-21)
+
+The four approved issue #3 quality-and-verification additions map to NF-033 in 11
+and AC-555–562 in 12. Cross-capability owners 10/13/17 retain fixed-codec, DI and
+no-new-API rules; the declaration companion and all product/baseline inputs remain
+unchanged. Contract: eea51c9 / dbd829e. Assessment/canonical checkpoint: 7639189;
+independent verdict: baae5ad. The approval binding resolves both chains through Git
+and keeps product-source approval null because no product amendment was made.
+
+All six SDK-default cells and four labelled JSON-reflection extras have native
+records. JIT passes 16/16 on each host; all trimmed/AOT defaults/extras are
+unsupported. The four canonical blocks remain byte-equal to the F1-clarified deltas.

@@ -201,3 +201,13 @@ not deferred v1 placeholders. Applications or outward companion projects adapt
 the two v1 production durable storage providers. Any later storage provider re-enters only through
 the registry row above and must implement the complete provider contract rather than revive one of
 the provisional project shapes.
+
+## Native publishing assessment (approved 2026-10-21)
+
+Issue #3's optional public-consumer research is independently approved at 7639189 /
+verdict baae5ad. All six SDK-default and four labelled JSON-reflection extra cells
+are recorded. JIT passes every scenario on both native hosts; trimmed/AOT defaults
+and extras remain unsupported, which is a valid assessment outcome. This creates
+no deferred public member or support promise. Product/API/annotation/codec
+remediation requires a separate reviewed amendment. Issue #1 archival and Core
+work-lane consolidation remain separate maintenance.

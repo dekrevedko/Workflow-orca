@@ -104,6 +104,34 @@ forced-kill, thread-abort or byte/RSS bound is implied. Cached Completed SHALL a
 TimeProvider/user work. Generic Host drain/stop shares one host shutdown budget;
 plain-DI drain uses the application submission/ownership protocol. [MG-067–069, PR-041]
 
+### NF-033 Native publishing assessment is profile-specific research
+The optional public ephemeral assessment SHALL use one external PackageReference-only
+consumer on native Windows Server 2025 x64 and Ubuntu 24.04 LTS x64, each published
+as Release self-contained untrimmed JIT, fully trimmed JIT and Native AOT. Native VMs
+are allowed; Docker, WSL and cross-publish alone do not qualify. Record exact package,
+SDK/runtime/toolchain, source/input identity and managed/native dependency closure.
+The six base cells leave JsonSerializerIsReflectionEnabledByDefault unset and execute
+before four separately identified trimmed/AOT extra cells explicitly setting it true.
+Record each default's effective switch, actual public failure phase/code, exact
+exception/inner messages and diagnostics. A metadata rejection must not be renamed.
+Extra cells are at most AssessedConditional and never replace a default failure.
+Every compiler/trimmer/AOT/native finding SHALL be individually Corrected, Unsupported
+or a proven bounded LocalRequirement; retain detailed diagnostics/counts and reject
+unknown or changed findings. No blanket suppression, private rooting, whole-product
+root, serializer hook, product annotation/API/dependency change or compatibility badge.
+The full AOT-01–16 public catalogue SHALL execute, with barriers and truthful physical
+ownership, in both untrimmed JIT controls; other cells retain explicit causal failures
+and blocked cases. A complete record can conclude unsupported, never invent support.
+Missing native hosts or a broken JIT control prevent completion. Executable cells use
+three retained warm-ups and twenty recorded interleaved runs of an identical workload,
+with launch-to-ready, cumulative user+kernel CPU, peak/quiescent process memory and
+separately named no-forced-GC managed estimates/last-collection heap observations.
+Keep platform memory meanings, units/phases, failures and unavailable values explicit;
+no zero placeholders, cold-cache claim, cross-machine ranking or performance ceiling.
+Independent final assessment review precedes publishing any profile-specific conclusion.
+See quality-and-verification and the issue #3 task-2 protocol; fixed codec and DI
+ownership remain governed by PR-016/041 and NF-032, without product changes.
+
 ## 11.5 Security posture
 
 ### NF-040 Security baseline

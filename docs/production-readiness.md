@@ -206,3 +206,12 @@ before awaiting their handles; only Stopping elects abort. Capture existing stuc
 lifecycle diagnostics before stop, since Incomplete has only a count. The Section 3
 package-only consumer exercises dependency sentinels and all three recipes; sample
 source is unchanged. Earlier published binaries do not acquire this API from these docs.
+
+## Native publishing assessment (approved 2026-10-21)
+
+Issue #3's exact package/type/RID/toolchain assessment is independently approved
+at 7639189 / verdict baae5ad. Both native JIT controls pass sixteen scenarios.
+Trimmed/AOT defaults and JSON-reflection-enabled extras remain unsupported, so this
+adds no general native-support or production-readiness badge. All findings and
+unavailable unsupported-workload metrics are retained. Process-memory and managed-
+heap observations keep their separate meanings and host-specific names.
