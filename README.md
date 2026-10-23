@@ -4,7 +4,7 @@
 
 **Typed workflows. Explicit durability. Your .NET host.**
 
-[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](global.json) [![Prerelease](https://img.shields.io/badge/release-0.1.0--preview.1-0078D4)](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.1) [![Release coverage](https://img.shields.io/badge/release_coverage-77.37%25-22863A)](docs/github-publishing-status.md) [![Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-59636E)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](global.json) [![Prerelease](https://img.shields.io/badge/release-0.1.0--preview.2-0078D4)](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.2) [![Engine coverage gate](https://img.shields.io/badge/engine_coverage_gate-75%25-22863A)](docs/github-publishing-status.md) [![Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-59636E)](LICENSE)
 
 [Quick start](#use-in-another-project) · [Why OrcaCore](#why-orcacore) · [Comparison](#how-it-compares) · [Status](#current-status) · [Documentation](#documentation)
 
@@ -14,7 +14,7 @@ Build workflow logic in C#, keep execution inside your application, and choose t
 your workload needs: **ephemeral** for process-local coordination, or **durable** with
 PostgreSQL or SQL Server for persisted execution and recovery.
 
-> **Available on NuGet.org:** [v0.1.0-preview.1](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.1)
+> **Available on NuGet.org:** [v0.1.0-preview.2](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2)
 > ships twelve installable packages. This is a pre-production preview; see [current status](#current-status)
 > and [remaining work](#remaining-work) before adoption.
 
@@ -102,19 +102,19 @@ designer, and broader lifecycle management are outside its current shipped surfa
 
 ## Current status
 
-As of **2026-10-16**, [**v0.1.0-preview.1 is published**](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.1)
+As of **2026-10-22**, [**v0.1.0-preview.2 is published**](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.2)
 and available for use in other .NET 10 projects. This is a **pre-production prerelease**;
 APIs, provider schemas, and persistence formats can change.
 
 | Item | Status |
 |---|---|
 | Distribution | Twelve packages on NuGet.org; package files and `SHA256SUMS` also available on the GitHub release |
-| NuGet.org | [All twelve versions and source metadata verified; a fresh NuGet.org-only consumer returned `42`](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2) |
-| Published source | [`299d02d`](https://github.com/dekrevedko/Workflow-orca/commit/299d02dce92a8ee703ea0d89a42f05bb0a103055) |
-| Release validation | [Build, tests, coverage, packaging, and clean consumer passed](https://github.com/dekrevedko/Workflow-orca/actions/runs/38961860144) |
-| Engine line coverage | **77.37%**, above the approved **75%** gate |
-| Downloaded packages | All twelve verified against checksums and source metadata; a fresh consumer returned `42` |
-| Implementation PR | [#4: Rebuild OrcaCore and enable validated prerelease packages](https://github.com/dekrevedko/Workflow-orca/pull/4) |
+| NuGet.org | [All twelve versions and source metadata verified; a fresh NuGet.org-only consumer returned `42`](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249) |
+| Published source | [`af0b29f`](https://github.com/dekrevedko/Workflow-orca/commit/af0b29f573571fa2705aed70cf1d9e0236c58a94) |
+| Release validation | [Build, tests, coverage, provider/integration tests, packaging and clean consumer passed](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249) |
+| Engine line coverage | Passed the approved **75%** gate |
+| Downloaded packages | Exact twelve-package inventory, SHA-256 checksums and source metadata verified |
+| Included changes | [#7: Retention](https://github.com/dekrevedko/Workflow-orca/pull/7), [#8: Shutdown](https://github.com/dekrevedko/Workflow-orca/pull/8), [#9: Native assessment](https://github.com/dekrevedko/Workflow-orca/pull/9) |
 
 See the [publishing record](docs/github-publishing-status.md) for validation details.
 
@@ -123,7 +123,7 @@ See the [publishing record](docs/github-publishing-status.md) for validation det
 Install directly from NuGet.org in a .NET 10 project:
 
 ```powershell
-dotnet add ./YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
+dotnet add ./YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
 ```
 
 Replace `./YourProject.csproj` with your project path. For durable applications, reference
@@ -135,26 +135,29 @@ GitHub release download feed.
 ## Remaining work
 
 - Durable DAG execution is incomplete; package availability does not complete its implementation gates.
-- [#1: Bounded ephemeral retention](https://github.com/dekrevedko/Workflow-orca/issues/1) remains open.
-  Completed instances and start bindings currently remain in memory.
-- [#2: Cooperative ephemeral host shutdown and settlement](https://github.com/dekrevedko/Workflow-orca/issues/2)
-  remains open; graceful shutdown guarantees still need to be defined and implemented.
-- [#3: Native AOT and trimming assessment](https://github.com/dekrevedko/Workflow-orca/issues/3)
-  remains open; that deployment mode is unqualified.
+- Trimming and Native AOT are unsupported for the assessed Windows/Ubuntu profiles,
+  including the labelled JSON-reflection-enabled extra runs. Closing issue #3 records
+  the completed assessment; it does not add native support.
+- Retention is opt-in and is not a byte/RSS cap or a minimum result-retention guarantee.
+  Shutdown requires the actual dependency owner to retain resources after `Incomplete`.
+
+Issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
+[#2](https://github.com/dekrevedko/Workflow-orca/issues/2) and
+[#3](https://github.com/dekrevedko/Workflow-orca/issues/3) are closed. Preview 2 includes
+the reviewed retention and cooperative shutdown APIs; see the
+[release notes](docs/prerelease-notes.md) for behavior changes and limitations.
 
 One competing-owner handoff check failed intermittently during a documentation follow-up;
 the CI retry, 30 isolated repetitions, and the full infrastructure suite passed. Its cause
 remains unconfirmed; the evidence is recorded in [PR #4](https://github.com/dekrevedko/Workflow-orca/pull/4).
 See [production readiness](docs/production-readiness.md) before choosing a deployment scope.
 
-Issue #2's contract (3c8d33c / 4bd7c3e) and F2 canonical transition
-(2e51fbd / 6253f6c) are checkpointed. Its source/candidate-package target implements
-the ownership protocol and remains pending independent source approval. It
-drains initialized pending starts/handles through ordered Generic Host, an explicit
-host owner or a plain-DI submission gate, then calls StopAsync and retains dependencies
-on Incomplete. Canonical text does not add a callable API to published packages; see
-the [engine guide](docs/ephemeral-engine-developer-guide.md#shutdown-drain-recipes-candidate-packages-review-pending)
-for the contract and implementation status.
+The shutdown API drains initialized pending starts and accepted handles through
+an ordered Generic Host drainer, an explicitly owned host, or a plain-DI submission
+gate. `ApplicationStopping` only closes admission; the engine's hosted stop or direct
+`StopAsync` cancels and joins remaining work. Retain dependencies on `Incomplete`;
+the [engine guide](docs/ephemeral-engine-developer-guide.md#shutdown-drain-recipes)
+explains each ownership recipe and the `RunAsync` disposal caveat.
 
 ## Build and run from source
 

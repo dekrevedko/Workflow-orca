@@ -36,7 +36,7 @@ source/test roots remain removed, and durable storage providers beyond PostgreSQ
 require a future amendment and complete current certification. Hosting packages register internal
 runtimes, continuation processing, operational services, and telemetry.
 
-The issue #2 source candidate implements one engine-owned shutdown lifetime beside
+Preview 2 includes one independently reviewed engine-owned shutdown lifetime beside
 the shared registry. Closed rejects new/replayed starts and compatible registrations
 without cancelling; starts already past initialization admission and accepted work
 can drain. Stopping is entered only by engine-hosted/public StopAsync and joins all
@@ -106,8 +106,8 @@ Provider/operator roles own statistics and retention through `IWorkflowOperation
 
 The separate approved ephemeral lifetime amendment specifies optional host-owned terminal
 retention in `EphemeralEngineHostOptions`, with the policy type owned by
-`OrcaCore.Engine.Ephemeral` in `OrcaCore.Hosting`. It is source pending: no executable API or
-consumer qualification is claimed by the canonical transition. Accepted instances/keys retain
+`OrcaCore.Engine.Ephemeral` in `OrcaCore.Hosting`. Independent source and public
+consumer qualification completed in issue #1; `0.1.0-preview.2` includes this API. Accepted instances/keys retain
 for host lifetime by default; only settled unpinned terminals are eligible for opt-in count/age
 retirement, while unaccepted aborts need settlement cleanup even with the policy off. Runtime,
 facade/start/router/timer ownership retires together; stale handles fail for their old IDs and
@@ -119,8 +119,8 @@ The separately approved shutdown contract (3c8d33c / 4bd7c3e) and F2 transition
 preserve retention defaults and Closed's ordinary count/age retirement. They do not
 expire keys or remove the start-to-observe gap. Stopping seals/join sweeps and live
 operations; Completed freezes remaining metadata and permits only passive/detached
-access. Shutdown source, API/compile/package baselines and public consumer proof are
-still pending, independently of the existing retention API.
+access. Shutdown source, API/compile/package baselines and public consumer proof
+are independently approved in issue #2 and included in `0.1.0-preview.2`.
 
 ## Code map
 

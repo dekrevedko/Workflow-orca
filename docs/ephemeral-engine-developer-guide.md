@@ -21,8 +21,8 @@ An ephemeral application references `OrcaCore` for authoring and application con
 package. For example, set `TerminalRetention = EphemeralTerminalRetentionPolicy.Create(128,
 TimeSpan.FromMinutes(10), TimeSpan.FromSeconds(1))`. The source, exact API baseline and compile
 fixtures include these members together. The [fresh package-consumer experiment](../openspec/changes/add-ephemeral-terminal-retention/artifacts/final-consumer-2026-10-18/experiment.md)
-qualifies candidate local packages. The published `0.1.0-preview.1` packages predate this API;
-use a package release containing retention before compiling these options against NuGet.org.
+qualifies the reviewed retention implementation shipped in `0.1.0-preview.2`.
+The earlier `0.1.0-preview.1` packages predate this API; use preview 2 or later.
 
 The engine role is mutually exclusive with the durable engine role in one service collection.
 There is no catch-all registration method, configuration-binder overload, hosted-service toggle,
@@ -30,9 +30,10 @@ or serializer replacement hook.
 
 The separate shutdown amendment specifies seven engine-owned OrcaCore.Hosting
 types, including IEphemeralWorkflowHostLifetime, automatically registered by this
-same role. **Shutdown is implemented in the issue #2 source/candidate-package target;
-independent source approval and publication are pending**. Doc 17 defines the exact surface. This is no additional option/registration, fingerprint or API in
-published 0.1.0-preview.1. The authoring companion adds no hosting declaration.
+same role. **Shutdown is independently source-approved and shipped in
+`0.1.0-preview.2`**. Doc 17 defines the exact surface. This adds no separate
+option/registration or fingerprint. The earlier preview 1 does not contain the API.
+The authoring companion adds no hosting declaration.
 
 ## Authoring model
 
@@ -96,7 +97,7 @@ Init rejects at Closed; initialization already admitted may complete its first s
 and return Accepted during Closed. Acceptance/abort elects only at Stopping, so
 awaiting pending starts during drain does not manufacture a host-stopping error
 after the first step's effects. Authoritative original errors/cancellation remain.
-These semantics are implemented in the source candidate; published older binaries retain their earlier behavior.
+These semantics ship in preview 2; earlier published binaries retain their earlier behavior.
 
 ## Retained-instance lifetime
 
@@ -146,7 +147,7 @@ Background sweep cleanup failures are contained and do not stop later sweeps. Th
 Diagnostic listeners cannot propagate failures through the timer callback. This does not
 hide cleanup exceptions from synchronous caller-triggered lifetime operations.
 
-For the candidate shutdown protocol, Closed keeps normal accepted
+For the shutdown protocol, Closed keeps normal accepted
 queries/waits/commands/ingress, retirement and key lifetime; it never queues host
 cancellation. Pending initialized starts may publish Accepted during Closed. Stopping
 alone seals new live operations and elects provisional abort, while retaining every
@@ -187,12 +188,12 @@ configuration and expected counts for the target under review.
 The superseded pre-v1 guide is preserved, unchanged, at
 [`archive/plans/ephemeral-engine-developer-guide.md`](archive/plans/ephemeral-engine-developer-guide.md).
 
-## Shutdown drain recipes (candidate packages; review pending)
+## Shutdown drain recipes
 
-PR-041/MG-066–069 are implemented in the Section 3 source candidate, including
+PR-041/MG-066–069 ship in preview 2 after independent source approval, including
 the seven declarations and callback/physical-work join. The ordinary package-only
 consumer in [the source target](../openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-consumer/README.md)
-exercises these ownership recipes. Source approval and release publication remain pending.
+exercises these ownership recipes. Use `0.1.0-preview.2` or later for the shutdown API.
 
 1. **Generic Host ordered drainer.** Register the engine role, then an application
    IHostedService drainer. Set/retain HostOptions.ServicesStopConcurrently=false.
@@ -238,8 +239,8 @@ retain dependencies for noncooperative incomplete work. Do not use unconditional
 using/finally around that outcome. One explicit owner serializes disposal; raw
 provider disposal only closes as unsupported abortive teardown, not a join or veto.
 The Section 3 qualification record binds the candidate-package recipe results to
-the frozen source. This is candidate guidance; use a published package containing
-this change before relying on it in a released application.
+the frozen source. The reviewed implementation is included in the published
+`0.1.0-preview.2` packages; the ownership caveats apply to released applications too.
 
 ## Native publishing assessment (approved 2026-10-21)
 

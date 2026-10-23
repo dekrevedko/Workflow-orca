@@ -1,5 +1,24 @@
 # GitHub build and prerelease status
 
+## Preview 2 publication (2026-10-22)
+
+[0.1.0-preview.2](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.2) is published from
+`af0b29f573571fa2705aed70cf1d9e0236c58a94` with all twelve packages and `SHA256SUMS`.
+The [release workflow](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249) passed build, unit/acceptance and infrastructure
+checks, the 75% engine coverage gate, real PostgreSQL/SQL Server and integration
+tests, packaging and the external consumer. It then verified the downloaded
+package inventory, checksums and source metadata, published through NuGet trusted
+publishing, checked all twelve public versions and ran a fresh NuGet.org-only
+consumer returning `42`.
+
+Issues #1, #2 and #3 are closed; PRs #7, #8 and #9 are merged. Preview 2 includes
+the reviewed retention and shutdown APIs. The native assessment remains
+profile-specific: JIT passed; trimmed/AOT defaults and reflection-enabled extras
+are unsupported. Durable DAG execution remains incomplete. This is a prerelease,
+not a stable API or production-readiness qualification.
+
+## Historical preview 1 audit
+
 Status: RECORD, 2026-10-16. This is a build/publishing audit, not an independent implementation
 approval or an OpenSpec phase exit.
 

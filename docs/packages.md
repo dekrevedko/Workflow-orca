@@ -5,8 +5,8 @@ Durable DAG execution is still incomplete; packaging does not complete the imple
 in the active OpenSpec changes. Start with the ephemeral engine guide or the durable samples.
 
 The [2026-10-16 publishing audit](github-publishing-status.md) records the preparation checks
-and the owner-approved 75% coverage gate. Version `0.1.0-preview.1` is available on
-[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.1)
+and the owner-approved 75% coverage gate. Version `0.1.0-preview.2` is available on
+[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2)
 and as [GitHub release downloads](https://github.com/dekrevedko/Workflow-orca/releases).
 
 ## Install in another project
@@ -14,7 +14,7 @@ and as [GitHub release downloads](https://github.com/dekrevedko/Workflow-orca/re
 Install the engine role you need directly from NuGet.org:
 
 ```powershell
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
 ```
 
 The application contracts package `OrcaCore` and internal kernel are transitive dependencies.
@@ -23,7 +23,7 @@ For durable applications, reference `OrcaCore.Durable.Hosting` and the selected
 `OrcaCore.Providers.PostgreSql` or `OrcaCore.Providers.SqlServer` package at the same version.
 `OrcaCore.Providers.InMemory` is for development and testing.
 
-The [NuGet.org publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2)
+The [NuGet.org publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249)
 verified all twelve public versions and their source metadata. A fresh external consumer
 restored exclusively from NuGet.org and ran the typed workflow, returning `42`.
 
@@ -39,7 +39,7 @@ Register the extracted directory as a local NuGet source, then reference the des
 ```powershell
 # Replace the directory and version with those you downloaded.
 dotnet nuget add source C:\packages\OrcaCore --name OrcaCore-local
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
 ```
 
 GitHub release downloads work without a package-registry credential. They are a directory feed
@@ -71,11 +71,11 @@ benchmark smoke checks, unit and acceptance suites, infrastructure contract guar
 and SQL Server tests, and integration tests. It also enforces the 75% engine line-coverage gate.
 Only a successful run can upload the installable package artifact.
 
-Create and push a prerelease tag on the reviewed commit:
+Create and push a new, unused prerelease tag on the reviewed commit (for example, preview 3):
 
 ```powershell
-git tag v0.1.0-preview.1
-git push origin v0.1.0-preview.1
+git tag v0.1.0-preview.3
+git push origin v0.1.0-preview.3
 ```
 
 The `Publish prerelease` workflow reruns CI and the external package consumer before creating the

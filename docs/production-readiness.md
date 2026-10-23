@@ -181,8 +181,8 @@ The ephemeral retention contract (MG-054–058) is implemented and independently
 The [fresh local package-consumer experiment](../openspec/changes/add-ephemeral-terminal-retention/artifacts/final-consumer-2026-10-18/experiment.md)
 measures payload and runtime/facade/start ownership after 1,024 finite jobs in one host. Candidate
 packages obey the configured count of 16; omitted-policy counts grow with the jobs. These are
-local candidate packages, not the published `0.1.0-preview.1` binaries. Final integration review
-and a subsequent feature-containing release remain separate. Omitted retention keeps accepted-instance/key lifetime
+local candidate packages qualifying the reviewed implementation now shipped in
+`0.1.0-preview.2`; preview 1 predates retention. Final integration review completed in PR #7. Omitted retention keeps accepted-instance/key lifetime
 unchanged; aborted unaccepted starts must still terminally fence and clean up after settlement
 in both policy modes. Opt-in count/age retirement is not a public purge/history API, durable
 retention, active-instance ceiling, byte/RSS cap, or proof of physical stop. A completed result
@@ -196,8 +196,8 @@ from application-issued termination metrics.
 The sample may intentionally use the development/test in-memory provider so it can build and
 smoke-test without external infrastructure, but it must not imply restart durability.
 
-The issue #2 source/candidate-package target implements shutdown; independent
-source approval and release publication remain separate gates. Its ephemeral
+The independently reviewed issue #2 implementation ships in `0.1.0-preview.2`.
+Its ephemeral
 lifetime is automatically owned by the existing engine role. Use the engine guide's
 ordered Generic Host drainer (registered after the engine; sequential stops and one
 shared budget), explicit-host owner, or controlled plain-DI submitters. Retain the
@@ -205,7 +205,7 @@ actual host/provider/scopes on Incomplete. Drain initialized pending starts to A
 before awaiting their handles; only Stopping elects abort. Capture existing stuck-step/
 lifecycle diagnostics before stop, since Incomplete has only a count. The Section 3
 package-only consumer exercises dependency sentinels and all three recipes; sample
-source is unchanged. Earlier published binaries do not acquire this API from these docs.
+source is unchanged. Preview 1 predates the shutdown API; use preview 2 or later.
 
 ## Native publishing assessment (approved 2026-10-21)
 
