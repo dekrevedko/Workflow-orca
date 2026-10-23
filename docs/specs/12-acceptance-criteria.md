@@ -617,6 +617,44 @@ These are mandatory source/consumer criteria, not passes supplied by Markdown.
 Tests use explicit barriers/notifications and fake clocks; an unfiltered expected-red
 state cannot be checkpointed. Contract/canonical approval grants no test execution credit.
 
+## Native publishing assessment (AC-555–562)
+
+- **AC-555** The same ordinary external public consumer and exact candidate packages
+  execute on Windows Server 2025 x64 and native Ubuntu 24.04 LTS x64, in the three
+  SDK-default flavors. Four separately identified JSON-reflection-enabled extras
+  cannot replace defaults and are at most conditional. Record effective properties,
+  precise early public errors and exceptions, including misleading type rejection.
+- **AC-556** Every discovery/final diagnostic occurrence has an exact identity, count,
+  assembly/member/location, affected scenarios, disposition and evidence. The gate
+  rejects dropped, changed or unclassified findings, broad suppression and unsupported
+  claims. IL2026/IL3050 remain visible in switch-enabled cells. [NF-033]
+- **AC-557** AOT-01/02/03/15 execute named DI steps with reference and value input/state/
+  output, ReplaceState, detached observations and exact ordinal strong values. No
+  private access, ProjectReference, lambda-step substitution or report-codec shortcut.
+- **AC-558** AOT-04/05/06/07/16 prove observer-local cancellation, actual asynchronous
+  workflow cancellation and settlement, initialized starts draining in Closed, new
+  start refusal, Incomplete retention, Completed-before-disposal and independent DI
+  roots/scopes/external sentinels. No logical-status-only or synchronous-token proof.
+- **AC-559** AOT-08/09/10/11 execute eligible retry with stable operation ID/attempts,
+  bounded root Parallel and finite ForEach, ordered typed results/failure coordinates,
+  lower node/host admission bound and one replacement-state merge. Use real barriers.
+- **AC-560** AOT-12/13/14 retain exact public registration/runtime failure families for
+  declared app converters, cyclic values and the 256 KiB limit. Both untrimmed JIT
+  controls must match current normative expectations, not merely fail like AOT.
+- **AC-561** Each artifact retains package/assets/lock/source/input and native/runtime
+  closure identities. All sixteen scenario IDs remain present, with causal failures
+  or blocked rows. No missing native environment, unexpected mismatch or invalid JIT
+  baseline is a completed green assessment; unsupported is not compatible. [NF-033]
+- **AC-562** Executable equivalent workloads retain three warm-ups and twenty measured
+  interleaved fresh-process samples per flavor, startup and cumulative process CPU,
+  peak/quiescent working set/RSS and distinct Windows private-commit/Linux private-
+  resident bytes, managed estimates and last-GC heap/counts. Sample with real owners
+  retained after physical join, disclose phases/units/unavailable data, avoid forced
+  GC or cold-cache/performance claims, and negatively test the report/diagnostic gate.
+
+These are research evidence obligations, not a product Native AOT support promise.
+Product remediation requires a separately reviewed amendment; fixed codec is unchanged.
+
 ## Bounded fanout and typed DAG (AC-6xx)
 
 - **AC-601** *Finite item snapshot* — A pure root `ForEach` selector may be evaluated more than

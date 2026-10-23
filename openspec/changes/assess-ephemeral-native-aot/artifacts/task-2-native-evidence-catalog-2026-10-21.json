@@ -1,0 +1,4374 @@
+{
+  "schemaVersion": 1,
+  "issueHead": "dbd829e2104fba70f6f678513fcaa08bf17a6045",
+  "nativeSourceCommit": "b92c5ccb47aa26a1e5a4a754d667bc98b9180489",
+  "workflowRun": "https://github.com/dekrevedko/Workflow-orca/actions/runs/39721105482",
+  "sourceScope": "No product source, API/declaration, dependency, package/compile baseline or serializer hook change",
+  "nativeReportFiles": {
+    "windows-2025": {
+      "path": "task-2-native-windows-2025-2026-10-21.json",
+      "sha256": "d58d4f5c7c326004d9063cfe0532a30b6ad312a81684c6c7db2104eb62ed1aec",
+      "rawSha256": "5025b3205d99f799cdbf05b0d0040891b02112de0612763a4fd55652dc963cfe",
+      "transport": "Only structural CRLF is normalized to LF in the plain review copy; original exact bytes remain in the raw archive, with escaped exception strings unchanged."
+    },
+    "ubuntu-24.04": {
+      "path": "task-2-native-ubuntu-24.04-2026-10-21.json",
+      "sha256": "da1137ac551ed73b3855bc761264503eaaf6d0fea8462774ae1f09bd18b190a9",
+      "rawSha256": "da1137ac551ed73b3855bc761264503eaaf6d0fea8462774ae1f09bd18b190a9",
+      "transport": "Only structural CRLF is normalized to LF in the plain review copy; original exact bytes remain in the raw archive, with escaped exception strings unchanged."
+    }
+  },
+  "archives": [
+    {
+      "archive": "windows-11-unqualified-discovery-raw.zip",
+      "bytes": 222289,
+      "sha256": "c4a006123e84e0683745f16c08d0122e7f3701ac3ce9fb423047d805edfde0a8",
+      "sourceCommit": null,
+      "purpose": "unqualified Windows 11, older fixture; never native credit",
+      "entries": [
+        {
+          "path": "aot/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "5fc320af5d056905b5a0fa7f9e56bdd576777164d46b93174cd614a970a8c41c"
+        },
+        {
+          "path": "aot/functional.json",
+          "bytes": 22578,
+          "sha256": "5f81fdbc678266b00d0d3edd80e0c3ea65444d5d98b3c16443c2bdb3482512cf"
+        },
+        {
+          "path": "aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "aot/functional.stdout.log",
+          "bytes": 22129,
+          "sha256": "331515886243e6943dae275d3f5835cad678292afeb1070591450640d809fd74"
+        },
+        {
+          "path": "aot/loaded-module-closure.json",
+          "bytes": 3401,
+          "sha256": "c2255c3ce4438139cfafcef696fbd1e7e073ff468a4ec0f951df6fe3a7fe229f"
+        },
+        {
+          "path": "aot/native-imports.log",
+          "bytes": 732,
+          "sha256": "9db79b51a19d0b38d9d212a721be6594fd3c02140def91b943637caeac5bbd89"
+        },
+        {
+          "path": "aot/project.assets.json",
+          "bytes": 127152,
+          "sha256": "e7e33857c89163e77e81ba0c138c75ee9ca037380f28f660fabb7f44016f7615"
+        },
+        {
+          "path": "aot/publish-command.json",
+          "bytes": 506,
+          "sha256": "be4daf050dafb7d99034868c1f975a87bbe937df1463277ed54d074d85a5f36e"
+        },
+        {
+          "path": "aot/publish.log",
+          "bytes": 30128,
+          "sha256": "4386299eb9747de7142fb25f71e47b2be501d4d2179b2538c28ae9becfec3b48"
+        },
+        {
+          "path": "aot-json-reflection/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "c8c2496594a9aa386dc587fef5d2e1c495bcc3b148fd44ec71d928b5c1641370"
+        },
+        {
+          "path": "aot-json-reflection/functional.json",
+          "bytes": 17663,
+          "sha256": "14a80d5dfe9bb941c677bea48cacddcbae9e614bb8e775c08dd3dc72b6726660"
+        },
+        {
+          "path": "aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "aot-json-reflection/functional.stdout.log",
+          "bytes": 16469,
+          "sha256": "7137d04b2c6b332f6951cf8338683d0dd5fea81e45afac98c615abcd26ce7a97"
+        },
+        {
+          "path": "aot-json-reflection/loaded-module-closure.json",
+          "bytes": 3417,
+          "sha256": "22a69d7d08e95c8c7be16f3b5061de5e167849b3e358bc05626a4b658884023e"
+        },
+        {
+          "path": "aot-json-reflection/native-imports.log",
+          "bytes": 748,
+          "sha256": "040fdc7c6926eab13c1f223341e099be81fc23b4c8fcfdfaa66e73d8a5ba742d"
+        },
+        {
+          "path": "aot-json-reflection/project.assets.json",
+          "bytes": 127248,
+          "sha256": "bb7b9f38049a17362333b6e46031e7f8e234b420e2ac3d83f044d09dba151a24"
+        },
+        {
+          "path": "aot-json-reflection/publish-command.json",
+          "bytes": 611,
+          "sha256": "4cad6d997cbf69d5bc3a3ea6a2392854c53746e2e1efcc2ae5937837e52d206a"
+        },
+        {
+          "path": "aot-json-reflection/publish.log",
+          "bytes": 30992,
+          "sha256": "53c22b99eca2438bda1b45ad6ea414da961d455a2058721a31d6a36b01ddb407"
+        },
+        {
+          "path": "dotnet-info.log",
+          "bytes": 3723,
+          "sha256": "2c202519554923f2ce32ed03d7591cb1d25c3010e3ddced94391ac27d4a925d2"
+        },
+        {
+          "path": "gate-status.txt",
+          "bytes": 21,
+          "sha256": "0d183ef20fbc063f3271361b0e1ea383b4c44c4a4cb0cfd4708d8dd7c38ca918"
+        },
+        {
+          "path": "host.json",
+          "bytes": 229,
+          "sha256": "0a57e9d473bec60961068ff90dcf52370d5c4166ccc964f932103f9f6516d8bb"
+        },
+        {
+          "path": "jit/artifact-closure.json",
+          "bytes": 33167,
+          "sha256": "72021c7b92dc9276a85d977774a38dd6a57da0f756909dd09d5eed46879b7a05"
+        },
+        {
+          "path": "jit/functional.json",
+          "bytes": 10611,
+          "sha256": "462fab9c74dfdbd0796a85da0c602e7c98c27ec2726828d491a808d18c748cb3"
+        },
+        {
+          "path": "jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/functional.stdout.log",
+          "bytes": 9001,
+          "sha256": "1e862a716181b07921afd6876ebb840929835404dbd6504c8220b563b6c4772d"
+        },
+        {
+          "path": "jit/loaded-module-closure.json",
+          "bytes": 13922,
+          "sha256": "cacb77a10c79674eec1202d9dc73bdc983c73dd49c15d6388ed093a50cc89716"
+        },
+        {
+          "path": "jit/native-imports.log",
+          "bytes": 754,
+          "sha256": "1878267f054310e6f20c3d57dccc390282d2364cfcc5f09ebfe067dbb57616f7"
+        },
+        {
+          "path": "jit/project.assets.json",
+          "bytes": 121053,
+          "sha256": "47767f49b7d0b0f2c173a7f22748f9df2a2279a417eefddff633ae75eb7c02c2"
+        },
+        {
+          "path": "jit/publish-command.json",
+          "bytes": 508,
+          "sha256": "fb0b848b70e2a0af77a1be8f746595231d5b8472fc5c126a88fe4fa149590eb0"
+        },
+        {
+          "path": "jit/publish.log",
+          "bytes": 238,
+          "sha256": "c5218f0b215694a5fd54effe53c3e591975a640aa273bb75cb79bb3a625f2a8b"
+        },
+        {
+          "path": "jit/samples-00.json",
+          "bytes": 6748,
+          "sha256": "c220a71b905a4ede8b51dce3ca9a50c3e7c22f26d072bf264e78b24db6aea44c"
+        },
+        {
+          "path": "jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-00.stdout.log",
+          "bytes": 5596,
+          "sha256": "810b5304e49eee92b8cd3a4993eb07558e83b03804695c043c1bd172c45c2cd8"
+        },
+        {
+          "path": "jit/samples-01.json",
+          "bytes": 6750,
+          "sha256": "a59c6f1012717ecd7d16806d8b20bdd6faa34070a827b479fc13f7e9e0e6d2b8"
+        },
+        {
+          "path": "jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-01.stdout.log",
+          "bytes": 5598,
+          "sha256": "c4a986b91af25d5df0a25bd77f6322b01d03ae9a4e5409ebc8eedeeca43425ec"
+        },
+        {
+          "path": "jit/samples-02.json",
+          "bytes": 6749,
+          "sha256": "1ac36fbd0f26afab21b95b00221c7485d2156137fcd4c5a622f5b1189815226d"
+        },
+        {
+          "path": "jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-02.stdout.log",
+          "bytes": 5597,
+          "sha256": "39803bac68cd05ca788867a6d43103e2575232ec8414fa512f93256b03f30007"
+        },
+        {
+          "path": "jit/samples-03.json",
+          "bytes": 6750,
+          "sha256": "3074ddc1f0420715d8b89f2fc7ba366884a4f3e2aeeb535dfb4b7aba14b079ce"
+        },
+        {
+          "path": "jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-03.stdout.log",
+          "bytes": 5598,
+          "sha256": "6b07523e2f554055909bea88fa9318d9775af5114bb649fab2de851c7ca16052"
+        },
+        {
+          "path": "jit/samples-04.json",
+          "bytes": 6746,
+          "sha256": "a2cc85a4e9352e71d95169e685299adeb795a174b5b8e67cf5b86165358ecb3b"
+        },
+        {
+          "path": "jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-04.stdout.log",
+          "bytes": 5594,
+          "sha256": "7ad669d78c46215be01e6ebfd993f1eb5f5220b56c565bd5e215c0b4c836906a"
+        },
+        {
+          "path": "jit/samples-05.json",
+          "bytes": 6749,
+          "sha256": "06f746b19afebd3452c4ed9c7513266f8f9039cd5541112bce50bba584ae759d"
+        },
+        {
+          "path": "jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-05.stdout.log",
+          "bytes": 5597,
+          "sha256": "dd7778de4bd51841eab7e1a40cc8a5dbef6b4a51c5f3ea4b0c07a92e03d37251"
+        },
+        {
+          "path": "jit/samples-06.json",
+          "bytes": 6746,
+          "sha256": "3c628693c5d7444fc1bcb881964dcaeb81957cf2e218c46f20758dbf03e7e1f2"
+        },
+        {
+          "path": "jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-06.stdout.log",
+          "bytes": 5594,
+          "sha256": "1ba50d5c984e1f7714438b2fecf1f2a6b8a1456c6dd4bac42b2a598da38b3e28"
+        },
+        {
+          "path": "jit/samples-07.json",
+          "bytes": 6749,
+          "sha256": "930f042d9a6476e33964a8557c92ceed8a0e8aa75cee449f201034c44a6b93e3"
+        },
+        {
+          "path": "jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-07.stdout.log",
+          "bytes": 5597,
+          "sha256": "836e5113f1239f809b284a2b873802ae14054d9108131fa9898e92ce4c46027f"
+        },
+        {
+          "path": "jit/samples-08.json",
+          "bytes": 6746,
+          "sha256": "86d6eaf8168d7049c686e7805142ce29ff196328fe0a8ee52c9ad83965ee5a15"
+        },
+        {
+          "path": "jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-08.stdout.log",
+          "bytes": 5594,
+          "sha256": "1409ad509bf7f9d6d545c3255950ef7a263e64d0ef424bca2e2be0fe96538428"
+        },
+        {
+          "path": "jit/samples-09.json",
+          "bytes": 6746,
+          "sha256": "6652cf33d55d74102688a42a0f76d0d5f9e0e841583ed7c65f334d4673fa7a01"
+        },
+        {
+          "path": "jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-09.stdout.log",
+          "bytes": 5594,
+          "sha256": "d5c01a99e521822ec136c7e7d9b87d9c2f307bb710e5d145c986c4bc72bb76bc"
+        },
+        {
+          "path": "jit/samples-10.json",
+          "bytes": 6746,
+          "sha256": "eb87d6bd0017a3adf525add14058094e88002b56a683a598f107a7241888a5ad"
+        },
+        {
+          "path": "jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-10.stdout.log",
+          "bytes": 5594,
+          "sha256": "29c80e856333729a06c3c713700998e23cd1c4e78da97a1de6c28faf4d36d633"
+        },
+        {
+          "path": "jit/samples-11.json",
+          "bytes": 6749,
+          "sha256": "a6c44831f53d71430e1e30c2b94847b2bc9ba1069c2606bbcc0ab13b12f383a3"
+        },
+        {
+          "path": "jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-11.stdout.log",
+          "bytes": 5597,
+          "sha256": "93b174f86e7b08296ee4aa69d6cb0656dc8e048942aa35cf01ca6299d7fd0670"
+        },
+        {
+          "path": "jit/samples-12.json",
+          "bytes": 6746,
+          "sha256": "af01794706b23bbf2ac41cd4495082fbd63ac732ea0b247a99aa9df62c6882c8"
+        },
+        {
+          "path": "jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-12.stdout.log",
+          "bytes": 5594,
+          "sha256": "fb48481158c7bacef24ba88d986b60b80467e595af3898073b327792965df03d"
+        },
+        {
+          "path": "jit/samples-13.json",
+          "bytes": 6746,
+          "sha256": "fa799b25c089386d20006f9f0974b54a203d98068c34ffe50596c851d7ef8092"
+        },
+        {
+          "path": "jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-13.stdout.log",
+          "bytes": 5594,
+          "sha256": "ac8d2edbacb08603dc5218e0823dcb965d839774c7447deb2c811a4d383a1c8b"
+        },
+        {
+          "path": "jit/samples-14.json",
+          "bytes": 6750,
+          "sha256": "733fa72d8f939de0a46772c183061e1b3ef9b634cdb4e16f3aa4d03ed2869347"
+        },
+        {
+          "path": "jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-14.stdout.log",
+          "bytes": 5598,
+          "sha256": "71d34e14c9f63f7f0ef10574d1ded59b6f7be8821140d8cdee691814e4f49297"
+        },
+        {
+          "path": "jit/samples-15.json",
+          "bytes": 6750,
+          "sha256": "984d7518da0a61b31ed6ecb5fd4d4f9ea5e3b456d2b94ea1b03057c998608bc7"
+        },
+        {
+          "path": "jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-15.stdout.log",
+          "bytes": 5598,
+          "sha256": "1cf05fe6afdd0efbfb925dc6e4a7809278bf282f53e56338484b344db68b5c3a"
+        },
+        {
+          "path": "jit/samples-16.json",
+          "bytes": 6750,
+          "sha256": "46b9437f358f8d19fcd1b666996793786a05f46d81c47dbb791f288d655c1063"
+        },
+        {
+          "path": "jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-16.stdout.log",
+          "bytes": 5598,
+          "sha256": "050a36280f3645f0c099704d3bfda2a2e4570a5fc618b7261fdad88b58e38bb2"
+        },
+        {
+          "path": "jit/samples-17.json",
+          "bytes": 6746,
+          "sha256": "957f4b890b15c7caecdf286784441c744a2f94a631eca093b4972e99cc328948"
+        },
+        {
+          "path": "jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-17.stdout.log",
+          "bytes": 5594,
+          "sha256": "e919f9cc0f73596a4eeabc8d034410e871bb7e97e2043b6186e12d9e36923628"
+        },
+        {
+          "path": "jit/samples-18.json",
+          "bytes": 6750,
+          "sha256": "5ea162af6441a290b06f12f09de9fab84e045eb10dce89765163a006b611b1ad"
+        },
+        {
+          "path": "jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-18.stdout.log",
+          "bytes": 5598,
+          "sha256": "cfc983ba504ef6633de95bab7a2c8dd75215206c06db8d50583cbf6e33fb9d52"
+        },
+        {
+          "path": "jit/samples-19.json",
+          "bytes": 6750,
+          "sha256": "54a9d0e2fcc1ba848a0678fc03990f5545256d9cc87abdb4084ad432a3d910e7"
+        },
+        {
+          "path": "jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/samples-19.stdout.log",
+          "bytes": 5598,
+          "sha256": "10d072d8d92cc56dc3be9490d42abbcae133663fa12eda03b806a6b3b5a2a66e"
+        },
+        {
+          "path": "jit/warmups-00.json",
+          "bytes": 6746,
+          "sha256": "07405a3efeab49f065e5643db48380e0dec0ae5ddda5d2efa6f463899a8fa2d2"
+        },
+        {
+          "path": "jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/warmups-00.stdout.log",
+          "bytes": 5594,
+          "sha256": "328afd214ae858985d7619871c8a4bc8006694d842863946319c015f725560dd"
+        },
+        {
+          "path": "jit/warmups-01.json",
+          "bytes": 6750,
+          "sha256": "fee82fb2f2dd8534d800e6356f0080172071e508853242f12e4134708e74eaeb"
+        },
+        {
+          "path": "jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/warmups-01.stdout.log",
+          "bytes": 5598,
+          "sha256": "5d0185469e7ea340919eb150edffa19ec965be963029b145bed78d0c481e582c"
+        },
+        {
+          "path": "jit/warmups-02.json",
+          "bytes": 6746,
+          "sha256": "70ff938cfbdf080d78ed86598e3a0be8fd78c59a12bdb5e825aed2bd271b00a2"
+        },
+        {
+          "path": "jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "jit/warmups-02.stdout.log",
+          "bytes": 5594,
+          "sha256": "9095ba08cbfa198da18d72e3c34ea5f487f369fe5a61c3c8e339152d2695c6f2"
+        },
+        {
+          "path": "report.json",
+          "bytes": 474741,
+          "sha256": "dc2608f572a3d31004a84e2358fcacccdd74dd2c5db089e11188b285e26932b7"
+        },
+        {
+          "path": "trimmed/artifact-closure.json",
+          "bytes": 9953,
+          "sha256": "c76a9a718adf03cf85d10ff21f694a312437b2abb63c4e07286e590d22ad2635"
+        },
+        {
+          "path": "trimmed/functional.json",
+          "bytes": 30134,
+          "sha256": "9b2f63a1c11cb369c1ee908bfdfc93e504cecf72a2b0d3812a9d8666169e8063"
+        },
+        {
+          "path": "trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "trimmed/functional.stdout.log",
+          "bytes": 28715,
+          "sha256": "4cfa31dc91ae77ff888af73caff6ee52edfb5dc82940a4c345a0fe99ad915b79"
+        },
+        {
+          "path": "trimmed/loaded-module-closure.json",
+          "bytes": 11466,
+          "sha256": "9d6356e69250077e9303be4d1f5ddfb983da3c2d98ee5cc66207cedc7e79ea65"
+        },
+        {
+          "path": "trimmed/native-imports.log",
+          "bytes": 758,
+          "sha256": "ed5f85f2e53d4ab315cdca37b6cba284236d6cbb3d3ba4d3f4631ae285320a0f"
+        },
+        {
+          "path": "trimmed/project.assets.json",
+          "bytes": 124019,
+          "sha256": "8aa5d9db04eda02c4740fe0d045f678db2e8a637c4bd46dd8ea526c22ac803a2"
+        },
+        {
+          "path": "trimmed/publish-command.json",
+          "bytes": 519,
+          "sha256": "32d7c514b0127c94ec0d34e364eb7b933d052f00e9e47835d4abf3a01b771574"
+        },
+        {
+          "path": "trimmed/publish.log",
+          "bytes": 15641,
+          "sha256": "c996209e21cad0ce432d89bde0b4c8c90b3e2c09304a35b58642b7ac1e0e25df"
+        },
+        {
+          "path": "trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9954,
+          "sha256": "4a4257b6a23ec9569d124c3659d1ff1a27908d67c24fad258543b38461058ccc"
+        },
+        {
+          "path": "trimmed-json-reflection/functional.json",
+          "bytes": 30586,
+          "sha256": "8ec821353d127a25a77677a92b83595e6ff848f76ec1b7e59b82cf4e58fdce13"
+        },
+        {
+          "path": "trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "trimmed-json-reflection/functional.stdout.log",
+          "bytes": 28211,
+          "sha256": "4d38cc2ed87b8351b3962a75db3a262e158d75ec8dca2513ec09b391e18f088d"
+        },
+        {
+          "path": "trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 12742,
+          "sha256": "34b8be42e1aeaec66b014317944192eb0f9513d8c12d317d7f2f3ee8eec61bc6"
+        },
+        {
+          "path": "trimmed-json-reflection/native-imports.log",
+          "bytes": 774,
+          "sha256": "30ca4bf9149360be2ad8a4c2db655700174a46a95f74a51b8c1d35b863c73b99"
+        },
+        {
+          "path": "trimmed-json-reflection/project.assets.json",
+          "bytes": 124115,
+          "sha256": "d04c870af955b18e7d4a2f7622c329f20ed23ceb5c171100eeb29978c2529dbe"
+        },
+        {
+          "path": "trimmed-json-reflection/publish-command.json",
+          "bytes": 624,
+          "sha256": "2188643bddede623750aea2d677a2c2a861c7e088436f61cb45bef9d17af36be"
+        },
+        {
+          "path": "trimmed-json-reflection/publish.log",
+          "bytes": 16137,
+          "sha256": "87c1eeaaf9452128c96df8bb8125928cff380f02702f38dd9340408984dd3fd8"
+        }
+      ]
+    },
+    {
+      "archive": "native-discovery-39719579320-raw.zip",
+      "bytes": 469538,
+      "sha256": "9aea08def01ade7578dbb56c5437f81edb1b9785b6d8aaf562ac623fa94c4d17",
+      "sourceCommit": "d8bb3c3ff12c48667a8dc3968eed4ffaf5b5fc16",
+      "purpose": "unclassified first discovery, two harness causes later corrected",
+      "entries": [
+        {
+          "path": "ubuntu-24.04/aot/artifact-closure.json",
+          "bytes": 268,
+          "sha256": "4c5ac93d696f47e9e3252e4f214b9950ccca9aecbbe9fe0bf5317b469e9c4388"
+        },
+        {
+          "path": "ubuntu-24.04/aot/file.log",
+          "bytes": 265,
+          "sha256": "1263752e3ce09d0fd646e3d59a0e0648135e499f9f6ed1f93426c999e8100b89"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.json",
+          "bytes": 21388,
+          "sha256": "96c4b5c4ca96dd2e6a9909a4fa6a7bda440626a0606c4f19dd28a82ea9000814"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.stdout.log",
+          "bytes": 21283,
+          "sha256": "53f8947c4d5ffd900a71546c5d97bf0d2e8255358326d0e616836ff3ae5b20f8"
+        },
+        {
+          "path": "ubuntu-24.04/aot/ldd.log",
+          "bytes": 222,
+          "sha256": "e93cf8366368e0cd9f697f6d53ea4d6fde112a994a485d0b1d2456ab05023831"
+        },
+        {
+          "path": "ubuntu-24.04/aot/loaded-module-closure.json",
+          "bytes": 1500,
+          "sha256": "e8cc74ab3fff3791b12ea0cfc42c5fe27482e4d26dbe9d3add7927f20525beed"
+        },
+        {
+          "path": "ubuntu-24.04/aot/project.assets.json",
+          "bytes": 134861,
+          "sha256": "49ae42bf07af7da0fb711b61a1ba3574adcdf7a051e6daa6e272517b19a511d3"
+        },
+        {
+          "path": "ubuntu-24.04/aot/publish-command.json",
+          "bytes": 540,
+          "sha256": "a270f06e138eee811187b080535eb2edae30c178cfceb50e7d83b44c7b4b5817"
+        },
+        {
+          "path": "ubuntu-24.04/aot/publish.log",
+          "bytes": 27534,
+          "sha256": "cf30175c3f4fcd9c83dbc5a6d1ce0d39a997a48ae0bd96b8959f5eeb0a82db52"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/artifact-closure.json",
+          "bytes": 268,
+          "sha256": "59266557a3b5853d1ba300802340adbc6b92dd731065e904b0bf7782c3e4339d"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/file.log",
+          "bytes": 281,
+          "sha256": "f15e973211c57507ed40a5285939eeb9dd9d40f42cf9892c30f8fb6b45f8c536"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.json",
+          "bytes": 15554,
+          "sha256": "83ea598ed1522d8a710da4a88efc3c3031fe73d5fd8b0b730ff0a4656d4e30ed"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.stdout.log",
+          "bytes": 14619,
+          "sha256": "2d495f0f045bb97531b858063ad0348c4352c6828a0cdc95f2163bbacc7479c8"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/ldd.log",
+          "bytes": 222,
+          "sha256": "adbfa2319cf57b749b8b2cd3d9ffbfb96195b4906277c778e10c8905143bf745"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/loaded-module-closure.json",
+          "bytes": 1824,
+          "sha256": "aef9b71d7a80278e70cafd413673b7c60eb3f01a2846359355d919f4138d4984"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/project.assets.json",
+          "bytes": 134957,
+          "sha256": "87d3dcce7d174f320b87c3ff7d0d9eb76696b4f71e4eeba1e05110f488941953"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/publish-command.json",
+          "bytes": 644,
+          "sha256": "100001dce99e75771281633054ed1f2cf5778d9db2e8d137c1301e55282baad3"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/publish.log",
+          "bytes": 28398,
+          "sha256": "3956ec4c6b7224751b5820d7033b50ea439f83ac2a6bf64491ace9087d9de6c8"
+        },
+        {
+          "path": "ubuntu-24.04/cc-version.log",
+          "bytes": 245,
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1"
+        },
+        {
+          "path": "ubuntu-24.04/clang-version.log",
+          "bytes": 110,
+          "sha256": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53"
+        },
+        {
+          "path": "ubuntu-24.04/dotnet-info.log",
+          "bytes": 2896,
+          "sha256": "981664740298da86bfa743894e572caa54fd2192404a66bab69a6bd7cecf430e"
+        },
+        {
+          "path": "ubuntu-24.04/gate-status.txt",
+          "bytes": 23,
+          "sha256": "05e843dedcdc64659003fa0b92cfe045e47d235ed6be5201de6d083cfd84cbbc"
+        },
+        {
+          "path": "ubuntu-24.04/host.json",
+          "bytes": 1112,
+          "sha256": "774d83a8699688e5c1c7024ed9392e2deb5f4a7f3f1e906796723023f331a3b9"
+        },
+        {
+          "path": "ubuntu-24.04/jit/artifact-closure.json",
+          "bytes": 32157,
+          "sha256": "3892a87fe41f84f0215caa6447e81c3939b07041895208a851ad1db740cc67dd"
+        },
+        {
+          "path": "ubuntu-24.04/jit/file.log",
+          "bytes": 265,
+          "sha256": "b4ab9167812bc4cb059b53af7a819e377104ab4b5586e5309b35deac17a359c4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.json",
+          "bytes": 9431,
+          "sha256": "230b2b86228050efb88956d7b9a5edb57a55706b52706caeb06ab20f4a553e32"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.stdout.log",
+          "bytes": 8153,
+          "sha256": "e594a4af9c3b55bcab928ce6ce24e57bdfeb20154bdfba494a8ba0b2bc79c91b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/ldd.log",
+          "bytes": 522,
+          "sha256": "58d607d706a3c75e6f5c7f16f584f6e8f2898c175460347c5ea795a0fcefa940"
+        },
+        {
+          "path": "ubuntu-24.04/jit/loaded-module-closure.json",
+          "bytes": 8124,
+          "sha256": "3124552fa9496fec573f07b5aeed7ce9418dbaeceffa41270fbd69abb1fae7b1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/project.assets.json",
+          "bytes": 117854,
+          "sha256": "e9274633f081be6f46fe3d42a9d92685a9044261414ee4f368b589e015e38249"
+        },
+        {
+          "path": "ubuntu-24.04/jit/publish-command.json",
+          "bytes": 542,
+          "sha256": "cf75410eeef2a1d86afc37853b594757ab5d3746c749599b41fdbe4d9949cbdb"
+        },
+        {
+          "path": "ubuntu-24.04/jit/publish.log",
+          "bytes": 302,
+          "sha256": "369aa4c8edbcf4646bf79abd525e773c027ffaa68d514859068dced6b0245e0b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.json",
+          "bytes": 5582,
+          "sha256": "3c0681996984e34404559526a626225d3e1930fd03a889a5f97f2ae7301e6f75"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.stdout.log",
+          "bytes": 4689,
+          "sha256": "bcb5dde6b5cffcc1f005cf846447a29ce1aecdf7a7fb0df383c422e2589dd303"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.json",
+          "bytes": 5582,
+          "sha256": "f0429345933b9fbeaca4920d69ff6f5c8bec01ff6cf434a33cd38256cc3d4e53"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.stdout.log",
+          "bytes": 4689,
+          "sha256": "7986823e4fa89e7723f7158f625972870eed7da2983d413d3b914cef2f401538"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.json",
+          "bytes": 5582,
+          "sha256": "4fe1c4c773159302791b5291ef79e735dff6338beae47ab60ac35be2a4a4266a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.stdout.log",
+          "bytes": 4689,
+          "sha256": "db5abf04c60dc5092f1acf021f8c6563c1cc9d76684b74c55f21453a3b6ea715"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.json",
+          "bytes": 5582,
+          "sha256": "887fa3ec9027face003706bd3dc12dc4f64863aec2ede20d469369a7fde2c146"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.stdout.log",
+          "bytes": 4689,
+          "sha256": "8d0530a3111a56d48f143a63479a2c9fcf7cee35aa178e15dac6692aaf2b4d89"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.json",
+          "bytes": 5582,
+          "sha256": "ba461dd6d2a8398958c73f3db5e892c9ca22085d51bde3ccb2447c2450d2eb54"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.stdout.log",
+          "bytes": 4689,
+          "sha256": "b45996586660a4fdf406b442079db72d43870e6832585e2db836fca4b80ec41b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.json",
+          "bytes": 5582,
+          "sha256": "12070bdfde308180cc42c85e9d514faef1d70c618e497b7fa788cd86c0720a6e"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.stdout.log",
+          "bytes": 4689,
+          "sha256": "789d143f6523e95c16d7079a8cf9a9bddbf4f56b472b4a3f01c4cd5a844e7131"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.json",
+          "bytes": 5582,
+          "sha256": "0b5b1ed709716ab3c9d8e4759c6e4d7aa6c27ac0a9384c34bb324ca3a659ad1f"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.stdout.log",
+          "bytes": 4689,
+          "sha256": "5fecc459d0db5e58b2ee26b3db2d1b2a6ee76b59b4b73be05e34e8a5a2b276c9"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.json",
+          "bytes": 5582,
+          "sha256": "f65fdbdf42b9e363aeff964acf358ca90db029109de312bf414644803d865eb8"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.stdout.log",
+          "bytes": 4689,
+          "sha256": "cf2f3b4f701da76aa412e192c011fe464fa8f203c9b4bf13627fa661ba185572"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.json",
+          "bytes": 5582,
+          "sha256": "5d45df1ebed44411e9088ef6028a8cb2fff1d592e8b5e6d39dad3c39944ebbff"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.stdout.log",
+          "bytes": 4689,
+          "sha256": "3580aaad77efba3437a4eb60d61dd379898b5187220509c5197988cccd5b3d36"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.json",
+          "bytes": 5582,
+          "sha256": "7dda33aec03d5eb03c242d6acf9dcf8411694f3b11e6f3018d73ecb18d228eb6"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.stdout.log",
+          "bytes": 4689,
+          "sha256": "539bef71a637ff0e7bf2859c198c749cf6c4f783d54a243a1f7c36d93f2d93f4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.json",
+          "bytes": 5582,
+          "sha256": "0228fe3c94dc1cfa97a0ae7434d85625ff90d8e3945df89dd18e8c8dddc82f30"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.stdout.log",
+          "bytes": 4689,
+          "sha256": "3076313ccbf2d163c6855f6b62f0d5d08e60e97af9b11cafeca38dec28b28c3a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.json",
+          "bytes": 5582,
+          "sha256": "def0cf7c53d4aedba9b33856d272ef5e87d4a20bb98ee8fd03bf89ae49c53ef3"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.stdout.log",
+          "bytes": 4689,
+          "sha256": "4c8aec10efc5d29b58520b3544b61a595aea40777454202b20841510f09ce904"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.json",
+          "bytes": 5582,
+          "sha256": "d5ad09db268c601d0af4a63ee76e4974e088a0fb9aa166ec6fa7ee1d388449a1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.stdout.log",
+          "bytes": 4689,
+          "sha256": "2ee91707c9d4d3be81668221908dd1453e8f7461e1c13aa40e19485d21f82ae7"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.json",
+          "bytes": 5582,
+          "sha256": "62631ecc0799a5cec3104b3b48b9b6bbda8e71d5da113b3a5190efd041e3c4e7"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.stdout.log",
+          "bytes": 4689,
+          "sha256": "37e403a9211513686b2b06fca69402cd2c5c53b87ea5687ae390306aa22c8397"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.json",
+          "bytes": 5582,
+          "sha256": "4f4d770a39d88722e52a6ecf4a6fad75eeda11762543699d554341fd6c54cd39"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.stdout.log",
+          "bytes": 4689,
+          "sha256": "bc009518cb77d0ccf85c0cbf3d5c693b8551c224bedc4d2e231f3b34aa5e652d"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.json",
+          "bytes": 5582,
+          "sha256": "76a46db5cd0a431969e701ed43f28ab90c2a112e328ce47ce283c60a1cea4eea"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.stdout.log",
+          "bytes": 4689,
+          "sha256": "f05d8dfc3a5ad69f61d5ceaecec5f256c5983316cb23865205e9b0cec8b5d3ba"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.json",
+          "bytes": 5582,
+          "sha256": "6317556019c4df21ac7a359bd8f266ff524e426c3c57589134d1a2001b0aa58b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.stdout.log",
+          "bytes": 4689,
+          "sha256": "62e016b900cc78798d8ef80ee31e8d451b1ba84f77a42998e6b64f94993cf124"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.json",
+          "bytes": 5582,
+          "sha256": "53bd4d1c0c504e7b3dc8fe70355528623b020ecb71d0f579a3c40b10faed7adb"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.stdout.log",
+          "bytes": 4689,
+          "sha256": "73a8364eb2454d0751c0724393820b08f66070bdedb8a9c108ceb94794fd77af"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.json",
+          "bytes": 5582,
+          "sha256": "5c644811b2e16283cfb793b71763d69b9aaef5ba63948deebbbd1a6c42279f2c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.stdout.log",
+          "bytes": 4689,
+          "sha256": "f5a2f168c04c6b2f5ddb2fcbc63545baf5b9b48f653c4ba41c65f7d9ee070b1c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.json",
+          "bytes": 5582,
+          "sha256": "68352f908ad3b458be5e5603820607cdf642acc3dd0c0880fecea024a66fed27"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.stdout.log",
+          "bytes": 4689,
+          "sha256": "088ccc1e04b91dd53924eaf0a4b98489faca982d1e968d77295896a98062f296"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.json",
+          "bytes": 5582,
+          "sha256": "04119277c3813db3537453599902daba319ca376668ee73b007e1773e53b1779"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.stdout.log",
+          "bytes": 4689,
+          "sha256": "9aca81d7603f5ad1192a4a1518817cdaa12b35d33d651ad2d29cced22f181c3b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.json",
+          "bytes": 5581,
+          "sha256": "d50c0f4b783fee0c9d9c20ced7f9b6e67406acb66555fd78386573f12a6b5b60"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.stdout.log",
+          "bytes": 4688,
+          "sha256": "51999366b275158242c0f8b86a679b691eb280f6aacf654029c2393c93ca3996"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.json",
+          "bytes": 5581,
+          "sha256": "556dcc0ec691e37f24729d2ef47d94c963f3ddc0315166140211ab1e96efb7ad"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.stdout.log",
+          "bytes": 4688,
+          "sha256": "f081f61fc0f45cf8c8d0434947679ba64f9e6707733adb1248728fdf388a33f0"
+        },
+        {
+          "path": "ubuntu-24.04/ld-version.log",
+          "bytes": 281,
+          "sha256": "cbb0374a4d23f91537f8588348c460085a38ba5af336bed511060b72a1e76bf7"
+        },
+        {
+          "path": "ubuntu-24.04/ldd-version.log",
+          "bytes": 287,
+          "sha256": "0a361b537ea92ca84098127af4bbb1aa2144b39551239bdcd1bccb53ec4c5df0"
+        },
+        {
+          "path": "ubuntu-24.04/report.json",
+          "bytes": 494241,
+          "sha256": "f30bf34fa16eda9165a041cddc18ff8c93e8eb087c9661905e6e560f5c821741"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/artifact-closure.json",
+          "bytes": 9589,
+          "sha256": "ead3746c031880a3e889350d3aa3ecd9b5503ea93372d3c103a998401a5b899b"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/file.log",
+          "bytes": 269,
+          "sha256": "8eb5ed365776eb8a9b6c45dfe025c923e11ff471c672db514942e997029b7b89"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.json",
+          "bytes": 27900,
+          "sha256": "d7005311542725bfaa98a8854387da8341b3e6c797b15e110a7e2d7e389f13b3"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.stdout.log",
+          "bytes": 27045,
+          "sha256": "58d8f6c45c72926a84658a9057e4bf0632a51ed9ee7cdbbcc285bbf44746d80c"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/ldd.log",
+          "bytes": 522,
+          "sha256": "fed7462de411e2e5fb94a170ac65123ead159e7db9bb615c42644dcd14e9be5b"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/loaded-module-closure.json",
+          "bytes": 2940,
+          "sha256": "7694399394b43a9e78d186b57e004c112e675935f0e67679f18cc5922b4cd9b1"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/project.assets.json",
+          "bytes": 120751,
+          "sha256": "457fe652f115ab518d54b922353922da6fd71aec8a515f99c7df243ad7be7420"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/publish-command.json",
+          "bytes": 553,
+          "sha256": "6acb69ef997916a3d671ccd36d6d1c5e43fe8789bb23e1644dc124251141ac1e"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/publish.log",
+          "bytes": 16292,
+          "sha256": "8bc4272ef6372f82e2a99d489d2e86c83aed20d0d2aea8637bb0635b51cb4096"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9590,
+          "sha256": "00895948bb6a8d9e132252302e4b9245e78c97a606b1d1b86043b177a4c1251f"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/file.log",
+          "bytes": 285,
+          "sha256": "796256d36dbddf6f29efa07e53322d6542733f1efbb9991fd507232b47ed22ae"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.json",
+          "bytes": 27732,
+          "sha256": "30fd7ea9972e0e0b84f77e0c78ce85f9f757cbe296a050182723c6e8a129386d"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.stdout.log",
+          "bytes": 25926,
+          "sha256": "616cc3a9ab364541e6aa606a2747a4b3bf58b5c64390883efc14be602e061a93"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/ldd.log",
+          "bytes": 522,
+          "sha256": "21ef14cbd7248a1f4e8067b7822c1b21647d8aa97eca56e3d2be4bf9d4719841"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 3573,
+          "sha256": "c7bae125d8cef11c84d4ecea1933db66160a72deac169c8cba499a1d14ad7c7e"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/project.assets.json",
+          "bytes": 120847,
+          "sha256": "b27353727f8828cec757b4f8f0e56e64650ce539715241ee828dd4bdde0766a1"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/publish-command.json",
+          "bytes": 657,
+          "sha256": "ba71e76448b4ab982795daeb553afd4cd172ad7ab6035328c26cb114fb6a06bb"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/publish.log",
+          "bytes": 16788,
+          "sha256": "12949d38984bee2d70772bbc268d7b728dcc9155ec5c5cb9d0e7bcebf1330efe"
+        },
+        {
+          "path": "windows-2025/aot/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "9bf46bce204ae455ae478aa8b10eb8751edaa1ca3d6564476824741b22ac8bd3"
+        },
+        {
+          "path": "windows-2025/aot/functional.json",
+          "bytes": 22816,
+          "sha256": "be84b2339a7b8a2ff7611dc2c294282097c47b1d814a473077b88e5fba30dfc0"
+        },
+        {
+          "path": "windows-2025/aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/aot/functional.stdout.log",
+          "bytes": 22397,
+          "sha256": "12acfff065fc9955ed45d18d17cd64013951dd784d9e258ccbfbf2324a275451"
+        },
+        {
+          "path": "windows-2025/aot/loaded-module-closure.json",
+          "bytes": 3412,
+          "sha256": "93af2acaf7b56f115373e27ef548fef0f8c0dea05d3d15434ded30c5b2065c95"
+        },
+        {
+          "path": "windows-2025/aot/native-imports.log",
+          "bytes": 741,
+          "sha256": "c031cb659062137ba0129a963b1ee6a0936aa7cd8ac0e155c79b281d2ebebae8"
+        },
+        {
+          "path": "windows-2025/aot/project.assets.json",
+          "bytes": 127210,
+          "sha256": "917afe626c6099e8139f757c5880228a12e8654a6b64de592020cf4b2b95db87"
+        },
+        {
+          "path": "windows-2025/aot/publish-command.json",
+          "bytes": 539,
+          "sha256": "2478d25e7c1ff8ee90015304f02bca52e22f61c5bdcc3bbdd25123bd2c6eb8df"
+        },
+        {
+          "path": "windows-2025/aot/publish.log",
+          "bytes": 26886,
+          "sha256": "25c0d06a239099dba0e074853b774201eea8ee5c0da1df3f0a8eda40e95f2756"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "b437fd57e10f12a3975fef94eae54d15e5fe5bea59596b54087f2002b77da681"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.json",
+          "bytes": 17899,
+          "sha256": "cef6d796ab67c760d4508c505dcd06d172499c8c6bd47ffde982ea0c10488637"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.stdout.log",
+          "bytes": 16735,
+          "sha256": "0dc7a7f029d63fb0b47c9dfe50e6e3d97e4db3b3ad4b414fe31a08f5e2ca1e8e"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/loaded-module-closure.json",
+          "bytes": 3428,
+          "sha256": "63340635cde2e91d192229aac774ed6743158eab9e315fb574320918e3a5a6d6"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/native-imports.log",
+          "bytes": 757,
+          "sha256": "6001c51a0d95b1a8c0f99d8e608c5e178aa703a613259025f749e7278824cd88"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/project.assets.json",
+          "bytes": 127306,
+          "sha256": "c8491479a5bc01a8b5f5895a7e0ecb3ed46ec77c586ccbda1bf9bd6472e34e8b"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/publish-command.json",
+          "bytes": 644,
+          "sha256": "e56e3b714e7bc576d1bc1350edf1e9f0065f8377b2246136c0d6355ac671f7cd"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/publish.log",
+          "bytes": 27750,
+          "sha256": "67cb9a3caf1951d6d88ab789acfef0e00a3b5efa0cee0829cb16ffbab1e98147"
+        },
+        {
+          "path": "windows-2025/dotnet-info.log",
+          "bytes": 5697,
+          "sha256": "e6509b6d1b0bc75c76318e6c7d9997dffbe473dbdf0b774080f83f78fbfbfcce"
+        },
+        {
+          "path": "windows-2025/gate-status.txt",
+          "bytes": 24,
+          "sha256": "aa339627fd6b0a98e4c6ad1bfaa210645097beb2cdf2a727b92faa0f064d5ad2"
+        },
+        {
+          "path": "windows-2025/host.json",
+          "bytes": 581,
+          "sha256": "b11048537b0e0a5d107062687bed41c3843cb1a84736bac9b1e996d7251434a5"
+        },
+        {
+          "path": "windows-2025/jit/artifact-closure.json",
+          "bytes": 33167,
+          "sha256": "ee6127afb273c71d9dcc221c8d22b03dbf3611b6b5057e8b8a0206cc620aa702"
+        },
+        {
+          "path": "windows-2025/jit/functional.json",
+          "bytes": 11632,
+          "sha256": "3cb1290863863096c1a2b2b6b33aaafc24d7be245c6518b9c9df914d3ff29002"
+        },
+        {
+          "path": "windows-2025/jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/functional.stdout.log",
+          "bytes": 9970,
+          "sha256": "adb7351f4307954ed9ac7649452a5050361b8b7a8c0fb75465e6d9e97b4117b4"
+        },
+        {
+          "path": "windows-2025/jit/loaded-module-closure.json",
+          "bytes": 14726,
+          "sha256": "17fdb994df50bca4f4c7ead8fa6c0eedd57262f1932789553300602ebc5b62a5"
+        },
+        {
+          "path": "windows-2025/jit/native-imports.log",
+          "bytes": 763,
+          "sha256": "90fd89701e68e79f7b8a22b651b934e0d8e6be4c4ab7c4e332afb3f711c74947"
+        },
+        {
+          "path": "windows-2025/jit/project.assets.json",
+          "bytes": 121111,
+          "sha256": "9cd2d9b955e5ea713b1765947876eaa9cbad32321f0ddaa43d9c444f6f26c8b1"
+        },
+        {
+          "path": "windows-2025/jit/publish-command.json",
+          "bytes": 541,
+          "sha256": "336a7c3a0391ed8f3011587691c9a24da70a95aabe69ac9e997d484abedb559f"
+        },
+        {
+          "path": "windows-2025/jit/publish.log",
+          "bytes": 265,
+          "sha256": "db3aa69e6d921b24b913d5750257524501fada6b1825094127f765cce82a32d7"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.json",
+          "bytes": 7688,
+          "sha256": "6e140e0af6da07b05a47bee6ceba5d52e632d230a7bd21cb3b914e814cae20fa"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.stdout.log",
+          "bytes": 6484,
+          "sha256": "e10a5d7e3241add5a5c24bcbf29e4cb6da7a40b3b584152532487fb58d2c630b"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.json",
+          "bytes": 7692,
+          "sha256": "9ac5e1f93910fdb8cd7efeef29aa486625c80d02868eb632cf2e69098e7f721f"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.stdout.log",
+          "bytes": 6488,
+          "sha256": "b13f4231f8a389aad6f214a97286726916e201731380d6d74153742e446d8f52"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.json",
+          "bytes": 7691,
+          "sha256": "7e11a506aa88215914abce607876d855dd6847647023d0ec7a55f48578defc39"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.stdout.log",
+          "bytes": 6487,
+          "sha256": "7f569043578095f5e6e954544186a23c343f4c2b1dda18b4edbd4871fcb43e21"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.json",
+          "bytes": 7691,
+          "sha256": "512edfc4d6d7d4f2c8941424708968091aef032f6bf4cf76919c127fb0161244"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.stdout.log",
+          "bytes": 6487,
+          "sha256": "836a9358cfe21974fbb69b0a06e544bc69b4fe11be4c8b53acd77af4fd541b04"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.json",
+          "bytes": 7688,
+          "sha256": "e37d291a3fcb0f48a3b750d32a1df3450ce3fa5b774f685497ed7dd33efa7569"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.stdout.log",
+          "bytes": 6484,
+          "sha256": "84c5a81dc35170a049c2b36550c4bf6ba3d15a06e352321cd1ca7df475f5eb4d"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.json",
+          "bytes": 7692,
+          "sha256": "beaa0109a6a145a6afdf9776df0749068a5a4090f261c7135f5d68a428997c06"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.stdout.log",
+          "bytes": 6488,
+          "sha256": "e69a9745eced1f2f8046ff01f2243735e26e67039b517e508cfe6a2d281eea95"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.json",
+          "bytes": 7692,
+          "sha256": "d34b59805a4a41a3b68b9e099d52d2fd247a4cc6b7fc4e0920ffb38a66f23f2d"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.stdout.log",
+          "bytes": 6488,
+          "sha256": "9d47de9e1bf7d0414c9e0658dc640ca64c25f3ed168d8b2f238b6fc12b319e63"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.json",
+          "bytes": 7692,
+          "sha256": "06fad470d5b4b86bf3acdef59f0654f48572eefcb2b47f02db2dc96554d7194a"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.stdout.log",
+          "bytes": 6488,
+          "sha256": "51a7b235b556f5c7f4df2a7461b76ceafe24b824f7f38e90ddd23e0c4e48c9c2"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.json",
+          "bytes": 7688,
+          "sha256": "494fd81817dadfd58f592d0b74f63c7471715f6115433ccf087be22091c17cd8"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.stdout.log",
+          "bytes": 6484,
+          "sha256": "773039df50ee6e12291df6418f4551eb7c41d6a44cfb389c66be4f39d020142e"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.json",
+          "bytes": 7692,
+          "sha256": "626a2685a54668525b4adc02caad597633c273a1d603f9d35960b19a85c331b6"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.stdout.log",
+          "bytes": 6488,
+          "sha256": "064a2c55e3aca2f1712add20b429544f1f17782237280581d273f9f12acba3e6"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.json",
+          "bytes": 7691,
+          "sha256": "aa8cbc5239905aecdc4c1d57292f9eaff1defae22583a575366712838dfd8c16"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.stdout.log",
+          "bytes": 6487,
+          "sha256": "7c8b635fc3b8f27864e43fe89c48f8cf4dccd7ae8a3c9cae1b690b1a8847ebfd"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.json",
+          "bytes": 7688,
+          "sha256": "a4aa6e746b5c7e57d5872cccc6ce9dfa87bd565bd712921b5e80477b2d9d7d5d"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.stdout.log",
+          "bytes": 6484,
+          "sha256": "145d2963b0284a25db5fc0f13528ed4b866faae9bef1c3a4dc9690a75bcd6282"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.json",
+          "bytes": 7692,
+          "sha256": "7f3f1c1dac59845663cf92c8fa86ba2e887a760772df0eb36b9531c4c532bf6f"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.stdout.log",
+          "bytes": 6488,
+          "sha256": "2417be967ae0f50ed165428f4bad416bffe9fb3429f882c9023c181aa9f5e0a8"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.json",
+          "bytes": 7691,
+          "sha256": "0cb060c6a9a9128d3d9f7e46bcc421db774d430cf75e54394cade4a1364d9665"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.stdout.log",
+          "bytes": 6487,
+          "sha256": "295f213253ab4ce3709a16a90f5baedb1de2c72734e5e2f59dcd9a5454a5265a"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.json",
+          "bytes": 7692,
+          "sha256": "ef99866b3cdb63c22cf29f9719b23379a29ee04ad537c2506baa706dbcad61a7"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.stdout.log",
+          "bytes": 6488,
+          "sha256": "042799c10a6be503e9db2bf9f5c38514bf2c9952822908d4bb770e465e678700"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.json",
+          "bytes": 7691,
+          "sha256": "ec807bc9bf88814935b74000415e00e48a22867bdf95c7c12224683e4b0d3315"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.stdout.log",
+          "bytes": 6487,
+          "sha256": "6b5c0ef6b01724f6d385336c23287d60f2558b5ce90b193cde6f7d546de22665"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.json",
+          "bytes": 7692,
+          "sha256": "198972637e85e82c40e26b679fcb3da2e9cde8773a2acc0c49b255918b33c231"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.stdout.log",
+          "bytes": 6488,
+          "sha256": "63e3419f630c37c80cbff8b5101beb4dc024b896d3fd8f7227ad44599bcc6b18"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.json",
+          "bytes": 7691,
+          "sha256": "6418f2d1ffe40a1de1631ec5ff87b8e70769dfa3e9489a547ef291e165fd968e"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.stdout.log",
+          "bytes": 6487,
+          "sha256": "b11d5e1f6e3deb3a9ec89a4bb413f89bcdf007e053b371fa78a4eb5704020241"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.json",
+          "bytes": 7692,
+          "sha256": "706ec7d845b645cb16681d6da8a420c4b8f8fe651dd99f9dcc21c70746629a04"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.stdout.log",
+          "bytes": 6488,
+          "sha256": "6981a2586afc63bb830a4bd3a5e48116490f23df3e7fd88f015feba3d1b5f3b1"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.json",
+          "bytes": 7692,
+          "sha256": "4134ab600025b8c911931da7a7270003c7d15f32f8a43bfe4a02d2a099769698"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.stdout.log",
+          "bytes": 6488,
+          "sha256": "2eb5ab6a4ac3da8256dfe92a0a5dff2c70a220fc2adfd6fb596d71a87fd86cb5"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.json",
+          "bytes": 7692,
+          "sha256": "6a43f35a7571e7dc977f78136a0365d133a529fce3a6dee0145608840fed4f72"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.stdout.log",
+          "bytes": 6488,
+          "sha256": "12014b91b2448f2bef52eaccc929d071aec2f36c4982c5f77f36a714c6a5f773"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.json",
+          "bytes": 7692,
+          "sha256": "4bbb06beace4def22950cc420c5d953d4e2a45262376f54fb29f04853d8bd4a5"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.stdout.log",
+          "bytes": 6488,
+          "sha256": "34873ff00385119c32ff3792a56ebac5203fb97b3afd49343c9a284f125fcf65"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.json",
+          "bytes": 7688,
+          "sha256": "a2b1654adfc690adac8f414904ccbeaed8b3c6da146c240cfa60f3cec1a7e688"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.stdout.log",
+          "bytes": 6484,
+          "sha256": "4171f432264d0ed507349e4aef7a185cd93591bc86f7f02d37dbc52e4c900157"
+        },
+        {
+          "path": "windows-2025/report.json",
+          "bytes": 499455,
+          "sha256": "d85f1da0c3047ffd98118bc74cbe86e98c5717e0982494edea97c2ca32690cf4"
+        },
+        {
+          "path": "windows-2025/trimmed/artifact-closure.json",
+          "bytes": 9953,
+          "sha256": "341dcfc637390edc7ebba9a99014dd9450f186d078f6268f6d09e74100505a22"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.json",
+          "bytes": 31649,
+          "sha256": "0d5a35f5cb2adbc4c5856957eeb9b123965ce7fce3459fc56a9ee31ada3ae7f8"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.stdout.log",
+          "bytes": 30224,
+          "sha256": "884ad599c0373c8f6a2164f526801089b49a251e6cd669b18b1047dfdc4fb2ab"
+        },
+        {
+          "path": "windows-2025/trimmed/loaded-module-closure.json",
+          "bytes": 12105,
+          "sha256": "92c10f47cdae3dd6d9e98546aa5e281a271fab00e0a14dbeac2c9a1f6d27c667"
+        },
+        {
+          "path": "windows-2025/trimmed/native-imports.log",
+          "bytes": 767,
+          "sha256": "f9e29a690703c62754c5b017e2af09cd6c1ef88361dfdd0741055ec18ae68c8c"
+        },
+        {
+          "path": "windows-2025/trimmed/project.assets.json",
+          "bytes": 124077,
+          "sha256": "84cb04c1bbd2440a277884cc586b8a22991fe93b955f676f11363ea83f759e7a"
+        },
+        {
+          "path": "windows-2025/trimmed/publish-command.json",
+          "bytes": 552,
+          "sha256": "61ac82fc7e14662652a46946c674c8fbec6c32a9a570c38ad42b78787dc53e31"
+        },
+        {
+          "path": "windows-2025/trimmed/publish.log",
+          "bytes": 15920,
+          "sha256": "2e35ba7f106208c0a663f40cee459c791b3dafd65fd731da4a3c27ff8dcc78e2"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9954,
+          "sha256": "c84810d7e65aa6e732beb30869ce008ca68012880850f6205d8ba61ea36b63d3"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.json",
+          "bytes": 32125,
+          "sha256": "73975baf677e3b2ab20b296b6d205a1fa8336ef74d20bbd62e72b5b5048cc50e"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.stdout.log",
+          "bytes": 29744,
+          "sha256": "5c9c6041fa9ebfabf81efbb480384d5e2ff6be2753ce917d6f3102f15ddeec5b"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 13414,
+          "sha256": "4a832cac8ae003dfaa65b9e45a8c068e5cfd49ef4f24d1188e0c4f73959cda43"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/native-imports.log",
+          "bytes": 783,
+          "sha256": "a0bd9d0acd0c3741ca4f5ec4527b8596a4b698cba28dae9fda875cafd4f427ce"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/project.assets.json",
+          "bytes": 124173,
+          "sha256": "7f8e5c8108bb98576f244f106954113f3d4f6eff39ecb52cc0b93842ae9340a9"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/publish-command.json",
+          "bytes": 657,
+          "sha256": "012ccafc8ff33dd57474146458036eb9379bc988dafadc68a2b65fda311ca0c0"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/publish.log",
+          "bytes": 16416,
+          "sha256": "8360b7dc4309b05cebacce987a47c2e14da0111f7055d31eafe23905e214822e"
+        }
+      ]
+    },
+    {
+      "archive": "native-intermediate-39720537227-raw.zip",
+      "bytes": 524495,
+      "sha256": "ca7e27ca44f5d258b4acc1665d5fb764ba95d0442c2037475bc5daf4ebbb2b5b",
+      "sourceCommit": "ab85bb64b57a3afff337ae67e6a43378a4e44490",
+      "purpose": "classified behavioral repeat; codec emitter attribution subsequently corrected",
+      "entries": [
+        {
+          "path": "ubuntu-24.04/aot/artifact-closure.json",
+          "bytes": 268,
+          "sha256": "8f524546f78819bca45151621e9676ff2daa332e1c0c3c9b7e6e3277dc68b24b"
+        },
+        {
+          "path": "ubuntu-24.04/aot/file.log",
+          "bytes": 265,
+          "sha256": "dc7d297965b47a040a97716c30e942f2c467d405e53a284c646b5dcd0b084006"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.json",
+          "bytes": 21792,
+          "sha256": "c8e30cbb54e1b5b51ed166a05494fcd837e8b140869c70e88905d9bbc730f5a3"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.stdout.log",
+          "bytes": 21638,
+          "sha256": "23bbae3801bec6049f9f487f95211bc87c406c88ca80944aeb1d04aa1927f57c"
+        },
+        {
+          "path": "ubuntu-24.04/aot/ldd.log",
+          "bytes": 222,
+          "sha256": "4e57ab7692add0307383d50c1bbac247c9303c7fde874bbf32973fb63c9f1d06"
+        },
+        {
+          "path": "ubuntu-24.04/aot/loaded-module-closure.json",
+          "bytes": 1500,
+          "sha256": "91435bf998293321dff1ac5224578ec4156e61dda2b2f5b0b46b21e6bcad0e76"
+        },
+        {
+          "path": "ubuntu-24.04/aot/project.assets.json",
+          "bytes": 134861,
+          "sha256": "2657633dd711921fca9ac9a88ca678d9a2e30842c11b1d92fae40709f38d44c1"
+        },
+        {
+          "path": "ubuntu-24.04/aot/publish-command.json",
+          "bytes": 540,
+          "sha256": "a270f06e138eee811187b080535eb2edae30c178cfceb50e7d83b44c7b4b5817"
+        },
+        {
+          "path": "ubuntu-24.04/aot/publish.log",
+          "bytes": 27533,
+          "sha256": "87183914227db32afb934b4a4393b74b0a402d5bc65d38e759a53b01f053fc2e"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/artifact-closure.json",
+          "bytes": 268,
+          "sha256": "1ab947ad48c0e646cd7710389a5e538467c2f3fd760acc1d2434d7794b96bce1"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/file.log",
+          "bytes": 281,
+          "sha256": "f18c30c18cc263f2c74c9e503ab633c7ed391ddcf0014f7e3837325017639b93"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.json",
+          "bytes": 15898,
+          "sha256": "7dda314fcdf749645914773fd0e57c2ca543fe4c9e2083fbe0f9afd447976b0c"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.stdout.log",
+          "bytes": 14914,
+          "sha256": "c55b075a82ede469df9410d21e4a18dfbca8a4cf664d42d646e27850a12f222d"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/ldd.log",
+          "bytes": 222,
+          "sha256": "efc5e86df922599c544fb1e44d367ca3d2c02b994aecd61a2e26e8f951d854f0"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/loaded-module-closure.json",
+          "bytes": 1824,
+          "sha256": "a00bf57bc2c65ff2a22dfa469e869c49c8b084ee0df011a9c87c666308b9e451"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/project.assets.json",
+          "bytes": 134957,
+          "sha256": "ae4904a8228ca11bfc505aaf4420c368d2afae80603e78da8c4d591d7c2dca2b"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/publish-command.json",
+          "bytes": 644,
+          "sha256": "100001dce99e75771281633054ed1f2cf5778d9db2e8d137c1301e55282baad3"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/publish.log",
+          "bytes": 28398,
+          "sha256": "4645d7a8c9bbbea0b01d355b05a18e9f5c34199d5237982e7d626b5c11e3c09d"
+        },
+        {
+          "path": "ubuntu-24.04/cc-version.log",
+          "bytes": 245,
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1"
+        },
+        {
+          "path": "ubuntu-24.04/clang-version.log",
+          "bytes": 110,
+          "sha256": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53"
+        },
+        {
+          "path": "ubuntu-24.04/dotnet-info.log",
+          "bytes": 2896,
+          "sha256": "981664740298da86bfa743894e572caa54fd2192404a66bab69a6bd7cecf430e"
+        },
+        {
+          "path": "ubuntu-24.04/host.json",
+          "bytes": 1112,
+          "sha256": "774d83a8699688e5c1c7024ed9392e2deb5f4a7f3f1e906796723023f331a3b9"
+        },
+        {
+          "path": "ubuntu-24.04/jit/artifact-closure.json",
+          "bytes": 32157,
+          "sha256": "ee8c511dc5581fd8081f1576a426ee0ccddc353748b75420a4d7bc0aae9b845b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/file.log",
+          "bytes": 265,
+          "sha256": "b4ab9167812bc4cb059b53af7a819e377104ab4b5586e5309b35deac17a359c4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.json",
+          "bytes": 9793,
+          "sha256": "4ea23e87a520783c1c4ba92d2652c74013c859dbb5ff461b5af73cc0ac736eaf"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.stdout.log",
+          "bytes": 8466,
+          "sha256": "398e7226afa2a8f86b570d058443b2310f94dbc5e5dd1a73b66e4826fcf42eb7"
+        },
+        {
+          "path": "ubuntu-24.04/jit/ldd.log",
+          "bytes": 522,
+          "sha256": "d8c9c10f5d46c124e75abf7d6ac0eecedd8686b8ddb836379e1592e156609371"
+        },
+        {
+          "path": "ubuntu-24.04/jit/loaded-module-closure.json",
+          "bytes": 8124,
+          "sha256": "5f258bc303e4935def50bf2a25530ad98860bc3a010451cde7049e0681b5a119"
+        },
+        {
+          "path": "ubuntu-24.04/jit/NativeConsumer.runtimeconfig.json",
+          "bytes": 360,
+          "sha256": "44ad76310b14c3f71b834491619bb2c7763471776600f013fb484fd73962b82c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/project.assets.json",
+          "bytes": 117854,
+          "sha256": "4f7f90ac7ecd1135f5c38d1ff7939bd32b269e02e0992bb688b0c313d296375a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/publish-command.json",
+          "bytes": 542,
+          "sha256": "cf75410eeef2a1d86afc37853b594757ab5d3746c749599b41fdbe4d9949cbdb"
+        },
+        {
+          "path": "ubuntu-24.04/jit/publish.log",
+          "bytes": 302,
+          "sha256": "f30653b8df1acf466a73c101cf64ac1bb6f2f6b62e7b20684b6fa2443dcba99c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.json",
+          "bytes": 5968,
+          "sha256": "e9a6e1af0f3ac6fdd6787b7bcb59b1c7cec155d2e25919f1b30b0da24a190965"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.stdout.log",
+          "bytes": 5026,
+          "sha256": "16cb58390d3e38d3577a8d5aebb41177075199cbc33c65eb89c7f1432daa2215"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.json",
+          "bytes": 5968,
+          "sha256": "c114bdb8d5e5460fabfaf78b98ebd1a9cd000a5ccedf387fe2a800f01b98a457"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.stdout.log",
+          "bytes": 5026,
+          "sha256": "8914489b09b06216a896ffa1a277680880aa194fe3796b4b36b16e590db7b866"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.json",
+          "bytes": 5968,
+          "sha256": "3d50578862cb568879142e858d3cd9b47d31aa125aeadc671023fb51eca5a08b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.stdout.log",
+          "bytes": 5026,
+          "sha256": "f7fa093495bf7b5a408aa5183215e75842fa587ffa78a16c31e7a66a8a888f33"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.json",
+          "bytes": 5968,
+          "sha256": "24aec45fcb84db6837d82470b68e54f27cfafa3b4a4963ea666a66c49dde8b4a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.stdout.log",
+          "bytes": 5026,
+          "sha256": "00584adee624693a6ecba0b7de3df3f5adaba6c136bb605480fb29a49865abbd"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.json",
+          "bytes": 5967,
+          "sha256": "c25bcb8bfbd5c887a971845526e156b4490b963f2a7d9fa2bf006e9e00918aee"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.stdout.log",
+          "bytes": 5025,
+          "sha256": "68dc422cabf0f00ae8d7d380ee72f29f5edc9662be3665e5c0a1df891e0c3d76"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.json",
+          "bytes": 5968,
+          "sha256": "4cd958439cdc2826053b502dc326e2c43102dabe3204e295b6545f2118d7e554"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.stdout.log",
+          "bytes": 5026,
+          "sha256": "14f9911fc68e212bfa02fe40b9622a3f4b03f5c016c6084c262b0232157ee0f7"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.json",
+          "bytes": 5968,
+          "sha256": "b2d2275ee91b4ed0cc11b210376c17c45e75146472764df0d35f5c5a8820c1ae"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.stdout.log",
+          "bytes": 5026,
+          "sha256": "0ae4df7ccfb6421fde57b90744f7d535900c27cba45d2d6abced36e7e670788c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.json",
+          "bytes": 5968,
+          "sha256": "5d4fe9f2204e8c28702cf9dfa86c9b9966494679cfa334838f4b0d51767008c7"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.stdout.log",
+          "bytes": 5026,
+          "sha256": "97710a867f4662eef1fb6842d179083a33084977cc88e352fb7be795776e5f0d"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.json",
+          "bytes": 5968,
+          "sha256": "7c62f59224eb06f9ab975912815719cc0845385777993397be2beb219df24343"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.stdout.log",
+          "bytes": 5026,
+          "sha256": "4a5fa1586558d16b80a3a0a8eb2a4f74b9df8825dcf1106210e46b79ea4d5ca1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.json",
+          "bytes": 5968,
+          "sha256": "09f78db6eb3237a89487c731ec8a3fff95f823c75a43b7938ab26101d2029456"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.stdout.log",
+          "bytes": 5026,
+          "sha256": "159694a92bd9360fabe66d10876553f5a7a7e3d64753e232ba246306e8967e5a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.json",
+          "bytes": 5968,
+          "sha256": "7492556bd79f355ec86e67d448f1a5adc342efd1cfcda6ca1a17d8f6b75509d2"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.stdout.log",
+          "bytes": 5026,
+          "sha256": "bea78b40eee1fe4d22f0caefaf38270aceb7e0e0e43673bc06f9da944df903af"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.json",
+          "bytes": 5968,
+          "sha256": "c228b46ba58bb740f1984ef0dca2efb32d5d4ad8385fe9f37d825089f80e7180"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.stdout.log",
+          "bytes": 5026,
+          "sha256": "e639813c21aaa7774f314e5c49e36b3550945927079fc34ccc3a5675093b534d"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.json",
+          "bytes": 5968,
+          "sha256": "6a54240245bf48903a27aa01363a69281e1d9df8415e21232957ea1f3461e526"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.stdout.log",
+          "bytes": 5026,
+          "sha256": "1367259ff0a4de84dc53437c513ad53b2108a218f9b2f7929fd901929479746f"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.json",
+          "bytes": 5968,
+          "sha256": "94e76b6fd8e1b70e39228db0120305c4c476f78b98e797cd3a7058de23e81502"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.stdout.log",
+          "bytes": 5026,
+          "sha256": "31b218b16434547bed313e2ca27729aac1bd9f6a4ab1a99398a08cef80a3cbc8"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.json",
+          "bytes": 5968,
+          "sha256": "94c1d9113b5252ad87c987d046ff63ef5a27c991ecf90e1ae160cb8698b083b0"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.stdout.log",
+          "bytes": 5026,
+          "sha256": "f073c9bd9aa82a7d50051dcd12a9309e7c3696d23c4143e390ca46b24d361ee4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.json",
+          "bytes": 5968,
+          "sha256": "1944ec88fd0cdc81829f8dedf8d5451ab51663c13cb36f80cfc337445187b392"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.stdout.log",
+          "bytes": 5026,
+          "sha256": "11322979d9beb3beecfbea4219dc151ac2ff29999eda1a239fb33f2f6697ca51"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.json",
+          "bytes": 5968,
+          "sha256": "21b7876093b47c9051135e00281f967c802eabe7da7f7940d4e40fc1c9d819e6"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.stdout.log",
+          "bytes": 5026,
+          "sha256": "38d06d4ebee9c70453381920f00e4cbddddabfe183fe57095154c7e744330675"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.json",
+          "bytes": 5967,
+          "sha256": "825f56f5e514c597214899fc24919babfa0016501e1e6e0ec69a183c51e79cb1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.stdout.log",
+          "bytes": 5025,
+          "sha256": "2b433b945e2aba39c296cc208d52be8ad609c33ef407a389d92f004d3a1c9e5d"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.json",
+          "bytes": 5968,
+          "sha256": "77491785f1c335e0636353df96b7fd5515354a80db460aa953097e8fec2ef063"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.stdout.log",
+          "bytes": 5026,
+          "sha256": "3412c34fe40fd741c9176c40e82d323a7749ee109f8e31161cbe2a290cddc4c9"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.json",
+          "bytes": 5968,
+          "sha256": "03ce1e99ea3b3bcddbf7a933a70a2f83bcf08219b7bc3f452f55b8ad3794a423"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.stdout.log",
+          "bytes": 5026,
+          "sha256": "77f4215a9dc84fd28adb5d7b4d69a22c59ec787acced61d4bcd8d4b456599f96"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.json",
+          "bytes": 5968,
+          "sha256": "10592d45bb531166d350e6f790b8641ececa021ad24f40995055780c4842a80c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.stdout.log",
+          "bytes": 5026,
+          "sha256": "9e5fb2c811d44d63e4821a28206f217bb761f25e4759e1a34b73d54526575ca1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.json",
+          "bytes": 5968,
+          "sha256": "4af444fe15b11f9b78031cdeceb17c8e3e30b97dcc81d62077591d0928d72101"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.stdout.log",
+          "bytes": 5026,
+          "sha256": "2a12200ac8ccc8055a197190d24e52ed76aaa1f1b63c1ca65ab3b0d25df24067"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.json",
+          "bytes": 5968,
+          "sha256": "bab196a24640261201fc6514e0724ee0f4301c8259c439c061064481f7513d05"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.stdout.log",
+          "bytes": 5026,
+          "sha256": "481500b71b9d41e7c716c76837da0bc65250eb644a6cc97770ab879c4c85ab07"
+        },
+        {
+          "path": "ubuntu-24.04/ld-version.log",
+          "bytes": 281,
+          "sha256": "cbb0374a4d23f91537f8588348c460085a38ba5af336bed511060b72a1e76bf7"
+        },
+        {
+          "path": "ubuntu-24.04/ldd-version.log",
+          "bytes": 287,
+          "sha256": "0a361b537ea92ca84098127af4bbb1aa2144b39551239bdcd1bccb53ec4c5df0"
+        },
+        {
+          "path": "ubuntu-24.04/report.json",
+          "bytes": 617870,
+          "sha256": "a409e6416b249b79a7ddc8d08106c374965e458ae9c4ea10b77b3961aaee8732"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/artifact-closure.json",
+          "bytes": 9589,
+          "sha256": "06ee38c71091cdb385d5ddf67384d3c9ca78f6163182bfa7338f15715b5ae787"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/file.log",
+          "bytes": 269,
+          "sha256": "8eb5ed365776eb8a9b6c45dfe025c923e11ff471c672db514942e997029b7b89"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.json",
+          "bytes": 28303,
+          "sha256": "d13c7e7c2eedb2cc2cb8ca852fe43ffefbd1660670e1dbf63d128678fcfe542d"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.stdout.log",
+          "bytes": 27399,
+          "sha256": "0199c40f4511b68d1a1bb84cac20aa68cbc893a2fe979b975bf6f2f46383ae65"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/ldd.log",
+          "bytes": 522,
+          "sha256": "0d387d6255ac2d9fd3c9205b413fbc0445318981188583822faff80769ac6a53"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/loaded-module-closure.json",
+          "bytes": 2940,
+          "sha256": "c0cda130c1ce4bd2fb7f04b35f9cf16caefe1daaafa40e7bd528da87d385d144"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/NativeConsumer.runtimeconfig.json",
+          "bytes": 1788,
+          "sha256": "882c81dd934092e04cb6bea189656443d95115191304c2ba5eb35b7b91fdc043"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/project.assets.json",
+          "bytes": 120751,
+          "sha256": "12b787807ce76829bbf2e29856fe68f7036f9ea669182fd9d8a8df434cf21109"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/publish-command.json",
+          "bytes": 553,
+          "sha256": "6acb69ef997916a3d671ccd36d6d1c5e43fe8789bb23e1644dc124251141ac1e"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/publish.log",
+          "bytes": 16291,
+          "sha256": "bc41aa3a43d6ca552f91fe309ac51e372980a82987510b589ff9b837fb1cd306"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9590,
+          "sha256": "11fd6ca53192a8da755cf62b6d527fac4ab9c75ff20d16380a75753cae2f92ea"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/file.log",
+          "bytes": 285,
+          "sha256": "796256d36dbddf6f29efa07e53322d6542733f1efbb9991fd507232b47ed22ae"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.json",
+          "bytes": 29883,
+          "sha256": "5914c975489ad8ad2a4d5a5487b7473167a7d0d5ef3e5be88f352f1e326507c1"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.stdout.log",
+          "bytes": 28093,
+          "sha256": "1b13ae4244ee6f8e91c3b2b2f39ed1b6df7537214e594107f86537cd5febaa1c"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/ldd.log",
+          "bytes": 522,
+          "sha256": "344e52c40471913ed40df73da1aad0b49b9b38fa9ac5cfad53d9445c71867a62"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 3573,
+          "sha256": "613852844f060378e08e4a4fc2aab496289d67b19bdb830aa3af1bfc46c1edac"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/NativeConsumer.runtimeconfig.json",
+          "bytes": 1787,
+          "sha256": "6f779fc5fcf01736c6e2b611ef7ff7401cde9ce462c8d80c9ba999d2bfad8f6a"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/project.assets.json",
+          "bytes": 120847,
+          "sha256": "1869e7a1d634aae914ed3f571f3629f984054f306eefedcce484b99b44219bcb"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/publish-command.json",
+          "bytes": 657,
+          "sha256": "ba71e76448b4ab982795daeb553afd4cd172ad7ab6035328c26cb114fb6a06bb"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/publish.log",
+          "bytes": 16786,
+          "sha256": "0bdd85be583b6f02e9b2a735ba7fc152f1d2da9697c7a0543cd24c0fcb74d9cd"
+        },
+        {
+          "path": "windows-2025/aot/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "a3c8dc7dc61b738fbe9442c070f17d5f84bf26cd799582e10358cac14eba4a12"
+        },
+        {
+          "path": "windows-2025/aot/functional.json",
+          "bytes": 23228,
+          "sha256": "c2362ecb5d09694dac545a6222ea7684f130dd3e7ad19baa5078a39a19a73006"
+        },
+        {
+          "path": "windows-2025/aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/aot/functional.stdout.log",
+          "bytes": 22751,
+          "sha256": "4229bccad7c4079e25a88c5a4f99f0de2fcc169f4032979d2f20b12235b0c1d5"
+        },
+        {
+          "path": "windows-2025/aot/loaded-module-closure.json",
+          "bytes": 3412,
+          "sha256": "4cf8db2d956a133ebbbc0f10bd1d8050e9f9e65b0184a9ce9cab66b37a6f106c"
+        },
+        {
+          "path": "windows-2025/aot/native-imports.log",
+          "bytes": 741,
+          "sha256": "c031cb659062137ba0129a963b1ee6a0936aa7cd8ac0e155c79b281d2ebebae8"
+        },
+        {
+          "path": "windows-2025/aot/project.assets.json",
+          "bytes": 127210,
+          "sha256": "6dd1c7e750339e2912c9d4da10e10e691cd1886d66e241e9b6c6ce0d3c730a31"
+        },
+        {
+          "path": "windows-2025/aot/publish-command.json",
+          "bytes": 539,
+          "sha256": "2478d25e7c1ff8ee90015304f02bca52e22f61c5bdcc3bbdd25123bd2c6eb8df"
+        },
+        {
+          "path": "windows-2025/aot/publish.log",
+          "bytes": 26886,
+          "sha256": "6efbbe0844763763b67e333a3496c3ed1004cb2080533052d4860108e6004e51"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "a46e953b7545962236e05451aff02bdb81c92dd4dd9dd1d3b432f57dc5df05d7"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.json",
+          "bytes": 18252,
+          "sha256": "437df0989be34e6520c1bbb392136337dff97d1972df222089b365362510616b"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.stdout.log",
+          "bytes": 17030,
+          "sha256": "7a0b6092b19bb9eef2f9baa717a0a2837921e6b0fb940ada24a1760fa1729a6b"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/loaded-module-closure.json",
+          "bytes": 3428,
+          "sha256": "533d3c3fba6d1d376548d87322f70c14b4def29666acf664f185ee51f1b4d633"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/native-imports.log",
+          "bytes": 757,
+          "sha256": "6001c51a0d95b1a8c0f99d8e608c5e178aa703a613259025f749e7278824cd88"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/project.assets.json",
+          "bytes": 127306,
+          "sha256": "b2a36103718b1d363f2e5bb7b471e1279971b9dc36cf547692b182fdbcf3bcaf"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/publish-command.json",
+          "bytes": 644,
+          "sha256": "e56e3b714e7bc576d1bc1350edf1e9f0065f8377b2246136c0d6355ac671f7cd"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/publish.log",
+          "bytes": 27750,
+          "sha256": "e2571264b0d0d4780142e55a18df26fc1a91bb69d4d326b5aee58119bdbc3e59"
+        },
+        {
+          "path": "windows-2025/dotnet-info.log",
+          "bytes": 5697,
+          "sha256": "e6509b6d1b0bc75c76318e6c7d9997dffbe473dbdf0b774080f83f78fbfbfcce"
+        },
+        {
+          "path": "windows-2025/host.json",
+          "bytes": 581,
+          "sha256": "b11048537b0e0a5d107062687bed41c3843cb1a84736bac9b1e996d7251434a5"
+        },
+        {
+          "path": "windows-2025/jit/artifact-closure.json",
+          "bytes": 33167,
+          "sha256": "f9af18d7ffaffd0ffd91bf739daab6041b55654f17f034a1becc17899a8a04e9"
+        },
+        {
+          "path": "windows-2025/jit/functional.json",
+          "bytes": 12005,
+          "sha256": "78da4a20dfbd1460e85f924e2f41231285b7bf6a83d3e569c0b292d83e47ba10"
+        },
+        {
+          "path": "windows-2025/jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/functional.stdout.log",
+          "bytes": 10285,
+          "sha256": "9a4afd1f9c3e09ce7dcfe92508472c524752fba0dd4c1f48adb2e94b35f7a4bd"
+        },
+        {
+          "path": "windows-2025/jit/loaded-module-closure.json",
+          "bytes": 14726,
+          "sha256": "07d783d3b3e9e9724911c942487fb56f8be6d1d12c2c86e7517927de2173304b"
+        },
+        {
+          "path": "windows-2025/jit/native-imports.log",
+          "bytes": 763,
+          "sha256": "90fd89701e68e79f7b8a22b651b934e0d8e6be4c4ab7c4e332afb3f711c74947"
+        },
+        {
+          "path": "windows-2025/jit/NativeConsumer.runtimeconfig.json",
+          "bytes": 374,
+          "sha256": "089a03f26e7e7601a28dc9278a2c8f742e35e1312640b2cd6ef2fe9c58429dab"
+        },
+        {
+          "path": "windows-2025/jit/project.assets.json",
+          "bytes": 121111,
+          "sha256": "1195e5b5f7ba40fedb6b5671c7cf8560a1900bb25824ea3b8321d737e496fefa"
+        },
+        {
+          "path": "windows-2025/jit/publish-command.json",
+          "bytes": 541,
+          "sha256": "336a7c3a0391ed8f3011587691c9a24da70a95aabe69ac9e997d484abedb559f"
+        },
+        {
+          "path": "windows-2025/jit/publish.log",
+          "bytes": 265,
+          "sha256": "2d89969dbd7e8a5a7e5a5ccccb7a6e529f266d2a3fa08f1879c8693411886425"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.json",
+          "bytes": 8083,
+          "sha256": "7bd963366777ec8068570e2b7930fef8d7948ceeb2e4a1c8adccf3eb00963eaf"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.stdout.log",
+          "bytes": 6821,
+          "sha256": "6f20514e5672f04093270792fee651434f9a500562cd868534997f772e6d5608"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.json",
+          "bytes": 8087,
+          "sha256": "af446f60434a2a98870a4f4772330114861736d16f53d971a62cc23c79f5fa27"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.stdout.log",
+          "bytes": 6825,
+          "sha256": "29c7aa99c4edc7028dd8c576c76324af0231fb20da9f0afe15c5e07b8b31e89a"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.json",
+          "bytes": 8086,
+          "sha256": "f7110b45efe199a638fcee24de3b2e2658b2ca13cc4e774d7160356f1c921f82"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.stdout.log",
+          "bytes": 6824,
+          "sha256": "3a1fcb336f6b4c4d5dbdfc8807de7026d2d16b4bc31b2d08f446c09dabaa1e05"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.json",
+          "bytes": 8083,
+          "sha256": "bf4832ccf001122920a44dc81b392167f1c75cc743102510550a06b4e6a598a2"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.stdout.log",
+          "bytes": 6821,
+          "sha256": "af46966197e29f74c0c564f7df0631cbf954394f5955f05c96ea90ef9327b244"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.json",
+          "bytes": 8087,
+          "sha256": "359f7eefc5ca604970ba78a055f63d988a66a163d8e9aed32b47d6903b4e8451"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.stdout.log",
+          "bytes": 6825,
+          "sha256": "7f17d462ded35b3d12cad878fa2bf7a4bbd15cf2bead868bd17acae16f976fe6"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.json",
+          "bytes": 8087,
+          "sha256": "010d5410ffc07c71f71ce18cc4904f05d491e7121725350ca37f7f07ce112cb6"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.stdout.log",
+          "bytes": 6825,
+          "sha256": "dd18ae1bbfcbe5c7c48bd12b007c7c289b767123a4dc4079baaa447bae07e3c1"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.json",
+          "bytes": 8086,
+          "sha256": "3c26b979ca620a4db72347165f59898aa758d6c20ad6840cdd23b8e9bd5aaa1f"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.stdout.log",
+          "bytes": 6824,
+          "sha256": "6b31ae3fb2e49fad6851a425f1d4ec7ef3b957d5666f75ca00878dcfe92fa678"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.json",
+          "bytes": 8086,
+          "sha256": "d71d711bf5bded49fc53152e9245778f95f3b96dc414d94f8ae3fb3ff7fde85c"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.stdout.log",
+          "bytes": 6824,
+          "sha256": "a767096070560bc8abb04c80ef5c429f42595f98418516ed74b224d23662b39b"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.json",
+          "bytes": 8085,
+          "sha256": "c5f536bd9e34c308c0c1ad332924645c80a835331a8ee455f98c336a46651442"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.stdout.log",
+          "bytes": 6823,
+          "sha256": "a3c05f17ff398cd882c2ad8304bedaff9d05441d44376b625d3392d5a9b34b80"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.json",
+          "bytes": 8086,
+          "sha256": "3b817c11cd09927e3db87c50324960982ba8bd03052f39736fef75092d39ac8c"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.stdout.log",
+          "bytes": 6824,
+          "sha256": "f280f74cf2c72f8b40f6db80a61af7fc0ce0bd06439c2fc232cb3103e49b5d36"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.json",
+          "bytes": 8087,
+          "sha256": "24ef0ea60032db81c013f9cbf6807ef429c6f234a336e837c72b757cea5dca12"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.stdout.log",
+          "bytes": 6825,
+          "sha256": "e097c51081b37acaca6275593d36d50538279816c94ebaac568a346b79a90548"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.json",
+          "bytes": 8085,
+          "sha256": "a49994a1d2d3625fc7ad5ca5ff345fb80113a5a38b2a0bef6526689089a25fdc"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.stdout.log",
+          "bytes": 6823,
+          "sha256": "6cf43cb4792d049649a24ba608f54305f7e1b54f4526e4866533465366d72452"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.json",
+          "bytes": 8087,
+          "sha256": "0f6cd93793fc6e611383b23d9945aa39c6581f63e23bd0a36372d1fbad81fa31"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.stdout.log",
+          "bytes": 6825,
+          "sha256": "58605ad07da0c7ea95228e8f9ee82674b5f4411b8b952a1c76015c365136eca9"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.json",
+          "bytes": 8087,
+          "sha256": "64f8d030d17e50fd2f501955e032d35ef25fe6b310fcb672ca783cead28787a0"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.stdout.log",
+          "bytes": 6825,
+          "sha256": "fcbf58fe5b5a742ea3d1b3d7a6112bc80ce583a58671d979c7365858c1aa488f"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.json",
+          "bytes": 8087,
+          "sha256": "7a86cddf63706bccabe33c455adf4a3c82ecd11621ade9ffa0b146e8ab0d4fb4"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.stdout.log",
+          "bytes": 6825,
+          "sha256": "a09cd4f5a6965c950b136954102545cdc4bb2aa101d55e274335f47126b7ed5b"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.json",
+          "bytes": 8087,
+          "sha256": "15793bc8c2a41efc78586bcdce6b39c3c086235066b39cc3a15cd49fcdaf62bd"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.stdout.log",
+          "bytes": 6825,
+          "sha256": "98e5742269dab1b3419b6b5c53683cd61b4031676e449f6ad3db2053b3cceb85"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.json",
+          "bytes": 8085,
+          "sha256": "a9d9699afaa5e8f32a2c693147998dd2ab309f8acaa8699b81e22fde94d5e426"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.stdout.log",
+          "bytes": 6823,
+          "sha256": "849b6f540ce157ae87115ba931d017b2047042bac3193a8f56ed78caa8fe14d7"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.json",
+          "bytes": 8087,
+          "sha256": "58bfc34b7198d259f47f966127472ef1645b469b9eac2d15ed1eed9522c1c85d"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.stdout.log",
+          "bytes": 6825,
+          "sha256": "654e2d1c90dcdee52634eb1fcfb8f6fb0ff9ce17374659e072296a1cd95e08fe"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.json",
+          "bytes": 8086,
+          "sha256": "cfd939be19b9c3aba1e9fb9129245c4506990d9ac96324e1625a092d79b49935"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.stdout.log",
+          "bytes": 6824,
+          "sha256": "0feae09ab7742be393ffe80bd3852e88b77311adc0f62f2917c223896962f509"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.json",
+          "bytes": 8086,
+          "sha256": "ef9a8a084eb26bc6f63a7a50a5e35fca8e489fe7984655cec41d184de356e6c6"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.stdout.log",
+          "bytes": 6824,
+          "sha256": "966e038e0b0ec48ce165d8e49bc4cafe3e60f5e98faa272ff974911e17f6a2de"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.json",
+          "bytes": 8085,
+          "sha256": "3bb3859e1f688321c787805763364d2a3189f3cbd089863adeea8da8f4b49dea"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.stdout.log",
+          "bytes": 6823,
+          "sha256": "ccd007d0489b5dc94e83d181c079daff8bd9c9c7e1c0c2702469845b17ca29d7"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.json",
+          "bytes": 8087,
+          "sha256": "7976e8b6e08e13a8d69d8f85ee543e6abf33bf89388f74230b1f547e7a1cba40"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.stdout.log",
+          "bytes": 6825,
+          "sha256": "f532a43d6ee20bf719b11590be42f021496271593c34141de46f7a6083b3a172"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.json",
+          "bytes": 8086,
+          "sha256": "85168cb9829d4e62ed412c471ff9242cda9751bc63bd72d8403f406480dca88e"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.stdout.log",
+          "bytes": 6824,
+          "sha256": "a8e5dc29798f9a9071b1e656ca17bbf02026dc6582d9c271040eed5f1592f5b2"
+        },
+        {
+          "path": "windows-2025/report.json",
+          "bytes": 624184,
+          "sha256": "a5a57bdf0dc36fc2df1ecbf3c680d11b3c24e708f55c338156473601d45c9bb6"
+        },
+        {
+          "path": "windows-2025/trimmed/artifact-closure.json",
+          "bytes": 9953,
+          "sha256": "de39f35acf0822983774d097f7a76d397e951c695f4f5532c48b1c15e00ea88d"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.json",
+          "bytes": 32061,
+          "sha256": "1dbbeb8aee0c088230bc3ab55d53e0122dcab62fc07784a9ebab201aa09a66d3"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.stdout.log",
+          "bytes": 30578,
+          "sha256": "c953fc53b79d47eb33328ba56f305ed310691f27a0e76671e7f926516d73442e"
+        },
+        {
+          "path": "windows-2025/trimmed/loaded-module-closure.json",
+          "bytes": 12105,
+          "sha256": "af5fca185bf24dbf4f0994d6aa82ac0238a310e739a583ba900895595b2c92e5"
+        },
+        {
+          "path": "windows-2025/trimmed/native-imports.log",
+          "bytes": 767,
+          "sha256": "f9e29a690703c62754c5b017e2af09cd6c1ef88361dfdd0741055ec18ae68c8c"
+        },
+        {
+          "path": "windows-2025/trimmed/NativeConsumer.runtimeconfig.json",
+          "bytes": 1769,
+          "sha256": "249e7b4dfa81cdd5ac1a5117588ddcc8a48747ca6f524a085bda8a7d74281a2c"
+        },
+        {
+          "path": "windows-2025/trimmed/project.assets.json",
+          "bytes": 124077,
+          "sha256": "16052889730c9f424d04a1d3b71d0bbbe530aa197f51ba63131a0c7ab7277257"
+        },
+        {
+          "path": "windows-2025/trimmed/publish-command.json",
+          "bytes": 552,
+          "sha256": "61ac82fc7e14662652a46946c674c8fbec6c32a9a570c38ad42b78787dc53e31"
+        },
+        {
+          "path": "windows-2025/trimmed/publish.log",
+          "bytes": 15920,
+          "sha256": "e19dc73964bed11ff3c40f8596bf03011471ae93efbc7a582f9e5809e6e0b194"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9954,
+          "sha256": "b4a17d8e22c7f33cb59592575698500b4781d71c90a12d089bfa40e318e34fb0"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.json",
+          "bytes": 34304,
+          "sha256": "73fbf33aac1bccd529ac713a64371d82524d1094f21b2a2c24b5c53f381c3b63"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.stdout.log",
+          "bytes": 31930,
+          "sha256": "6a0c5d2b2a3110e4f75763c1c2ed7e8f0918d80acd9b6ee11a562f053eb2a6e9"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 13414,
+          "sha256": "977fae901884069fa975be546c4b89382c02295965cafc212ac195afb0e85b28"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/native-imports.log",
+          "bytes": 783,
+          "sha256": "a0bd9d0acd0c3741ca4f5ec4527b8596a4b698cba28dae9fda875cafd4f427ce"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/NativeConsumer.runtimeconfig.json",
+          "bytes": 1768,
+          "sha256": "22bde1cb4a0252f47f9a0262713087f5d2dea8e3847d5b6617d23e70dd19855b"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/project.assets.json",
+          "bytes": 124173,
+          "sha256": "ca16962bcae5a02fe1d4e2ef69e1a9fa8431ddf9473e38a844be217be3b52520"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/publish-command.json",
+          "bytes": 657,
+          "sha256": "012ccafc8ff33dd57474146458036eb9379bc988dafadc68a2b65fda311ca0c0"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/publish.log",
+          "bytes": 16416,
+          "sha256": "4c9c055ee8f3a681024a047c17316138bd56f663864e0acf398139b6c1a147aa"
+        }
+      ]
+    },
+    {
+      "archive": "native-final-39721105482-raw.zip",
+      "bytes": 547143,
+      "sha256": "f363661216fad3bf747eb4846fc9207d4cdd2560e601e93f6db2dfb94a731610",
+      "sourceCommit": "b92c5ccb47aa26a1e5a4a754d667bc98b9180489",
+      "purpose": "final classified exact harness, both native hosts and record gate green",
+      "entries": [
+        {
+          "path": "ubuntu-24.04/aot/artifact-closure.json",
+          "bytes": 268,
+          "sha256": "0ea05f0003962bdf546a2d746b19c4bd7e10093ba79e5be29b93c9bae15cab83"
+        },
+        {
+          "path": "ubuntu-24.04/aot/file.log",
+          "bytes": 265,
+          "sha256": "4a02279ee57250c6f68e23363640c1d56399a5344657d5c56957fff9766bca41"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.json",
+          "bytes": 21792,
+          "sha256": "25fcc97c10b86c2ab68db4480a887f63c76f7daea992c3409ca2aa136dcae7b1"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/aot/functional.stdout.log",
+          "bytes": 21638,
+          "sha256": "eaf0b6eeae6eefe9a5987dbf96acdb40d8a033396afc85565f71b1727f41fe51"
+        },
+        {
+          "path": "ubuntu-24.04/aot/ldd.log",
+          "bytes": 222,
+          "sha256": "85623c5c2092703be60c2fc4e0bdb15f2a324d07a477f0e998e051672b106e7d"
+        },
+        {
+          "path": "ubuntu-24.04/aot/loaded-module-closure.json",
+          "bytes": 1500,
+          "sha256": "f8c6a59e722f9330a329ec3b90fa4c343743b68308a567ea3ef5014907f39b44"
+        },
+        {
+          "path": "ubuntu-24.04/aot/project.assets.json",
+          "bytes": 134861,
+          "sha256": "aedaaf606ad56f68cf7d266938d47ddee2734334225f2d179e87034a6844557c"
+        },
+        {
+          "path": "ubuntu-24.04/aot/publish-command.json",
+          "bytes": 540,
+          "sha256": "a270f06e138eee811187b080535eb2edae30c178cfceb50e7d83b44c7b4b5817"
+        },
+        {
+          "path": "ubuntu-24.04/aot/publish.log",
+          "bytes": 27534,
+          "sha256": "95e193a568666e27057f1935843a4fa20a84255171340b6b2afcd173bded823c"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/artifact-closure.json",
+          "bytes": 268,
+          "sha256": "aee54208eaa41a85b854cc65b34c1f6285ec24c9bff44cf07ebdbfeacba805d2"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/file.log",
+          "bytes": 281,
+          "sha256": "012a4ed6d6b8bab6d1d27cbfc8a1e91b4c2ec4b812eeddd2d2f81459c8478e17"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.json",
+          "bytes": 15898,
+          "sha256": "f91b09c63c0ba90d4e79be3cc2bd43efe79cbad1d68c3926fe0fa1924bf0f376"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/functional.stdout.log",
+          "bytes": 14914,
+          "sha256": "2dbe4cb0effc610ffb47df0068d96961175b012c80ad5b928b21659dfbfc1f97"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/ldd.log",
+          "bytes": 222,
+          "sha256": "be4fc10dc95e838f083dab103817d6ca3bb5cf4ecf0a71a9f173da03dd820c22"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/loaded-module-closure.json",
+          "bytes": 1824,
+          "sha256": "2a5aa9bfc447c67d2a34d33753aad6397337020e4e1ae3016532220efee89e85"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/project.assets.json",
+          "bytes": 134957,
+          "sha256": "1e1073fe2cbf30590b25b5123e8b425c629a1282017cfc2be1366ee1ec710885"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/publish-command.json",
+          "bytes": 644,
+          "sha256": "100001dce99e75771281633054ed1f2cf5778d9db2e8d137c1301e55282baad3"
+        },
+        {
+          "path": "ubuntu-24.04/aot-json-reflection/publish.log",
+          "bytes": 28398,
+          "sha256": "c972707f432f4319a53b0364adbea145dd2f6bd0ae31639377adf3df76f12a06"
+        },
+        {
+          "path": "ubuntu-24.04/cc-version.log",
+          "bytes": 245,
+          "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1"
+        },
+        {
+          "path": "ubuntu-24.04/clang-version.log",
+          "bytes": 110,
+          "sha256": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53"
+        },
+        {
+          "path": "ubuntu-24.04/dotnet-info.log",
+          "bytes": 2896,
+          "sha256": "981664740298da86bfa743894e572caa54fd2192404a66bab69a6bd7cecf430e"
+        },
+        {
+          "path": "ubuntu-24.04/host.json",
+          "bytes": 1112,
+          "sha256": "774d83a8699688e5c1c7024ed9392e2deb5f4a7f3f1e906796723023f331a3b9"
+        },
+        {
+          "path": "ubuntu-24.04/jit/artifact-closure.json",
+          "bytes": 32157,
+          "sha256": "31f94d59cc93590a97fff4447225ed72e3c8e225839de39346b1d2d8b79e22bb"
+        },
+        {
+          "path": "ubuntu-24.04/jit/file.log",
+          "bytes": 265,
+          "sha256": "b4ab9167812bc4cb059b53af7a819e377104ab4b5586e5309b35deac17a359c4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.json",
+          "bytes": 9795,
+          "sha256": "014222b1f371225c3c896eb0c8e27542de90f42b840b35877e50dd2424b4f8e1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/functional.stdout.log",
+          "bytes": 8468,
+          "sha256": "e0b74a4ba9fb70dcb83baebfe2f49acfcb4d94c8d2fe73ea27e924cf2bd784d2"
+        },
+        {
+          "path": "ubuntu-24.04/jit/ldd.log",
+          "bytes": 522,
+          "sha256": "7ad10b37904c01c0479e72c3d704ac836a6c443a40f81624e5869e13a0c4d652"
+        },
+        {
+          "path": "ubuntu-24.04/jit/loaded-module-closure.json",
+          "bytes": 8124,
+          "sha256": "6a96fc4135c0826b895b63558eff1890d4df55e91ab689ae343b94ec15d590d3"
+        },
+        {
+          "path": "ubuntu-24.04/jit/NativeConsumer.runtimeconfig.json",
+          "bytes": 360,
+          "sha256": "44ad76310b14c3f71b834491619bb2c7763471776600f013fb484fd73962b82c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/project.assets.json",
+          "bytes": 117854,
+          "sha256": "a4a5c0990c70a403d1a0e1ef4ca6e1a221451afc0ac93cf4864ab0b464c54c4a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/publish-command.json",
+          "bytes": 542,
+          "sha256": "cf75410eeef2a1d86afc37853b594757ab5d3746c749599b41fdbe4d9949cbdb"
+        },
+        {
+          "path": "ubuntu-24.04/jit/publish.log",
+          "bytes": 302,
+          "sha256": "013b85d3e02fc48e035f6aa375db346c2b57ea8ad626a37180756040f6074722"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.json",
+          "bytes": 5968,
+          "sha256": "729b6c083c0c02bdd8037944cd96d3e547b7d1b42b6991ed3068bf86aceb39c4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-00.stdout.log",
+          "bytes": 5026,
+          "sha256": "ab46c8206c73692dac230d3b3ae17500dbd8e53f9c10aaade371f844159a3316"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.json",
+          "bytes": 5968,
+          "sha256": "4771c602a64526520407f17fbcc0bd84af46cf0581a8857b1ce16bfec6e7bc6f"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-01.stdout.log",
+          "bytes": 5026,
+          "sha256": "dda9bd3b2b037291f2aaff8adbb572d04f4e853c1e97c51700f83335fd8eb1c6"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.json",
+          "bytes": 5968,
+          "sha256": "c518684a971a386ee75367042c30cd5a32fab73eb7a189fd4bcea2a9b9180028"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-02.stdout.log",
+          "bytes": 5026,
+          "sha256": "230d94db0e1873d14e6c40320f9864069e92cd54ae63649ff5d13e5f5f32e1f7"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.json",
+          "bytes": 5967,
+          "sha256": "f12d741c99432737d70db3ed9d4c1b976f97fe7ff94c4fff4ccf2107f21062b5"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-03.stdout.log",
+          "bytes": 5025,
+          "sha256": "773e149fd74fcc6a4ce3281f969a2dea2e7ac2ead63befafc82bcc6dc0a1226c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.json",
+          "bytes": 5968,
+          "sha256": "82c0ce8f215a644c517dad4fbce9fbc52f16f0015ad8212eaf4098de2cc10506"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-04.stdout.log",
+          "bytes": 5026,
+          "sha256": "653fbd0c5241b9dc9b944d40c046bb429c3ea07f12ab0a9cb14fa84b62eba4cc"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.json",
+          "bytes": 5968,
+          "sha256": "88c02647364160233c084c4728339c8f957c575b8cec4f2a2bb268cf19f4f5c2"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-05.stdout.log",
+          "bytes": 5026,
+          "sha256": "1d10e5520f4fe905a65b108ec81243eecff942ae8caae563d82943bb9e0ac4ca"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.json",
+          "bytes": 5968,
+          "sha256": "bfa137c833416a4522bf65ae713544f555b31c000134133276b8a82994e3b676"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-06.stdout.log",
+          "bytes": 5026,
+          "sha256": "0af07c59f7287f4ccb9e30f4890d317dc161d4dd3cf3a91c72762c64cd9ff64b"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.json",
+          "bytes": 5968,
+          "sha256": "861a04bb62844f7cd43aaaeb1ab69edb328c3587ce6da36df7f7ae6a6fdb4da3"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-07.stdout.log",
+          "bytes": 5026,
+          "sha256": "755e60020b77b241aab6f6154b6ad540addc667ddfa3bba4149fb0e4c61059cf"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.json",
+          "bytes": 5968,
+          "sha256": "25a805e6b1b7df1516fd51438eb584b9db5b57c453ba4a479e48bd9268767e8c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-08.stdout.log",
+          "bytes": 5026,
+          "sha256": "bb05bc9d1b5813c348d377f2c626d67de12b2674576db1a235e30807cd93b5a6"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.json",
+          "bytes": 5968,
+          "sha256": "9e1bf1a76db59269ac61c065399cef2efc7ae9b660ef3463bf928dec1b1e5e47"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-09.stdout.log",
+          "bytes": 5026,
+          "sha256": "47dde0c9c7b636cc50acdf7eae54f57c0165d3675bd1f758dcd44fdf49b8ad32"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.json",
+          "bytes": 5968,
+          "sha256": "4558fee1e99b795777fb8445af2599f125e60e7f8f65e88c897dd0be31b89f24"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-10.stdout.log",
+          "bytes": 5026,
+          "sha256": "e4cb37269e2ea0364550ac41ff7ffd206e0b87c49d8c49ff5380516102b49da3"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.json",
+          "bytes": 5968,
+          "sha256": "301b8e5a2640e469ad837422e7a39544eff721bd5eff338fad0b0000e6170c0a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-11.stdout.log",
+          "bytes": 5026,
+          "sha256": "6af7f49cd5f40d898320b16399971aa53a971e6cec54d228ab2a4d9089d006f1"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.json",
+          "bytes": 5968,
+          "sha256": "57bc9705f6381de82d38c85d3fa189ee00609e26b48b949682684ada74ff2c06"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-12.stdout.log",
+          "bytes": 5026,
+          "sha256": "0b6fb142c51a85a6e35520b1965271a2d81a1e8e997da83ab5f8055b34186220"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.json",
+          "bytes": 5968,
+          "sha256": "b17e241506abc88a09c327430cdd4819b9ba0107efff50e9685d09e505189181"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-13.stdout.log",
+          "bytes": 5026,
+          "sha256": "a0482a2f233d2918319d690f9a62eb2f46f1f18fdb02bc6986cf1573266b2611"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.json",
+          "bytes": 5968,
+          "sha256": "a1d008c63cfa870178f96f9da8d96aaf320ae82c97909d18edc1b840ba812e65"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-14.stdout.log",
+          "bytes": 5026,
+          "sha256": "c85ae850feffe21e5eca1d45af17c849a9630e3bc4134378c82705d2fef2bb99"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.json",
+          "bytes": 5968,
+          "sha256": "615c8e4d7170779702482472795ae764c8331af596358517f7443deeeb2af41c"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-15.stdout.log",
+          "bytes": 5026,
+          "sha256": "19558be0e4754cbdaea1ad2fd00d5c321f98c5e0de63643b3be0be8d8548a553"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.json",
+          "bytes": 5968,
+          "sha256": "854e5777fe9cf55246dd37b984e1c5708b7d54a673c77adb21217faf20b37a2a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-16.stdout.log",
+          "bytes": 5026,
+          "sha256": "f572f599776614fa93bfe07ffdd8d61cacee8bf5ed87648f8729ece077bacf47"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.json",
+          "bytes": 5968,
+          "sha256": "9e29983527f427df3ed0201dd003a2a6b87e87662774c57a2c22d82f01e6da0a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-17.stdout.log",
+          "bytes": 5026,
+          "sha256": "bc5a091b937b111af7ade33684f82f45329e968748416ed9f6fbbb167e525757"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.json",
+          "bytes": 5967,
+          "sha256": "b63776a563e0be137227b6047430763f5e5c985e89c9d752b0c6503a5770e9b4"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-18.stdout.log",
+          "bytes": 5025,
+          "sha256": "20581c7076d8d6b2d26a97f9927d6ddab8dfbf5fcb599da95a6d9ed65936bd0d"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.json",
+          "bytes": 5968,
+          "sha256": "924825f0cb79e10e6f163e447e74bbbbe6059bb5ff630272030090320d257b5e"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/samples-19.stdout.log",
+          "bytes": 5026,
+          "sha256": "ba886b43874139f574c73eb3f452cd4363bf96ac8364abc66dd8aa370c644830"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.json",
+          "bytes": 5968,
+          "sha256": "074b2ec8c30d33020d891966f9457ed3c60ffce57f3692a3db7f063525486cc0"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-00.stdout.log",
+          "bytes": 5026,
+          "sha256": "161bb953ef4081f8ab864028aa2bce1cfe88c15527f6930f201e33ce475c87f9"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.json",
+          "bytes": 5968,
+          "sha256": "ea5f004efda375efd76da685ceedca3e05483b87bee035862d7c518cfec00ea6"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-01.stdout.log",
+          "bytes": 5026,
+          "sha256": "8ec8e9e06366a6eedfcb911f78731e676416d6d97ce8fe63d87974bed1999b5a"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.json",
+          "bytes": 5968,
+          "sha256": "157b3592a1d3f0f2f12441d8e94911b712ac75e4025712bd882e1e0e2ea881dd"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/jit/warmups-02.stdout.log",
+          "bytes": 5026,
+          "sha256": "0323afa2426d28811efb06b317992384ec75a91c3284aef782d2a906c8510b3a"
+        },
+        {
+          "path": "ubuntu-24.04/ld-version.log",
+          "bytes": 281,
+          "sha256": "cbb0374a4d23f91537f8588348c460085a38ba5af336bed511060b72a1e76bf7"
+        },
+        {
+          "path": "ubuntu-24.04/ldd-version.log",
+          "bytes": 287,
+          "sha256": "0a361b537ea92ca84098127af4bbb1aa2144b39551239bdcd1bccb53ec4c5df0"
+        },
+        {
+          "path": "ubuntu-24.04/report.json",
+          "bytes": 617868,
+          "sha256": "da1137ac551ed73b3855bc761264503eaaf6d0fea8462774ae1f09bd18b190a9"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/artifact-closure.json",
+          "bytes": 9589,
+          "sha256": "2097c5a0339347bb8b2e704f1ca602f06e79078ff61374750e67c7e3db6f53f2"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/file.log",
+          "bytes": 269,
+          "sha256": "8eb5ed365776eb8a9b6c45dfe025c923e11ff471c672db514942e997029b7b89"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.json",
+          "bytes": 28303,
+          "sha256": "f9f6e9ab0ed43e5927895f5d24191ebaac2b34a419ab0007c10d0ed2e92437fe"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/functional.stdout.log",
+          "bytes": 27399,
+          "sha256": "f7a969af2eb2527ca509867e6910ef8202d2252cfcd5816c3a7e6807dc1dc5d9"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/ldd.log",
+          "bytes": 522,
+          "sha256": "b8fd61b72864082dda6422f4a5370e192c0eee1a9f2a96e30e35257ab5e704b9"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/loaded-module-closure.json",
+          "bytes": 2940,
+          "sha256": "3724965d6cfe5cbdcd5a39e028396cd70305a47d60c425b794dea7298d6837ee"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/NativeConsumer.runtimeconfig.json",
+          "bytes": 1788,
+          "sha256": "882c81dd934092e04cb6bea189656443d95115191304c2ba5eb35b7b91fdc043"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/project.assets.json",
+          "bytes": 120751,
+          "sha256": "5f84d2bb898736482f7298ecc341989cd7a7064f11be7967b33abb4f43088a06"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/publish-command.json",
+          "bytes": 553,
+          "sha256": "6acb69ef997916a3d671ccd36d6d1c5e43fe8789bb23e1644dc124251141ac1e"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed/publish.log",
+          "bytes": 16290,
+          "sha256": "9d3acbac7d17e68fc63b60fff80b56b5b15deba56c33a86c1a261509cc7e89ff"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9590,
+          "sha256": "5251047ae8181e55fc921e3d2fbf8884ea3542448adb59432d0e416dada9d788"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/file.log",
+          "bytes": 285,
+          "sha256": "796256d36dbddf6f29efa07e53322d6542733f1efbb9991fd507232b47ed22ae"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.json",
+          "bytes": 29883,
+          "sha256": "59d8eb1c5bf7b5e63c27141d96c53a61211724a3c836f8aa205fb07bfd8c15be"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/functional.stdout.log",
+          "bytes": 28093,
+          "sha256": "8d38652529c7a6d40ab00095a710da8509802a2b5950ddd0e1360c0daef5ba0f"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/ldd.log",
+          "bytes": 522,
+          "sha256": "2e69ada5091fcfc95449edec4452ab4721258a1a55101266719d0f3fea370dc2"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 3573,
+          "sha256": "b86997610d01e1c32385329bae1f5af6d48fa2df7d5ce3f0b7c1d2ae1ac8b379"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/NativeConsumer.runtimeconfig.json",
+          "bytes": 1787,
+          "sha256": "6f779fc5fcf01736c6e2b611ef7ff7401cde9ce462c8d80c9ba999d2bfad8f6a"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/project.assets.json",
+          "bytes": 120847,
+          "sha256": "bdd23e66dc00650c9fa36c1fb97e73ca2e231d0185512fbd8e838dab7d3ae9f6"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/publish-command.json",
+          "bytes": 657,
+          "sha256": "ba71e76448b4ab982795daeb553afd4cd172ad7ab6035328c26cb114fb6a06bb"
+        },
+        {
+          "path": "ubuntu-24.04/trimmed-json-reflection/publish.log",
+          "bytes": 16786,
+          "sha256": "bf9228a724dade912d917d597085c7a3eb03aad901e6e1e7ccba67999494b737"
+        },
+        {
+          "path": "windows-2025/aot/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "834f5283a2069cacc14137dfa61a93f66bdca1ced9625b90d1090606548b8544"
+        },
+        {
+          "path": "windows-2025/aot/functional.json",
+          "bytes": 23227,
+          "sha256": "597f03829a6d637730cfe6cebb8b009da1ac307c1d590923a52c151af3471cc1"
+        },
+        {
+          "path": "windows-2025/aot/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/aot/functional.stdout.log",
+          "bytes": 22750,
+          "sha256": "8e72521e97d41e7b30bbc8445622436a3943f6474dd250824c54a76571a4e85a"
+        },
+        {
+          "path": "windows-2025/aot/loaded-module-closure.json",
+          "bytes": 3412,
+          "sha256": "abad6b69b80be039f291e5fba2462aec9a0fd3d1da06f1413ead83f3bed87845"
+        },
+        {
+          "path": "windows-2025/aot/native-imports.log",
+          "bytes": 741,
+          "sha256": "c031cb659062137ba0129a963b1ee6a0936aa7cd8ac0e155c79b281d2ebebae8"
+        },
+        {
+          "path": "windows-2025/aot/project.assets.json",
+          "bytes": 127210,
+          "sha256": "24bcc99bace8569ddefe711371a9bd579ff887269b1f50de1f02e13b1af1ac6d"
+        },
+        {
+          "path": "windows-2025/aot/publish-command.json",
+          "bytes": 539,
+          "sha256": "2478d25e7c1ff8ee90015304f02bca52e22f61c5bdcc3bbdd25123bd2c6eb8df"
+        },
+        {
+          "path": "windows-2025/aot/publish.log",
+          "bytes": 26886,
+          "sha256": "7bbea4106d4438accbc0622ff766dc5d5a988384a774a6f0d617e49eecd1e395"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/artifact-closure.json",
+          "bytes": 282,
+          "sha256": "bad36d926728136d06b610cb3e0de5995f7b19434a70989c872207b5fe2a5471"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.json",
+          "bytes": 18252,
+          "sha256": "1722709366f28b015ffa0a9942d5a6bbf23a6ec2d8079bcef2572dd39903fb09"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/functional.stdout.log",
+          "bytes": 17030,
+          "sha256": "36e7252819fd801503e4599a6417d75609673c0bbc1632375ba5e3ee1934d2fc"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/loaded-module-closure.json",
+          "bytes": 3428,
+          "sha256": "ae25b1487f1b66f231fd819fe5a75c37bc3c1d0fe6df27ae9b92d5340662e7dc"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/native-imports.log",
+          "bytes": 757,
+          "sha256": "6001c51a0d95b1a8c0f99d8e608c5e178aa703a613259025f749e7278824cd88"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/project.assets.json",
+          "bytes": 127306,
+          "sha256": "37cb6896d67f025b713d7443658d81e94b2b48807b90db533134f87809e93a75"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/publish-command.json",
+          "bytes": 644,
+          "sha256": "e56e3b714e7bc576d1bc1350edf1e9f0065f8377b2246136c0d6355ac671f7cd"
+        },
+        {
+          "path": "windows-2025/aot-json-reflection/publish.log",
+          "bytes": 27750,
+          "sha256": "fc2db8a9ddaf40572b36b021013ec03b912bd03d54eafc3695e93bf1aa221fd3"
+        },
+        {
+          "path": "windows-2025/dotnet-info.log",
+          "bytes": 5697,
+          "sha256": "e6509b6d1b0bc75c76318e6c7d9997dffbe473dbdf0b774080f83f78fbfbfcce"
+        },
+        {
+          "path": "windows-2025/host.json",
+          "bytes": 581,
+          "sha256": "b11048537b0e0a5d107062687bed41c3843cb1a84736bac9b1e996d7251434a5"
+        },
+        {
+          "path": "windows-2025/jit/artifact-closure.json",
+          "bytes": 33167,
+          "sha256": "e9d2db5be0790a5e61bfaaaac09a553d0f285ecb7d6af537ed90793d1782e0d0"
+        },
+        {
+          "path": "windows-2025/jit/functional.json",
+          "bytes": 12005,
+          "sha256": "ce7ec800892a38637d9bea38a4eca3e3b4e7267b43b07f3e3c151a5cb2a845c7"
+        },
+        {
+          "path": "windows-2025/jit/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/functional.stdout.log",
+          "bytes": 10285,
+          "sha256": "09f0a7a2b09256cd0619c2874ebfe98b411aa0c40481a841d38edb80b1a2ec88"
+        },
+        {
+          "path": "windows-2025/jit/loaded-module-closure.json",
+          "bytes": 14726,
+          "sha256": "6be268346c46d62e0abea998663776ff41494416d1bebf2f9e63bd1c0dd10ad4"
+        },
+        {
+          "path": "windows-2025/jit/native-imports.log",
+          "bytes": 763,
+          "sha256": "90fd89701e68e79f7b8a22b651b934e0d8e6be4c4ab7c4e332afb3f711c74947"
+        },
+        {
+          "path": "windows-2025/jit/NativeConsumer.runtimeconfig.json",
+          "bytes": 374,
+          "sha256": "089a03f26e7e7601a28dc9278a2c8f742e35e1312640b2cd6ef2fe9c58429dab"
+        },
+        {
+          "path": "windows-2025/jit/project.assets.json",
+          "bytes": 121111,
+          "sha256": "3f93510e035ffc45e0bbdaec2a28a87f642f05f1a6aeaa524dba72adf5db7024"
+        },
+        {
+          "path": "windows-2025/jit/publish-command.json",
+          "bytes": 541,
+          "sha256": "336a7c3a0391ed8f3011587691c9a24da70a95aabe69ac9e997d484abedb559f"
+        },
+        {
+          "path": "windows-2025/jit/publish.log",
+          "bytes": 265,
+          "sha256": "493d4d15a516f548798d6984408308f31a74778d5e32566dd206ad3454b3c6f3"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.json",
+          "bytes": 8086,
+          "sha256": "9252f0728d4cc547ed4b76cabee0fffe701faa3fe4d3aaff462e2a4a2a9cd458"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-00.stdout.log",
+          "bytes": 6824,
+          "sha256": "742cb505308216850149253df65da2a96b269a421815c9e9b5118572d7834ad6"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.json",
+          "bytes": 8085,
+          "sha256": "97131bbc2e3e58362c4514d3b9aee0d69189463468403170cec429a1e15d5914"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-01.stdout.log",
+          "bytes": 6823,
+          "sha256": "06462f7107be9dbbfa5a32f985c9aeff96077c527a46ae874ea051934cd6a18d"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.json",
+          "bytes": 8087,
+          "sha256": "45c003dc82bdfddf1f14f7feeb476c6dd8b2af4d57825093f99684de67a9ee44"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-02.stdout.log",
+          "bytes": 6825,
+          "sha256": "62237cb598579bdce813b49062f636ab944da3e92358f873f87da7f6782612ac"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.json",
+          "bytes": 8086,
+          "sha256": "91c9a271f58c68cefb28754da1b7efc973044a8e116456fc0903b7f16f557e68"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-03.stdout.log",
+          "bytes": 6824,
+          "sha256": "f7e7b77325cc0385613cd39916e7d5b97d4ce28f1ac01f535bae0312b6bd40cd"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.json",
+          "bytes": 8086,
+          "sha256": "3830d7013637e5774a175ed02937e8db71173708b08f5a1f75275847cd9f3415"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-04.stdout.log",
+          "bytes": 6824,
+          "sha256": "5495baf08c935745921c38c220096593fbf90cbcbfeffb771868f6c17eefac47"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.json",
+          "bytes": 8085,
+          "sha256": "8dd4e483a411d97909b712fec3e530f67dda8f51ac185de1b2369e80623f383e"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-05.stdout.log",
+          "bytes": 6823,
+          "sha256": "ab38ed7710e031be765bcee0de1283cb9b2317b8ebce57681ec456f0e43d1059"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.json",
+          "bytes": 8087,
+          "sha256": "3d031ff0b2233d93ceed4eb9fd59927dc6deae170ebaa07cc18bedb5fe7327e9"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-06.stdout.log",
+          "bytes": 6825,
+          "sha256": "b3fe02bbcf5d90c1dc82d212edc3800ecd47c5c8db4ab6764ca1b1876faf42a9"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.json",
+          "bytes": 8087,
+          "sha256": "37cc56d74810d4e3bd594aa674765bca9a7c1a7ddb6ddd6b60369142ddee6c74"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-07.stdout.log",
+          "bytes": 6825,
+          "sha256": "267b505d812326a1e199ec7c4e912ff63b9f0d524977ee59eb4e8912293aee81"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.json",
+          "bytes": 8085,
+          "sha256": "13321e875f60ae969c14ed9b26c8e3848dc08a8b4928a7767e743f6a6255863a"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-08.stdout.log",
+          "bytes": 6823,
+          "sha256": "04f28c815ac5ec8c054d6442be4e34b1802e7bf558d36aff811b37bd624576c0"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.json",
+          "bytes": 8085,
+          "sha256": "6deeb496289f5486f05b2e71b9eab0d95ad7a157707f412680aea0cf6652f6f4"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-09.stdout.log",
+          "bytes": 6823,
+          "sha256": "155cf2382df081ea17de33872f9d5cf9b77bd617d94cab7dbbf51a254bc8304e"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.json",
+          "bytes": 8087,
+          "sha256": "162a78721dd5a0f8f60bfe7c28a3ea6290b2f74529d98b35f18c169b4ae17d30"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-10.stdout.log",
+          "bytes": 6825,
+          "sha256": "6ff07b7cb5882cd0b1d29c170c11011acbbeb500c2caff0931c52686d0f9c7de"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.json",
+          "bytes": 8087,
+          "sha256": "6f151ccddd81a8e80bf9732f574c0684a957596b0f9bd6f11de4aa423ca3376b"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-11.stdout.log",
+          "bytes": 6825,
+          "sha256": "7efc3d1f8dae25439fb98610928397a762725c8ba3036e2d4932aaec40feb3dc"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.json",
+          "bytes": 8085,
+          "sha256": "2e412ef38a6d8d3cb17b9f17dd1fa5a1b001d8cbe31f897aa97856d89df9b686"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-12.stdout.log",
+          "bytes": 6823,
+          "sha256": "26821dd4445818aad5958ac90b2319a9e9c423e4f7ffd3b6b4f0e464da723428"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.json",
+          "bytes": 8086,
+          "sha256": "2b11e39cadda80b714843a5654b417805fb13900ab2349be2cda4a127dc8552e"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-13.stdout.log",
+          "bytes": 6824,
+          "sha256": "5a2210e5410409b7aa945076f2622497c238c89355a7fe9e8255018e013af79b"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.json",
+          "bytes": 8087,
+          "sha256": "8bb7a6721ec941623800f10c563bcf31173fa5753d66cc6fc2f38994d45534ef"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-14.stdout.log",
+          "bytes": 6825,
+          "sha256": "f335e90ad70c95e25c19ea48d144d4dd14d368309664c8c96e6582a65efa517d"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.json",
+          "bytes": 8087,
+          "sha256": "cb227dca5e4c7d91371196e92cf80a1b5692a070b2c4d659f90441137ff539b0"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-15.stdout.log",
+          "bytes": 6825,
+          "sha256": "8154d6a88af844941b93b7d25725123ae7de4ebaae049e46c7e27e1190114b52"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.json",
+          "bytes": 8087,
+          "sha256": "89a8c5057666d0afdee890c5bcdbd714ac47b6fe67be680229ee7ac0807b20f9"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-16.stdout.log",
+          "bytes": 6825,
+          "sha256": "7fd49a91865f68878187687a63169c641abbe9d58c3e2a03aff5e9201fed41c1"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.json",
+          "bytes": 8087,
+          "sha256": "5d22955a6f2ea2dfa26e95bed370a33d5cc0af993414308af1228be6771659b5"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-17.stdout.log",
+          "bytes": 6825,
+          "sha256": "887b56180b1ecfea5431c2914b315643f33bb5cb2c8e0f385e82eecc1e9ce634"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.json",
+          "bytes": 8087,
+          "sha256": "ecccd204de16f7d4931ea091a493d3522185c999155c752fb700d7cd6ec14664"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-18.stdout.log",
+          "bytes": 6825,
+          "sha256": "57afb62977820421eb6ead771468f037ee207a4492d1f455924872176af9026f"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.json",
+          "bytes": 8086,
+          "sha256": "4da32bf7fd6be2ec57006c544664a102e94fe908abae63795ea98f6176ab34f5"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/samples-19.stdout.log",
+          "bytes": 6824,
+          "sha256": "b2b8a01ac835cf458e9a014e7956652394d00b8f173da23e8a4f270a4d5fe2c2"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.json",
+          "bytes": 8086,
+          "sha256": "2e2300aab0f65b3d8386d912a3ea564577759131d67231cf50d54804ff566aad"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-00.stdout.log",
+          "bytes": 6824,
+          "sha256": "7f665ae488c982a02ded2e7f3d60251b8056a67e83de6d0baf5c1cb99254b97d"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.json",
+          "bytes": 8087,
+          "sha256": "ada16b585b05e17eb0d0a0fdebcf3bb27a7a0885c94a786f2148cfd16d91c7a2"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-01.stdout.log",
+          "bytes": 6825,
+          "sha256": "268c5fa9412df338049afff1221481aa5cdbc63b19cd7b4717357de36d5eb357"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.json",
+          "bytes": 8086,
+          "sha256": "4414236c436cb1015cec678268f92346864ee2fca6b3679d5f63d473d1d1f1bd"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/jit/warmups-02.stdout.log",
+          "bytes": 6824,
+          "sha256": "4ded65aa01587b1f023115c55e398bf6f2b3ab84f51572ca39e6643519f1d79e"
+        },
+        {
+          "path": "windows-2025/report.json",
+          "bytes": 624190,
+          "sha256": "5025b3205d99f799cdbf05b0d0040891b02112de0612763a4fd55652dc963cfe"
+        },
+        {
+          "path": "windows-2025/trimmed/artifact-closure.json",
+          "bytes": 9953,
+          "sha256": "8ba86266fee7c21e6b6f2be606184477f326cd205298d23fd75f390593199ed0"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.json",
+          "bytes": 32061,
+          "sha256": "ac3daa2d7986f0653e2c9c3b1830a95b19e55c12cd928ff3354efa36b1bd605b"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/trimmed/functional.stdout.log",
+          "bytes": 30578,
+          "sha256": "b465d9d84272d39a267deaac4865ada20d3a9469c64bca1d8a1158a2fc1d6f55"
+        },
+        {
+          "path": "windows-2025/trimmed/loaded-module-closure.json",
+          "bytes": 12105,
+          "sha256": "64dffe6d3e30ca4d074415e9abedf95b19e00b70427317f2e8ae5b542b3f7a6c"
+        },
+        {
+          "path": "windows-2025/trimmed/native-imports.log",
+          "bytes": 767,
+          "sha256": "f9e29a690703c62754c5b017e2af09cd6c1ef88361dfdd0741055ec18ae68c8c"
+        },
+        {
+          "path": "windows-2025/trimmed/NativeConsumer.runtimeconfig.json",
+          "bytes": 1769,
+          "sha256": "249e7b4dfa81cdd5ac1a5117588ddcc8a48747ca6f524a085bda8a7d74281a2c"
+        },
+        {
+          "path": "windows-2025/trimmed/project.assets.json",
+          "bytes": 124077,
+          "sha256": "ac55cc46e629de47cb81b0df7db8927fef9daa3ce241ab9299c4a4da6e3685a0"
+        },
+        {
+          "path": "windows-2025/trimmed/publish-command.json",
+          "bytes": 552,
+          "sha256": "61ac82fc7e14662652a46946c674c8fbec6c32a9a570c38ad42b78787dc53e31"
+        },
+        {
+          "path": "windows-2025/trimmed/publish.log",
+          "bytes": 15920,
+          "sha256": "fd80becb94f3a84fcdc85a4552d67894354eb9e9aaf9f171beaf2c359eaf32b7"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/artifact-closure.json",
+          "bytes": 9954,
+          "sha256": "86e3755d1a9411765f9afa5d14dacfe8cfc10015b3b8c10b95eb7944707357b8"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.json",
+          "bytes": 34307,
+          "sha256": "920edab2f6294ae9d89a2568bab670e680d1eecc35e4d9095c2ed7682849635a"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.stderr.log",
+          "bytes": 0,
+          "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/functional.stdout.log",
+          "bytes": 31933,
+          "sha256": "bc52a2926ad2a59f3c258634ccaead5aa2243ee404c945f988af8ec05a8664b3"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/loaded-module-closure.json",
+          "bytes": 13414,
+          "sha256": "47308d3e0d29abc3a91ca5271360e7de62d4e63fc34929b5aab728bc5fd36659"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/native-imports.log",
+          "bytes": 783,
+          "sha256": "a0bd9d0acd0c3741ca4f5ec4527b8596a4b698cba28dae9fda875cafd4f427ce"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/NativeConsumer.runtimeconfig.json",
+          "bytes": 1768,
+          "sha256": "22bde1cb4a0252f47f9a0262713087f5d2dea8e3847d5b6617d23e70dd19855b"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/project.assets.json",
+          "bytes": 124173,
+          "sha256": "53e6b4a0e17d152fe43435bf54e32b3b3d5526281023b663a80a671f414304fc"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/publish-command.json",
+          "bytes": 657,
+          "sha256": "012ccafc8ff33dd57474146458036eb9379bc988dafadc68a2b65fda311ca0c0"
+        },
+        {
+          "path": "windows-2025/trimmed-json-reflection/publish.log",
+          "bytes": 16416,
+          "sha256": "2898a50d8a02cd810d3d2b400175d43dc767a2af3b00aa5b383790c694fbc362"
+        },
+        {
+          "path": "workflow.json",
+          "bytes": 8215,
+          "sha256": "ad4288559002b794696e67d54d0adaa08b1facb39aa389658859b04a9490500b"
+        },
+        {
+          "path": "workflow.log",
+          "bytes": 144932,
+          "sha256": "75c22d28073df4e521e4d801ede57094fcaa92569ed56ae5e3abdd5eb7b2475d"
+        }
+      ]
+    }
+  ]
+}

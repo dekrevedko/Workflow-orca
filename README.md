@@ -180,3 +180,13 @@ dotnet run --project samples/OrcaCore.Examples/OrcaCore.Examples.csproj
 The superseded prototype and its original solution metadata are preserved under
 [`archive/legacy-poc/`](archive/legacy-poc/); the root `src/`, `tests/`, samples,
 benchmarks, and solution are the active implementation.
+
+## Native publishing assessment candidate (2026-10-21)
+
+Issue #3's assessment contract is checkpointed at eea51c9 / dbd829e. Its task 2
+public-package consumer now has native Windows/Ubuntu evidence pending independent
+review: both JIT controls pass, while trimmed/AOT defaults and reflection-enabled
+extras remain unsupported for this exact tested profile. There is no
+Native AOT/trimming support promise. Defaults and labelled JSON-reflection extras
+are distinct; see [the assessment harness](tools/ephemeral-native-assessment/README.md)
+for scope, reproduction and the review-pending assessment record.

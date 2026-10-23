@@ -12,7 +12,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
-    private const string CanonicalContentRecordSha256 = "fea34ba8470c71fb94152b7589b69727871fcce632b14762f74403429bad434b";
+    private const string CanonicalContentRecordSha256 = "bedb73158fbccb6e7642158e95219af31eacf8e5982e336a4261672d4ff071db";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(
@@ -151,7 +151,8 @@ public sealed class DagStreamIdentitySliceGuards
             "openspec/specs/management-and-querying/spec.md"
         ];
         Git(root, "diff", "--name-only", baseCommit, "--", "openspec/specs")
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(ephemeralTargets);
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(
+                ephemeralTargets.Append("openspec/specs/quality-and-verification/spec.md").Order(StringComparer.Ordinal));
         foreach (var path in ephemeralTargets)
         {
             var prior = Normalize(Git(root, "show", $"{baseCommit}:{path}")).TrimEnd('\n');
@@ -170,6 +171,17 @@ public sealed class DagStreamIdentitySliceGuards
                 "only the five issue #1 and six issue #2 append-only additions may extend these targets; " +
                 "shutdown transition guards independently pin corrected blocks and contract approval");
         }
+        // Issue #3 adds exactly four reviewed assessment requirements; no earlier line changes.
+        const string quality = "openspec/specs/quality-and-verification/spec.md";
+        var qualityBefore = Normalize(Git(root, "show", $"{baseCommit}:{quality}")).TrimEnd('\n');
+        var qualityDelta = Normalize(File.ReadAllText(Path.Combine(root,
+            OpenSpecCorpusGuards.ResolveChangeRecord(root, "assess-ephemeral-native-aot"),
+            "specs/quality-and-verification/spec.md")));
+        qualityDelta.Should().StartWith("## ADDED Requirements\n\n");
+        Regex.Matches(qualityDelta, @"(?m)^### Requirement: ").Should().HaveCount(4);
+        Normalize(File.ReadAllText(Path.Combine(root, quality))).Should().Be(
+            qualityBefore + "\n\n" + qualityDelta["## ADDED Requirements\n\n".Length..].TrimEnd('\n') + "\n",
+            "only the exact issue #3 assessment additions, including verdict F1, extend quality verification");
         Git(root, "ls-files", "--others", "--exclude-standard", "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs").Should().BeEmpty();
     }

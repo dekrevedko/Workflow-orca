@@ -1,10 +1,11 @@
 ## Context
 
 Issue #3 is compatibility research on master 7895262, after issue #2's shutdown
-merge. Its outcome may be unsupported. This target contains no consumer or product
-implementation. The static source record and protocol under artifacts/ define
-what later executable evidence must establish; an unchanged green Release build
-does not test trimming or AOT.
+merge. Its outcome may be unsupported. The approved contract introduced no consumer or product
+implementation. Task 2 now adds the authorized external consumer, native workflow
+and evidence, with product source unchanged. The static source record and protocol
+under artifacts/ define the qualification; a green Release build alone is not
+trimming or AOT execution evidence.
 
 ## Goals / Non-Goals
 
@@ -54,10 +55,10 @@ The protocol fixes sixteen public journeys and comparable sample phases.
 ### 3. Detailed diagnostics with an honest consistency gate
 
 Discover using detailed dependency warnings (TrimmerSingleWarn=false), retain raw
-stdout/stderr/binlog and native-tool errors, and assign every occurrence a stable
+stdout/stderr, exact commands and native-tool errors, and assign every occurrence a stable
 identity in the diagnostic ledger. Capture runs may preserve warnings as warnings
 at the consumer only. Do not change library/compiler policy, suppress warnings,
-root entire OrcaCore assemblies or force reflection-default switches. Static risks
+root entire OrcaCore assemblies or apply unlabelled reflection-default switches. Static risks
 are candidates for investigation, never observed IL warning counts.
 
 A local requirement must be bounded, public and reproducible: name the exact app
@@ -73,6 +74,19 @@ hosts or unclassified warnings fail. A known publish failure may be an explicitl
 unsupported result with blocked downstream cases, never a native functional pass.
 No baseline is silently updated after a mismatch. Independent final review judges
 the evidence and scope before any publication of conclusions.
+
+### 3a. Verdict F1: preserve defaults and add labelled JSON-reflection discovery
+
+The six base cells leave JsonSerializerIsReflectionEnabledByDefault unset and run
+first. Record the actual registration/build/codec boundary, exact public error and
+inner exception chain; DefinitionCompilerOptions.cs:58 can translate missing JSON
+metadata to an unsupported-declared-type diagnosis. Add four separate trimmed/AOT
+extra cells with that one switch explicitly true, retain their warning and artifact
+identities, and permit at most a conditional conclusion. They do not repair defaults,
+change the private codec or waive dynamic-code findings. Both defaults and extras
+retain all sixteen scenario rows; measurements require the full fixed workload.
+The updated task-2 protocol supersedes only these switch/identity provisions of
+the immutable approved contract protocol. Product remediation stays separately gated.
 
 ### 4. Preserve existing ownership and codec behavior
 
@@ -91,7 +105,7 @@ separately reviewed product solution exists, rather than opening a serializer ho
 
 ### 5. Measure a defined process, not a slogan
 
-The future runner launches a fresh process per sample and uses ready/quiescent/
+The assessment runner launches a fresh process per sample and uses ready/quiescent/
 finish markers. Startup is external launch to a flushed ready marker; user+kernel
 CPU is sampled before exit; peak and quiescent process memory and in-process heap
 estimates have distinct names. Keep the host/provider alive through quiescent

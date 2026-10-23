@@ -146,3 +146,17 @@ No separate stable-release threshold is introduced by this decision. The publica
 above records the subsequent successful GitHub runs and release, followed by verified
 NuGet.org publication. The initial preparation audit configured GitHub release downloads;
 external registry publishing was added in PR #5.
+
+## Native publishing assessment candidate (2026-10-21)
+
+Issue #3 uses fresh 0.0.0-phase0 candidate packages with exact hashes; these do not
+change the published release or add a native-compatibility badge. Native assessment
+has executed on both native hosts; independent review is pending. Record validation
+may be green for a demonstrated
+unsupported profile, but cannot be presented as a passing native consumer. Preserve
+SDK-default and labelled switch-enabled results separately. No issue #3 push, PR,
+release, merge or closure is authorized by its contract checkpoint.
+
+The human separately authorized only `codex/issue-3-native-evidence` snapshots and
+pushes to obtain these native receipts. The issue branch remains uncommitted and
+unpublished; this temporary execution authority does not authorize a PR or release.
