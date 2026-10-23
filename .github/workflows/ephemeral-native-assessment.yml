@@ -2,8 +2,6 @@ name: Public ephemeral native publishing assessment
 
 on:
   workflow_dispatch:
-  push:
-    branches: ["codex/issue-3-native-evidence"]
 
 permissions:
   contents: read

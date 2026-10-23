@@ -147,16 +147,17 @@ above records the subsequent successful GitHub runs and release, followed by ver
 NuGet.org publication. The initial preparation audit configured GitHub release downloads;
 external registry publishing was added in PR #5.
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-Issue #3 uses fresh 0.0.0-phase0 candidate packages with exact hashes; these do not
-change the published release or add a native-compatibility badge. Native assessment
-has executed on both native hosts; independent review is pending. Record validation
-may be green for a demonstrated
-unsupported profile, but cannot be presented as a passing native consumer. Preserve
-SDK-default and labelled switch-enabled results separately. No issue #3 push, PR,
-release, merge or closure is authorized by its contract checkpoint.
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+The native run used exact 0.0.0-phase0 candidate packages; it changes no published
+release. Both JIT controls pass all sixteen scenarios; trimmed/AOT defaults and
+labelled reflection-enabled extras are unsupported for that exact tested profile.
+A green assessment-record gate validates those conclusions without granting
+library-wide Native AOT compatibility.
 
-The human separately authorized only `codex/issue-3-native-evidence` snapshots and
-pushes to obtain these native receipts. The issue branch remains uncommitted and
-unpublished; this temporary execution authority does not authorize a PR or release.
+The human authorized publication and a PR after the checkpoint/verdict binding,
+with a merge commit only after CI is green. This does not authorize a package
+release or product remediation. The assessment workflow now uses manual dispatch;
+its temporary evidence-branch push trigger has been removed. The original native
+receipts and independent verdict remain immutable.

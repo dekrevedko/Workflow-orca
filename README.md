@@ -181,12 +181,11 @@ The superseded prototype and its original solution metadata are preserved under
 [`archive/legacy-poc/`](archive/legacy-poc/); the root `src/`, `tests/`, samples,
 benchmarks, and solution are the active implementation.
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-Issue #3's assessment contract is checkpointed at eea51c9 / dbd829e. Its task 2
-public-package consumer now has native Windows/Ubuntu evidence pending independent
-review: both JIT controls pass, while trimmed/AOT defaults and reflection-enabled
-extras remain unsupported for this exact tested profile. There is no
-Native AOT/trimming support promise. Defaults and labelled JSON-reflection extras
-are distinct; see [the assessment harness](tools/ephemeral-native-assessment/README.md)
-for scope, reproduction and the review-pending assessment record.
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+The public-package consumer passes all sixteen JIT scenarios on Windows Server 2025
+and Ubuntu 24.04. Trimmed and Native AOT defaults and JSON-reflection-enabled extras
+are unsupported for this exact tested profile. No Native AOT/trimming support is
+promised. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
+for the tested packages, toolchain, raw evidence and reproduction instructions.

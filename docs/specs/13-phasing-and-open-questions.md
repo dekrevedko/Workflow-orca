@@ -202,13 +202,12 @@ the two v1 production durable storage providers. Any later storage provider re-e
 the registry row above and must implement the complete provider contract rather than revive one of
 the provisional project shapes.
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-Issue #3 is optional public-consumer compatibility research, not a deferred public
-member or a support commitment. Its contract is checkpoint eea51c9 / verdict dbd829e.
-Task 2 combines canonical/numbered docs, consumer, workflow, diagnostics and native
-evidence under one pending independent review. Six SDK-default cells remain required;
-four labelled JSON-reflection-enabled extras are at most conditional. A missing native
-host prevents completion; a demonstrated unsupported profile can be an honest result.
-Any product/API/annotation/codec remediation requires a separate reviewed amendment.
-Issue #1 archival and Core work-lane consolidation remain separate maintenance.
+Issue #3's optional public-consumer research is independently approved at 7639189 /
+verdict baae5ad. All six SDK-default and four labelled JSON-reflection extra cells
+are recorded. JIT passes every scenario on both native hosts; trimmed/AOT defaults
+and extras remain unsupported, which is a valid assessment outcome. This creates
+no deferred public member or support promise. Product/API/annotation/codec
+remediation requires a separate reviewed amendment. Issue #1 archival and Core
+work-lane consolidation remain separate maintenance.

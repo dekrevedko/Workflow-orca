@@ -1,9 +1,10 @@
 # Public ephemeral native publishing assessment
 
-Status (2026-10-21): task 2 candidate with native Windows/Ubuntu evidence, pending
-independent review. Contract checkpoint `eea51c9`, verdict-only child `dbd829e`. Product code,
+Status (2026-10-22): independently approved assessment checkpoint `7639189`,
+verdict-only child `baae5ad`; contract `eea51c9` / `dbd829e`. Product code,
 public API, dependencies, fixed codec and all executable baselines are unchanged.
-This is optional research; no Native AOT/trimming support badge is claimed.
+Both native JIT controls pass 16/16. All trimmed/AOT defaults and labelled extras
+remain unsupported for the exact tested profile; no general support badge is claimed.
 
 The external consumer has only public PackageReferences. The runner copies it
 outside repository build-props discovery, restores from an explicit candidate
@@ -73,9 +74,9 @@ Windows private commit/Linux private resident bytes, no-forced-GC managed estima
 and last-collection heap/counts remain separate. Raw samples and median/range
 denominators are retained. An unexecutable fixed workload has unavailable metrics.
 
-The native workflow is `.github/workflows/ephemeral-native-assessment.yml`. It can
-run on a separately authorized temporary evidence branch; this candidate does not
-authorize a push, PR or issue edit. Initial discovery intentionally failed for missing classifications. The final
+The native workflow is `.github/workflows/ephemeral-native-assessment.yml`, available
+through workflow_dispatch. Its temporary-branch push trigger was removed for
+publication. New toolchain/package findings still require individual classification. Initial discovery intentionally failed for missing classifications. The final
 classified run must reproduce every identity/count and pass both native records.
 Its bounded conclusions and raw receipt catalogue are in
 [the assessment report](../../openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-assessment-report-2026-10-21.md).

@@ -207,12 +207,11 @@ lifecycle diagnostics before stop, since Incomplete has only a count. The Sectio
 package-only consumer exercises dependency sentinels and all three recipes; sample
 source is unchanged. Earlier published binaries do not acquire this API from these docs.
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-Issue #3's contract is approved at eea51c9 / dbd829e. The task 2 native publishing
-assessment has native evidence pending independent review, with passing JIT and
-unsupported trimmed/AOT cells. It grants no support/readiness badge. Defaults, labelled
-JSON-reflection extras and process-versus-managed-memory observations are distinct.
-Only an independently reviewed exact package/type/RID/toolchain profile can support
-a bounded conclusion; missing native evidence cannot be replaced with Windows 11
-preflight, Docker, WSL, unit tests or successful publication alone.
+Issue #3's exact package/type/RID/toolchain assessment is independently approved
+at 7639189 / verdict baae5ad. Both native JIT controls pass sixteen scenarios.
+Trimmed/AOT defaults and JSON-reflection-enabled extras remain unsupported, so this
+adds no general native-support or production-readiness badge. All findings and
+unavailable unsupported-workload metrics are retained. Process-memory and managed-
+heap observations keep their separate meanings and host-specific names.

@@ -3059,20 +3059,17 @@ notifications or commits. Incomplete reports an obligation count, not identities
 inspect existing stuck-step/state diagnostics before calling stop. The typed stopping
 and incomplete exceptions add the two stable codes above with internal constructors.
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-NF-033 / AC-555–562 assess an ordinary package-only ephemeral journey: native Windows
-Server 2025 x64 and Ubuntu 24.04 LTS x64, untrimmed JIT, trimmed JIT and Native AOT.
-This adds no declaration to §17.4 or the authoring companion and no executable API,
-compile, package, dependency or friend baseline change. The six base cells leave
-JsonSerializerIsReflectionEnabledByDefault unset; default failures retain their exact
-public phase/code/messages. Four separate switch-enabled diagnostic cells are at most
-conditional, never replacements. All fixed-codec, typed-step, retry/composition and
-physical DI ownership contracts remain intact. See the task-2 protocol and candidate
-assessment report; no profile is qualified by contract/canonical text alone.
+NF-033 / AC-555–562 have an independently approved native assessment (7639189 /
+verdict baae5ad): the ordinary package-only ephemeral journey passes all sixteen
+JIT scenarios on Windows Server 2025 x64 and Ubuntu 24.04 LTS x64. Trimmed and
+Native AOT builds are AssessedUnsupported with SDK defaults and with the separately
+labelled JSON-reflection switch enabled. Exact phase/code/messages, individual
+warnings and unavailable unsupported-workload measurements are retained.
 
-Candidate execution on both hosts passes all sixteen JIT scenarios. Default trimmed/
-AOT and both labelled reflection-enabled flavors are AssessedUnsupported: schema
-validation or later facade metadata fails before the intended positive journeys.
-These are review-pending observations for the exact consumer/package/toolchain
-profile, not new supported modes; product remediation needs a separate amendment.
+No declaration in §17.4 or the authoring companion changes, nor any product API,
+compile/package baseline, dependency, friend or fixed-codec/DI ownership rule.
+The six default cells and four extras remain separate; these observations apply
+only to the tested consumer/package/toolchain profile. Any product compatibility
+remediation needs a separate amendment.

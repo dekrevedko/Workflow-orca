@@ -1,6 +1,6 @@
 {
-  "schemaVersion": 1,
-  "stage": "ContractApprovedAssessmentPending",
+  "schemaVersion": 2,
+  "stage": "AssessmentApprovedPublicationPending",
   "change": "assess-ephemeral-native-aot",
   "contractCheckpoint": "eea51c9c2ba14d6b3bd0c963a3b5a38873fe1416",
   "contractParent": "7895262a21f19741c0b5b7fbad30907bccff2cbb",
@@ -8,10 +8,15 @@
   "contractVerdictCommit": "dbd829e2104fba70f6f678513fcaa08bf17a6045",
   "contractVerdictPath": "openspec/changes/assess-ephemeral-native-aot/artifacts/contract-independent-review-verdict-2026-10-20.md",
   "contractVerdictSha256": "96f2921dd457800fb9723cdb9220cc430642ab6677e508914458ff6ebcff3d41",
-  "canonicalApprovalEvidencePath": null,
-  "assessmentApprovalEvidencePath": null,
+  "canonicalApprovalEvidencePath": "openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-independent-review-verdict-2026-10-21.md",
+  "assessmentApprovalEvidencePath": "openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-independent-review-verdict-2026-10-21.md",
   "sourceApprovalEvidencePath": null,
   "productSourceAmendment": false,
   "clarification": "F1: six SDK-default cells plus four labelled JSON-reflection-enabled extras; extras at most conditional",
-  "pendingReviewTask": "2.4"
+  "pendingReviewTask": null,
+  "assessmentCheckpoint": "763918930d571c2aee05a46cd7c0164836e0af28",
+  "assessmentCheckpointParent": "dbd829e2104fba70f6f678513fcaa08bf17a6045",
+  "assessmentTree": "98d9668adbfec19dd022f61babddd240d7f1cbe8",
+  "assessmentVerdictCommit": "baae5ad34bce5ffc40881f8f312f74f4f3ba5303",
+  "assessmentVerdictSha256": "9f80c4fc4618be7c81e73d90896caac93f7a5cb5e61fe27b8f4350e98d8b1fd8"
 }

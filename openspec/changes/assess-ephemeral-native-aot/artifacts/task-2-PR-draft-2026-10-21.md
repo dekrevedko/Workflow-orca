@@ -1,20 +1,24 @@
-# Proposed publication text — pending independent review and separate publication authority
+# Assess ephemeral package trimming and Native AOT on Windows and Ubuntu
 
-Title: Assess ephemeral package trimming and Native AOT on Windows and Ubuntu
+Closes #3.
 
-Refs #3. Add a reproducible public-package-only consumer and native Windows Server
-2025 / Ubuntu 24.04 workflow for sixteen scenarios, the six SDK-default cells and
-four separately labelled JSON-reflection discovery cells. Keep the fixed codec,
-public product surface, package baselines and dependencies unchanged.
+The same public-package-only ephemeral consumer passes all sixteen scenarios on
+native Windows Server 2025 and Ubuntu 24.04 JIT builds. Trimmed and Native AOT
+builds remain unsupported with SDK defaults and with JSON reflection enabled:
+defaults reject schemas, while extras expose later facade metadata failures.
+Product code, the fixed codec, public API and package/dependency baselines are
+unchanged. These are conclusions about the exact tested profile, not general
+library compatibility promises.
 
-The exact JIT controls pass. Trimmed and Native AOT compatibility remains
-unsupported for this tested package/type profile: defaults fail schema validation;
-enabling JSON reflection reveals later facade metadata/generic limitations instead
-of providing an AOT support recipe. Every diagnostic and runtime failure is retained
-individually. A green assessment-record gate validates this evidence; it grants no
-library-wide support promise. Startup/CPU/process-memory and managed-heap data have
-separate names and only executable fixed workloads supply comparison samples.
+The change adds the consumer and manual native assessment workflow, four canonical
+requirements with NF-033 / AC-555–562, per-finding classifications, dependency and
+artifact closure, and JIT measurements from three warm-ups plus twenty runs per
+host. Unsupported-workload measurements stay unavailable. The temporary-branch
+push trigger is removed.
 
-Validation and exact native-run references are supplied by the task 2 assessment
-report and frozen review request. No PR or issue edit is authorized by this draft.
-Product remediation, issue #1 archival and Core lane consolidation stay separate.
+Independent approvals: contract eea51c9 / dbd829e; assessment 7639189 / baae5ad.
+[Native run 39721105482](https://github.com/dekrevedko/Workflow-orca/actions/runs/39721105482)
+passed both native jobs and the same-source/package record gate. Local assessment
+validation: OpenSpec 24/24, Release 0 warnings/errors, Infrastructure 259/259, six
+unit projects 969/969, engine coverage 79.10%. Publication reruns strict OpenSpec
+and Infrastructure; normal PR CI also gates database/integration and coverage.

@@ -295,10 +295,11 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 <!-- dag-run-contract-proposal:end -->
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-The optional Native AOT/trimming assessment (NF-033, AC-555–562) uses the existing
-three-package ephemeral closure and public named DI steps. It adds no provider,
-role, fingerprint, friend, codec resolver or serializer hook. Six SDK-default cells
-and four labelled JSON-reflection-enabled extras retain separate outcomes; the
-extras are at most conditional. PR-016 and PR-041 remain unchanged.
+The independently approved issue #3 assessment (NF-033, AC-555–562; 7639189 /
+verdict baae5ad) uses the existing three-package ephemeral closure and named DI
+steps. Both native JIT controls pass; trimmed/AOT defaults and reflection-enabled
+extras are unsupported for that exact profile. It adds no provider, role,
+fingerprint, friend, codec resolver or serializer hook. PR-016 and PR-041 remain
+unchanged; any compatibility remediation needs its own reviewed amendment.

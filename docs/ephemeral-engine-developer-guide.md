@@ -241,13 +241,14 @@ The Section 3 qualification record binds the candidate-package recipe results to
 the frozen source. This is candidate guidance; use a published package containing
 this change before relying on it in a released application.
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-The issue #3 contract is checkpointed (eea51c9 / dbd829e); task 2 has native evidence
-pending independent review. Both JIT controls pass; trimmed/AOT defaults and the
-labelled reflection-enabled extras remain unsupported for this exact profile. The public consumer covers named steps, typed values, retry/composition,
-codec negatives and the same Closed/Stopping/Completed ownership rules taught here.
-SDK-default trimmed/AOT runs are retained even if JSON metadata fails at registration.
-Extra JSON-reflection-enabled runs are explicitly labelled and at most conditional;
-they do not configure the private codec or repair a default result. Reproduction and
-exact review-pending results live in tools/ephemeral-native-assessment/README.md.
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+Both native JIT controls pass all sixteen scenarios. Trimmed/AOT defaults and the
+labelled JSON-reflection-enabled extras remain unsupported for this exact profile.
+Default builds reject schemas before registration; enabling reflection reveals
+later facade constructor/property metadata failures and does not configure or
+replace the private fixed codec. The consumer preserves the Closed/Stopping/
+Completed and DI ownership rules taught here. Reproduction, exact package and
+host identities, individual findings and measurements are recorded in
+[the assessment harness](../tools/ephemeral-native-assessment/README.md).

@@ -184,15 +184,12 @@ Transition addendum: [1.3/1.4 P3 dispositions](../openspec/changes/admit-durable
 
 <!-- dag-run-contract-proposal:end -->
 
-## Native publishing assessment candidate (2026-10-21)
+## Native publishing assessment (approved 2026-10-21)
 
-Native AOT/trimming is an optional measured assessment under issue #3, with an empty
-public API amendment catalogue. The task 2 candidate adds an external public consumer
-and automation while product code and fixed codec remain unchanged. Six native
-SDK-default cells and four separately labelled JSON-reflection extras have distinct
-results; extras are at most conditional. Current contract/canonical text supplies
-no deployment or faster/smaller claim. See the candidate assessment report.
-
-The review-pending native observations pass both JIT controls and leave all trimmed/
-AOT defaults/extras unsupported. No product implementation or release promise was
-added to obtain those outcomes.
+Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
+Its empty public API amendment catalogue leaves product code and the fixed codec
+unchanged. The exact public-package consumer passes both native JIT controls;
+all trimmed/AOT defaults and separately labelled JSON-reflection extras remain
+unsupported. The approved report retains individual diagnostics, runtime failures,
+closure and JIT measurements, with no cross-OS or universal faster/smaller claim.
+Product remediation and Core work-lane consolidation remain separate changes.

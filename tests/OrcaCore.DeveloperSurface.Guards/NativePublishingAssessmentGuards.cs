@@ -30,7 +30,29 @@ public sealed class NativePublishingAssessmentGuards
         Hash(committed).Should().Be(binding.GetProperty("contractVerdictSha256").GetString());
         File.ReadAllBytes(Path.Combine(change, "artifacts", Path.GetFileName(verdictPath))).Should().Equal(committed);
         binding.GetProperty("sourceApprovalEvidencePath").ValueKind.Should().Be(JsonValueKind.Null);
-        binding.GetProperty("assessmentApprovalEvidencePath").ValueKind.Should().Be(JsonValueKind.Null);
+        // Publication binds the approved assessment without granting product-source approval.
+        binding.GetProperty("schemaVersion").GetInt32().Should().Be(2);
+        binding.GetProperty("stage").GetString().Should().Be("AssessmentApprovedPublicationPending");
+        binding.GetProperty("pendingReviewTask").ValueKind.Should().Be(JsonValueKind.Null);
+        var assessmentPath = binding.GetProperty("assessmentApprovalEvidencePath").GetString()!;
+        assessmentPath.Should().Be("openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-independent-review-verdict-2026-10-21.md");
+        binding.GetProperty("canonicalApprovalEvidencePath").GetString().Should().Be(assessmentPath);
+        var assessmentCheckpoint = binding.GetProperty("assessmentCheckpoint").GetString()!;
+        var assessmentVerdict = binding.GetProperty("assessmentVerdictCommit").GetString()!;
+        assessmentCheckpoint.Should().Be("763918930d571c2aee05a46cd7c0164836e0af28");
+        assessmentVerdict.Should().Be("baae5ad34bce5ffc40881f8f312f74f4f3ba5303");
+        binding.GetProperty("assessmentCheckpointParent").GetString().Should().Be(verdict);
+        binding.GetProperty("assessmentTree").GetString().Should().Be("98d9668adbfec19dd022f61babddd240d7f1cbe8");
+        Git(root, "rev-list", "--parents", "-n", "1", assessmentCheckpoint).Trim().Split(' ')
+            .Should().Equal(assessmentCheckpoint, verdict);
+        Git(root, "rev-parse", assessmentCheckpoint + "^{tree}").Trim().Should().Be(binding.GetProperty("assessmentTree").GetString());
+        Git(root, "rev-list", "--parents", "-n", "1", assessmentVerdict).Trim().Split(' ').Should().Equal(assessmentVerdict, assessmentCheckpoint);
+        Git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", assessmentVerdict).Trim().Should().Be(assessmentPath);
+        var assessmentBytes = Encoding.UTF8.GetBytes(Git(root, "show", assessmentVerdict + ":" + assessmentPath));
+        binding.GetProperty("assessmentVerdictSha256").GetString().Should().Be("9f80c4fc4618be7c81e73d90896caac93f7a5cb5e61fe27b8f4350e98d8b1fd8");
+        Hash(assessmentBytes).Should().Be(binding.GetProperty("assessmentVerdictSha256").GetString());
+        File.ReadAllBytes(Path.Combine(change, "artifacts", Path.GetFileName(assessmentPath))).Should().Equal(assessmentBytes);
+        File.ReadAllText(Path.Combine(change, "tasks.md")).Should().Contain("- [x] 2.4 ");
         binding.GetProperty("productSourceAmendment").GetBoolean().Should().BeFalse();
     }
 
