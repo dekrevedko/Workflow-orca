@@ -14,6 +14,11 @@ on:
         required: false
         default: false
         type: boolean
+      github-packages-only:
+        description: "Publish an existing GitHub prerelease to GitHub Packages without rebuilding it"
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -35,9 +40,13 @@ jobs:
           PACKAGE_VERSION: ${{ inputs.version }}
           RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
           NUGET_ONLY: ${{ inputs.nuget-only }}
+          GITHUB_PACKAGES_ONLY: ${{ inputs.github-packages-only }}
           SOURCE_REF: ${{ github.ref }}
         run: |
-          if ($env:NUGET_ONLY -eq 'true' -and $env:SOURCE_REF -ne 'refs/heads/master') {
+          if ($env:NUGET_ONLY -eq 'true' -and $env:GITHUB_PACKAGES_ONLY -eq 'true') {
+            throw 'Choose only one existing-release publication mode.'
+          }
+          if (($env:NUGET_ONLY -eq 'true' -or $env:GITHUB_PACKAGES_ONLY -eq 'true') -and $env:SOURCE_REF -ne 'refs/heads/master') {
             throw 'Existing-release publication must run from master.'
           }
           if ($env:RELEASE_TAG) { $env:PACKAGE_VERSION = $env:RELEASE_TAG.Substring(1) }
@@ -48,7 +57,7 @@ jobs:
 
   ci:
     needs: validate
-    if: ${{ !inputs.nuget-only }}
+    if: ${{ !inputs.nuget-only && !inputs.github-packages-only }}
     uses: ./.github/workflows/ci.yml
     with:
       package-version: ${{ needs.validate.outputs.version }}
@@ -86,6 +95,7 @@ jobs:
     needs: [validate, ci, publish]
     if: >-
       ${{ !cancelled() && needs.validate.result == 'success' &&
+          !inputs.github-packages-only &&
           (inputs.nuget-only || (needs.ci.result == 'success' && needs.publish.result == 'success')) &&
           (inputs.nuget-only || vars.NUGET_USER != '') }}
     runs-on: ubuntu-latest
@@ -155,4 +165,87 @@ jobs:
           $contract = Get-Content -Raw tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json | ConvertFrom-Json
           foreach ($package in $contract.packages) {
             "- [$($package.id)](https://www.nuget.org/packages/$($package.id)/$env:PACKAGE_VERSION)" >> $env:GITHUB_STEP_SUMMARY
+          }
+
+  github-packages:
+    name: Publish and verify GitHub Packages
+    needs: [validate, ci, publish]
+    if: >-
+      ${{ !cancelled() && needs.validate.result == 'success' &&
+          (inputs.github-packages-only ||
+           (!inputs.nuget-only && needs.ci.result == 'success' && needs.publish.result == 'success')) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Download and verify the existing release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          PACKAGE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $tag = "v$env:PACKAGE_VERSION"
+          $release = & gh release view $tag --json tagName,isDraft,isPrerelease | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot read the GitHub prerelease.' }
+          if ($release.tagName -cne $tag -or $release.isDraft -or -not $release.isPrerelease) {
+            throw 'Only a published GitHub prerelease can be sent to GitHub Packages.'
+          }
+          & gh release download $tag --dir packages --pattern '*.nupkg' --pattern SHA256SUMS
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download the release packages.' }
+          $sourceCommit = & git rev-parse "$tag^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve the release tag.' }
+          & git merge-base --is-ancestor $sourceCommit origin/master
+          if ($LASTEXITCODE -ne 0) { throw 'The release source must be merged into master.' }
+          ./eng/Test-ReleasePackages.ps1 -Version $env:PACKAGE_VERSION -SourceCommit $sourceCommit -PackageDirectory packages
+
+      - name: Publish the verified package files
+        shell: bash
+        env:
+          GITHUB_PACKAGES_TOKEN: ${{ github.token }}
+          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ github.token }};ValidAuthenticationTypes=Basic
+        run: |
+          set -euo pipefail
+          cat > github-packages.config <<EOF
+          <configuration><packageSources><clear /><add key="github" value="https://nuget.pkg.github.com/$GITHUB_REPOSITORY_OWNER/index.json" /></packageSources></configuration>
+          EOF
+          for package in packages/*.nupkg; do
+            dotnet nuget push "$package" --api-key "$GITHUB_PACKAGES_TOKEN" --source github --configfile github-packages.config --skip-duplicate --no-symbols
+          done
+
+      - name: Restore exclusively from GitHub for OrcaCore and verify release bytes
+        shell: pwsh
+        env:
+          PACKAGE_VERSION: ${{ needs.validate.outputs.version }}
+          NuGetPackageSourceCredentials_github: Username=${{ github.actor }};Password=${{ github.token }};ValidAuthenticationTypes=Basic
+        run: |
+          ./eng/Test-Packages.ps1 -Version $env:PACKAGE_VERSION -GitHubPackages -GitHubOwner $env:GITHUB_REPOSITORY_OWNER -ExpectedReleaseDirectory packages
+
+      - name: Record repository links and package visibility
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ needs.validate.outputs.version }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $contract = Get-Content -Raw tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json | ConvertFrom-Json
+          "## GitHub Packages $env:PACKAGE_VERSION" >> $env:GITHUB_STEP_SUMMARY
+          "All twelve packages restored from GitHub; their SHA-256 hashes match the release assets and the typed consumer returned 42." >> $env:GITHUB_STEP_SUMMARY
+          foreach ($package in $contract.packages) {
+            $metadata = & gh api "users/$env:GITHUB_REPOSITORY_OWNER/packages/nuget/$($package.id)" | ConvertFrom-Json
+            if ($LASTEXITCODE -ne 0) { throw "Cannot read package metadata: $($package.id)" }
+            if ($metadata.repository.full_name -cne $env:GITHUB_REPOSITORY) { throw "Incorrect repository link: $($package.id)" }
+            "- [$($package.id)]($($metadata.html_url)): $($metadata.visibility), linked to $($metadata.repository.full_name)" >> $env:GITHUB_STEP_SUMMARY
+            Write-Output "$($package.id): $($metadata.visibility), $($metadata.html_url)"
           }

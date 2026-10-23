@@ -87,3 +87,34 @@ dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-
 The [GitHub download installation instructions](packages.md#install-from-github-release-downloads)
 provide an alternative directory feed.
 The prerelease limitations and the 75% engine coverage gate still apply.
+
+## GitHub Packages mirror
+
+The release workflow also publishes the verified `.nupkg` release assets to
+`https://nuget.pkg.github.com/dekrevedko/index.json`. It grants `packages: write`
+only to that job and uses the repository's temporary `GITHUB_TOKEN`; no additional
+publishing secret or local package credential is required. The `.nuspec`
+`RepositoryUrl` links all twelve packages to `dekrevedko/Workflow-orca`.
+
+Normal releases run both registry jobs after CI and GitHub release creation succeed.
+To mirror an existing release without rebuilding it or repeating NuGet.org publication:
+
+```powershell
+gh workflow run release.yml --ref master -f version=0.1.0-preview.2 -F github-packages-only=true
+```
+
+The existing-release modes are mutually exclusive and require `master`. The mirror
+downloads the release's twelve packages and `SHA256SUMS`, verifies identities and
+source metadata against the tag, and requires that source to be merged into `master`.
+It pushes those exact files and restores all twelve into a fresh external consumer.
+Source mapping routes every OrcaCore dependency to GitHub; the check also verifies
+cache-origin metadata and each downloaded package's original SHA-256. A fallback
+restore from NuGet.org cannot satisfy this gate. Retries tolerate already uploaded
+versions but still require the complete round-trip check.
+
+New GitHub packages default to private visibility, independently of their linked
+repository's visibility. Maintainers can change each package to Public in Package
+settings; this is irreversible. The job summary records the actual visibility and
+repository link. Consumers still need authentication for a public GitHub NuGet feed.
+See [GitHub's visibility documentation](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
+and the [installation configuration](packages.md#install-from-github-packages).
