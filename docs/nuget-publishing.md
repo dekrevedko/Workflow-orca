@@ -1,8 +1,8 @@
 # NuGet.org trusted publishing
 
-Status: GUIDE. Updated 2026-10-16. All twelve `0.1.0-preview.1` packages are available on
-[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.1).
-The [publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/38979035794/attempts/2)
+Status: GUIDE. Updated 2026-10-22. All twelve `0.1.0-preview.2` packages are available on
+[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2).
+The [publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249)
 verified public version indexes and source metadata, then restored and ran a fresh consumer
 using only NuGet.org. The packages also remain available as GitHub release downloads.
 
@@ -53,7 +53,7 @@ signature can change the package file hash.
 To resume or reverify publication of the existing preview:
 
 ```powershell
-gh workflow run release.yml --ref master -f version=0.1.0-preview.1 -F nuget-only=true
+gh workflow run release.yml --ref master -f version=0.1.0-preview.2 -F nuget-only=true
 ```
 
 This mode downloads the already published GitHub release files. It verifies the exact
@@ -81,7 +81,7 @@ it resumes publication and verification without rebuilding or replacing release 
 Install a verified version with:
 
 ```powershell
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.1
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
 ```
 
 The [GitHub download installation instructions](packages.md#install-from-github-release-downloads)
