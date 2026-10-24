@@ -1,11 +1,36 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 199,
-  "recordBytes": 52641,
-  "recordSha256": "0a30212be9d098e37e6105111d0b2479a8ae6756c72158da022a3a3a699c82ba",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 206,
+  "recordBytes": 54112,
+  "recordSha256": "72138cf1e243aa337a81466cd47400cf2c5cd7efe32536d8c6e0d931b394ee5b",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "developer-facing-surface",
+      "count": 2,
+      "turnsGreenChange": "support-ephemeral-native-aot",
+      "turnsGreenTask": "2.1"
+    },
+    {
+      "capability": "quality-and-verification",
+      "count": 2,
+      "turnsGreenChange": "support-ephemeral-native-aot",
+      "turnsGreenTask": "2.1"
+    },
+    {
+      "capability": "structured-fiber-execution",
+      "count": 1,
+      "turnsGreenChange": "support-ephemeral-native-aot",
+      "turnsGreenTask": "2.1"
+    },
+    {
+      "capability": "workflow-contracts",
+      "count": 2,
+      "turnsGreenChange": "support-ephemeral-native-aot",
+      "turnsGreenTask": "2.1"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,11 +197,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 27,
-  "capabilityDirectoryBytes": 2201,
-  "capabilityDirectorySha256": "b959238b7967bcb8e1d173a8b335a1e4c1d36baa7f39206ec8c99cc2c37026b9",
-  "artifactPath": "openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-openspec-provenance-2026-10-21.md",
-  "artifactNormalizedSha256": "64b80c3defb2c055376dc3c03c02819e835a2b633e94f2b2006731e26858d12c",
+  "capabilityDirectoryCount": 31,
+  "capabilityDirectoryBytes": 2509,
+  "capabilityDirectorySha256": "5f49aa48d8ced1404d25d039ba71de5562e54419f587cd220b9ebecadc108add",
+  "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-openspec-provenance-2026-10-23.md",
+  "artifactNormalizedSha256": "8e5dc4add42f31668db907b158bd79efbe1d8e170360f2a9c9c65be1300ac967",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
