@@ -4,7 +4,8 @@ internal sealed record WorkflowErrorDetails(
     string ErrorType,
     string Message,
     string StepPath,
-    DateTimeOffset OccurredAt)
+    DateTimeOffset OccurredAt,
+    global::OrcaCore.WorkflowFailure? StructuredFailure = null)
 {
     internal string Summary => $"{ErrorType}: {Message} at {StepPath}";
 }

@@ -24,10 +24,21 @@ internal static class FixedWorkflowValueCodec
 
     internal static bool IsSupportedDeclaredType(Type declaredType)
     {
+        if (!IsSupportedDeclaredShape(declaredType)) return false;
+        try { _ = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.ResolveContract(declaredType); }
+        catch (global::OrcaCore.Internal.WorkflowJsonContractException) { return false; }
+        return true;
+    }
+
+    internal static bool IsSupportedDeclaredShape(Type declaredType)
+    {
         ArgumentNullException.ThrowIfNull(declaredType);
-        return DeclaredTypeSupport.GetOrAdd(
-            declaredType,
-            static type => IsSupportedDeclaredType(type, []));
+        if (global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.Seal() is { } generated)
+            return DeclaredTypeSupport.GetOrAdd(declaredType, type => IsSupportedGeneratedShape(type, generated, []));
+        if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||
+            !global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.LegacyReflectionEnabled)
+            throw new InvalidOperationException("Reflection workflow metadata is unavailable.");
+        return DeclaredTypeSupport.GetOrAdd(declaredType, static type => IsSupportedDeclaredType(type, []));
     }
 
     internal static byte[] Serialize(object? value, Type declaredType)
@@ -35,6 +46,11 @@ internal static class FixedWorkflowValueCodec
         ArgumentNullException.ThrowIfNull(declaredType);
         EnsureSupportedDeclaredType(declaredType);
         ValidateGraph(value, declaredType, new HashSet<object>(ReferenceEqualityComparer.Instance));
+        var options = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.Seal();
+        if (options is not null) return JsonSerializer.SerializeToUtf8Bytes(value, options.GetTypeInfo(declaredType));
+        if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||
+            !global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.LegacyReflectionEnabled)
+            throw new InvalidOperationException("Reflection workflow metadata is unavailable.");
         return JsonSerializer.SerializeToUtf8Bytes(value, declaredType, SerializerOptions);
     }
 
@@ -42,19 +58,60 @@ internal static class FixedWorkflowValueCodec
     {
         ArgumentNullException.ThrowIfNull(declaredType);
         EnsureSupportedDeclaredType(declaredType);
+        var options = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.Seal();
+        if (options is not null) return JsonSerializer.Deserialize(payload, options.GetTypeInfo(declaredType));
+        if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||
+            !global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.LegacyReflectionEnabled)
+            throw new InvalidOperationException("Reflection workflow metadata is unavailable.");
         return JsonSerializer.Deserialize(payload, declaredType, SerializerOptions);
     }
 
     private static void EnsureSupportedDeclaredType(Type declaredType)
     {
-        if (!IsSupportedDeclaredType(declaredType))
+        if (!IsSupportedDeclaredShape(declaredType))
         {
             throw new NotSupportedException(
                 $"Declared payload type '{declaredType.FullName}' uses serialization customization " +
                 $"that is not supported by {Format}.");
         }
+        _ = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.ResolveContract(declaredType);
     }
 
+    private static bool IsSupportedGeneratedShape(Type type, JsonSerializerOptions options, HashSet<Type> active)
+    {
+        type = Nullable.GetUnderlyingType(type) ?? type;
+        if (type.IsPointer || type.IsByRef || type.IsByRefLike || type.ContainsGenericParameters ||
+            typeof(Delegate).IsAssignableFrom(type)) return false;
+        if (!active.Add(type)) return true;
+        try
+        {
+            if (!HasOnlyProductOwnedConverter(type, type)) return false;
+            if (TryGetDictionaryTypes(type, out var key, out var value))
+                return key == typeof(string) && IsSupportedGeneratedShape(value, options, active);
+            if (TryGetSequenceElementType(type, out var element))
+                return IsSupportedGeneratedShape(element, options, active);
+            if (IsCollectionLike(type)) return false;
+            if (IsLeafType(type) || type == typeof(global::OrcaCore.WorkflowFailure) ||
+                type == typeof(global::OrcaCore.FailureOccurrence) || type == typeof(global::OrcaCore.AuthoredLocation)) return true;
+            System.Text.Json.Serialization.Metadata.JsonTypeInfo info;
+            try { info = options.GetTypeInfo(type); }
+            catch (NotSupportedException) { return true; } // ResolveContract supplies SFE-TYPE-003; never discover missing members.
+            if (info.PolymorphismOptions is { } polymorphism)
+                foreach (var derived in polymorphism.DerivedTypes)
+                    if (!IsSupportedGeneratedShape(derived.DerivedType, options, active)) return false;
+            foreach (var property in info.Properties)
+            {
+                if (property.Get is null && property.Set is null && property.AssociatedParameter is null) continue;
+                if (property.AttributeProvider?.GetCustomAttributes(typeof(JsonConverterAttribute), inherit: false).Length > 0 &&
+                    type.Assembly != typeof(global::OrcaCore.DefinitionId).Assembly) return false;
+                if (!IsSupportedGeneratedShape(property.PropertyType, options, active)) return false;
+            }
+            return true;
+        }
+        finally { active.Remove(type); }
+    }
+
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Unconfigured legacy JIT declared-shape discovery only.")]
     private static bool IsSupportedDeclaredType(Type declaredType, HashSet<Type> activeTypes)
     {
         declaredType = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
@@ -234,17 +291,10 @@ internal static class FixedWorkflowValueCodec
 
             try
             {
-                foreach (var entry in (IEnumerable)value)
+                foreach (DictionaryEntry entry in (IDictionary)value)
                 {
-                    var entryType = entry.GetType();
-                    ValidateGraph(
-                        entryType.GetProperty("Key")!.GetValue(entry),
-                        keyType,
-                        activeReferences);
-                    ValidateGraph(
-                        entryType.GetProperty("Value")!.GetValue(entry),
-                        valueType,
-                        activeReferences);
+                    ValidateGraph(entry.Key, keyType, activeReferences);
+                    ValidateGraph(entry.Value, valueType, activeReferences);
                 }
             }
             finally
@@ -289,11 +339,13 @@ internal static class FixedWorkflowValueCodec
             return;
         }
 
-        if (runtimeType != declaredType &&
-            !declaredType.GetCustomAttributes<JsonDerivedTypeAttribute>(inherit: false)
-                .Any(attribute => attribute.DerivedType == runtimeType))
+        var generated = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.Seal();
+        if (runtimeType != declaredType)
         {
-            throw UnsupportedPolymorphism(runtimeType, declaredType);
+            var approved = generated is not null
+                ? generated.GetTypeInfo(declaredType).PolymorphismOptions?.DerivedTypes.Any(derived => derived.DerivedType == runtimeType) == true
+                : declaredType.GetCustomAttributes<JsonDerivedTypeAttribute>(inherit: false).Any(attribute => attribute.DerivedType == runtimeType);
+            if (!approved) throw UnsupportedPolymorphism(runtimeType, declaredType);
         }
 
         if (IsLeafType(runtimeType))
@@ -309,6 +361,33 @@ internal static class FixedWorkflowValueCodec
 
         try
         {
+            if (generated is not null)
+            {
+                foreach (var property in generated.GetTypeInfo(runtimeType).Properties)
+                    if (property.Get is not null && property.AttributeProvider is PropertyInfo member &&
+                        (member.GetMethod?.IsPublic == true || member.SetMethod?.IsPublic == true))
+                        ValidateGraph(property.Get(value), property.PropertyType, activeReferences);
+            }
+            else
+            {
+                if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||
+            !global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.LegacyReflectionEnabled)
+                    throw new InvalidOperationException("Reflection workflow metadata is unavailable.");
+                ValidateLegacyMembers(value, runtimeType, activeReferences);
+            }
+        }
+        finally
+        {
+            if (tracked)
+            {
+                activeReferences.Remove(value);
+            }
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Unconfigured legacy JIT graph member discovery only.")]
+    private static void ValidateLegacyMembers(object value, Type runtimeType, HashSet<object> activeReferences)
+    {
             foreach (var property in runtimeType.GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
                 if (property.GetMethod is null ||
@@ -321,14 +400,6 @@ internal static class FixedWorkflowValueCodec
 
                 ValidateGraph(property.GetValue(value), property.PropertyType, activeReferences);
             }
-        }
-        finally
-        {
-            if (tracked)
-            {
-                activeReferences.Remove(value);
-            }
-        }
     }
 
     private static bool TryGetDictionaryTypes(

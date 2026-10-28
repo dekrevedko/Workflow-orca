@@ -836,7 +836,6 @@
         "docs/review/harmonize-downstream-capability-specs-task-5-1-independent-review-request-2026-08-20.md",
         "openspec/specs/event-routing-and-waits/spec.md",
         "openspec/specs/state-driven-runtime/spec.md",
-        "openspec/specs/workflow-contracts/spec.md",
         "tests/OrcaCore.ProviderCertification/Section7GovernanceScenarioHost.cs"
       ],
       "checkpointBlobContentRecordBytes": 2428,

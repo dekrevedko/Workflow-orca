@@ -691,6 +691,8 @@ internal static class AuthoringContracts
             "SFE-CAP-001_UNSUPPORTED_INSTRUCTION" => "SFE-AUTH-CAP-001",
             "SFE-TYPE-001_SERIALIZER_UNAVAILABLE" => "SFE-TYPE-002",
             "SFE-TYPE-002_BRANCH_RESULT_MISMATCH" => "SFE-TYPE-001",
+            "SFE-TYPE-002" => "SFE-TYPE-002",
+            "SFE-TYPE-003" => "SFE-TYPE-003",
             "SFE-PLAN-001_NO_PROGRESS_LOOP" => "SFE-AUTH-LOOP-001",
             var legacy when legacy.StartsWith("SFE-LIMIT-", StringComparison.Ordinal) => "SFE-LIMIT-001",
             _ => throw new InvalidOperationException(

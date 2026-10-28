@@ -73,9 +73,12 @@ public sealed class EphemeralShutdownTransitionGuards
     {
         using var fixture = Load();
         var current = fixture.RootElement;
-        current.GetProperty("schemaVersion").GetInt32().Should().Be(19);
+        current.GetProperty("schemaVersion").GetInt32().Should().Be(20);
         var before = JsonNode.Parse(Git("show", SourceVerdictCommit + ":" + Registry))!.AsObject();
         var after = JsonNode.Parse(current.GetRawText())!.AsObject();
+        // The native-support extension is independently validated, including unchanged prior records.
+        after.Remove("nativeSupportContractEvidence");
+        after.Remove("nativeSupportPendingAmendments");
         after.Remove("ephemeralShutdownSourceEvidence");
         foreach (var record in after["shutdownPendingAmendments"]!.AsArray())
         {
@@ -186,8 +189,14 @@ public sealed class EphemeralShutdownTransitionGuards
             blocks.Keys.Should().Equal(record.GetProperty("requirementIdentities").EnumerateArray().Select(x => x.GetString()));
             var canonicalPath = "openspec/specs/" + cap + "/spec.md";
             var before = Git("show", VerdictCommit + ":" + canonicalPath);
-            Read(canonicalPath).Should().Be(before + "\n" + delta["## ADDED Requirements\n\n".Length..],
-                "earlier canonical text is a strict byte prefix and new blocks are exact copies");
+            // Pin the exact approved shutdown layer; native support may append only its separately guarded successor.
+            var approvedCanonical = Git("show", CanonicalCheckpoint + ":" + canonicalPath);
+            approvedCanonical.Should().Be(before + "\n" + delta["## ADDED Requirements\n\n".Length..],
+                "earlier canonical text is a strict byte prefix and the approved shutdown blocks are exact copies");
+            if (cap == "developer-facing-surface")
+                Read(canonicalPath).Should().StartWith(approvedCanonical);
+            else
+                Read(canonicalPath).Should().Be(approvedCanonical);
             var canonical = Blocks(Read(canonicalPath));
             foreach (var (name, block) in blocks)
             {

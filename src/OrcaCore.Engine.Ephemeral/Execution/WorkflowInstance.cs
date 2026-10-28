@@ -837,6 +837,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
                 StuckStepPath = stuckStepPath,
                 StuckDetectedAt = stuckDetectedAt,
                 ErrorSummary = ErrorDetails?.Summary,
+                StructuredFailure = ErrorDetails?.StructuredFailure,
                 EndOutcomeName = EndOutcomeName,
                 ActiveWaits = activeWaits.Select(wait => wait.ToSnapshot()).ToArray(),
                 ActiveStep = activeStep,

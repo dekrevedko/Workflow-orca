@@ -211,3 +211,44 @@ and extras remain unsupported, which is a valid assessment outcome. This creates
 no deferred public member or support promise. Product/API/annotation/codec
 remediation requires a separate reviewed amendment. Issue #1 archival and Core
 work-lane consolidation remain separate maintenance.
+
+## Issue #13 native support transition (2026-10-24)
+
+Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
+canonical contract is synchronized; product implementation and native support
+qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
+boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
+unsupported for that released profile. This amendment does not change that fact.
+
+One coherent task-2 target owns canonical/docs reconciliation, Git-backed
+contract binding, tests, source, executable baselines and six-cell native proof.
+Major internal slices receive a separate review before advancing; no separate
+activation target is required. Source approval/native qualification remain null
+until the final reviewed implementation target. Public/API/compile/package
+baselines and the declaration companion move with actual source in task 2.2,
+never in advance. Validation-branch pushes need their own authorization.
+Publication/PR/merge/issue closure remain later gates; no squash. Issue #1
+archival and Core work-lane consolidation remain separate maintenance work.
+
+The 2026-10-25 minimal converter catalogue amendment is explicitly approved for task 2.2: only accessibility of the existing sealed factory changes, with matching declaration/API/compile/package baselines. Task 2 remains uncommitted; typed dispatch is implemented in task 2.3 while native/whole-target gates are still open, and no support or source-checkpoint approval follows from this API slice.
+
+The approved 2026-10-26 throttle annotation adds only
+DynamicallyAccessedMembers(Interfaces) to StepExecutionThrottle.For<TStep>'s
+existing generic parameter. NS-09a requires preserved validation/order/identity
+for valid/inherited/invalid steps and capacities, and removal of IL2090 in trim
+and AOT. It grants no package-wide badge or native-host qualification.
+
+### Approved 2026-10-27 public-consumer boundary
+
+NS-10 follows the bounded public recipe approved in the adjacent amendment:
+typed inbound value construction/materialization, typed StepResult.WaitForEvent
+parking and physical cancellation/join, timers/retries, transient-pool grants,
+root Parallel and bounded ForEach. The public ephemeral closure exports neither
+live event ingress/resumption nor outgoing Publish. These receive no native
+credit. Existing internal event regressions remain required, without substituting
+for public-package execution. NS-07/08/11 prove public value rejection and
+retained-instance state; they make no public delivery claim. Every original
+AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required.
+A future ingress/publish capability requires its own reviewed public contract.
+This is an explicit qualification-scope adjustment, not the old full event
+requirement passing. Source/public API and the fixed codec are unchanged.

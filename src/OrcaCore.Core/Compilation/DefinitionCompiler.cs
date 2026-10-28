@@ -374,166 +374,6 @@ internal static partial class DefinitionCompiler
         }
     }
 
-    private static IReadOnlyDictionary<Type, string> ValidateTypeContracts<TState>(
-        SelectedWorkflowAuthoring<TState> authoring,
-        List<ValidationError> errors)
-    {
-        var requiredTypes = new List<(Type Type, string Path)> { (typeof(TState), "root/state") };
-        CollectTypes(authoring.RootNodes, "root", requiredTypes);
-
-        var schemaIdentities = new Dictionary<Type, string>();
-        var seen = new HashSet<Type>();
-        foreach (var required in requiredTypes)
-        {
-            if (!seen.Add(required.Type))
-            {
-                continue;
-            }
-
-            if (!authoring.TypeSerializerRegistry.TryGetSchemaIdentity(required.Type, out var schemaIdentity) ||
-                string.IsNullOrWhiteSpace(schemaIdentity))
-            {
-                errors.Add(Error(
-                    DefinitionCompilerCodes.SerializerUnavailable,
-                    $"No serializer schema is registered for '{required.Type.FullName}'.",
-                    required.Path));
-                continue;
-            }
-
-            schemaIdentities.Add(required.Type, schemaIdentity);
-        }
-
-        return schemaIdentities;
-    }
-
-    private static void CollectTypes<TState>(
-        IReadOnlyList<SelectedAuthoringNode<TState>> nodes,
-        string path,
-        List<(Type Type, string Path)> requiredTypes)
-    {
-        for (var index = 0; index < nodes.Count; index++)
-        {
-            var node = nodes[index];
-            var nodePath = $"{path}/{index}";
-            switch (node)
-            {
-                case SelectedInitAuthoringNode<TState> init:
-                    requiredTypes.Add((init.InputType, $"{nodePath}/input"));
-                    break;
-                case SelectedEndAuthoringNode<TState> end when end.OutputType is not null:
-                    requiredTypes.Add((end.OutputType, $"{nodePath}/output"));
-                    break;
-                case SelectedPublishAuthoringNode<TState> publish when publish.PayloadType is not null:
-                    requiredTypes.Add((publish.PayloadType, $"{nodePath}/payload"));
-                    break;
-                case SelectedIfAuthoringNode<TState> conditional:
-                    CollectTypes(conditional.Then, $"{nodePath}/then", requiredTypes);
-                    CollectTypes(conditional.Else, $"{nodePath}/else", requiredTypes);
-                    break;
-                case SelectedWhileAuthoringNode<TState> loop:
-                    CollectTypes(loop.Body, $"{nodePath}/body", requiredTypes);
-                    break;
-                case SelectedResourceLeaseAuthoringNode<TState> lease:
-                    CollectTypes(lease.Body, $"{nodePath}/lease", requiredTypes);
-                    break;
-                case SelectedStructuredScopeAuthoringNode<TState> scope:
-                    requiredTypes.Add((scope.ResultType, $"{nodePath}/result"));
-                    CollectBranchTypes(scope.Branches, nodePath, requiredTypes);
-
-                    break;
-                case SelectedForEachAuthoringNode<TState> forEach:
-                    requiredTypes.Add((forEach.ItemType, $"{nodePath}/item"));
-                    requiredTypes.Add((forEach.ItemStateType, $"{nodePath}/item-state"));
-                    requiredTypes.Add((forEach.ResultType, $"{nodePath}/result"));
-                    break;
-            }
-        }
-    }
-
-    private static void CollectBranchTypes(
-        IReadOnlyList<StructuredBranchAuthoring> branches,
-        string path,
-        List<(Type Type, string Path)> requiredTypes)
-    {
-        foreach (var branch in branches)
-        {
-            var branchPath = $"{path}/branches/{branch.BranchId}";
-            requiredTypes.Add((branch.BranchStateType, $"{branchPath}/state"));
-            for (var index = 0; index < branch.Instructions.Count; index++)
-            {
-                if (branch.Instructions[index] is BranchPublishAuthoringInstruction publish &&
-                    publish.PayloadType is not null)
-                {
-                    requiredTypes.Add((publish.PayloadType, $"{branchPath}/{index}/payload"));
-                    continue;
-                }
-
-                if (branch.Instructions[index] is BranchIfAuthoringInstruction conditional)
-                {
-                    CollectBranchInstructionTypes(
-                        conditional.Then,
-                        $"{branchPath}/{index}/then",
-                        requiredTypes);
-                    CollectBranchInstructionTypes(
-                        conditional.Else,
-                        $"{branchPath}/{index}/else",
-                        requiredTypes);
-                    continue;
-                }
-
-                if (branch.Instructions[index] is BranchResourceLeaseAuthoringInstruction lease)
-                {
-                    CollectBranchInstructionTypes(
-                        lease.Body,
-                        $"{branchPath}/{index}/lease",
-                        requiredTypes);
-                    continue;
-                }
-
-                if (branch.Instructions[index] is not BranchStructuredScopeAuthoringInstruction nested)
-                {
-                    continue;
-                }
-
-                var nestedPath = $"{branchPath}/{index}";
-                requiredTypes.Add((nested.ParentStateType, $"{nestedPath}/parent-state"));
-                requiredTypes.Add((nested.ResultType, $"{nestedPath}/result"));
-                CollectBranchTypes(nested.Branches, nestedPath, requiredTypes);
-            }
-        }
-    }
-
-    private static void CollectBranchInstructionTypes(
-        IReadOnlyList<BranchAuthoringInstruction> instructions,
-        string path,
-        List<(Type Type, string Path)> requiredTypes)
-    {
-        for (var index = 0; index < instructions.Count; index++)
-        {
-            switch (instructions[index])
-            {
-                case BranchPublishAuthoringInstruction publish when publish.PayloadType is not null:
-                    requiredTypes.Add((publish.PayloadType, $"{path}/{index}/payload"));
-                    break;
-                case BranchStructuredScopeAuthoringInstruction nested:
-                {
-                    var nestedPath = $"{path}/{index}";
-                    requiredTypes.Add((nested.ParentStateType, $"{nestedPath}/parent-state"));
-                    requiredTypes.Add((nested.ResultType, $"{nestedPath}/result"));
-                    CollectBranchTypes(nested.Branches, nestedPath, requiredTypes);
-                    break;
-                }
-                case BranchIfAuthoringInstruction conditional:
-                    CollectBranchInstructionTypes(conditional.Then, $"{path}/{index}/then", requiredTypes);
-                    CollectBranchInstructionTypes(conditional.Else, $"{path}/{index}/else", requiredTypes);
-                    break;
-                case BranchResourceLeaseAuthoringInstruction lease:
-                    CollectBranchInstructionTypes(lease.Body, $"{path}/{index}/lease", requiredTypes);
-                    break;
-            }
-        }
-    }
-
     private static LoweredPlan LowerPlan<TState>(
         IReadOnlyList<SelectedAuthoringNode<TState>> nodes,
         WorkflowExecutionMode mode,
@@ -810,14 +650,14 @@ internal static partial class DefinitionCompiler
             switch (node)
             {
                 case SelectedInitAuthoringNode<TState> init:
-                    AddInstruction(instructions, CompiledInstructionKind.Init, nodePath, init.CreateState);
+                    AddInstruction(instructions, CompiledInstructionKind.Init, nodePath, global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(init.CreateState));
                     break;
                 case SelectedStepAuthoringNode<TState> step:
                     AddInstruction(
                         instructions,
                         CompiledInstructionKind.Step,
                         nodePath,
-                        step.StepFactory,
+                        global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(step.StepFactory),
                         policy: CompilePolicy(step.Policies),
                         stepType: step.StepType);
                     break;
@@ -826,7 +666,7 @@ internal static partial class DefinitionCompiler
                         instructions,
                         CompiledInstructionKind.Wait,
                         nodePath,
-                        wait.CorrelationSelector,
+                        global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(wait.CorrelationSelector),
                         eventContract: wait.EventContract,
                         waitMode: wait.Mode,
                         waitTimeout: wait.Timeout);
@@ -837,7 +677,7 @@ internal static partial class DefinitionCompiler
                         CompiledInstructionKind.Publish,
                         nodePath,
                         eventContract: publish.EventContract,
-                        publishCorrelationSelector: publish.CorrelationSelector,
+                        publishCorrelationSelector: global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(publish.CorrelationSelector),
                         publishPayloadType: publish.PayloadType,
                         publishPayloadSchemaIdentity: publish.PayloadType is null
                             ? null
@@ -856,7 +696,7 @@ internal static partial class DefinitionCompiler
                         instructions,
                         CompiledInstructionKind.End,
                         nodePath,
-                        operation: end.OutcomeSelector,
+                        operation: global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(end.OutcomeSelector),
                         outputType: end.OutputType,
                         outputSchemaIdentity: end.OutputType is null ? null : schemaIdentities[end.OutputType],
                         outputSelector: end.OutputSelector,
@@ -867,16 +707,16 @@ internal static partial class DefinitionCompiler
                         instructions,
                         CompiledInstructionKind.ContinueAsNew,
                         nodePath,
-                        continueAsNew.StateSelector);
+                        global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(continueAsNew.StateSelector));
                     break;
                 case SelectedIfAuthoringNode<TState> conditional:
-                    AddInstruction(instructions, CompiledInstructionKind.If, nodePath, conditional.Condition);
+                    AddInstruction(instructions, CompiledInstructionKind.If, nodePath, global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(conditional.Condition));
                     LowerSequence(conditional.Then, $"{nodePath}/then", instructions, scopes, schemaIdentities);
                     LowerSequence(conditional.Else, $"{nodePath}/else", instructions, scopes, schemaIdentities);
                     AddInstruction(instructions, CompiledInstructionKind.IfJoin, $"{nodePath}/join");
                     break;
                 case SelectedWhileAuthoringNode<TState> loop:
-                    AddInstruction(instructions, CompiledInstructionKind.LoopCheck, nodePath, loop.Condition);
+                    AddInstruction(instructions, CompiledInstructionKind.LoopCheck, nodePath, global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(loop.Condition));
                     LowerSequence(loop.Body, $"{nodePath}/body", instructions, scopes, schemaIdentities);
                     AddInstruction(instructions, CompiledInstructionKind.LoopBack, $"{nodePath}/back");
                     AddInstruction(instructions, CompiledInstructionKind.LoopExit, $"{nodePath}/exit");
@@ -887,7 +727,7 @@ internal static partial class DefinitionCompiler
                         CompiledInstructionKind.AcquireResources,
                         nodePath,
                         staticLeaseRequest: lease.StaticRequest,
-                        leaseRequestSelector: lease.RequestSelector);
+                        leaseRequestSelector: global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(lease.RequestSelector));
                     LowerSequence(lease.Body, $"{nodePath}/lease", instructions, scopes, schemaIdentities);
                     AddInstruction(
                         instructions,

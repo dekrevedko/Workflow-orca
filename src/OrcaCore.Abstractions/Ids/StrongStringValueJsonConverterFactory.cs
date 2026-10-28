@@ -3,7 +3,7 @@ using System.Text.Json.Serialization;
 
 namespace OrcaCore.Abstractions.Ids;
 
-internal sealed class StrongStringValueJsonConverterFactory : JsonConverterFactory
+public sealed class StrongStringValueJsonConverterFactory : JsonConverterFactory
 {
     public override bool CanConvert(Type typeToConvert)
     {

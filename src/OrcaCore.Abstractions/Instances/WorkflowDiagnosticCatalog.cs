@@ -29,6 +29,7 @@ internal static class WorkflowDiagnosticCatalog
             ["SFE-AUTH-LEASE-003"] = Error("LeaseBlocksContinueAsNew", "rollover is reached before a lexical lease scope exits."),
             ["SFE-TYPE-001"] = Error("IncompatibleStateOrResultType", "a hand-built graph has incompatible state/result/output contracts."),
             ["SFE-TYPE-002"] = Error("CodecUnsupportedShape", "a required persisted/detached value shape cannot use `orcacore-json-v1`."),
+            ["SFE-TYPE-003"] = Error("CodecMetadataMissing", "a required declared/transitive value contract is absent from the registered generated metadata context; add the closure and configure before first use."),
             ["SFE-LIMIT-001"] = Error("InvalidForEachLimit", "a hand-built fan-out bypasses positive item/concurrency bounds."),
             ["SFE-RUN-001"] = Error("NonQuiescentContinueAsNew", "runtime defense rejects rollover while a descendant or owned obligation remains."),
             ["SFE-RUN-002"] = Error("LeaseAncestryViolation", "runtime defense terminally fails before queue/pool mutation and suppresses merges/restart loops."),

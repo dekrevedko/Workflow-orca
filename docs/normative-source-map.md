@@ -205,3 +205,25 @@ and keeps product-source approval null because no product amendment was made.
 All six SDK-default cells and four labelled JSON-reflection extras have native
 records. JIT passes 16/16 on each host; all trimmed/AOT defaults/extras are
 unsupported. The four canonical blocks remain byte-equal to the F1-clarified deltas.
+
+## Issue #13 native support contract transition (2026-10-24)
+
+Contract 6122025 / verdict 10aec46 bind the exact 29-path tree 2b981a6. Seven
+canonical additions are appended byte-for-byte from the approved R1 deltas:
+
+| Canonical owner | Added blocks | Numbered/source owners |
+|---|---:|---|
+| workflow-contracts | 2 | 03/10/17, NF-034, AC-568–570; generated metadata and early errors |
+| developer-facing-surface | 2 | 03/10/17, NF-034, AC-563–567/574; API, seal and ownership |
+| structured-fiber-execution | 1 | 04/17, NF-034, AC-571–573; statically closed execution |
+| quality-and-verification | 2 | 11/12/13/17, NF-034, AC-563–574; six native support cells |
+
+The R1 mode-specific F1 admission exception is explicit; fixed bytes and legacy
+acceptance remain unchanged. Nine mandatory R1 subcases stay within the twelve
+NS groups. The source/API declaration and executable baselines are queued with
+source task 2.2, avoiding a baseline-only advance. The process registry binds
+actual contract commits/verdict bytes through Git and keeps source/native
+approval unset. Existing issue #3 native research and released-version results
+remain immutable history, not support credit for this implementation.
+
+Issue #13 converter catalogue amendment (2026-10-25): developer-facing-surface, workflow-contracts and quality-and-verification retain their exact requirement identities and gain the approved factory catalogue/scenarios. Docs 03/10/11/12/13/17, the declaration companion, API/compile/package owners and task-2.2 registry/guards reproduce that amendment. AC-564 maps NS-02d; AC-568 maps NS-06g–h. The dated R1 protocol and all original assertions remain unchanged.

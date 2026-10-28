@@ -3,8 +3,10 @@ namespace OrcaCore.Core.Definitions;
 /// <summary>
 /// Deterministically partitions fanout input items for composition nodes.
 /// </summary>
-internal abstract record WorkflowPartitioner<TItem>
+internal abstract record WorkflowPartitioner<TItem> : IWorkflowPartitionerIdentity
 {
+    public abstract string FingerprintIdentity { get; }
+
     public abstract IReadOnlyList<WorkflowPartition<TItem>> Partition(IReadOnlyList<TItem> items);
 
     public static WorkflowPartitioner<TItem> Items()
@@ -35,6 +37,8 @@ internal abstract record WorkflowPartitioner<TItem>
 
 internal sealed record ItemWorkflowPartitioner<TItem> : WorkflowPartitioner<TItem>
 {
+    public override string FingerprintIdentity => GetType().AssemblyQualifiedName!;
+
     public override IReadOnlyList<WorkflowPartition<TItem>> Partition(IReadOnlyList<TItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -47,6 +51,8 @@ internal sealed record ItemWorkflowPartitioner<TItem> : WorkflowPartitioner<TIte
 
 internal sealed record FixedBatchWorkflowPartitioner<TItem>(int Size) : WorkflowPartitioner<TItem>
 {
+    public override string FingerprintIdentity => GetType().AssemblyQualifiedName! + "|Size=" + Size.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
     public override IReadOnlyList<WorkflowPartition<TItem>> Partition(IReadOnlyList<TItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -70,6 +76,8 @@ internal sealed record FixedBatchWorkflowPartitioner<TItem>(int Size) : Workflow
 internal sealed record SelectorBatchWorkflowPartitioner<TItem, TKey>(
     Func<TItem, TKey> KeySelector) : WorkflowPartitioner<TItem>
 {
+    public override string FingerprintIdentity => GetType().AssemblyQualifiedName! + "|KeySelector=" + (KeySelector is null ? "null" : "opaque");
+
     public override IReadOnlyList<WorkflowPartition<TItem>> Partition(IReadOnlyList<TItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
@@ -99,10 +107,17 @@ internal sealed record SelectorBatchWorkflowPartitioner<TItem, TKey>(
 internal sealed record CustomWorkflowPartitioner<TItem>(
     Func<IReadOnlyList<TItem>, IReadOnlyList<WorkflowPartition<TItem>>> PartitionItems) : WorkflowPartitioner<TItem>
 {
+    public override string FingerprintIdentity => GetType().AssemblyQualifiedName! + "|PartitionItems=" + (PartitionItems is null ? "null" : "opaque");
+
     public override IReadOnlyList<WorkflowPartition<TItem>> Partition(IReadOnlyList<TItem> items)
     {
         ArgumentNullException.ThrowIfNull(items);
 
         return PartitionItems(items);
     }
+}
+
+internal interface IWorkflowPartitionerIdentity
+{
+    string FingerprintIdentity { get; }
 }

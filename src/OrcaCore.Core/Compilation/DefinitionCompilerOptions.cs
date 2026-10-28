@@ -48,13 +48,18 @@ internal sealed class DefaultWorkflowTypeSerializerRegistry : IWorkflowTypeSeria
     {
         ArgumentNullException.ThrowIfNull(type);
         schemaIdentity = type.AssemblyQualifiedName ?? type.FullName ?? type.Name;
-        if (!FixedWorkflowValueCodec.IsSupportedDeclaredType(type))
+        if (!FixedWorkflowValueCodec.IsSupportedDeclaredShape(type))
         {
             return false;
         }
 
+        var generated = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.ResolveContract(type);
         try
         {
+            if (generated is not null) return true;
+            if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||
+                !global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.LegacyReflectionEnabled)
+                return false;
             _ = JsonSerializerOptions.Default.GetTypeInfo(type);
             return true;
         }

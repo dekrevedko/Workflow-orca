@@ -92,6 +92,7 @@ internal sealed record EphemeralWorkflowInstanceSnapshot
     internal string? StuckStepPath { get; init; }
     internal DateTimeOffset? StuckDetectedAt { get; init; }
     internal string? ErrorSummary { get; init; }
+    internal global::OrcaCore.WorkflowFailure? StructuredFailure { get; init; }
     internal string? EndOutcomeName { get; init; }
     internal IReadOnlyList<EphemeralActiveWaitSnapshot> ActiveWaits { get; init; } = [];
     internal EphemeralActiveStepSnapshot? ActiveStep { get; init; }

@@ -7,6 +7,10 @@ The selected ephemeral native path SHALL obtain application value contracts from
 - **WHEN** a value, collection, strong value or failure tree in the common admitted shape set is encoded and decoded through legacy JIT and generated-metadata JIT, full trimming and Native AOT
 - **THEN** exact encoded bytes, fingerprints, detached values and rejection rules agree under the fixed codec
 
+#### Scenario: Public converter accessibility preserves the strong-string codec
+- **WHEN** the approved catalogue amendment is implemented and any of EventName, WorkflowOutcomeName, AuthoredBranchId, ResourcePoolName, TransientPoolName, StartIdempotencyKey, StopConfirmationId, ResourcePoolOperationId, ResourceGovernancePartitionId, StepOperationId or LeaseProtectionToken crosses an ordinary external generated root, nested DTO or supported collection contract
+- **THEN** its existing product attribution and closed factory encode the same quoted string and decode with the same Create/Parse validation as legacy JIT, preserve equality and input/definition fingerprints, and introduce no new codec hook or shape admission; CanConvert rejects types outside that exact table and direct CreateConverter rejects an unsupported type with the existing NotSupportedException
+
 #### Scenario: Application context requests custom serialization
 - **WHEN** registration or metadata validation encounters nondefault options, an application converter, custom resolver chain or a serialization-only context
 - **THEN** it rejects the configuration or affected type without installing conflicting metadata, replacing codec behavior, admitting work or committing

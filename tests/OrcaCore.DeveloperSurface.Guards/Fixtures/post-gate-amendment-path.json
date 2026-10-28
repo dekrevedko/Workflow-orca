@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 19,
+  "schemaVersion": 20,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -793,5 +793,185 @@
     "verdictPath": "openspec/changes/add-ephemeral-host-shutdown/artifacts/section-3-independent-review-verdict-2026-10-19.md",
     "verdictBytes": 6364,
     "verdictSha256": "d2ea311bdd255dcdf4171b237646eb8a845a9e019173e8407888db01ffe589ae"
-  }
+  },
+  "nativeSupportContractEvidence": {
+    "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+    "checkpointCommit": "6122025828c7e8e3525ad8f2e24048024cbbb2d5",
+    "checkpointParent": "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
+    "checkpointTree": "2b981a667a0c08aca7215118e73f0e40b91db8ac",
+    "approvalEvidenceCommit": "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd",
+    "verdictPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-independent-review-verdict-2026-10-23.md",
+    "verdictSha256": "4389efe8e8d58366e6064ba6cbd6d5d55a5fcf77d111d21759cdbedf3b61a554",
+    "manifestPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-manifest-2026-10-23.txt",
+    "canonicalPreparationTask": "2.1",
+    "implementationReviewTask": "2.5",
+    "sourceApprovalEvidencePath": null,
+    "nativeQualificationEvidencePath": null,
+    "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending",
+    "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-1-contract-binding-2026-10-24.md",
+    "artifactNormalizedSha256": "0b7b6fda7ad1c52e0420261bd48b7c3f0b9e6719a7179132829c11fb2873b4d6",
+    "catalogueAmendment": {
+      "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-catalogue-approval-binding-2026-10-25.json",
+      "artifactSha256": "efc13e6b51aa50bdeb41997471177a94a23bcdd6e1fe4bdb85be42af5be92181",
+      "stage": "CatalogueApprovedImplementationPendingReview"
+    },
+    "throttleMetadataAmendment": {
+      "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-3-throttle-approval-binding-2026-10-26.json",
+      "artifactSha256": "39cc08fd67953977a309cfa3d1aa662a59bdafa04e365147225c861cef5138a3",
+      "stage": "CatalogueApprovedImplementationPendingReview"
+    },
+    "publicConsumerBoundaryAmendment": {
+      "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-4-boundary-approval-binding-2026-10-27.json",
+      "artifactSha256": "fecfe2efeb5c0d1c675f01ad8a13131891a6631b3647f27d519a2271a50e9512"
+    }
+  },
+  "nativeSupportPendingAmendments": [
+    {
+      "id": "ephemeral-native-support-developer-facing-surface",
+      "owningChange": "support-ephemeral-native-aot",
+      "capability": "developer-facing-surface",
+      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "declaredRequirementCount": 2,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Workflow JSON metadata registration is exact and process scoped",
+        "Native authoring bootstrap has a static ownership recipe"
+      ],
+      "contractApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-independent-review-verdict-2026-10-23.md",
+      "canonicalPreparationTask": "2.1",
+      "canonicalReviewTask": "2.5",
+      "sourceTasks": [
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5",
+        "2.6"
+      ],
+      "canonicalApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": null,
+      "nativeQualificationEvidencePath": null,
+      "numberedRequirementPaths": [
+        "docs/specs/03-domain-model-and-glossary.md",
+        "docs/specs/04-requirements-core-runtime.md",
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/11-non-functional-requirements.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/17-selected-mode-capability-matrix.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+    },
+    {
+      "id": "ephemeral-native-support-quality-and-verification",
+      "owningChange": "support-ephemeral-native-aot",
+      "capability": "quality-and-verification",
+      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "declaredRequirementCount": 2,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Ephemeral native support requires six successful native cells",
+        "Native support diagnostics and public transitions remain truthful"
+      ],
+      "contractApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-independent-review-verdict-2026-10-23.md",
+      "canonicalPreparationTask": "2.1",
+      "canonicalReviewTask": "2.5",
+      "sourceTasks": [
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5",
+        "2.6"
+      ],
+      "canonicalApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": null,
+      "nativeQualificationEvidencePath": null,
+      "numberedRequirementPaths": [
+        "docs/specs/03-domain-model-and-glossary.md",
+        "docs/specs/04-requirements-core-runtime.md",
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/11-non-functional-requirements.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/17-selected-mode-capability-matrix.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+    },
+    {
+      "id": "ephemeral-native-support-structured-fiber-execution",
+      "owningChange": "support-ephemeral-native-aot",
+      "capability": "structured-fiber-execution",
+      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "declaredRequirementCount": 1,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Ephemeral native execution preserves closed typed dispatch"
+      ],
+      "contractApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-independent-review-verdict-2026-10-23.md",
+      "canonicalPreparationTask": "2.1",
+      "canonicalReviewTask": "2.5",
+      "sourceTasks": [
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5",
+        "2.6"
+      ],
+      "canonicalApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": null,
+      "nativeQualificationEvidencePath": null,
+      "numberedRequirementPaths": [
+        "docs/specs/03-domain-model-and-glossary.md",
+        "docs/specs/04-requirements-core-runtime.md",
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/11-non-functional-requirements.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/17-selected-mode-capability-matrix.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+    },
+    {
+      "id": "ephemeral-native-support-workflow-contracts",
+      "owningChange": "support-ephemeral-native-aot",
+      "capability": "workflow-contracts",
+      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "declaredRequirementCount": 2,
+      "pendingCanonicalOperationCount": 0,
+      "requirementIdentities": [
+        "Generated workflow metadata preserves the fixed codec",
+        "Missing generated metadata is diagnosed before effects"
+      ],
+      "contractApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-independent-review-verdict-2026-10-23.md",
+      "canonicalPreparationTask": "2.1",
+      "canonicalReviewTask": "2.5",
+      "sourceTasks": [
+        "2.2",
+        "2.3",
+        "2.4",
+        "2.5",
+        "2.6"
+      ],
+      "canonicalApprovalEvidencePath": null,
+      "sourceApprovalEvidencePath": null,
+      "nativeQualificationEvidencePath": null,
+      "numberedRequirementPaths": [
+        "docs/specs/03-domain-model-and-glossary.md",
+        "docs/specs/04-requirements-core-runtime.md",
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/11-non-functional-requirements.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/17-selected-mode-capability-matrix.md"
+      ],
+      "acceptanceCriteriaPaths": [
+        "docs/specs/12-acceptance-criteria.md"
+      ],
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+    }
+  ]
 }

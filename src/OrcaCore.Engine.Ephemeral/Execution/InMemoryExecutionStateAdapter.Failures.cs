@@ -171,8 +171,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             failure.Code,
             failure.Message,
             path,
-            timeProvider.GetUtcNow()));
+            timeProvider.GetUtcNow(), ToPublicFailure(failure)));
     }
+
+    private static global::OrcaCore.WorkflowFailure ToPublicFailure(FiberFailure failure) =>
+        global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WorkflowFailure(
+            failure.Code, failure.Message, failure.AuthoredLocation, failure.Occurrence,
+            failure.Causes.Select(ToPublicFailure).ToArray());
 
     private FiberFailure CreateFiberFailure(
         StructuredExecutionState execution,

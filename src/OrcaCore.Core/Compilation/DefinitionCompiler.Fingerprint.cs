@@ -210,6 +210,17 @@ internal static partial class DefinitionCompiler
 
     private static string PartitionerIdentity(object partitioner)
     {
+        if (partitioner is global::OrcaCore.Core.Definitions.IWorkflowPartitionerIdentity typed)
+            return typed.FingerprintIdentity;
+        if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||
+            !global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.LegacyReflectionEnabled)
+            throw new InvalidOperationException("The ForEach partitioner is missing its closed typed identity.");
+        return LegacyPartitionerIdentity(partitioner);
+    }
+
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Unconfigured legacy JIT partitioner identity only.")]
+    private static string LegacyPartitionerIdentity(object partitioner)
+    {
         var type = partitioner.GetType();
         var builder = new StringBuilder(type.AssemblyQualifiedName);
         foreach (var property in type

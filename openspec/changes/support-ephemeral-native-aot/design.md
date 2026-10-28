@@ -1,6 +1,6 @@
 ## Context
 
-Issue #13 follows the approved issue #3 assessment at native run 39721105482. Both native JIT controls passed 16/16. Default trimmed/AOT artifacts failed during definition/schema resolution; explicitly enabling JSON reflection advanced to nonpublic-constructor, runtime-property and closed-type metadata failures. Those results remain immutable historical facts. This contract authorizes no product implementation.
+Issue #13 follows the approved issue #3 assessment at native run 39721105482. Both native JIT controls passed 16/16. Default trimmed/AOT artifacts failed during definition/schema resolution; explicitly enabling JSON reflection advanced to nonpublic-constructor, runtime-property and closed-type metadata failures. Those results remain immutable historical facts. The R1 contract checkpoint contained no product implementation. The authorized uncommitted tasks 2.2–2.3 implement metadata/API behavior and typed dispatch; native-host qualification and the whole-target review remain pending.
 
 ## Goals / Non-Goals
 
@@ -10,7 +10,7 @@ Non-goals: durable/DAG/provider qualification, dynamic plugins, unrestricted run
 
 ## Decisions
 
-### 1. One additive public metadata surface
+### 1. Exact additive public metadata and product-converter catalogue
 
 Assembly/package OrcaCore, namespace OrcaCore:
 
@@ -22,9 +22,27 @@ public static class WorkflowJsonMetadata
 }
 ```
 
-This is the entire added public type/member catalogue. No instance constructor, reset, unregister, resolver/options/converter parameter, new registration overload or package is added. Existing public signatures and role fingerprints remain unchanged. Implementation may replace private reflection with direct operations under existing friend grants. Any additional public attribute, generic-parameter annotation or signature requires an explicit reviewed catalogue amendment before baselines change.
+The R1 approval covered only that metadata class/method. Explicit user approval of the 2026-10-25 amendment additionally authorizes the following exact catalogue, bound in task-2-2-catalogue-approval-binding-2026-10-25.json. Task 2.2 changes only the existing factory class accessibility. In assembly/package OrcaCore, retain its existing namespace:
+
+```csharp
+namespace OrcaCore.Abstractions.Ids;
+
+public sealed class StrongStringValueJsonConverterFactory
+    : System.Text.Json.Serialization.JsonConverterFactory
+{
+    public StrongStringValueJsonConverterFactory();
+    public override bool CanConvert(System.Type typeToConvert);
+    public override System.Text.Json.Serialization.JsonConverter CreateConverter(
+        System.Type typeToConvert,
+        System.Text.Json.JsonSerializerOptions options);
+}
+```
+
+This exposes the existing factory's implicit parameterless constructor and existing overrides by changing only the class accessibility. No explicit constructor/body rewrite, new annotation, overload, base type, generic bridge or additional export is authorized. Keep the factory sealed, its closed eleven-type switch and private converter unchanged, and preserve every existing strong-value JsonConverterAttribute. The exact type list, behavior and supplemental NS-02d/NS-06g–h proof are in [the amendment](artifacts/contract-converter-catalogue-amendment-2026-10-25.md). Those signatures plus WorkflowJsonMetadata/Register and the explicitly approved throttle parameter annotation below are the entire amended public catalogue. No metadata instance constructor, reset, unregister, resolver/options/converter parameter, new registration overload or package is added. Other public signatures and role fingerprints remain unchanged. Implementation may replace private reflection with direct operations under existing friend grants. Any further public attribute, generic-parameter annotation or signature requires another explicit reviewed catalogue amendment before baselines change.
 
 The application supplies one ordinary System.Text.Json source-generated context covering every application-owned input, state, output, event, item, branch/result and collection closure. It uses metadata generation (Metadata or Default), default serializer settings and no custom converter or resolver. Product-owned primitive/strong-value/failure contracts are installed by the library. Product-owned converters always retain priority. Unsupported source-generation shapes, including the explicit .NET 10 omission/member-initializer restriction in decision 5, are diagnosed explicitly and are outside the finite native support boundary; ordinary JIT's existing reflection path remains available when metadata is never registered.
+
+An external generated DTO containing EventName currently produces SYSLIB1220/SYSLIB1030 because its product JsonConverterAttribute names an internal factory. Runtime metadata cannot repair this compile failure. The accessibility amendment lets the framework generator reference that existing product attribution. It does not require consumers to add a converter: explicit context converter settings, including listing this now-accessible product factory, remain rejected with NotSupportedException before publication and permit valid retry before first use. Merely constructing or using the factory has no registration/seal/DI/host side effects. Its visibility is not a native-support claim for other engines or for every public type.
 
 The supplied context describes types; it does not choose wire behavior. The engine creates its own fixed options and requests metadata against those options through the context's generated resolver implementation. It ignores app context settings as configuration and rejects nondefault options/custom converters, serialization-only contexts and mutable/custom resolver chains. Validate the actual metadata graph before use, including property converters, collection closure, derived types and required read/write metadata. Neither accepting JsonTypeInfo instances nor trusting app report serialization constitutes a solution. P3 adds two mandatory configuration negatives: a source-generated context with UseStringEnumConverter=true must be rejected even when its Options.Converters list is empty and engine options are default; the review's handwritten context that renames Value to changed must also be rejected despite satisfying JsonSerializerContext/new() and presenting default options. Both raise NotSupportedException identifying the context and unsupported policy/provenance, install nothing, preserve retry before first use and cause no workflow effects. Generic constraints, default options and a zero converter count alone are insufficient validation. Bounded validation of source-generation configuration/provenance and the actual metadata remains required; copied marker strings are not a security attestation. These are ordinary configuration conformance controls, with no promise to authenticate deliberately forged application code.
 
@@ -48,7 +66,7 @@ The existing JIT definition-first recipe remains compatible. The supported nativ
 
 ### 4. Preserve generic knowledge through the runtime
 
-Carry closed generic operations from typed authoring/registration rather than reconstructing them from Type/object later. Internal typed adapters cover definition identity and installation, staged definitions, start snapshots, state/output queries, step contexts, delegate bodies/selectors/merges, typed StepResult waits, incoming/outgoing events, snapshots and branch/item materialization. Product value/failure construction uses direct constructors within existing access boundaries. No application bridge to a private implementation is permitted.
+Carry closed generic operations from typed authoring/registration rather than reconstructing them from Type/object later. Internal typed adapters cover definition identity and installation, staged definitions, start snapshots, state/output queries, step contexts, delegate bodies/selectors/merges, typed StepResult parking, public inbound value construction/materialization, snapshots and branch/item materialization. Product value/failure construction uses direct constructors within existing access boundaries. No application bridge to a private implementation is permitted.
 
 The supported paths must not depend on MakeGenericType/MakeGenericMethod, DynamicInvoke, compiled expression IL, property-name dispatch, nonpublic-constructor discovery, dynamic assembly loading or runtime-only generic instantiation. Bounded reflection with proven preserved metadata can remain only when individually justified and AOT-analyzable; a blanket rooting descriptor is not proof. Audit every original risk site and warnings, including paths masked by the first old failure. Statically close value-type and reference-type cases; Native AOT generic sharing must not be assumed to materialize arbitrary value-type instantiations.
 
@@ -76,6 +94,8 @@ Use external PackageReference-only consumers, exact candidate source/package has
 
 Run AOT-01–16 from the immutable task-2 protocol with every original assertion retained, plus NS-01–12 and their mandatory F1/P3 subcases in contract-r1-consumer-protocol-2026-10-23.md. The F1 rejection is an asserted negative case; it does not turn a cell or any original positive journey into Unsupported. Earlier expected-unsupported rows are historical; new success expectations are a separate versioned record. Missing native hosts keep implementation incomplete. One fixed failure, a successful publish, a skipped scenario or a new Unsupported result cannot satisfy issue #13.
 
+The approved catalogue amendment also requires executing NS-02d/NS-06g–h from the amendment in all six cells and the legacy JIT control. They retain the ordinary externally generated DTO root that exposed the compiler failure, cover all eleven attributed strong types at root/nested/collection positions, preserve exact quoted-string bytes, equality and fingerprint parity, reject unsupported direct factory requests, and prove that explicit application converter settings remain prohibited. No warning suppression, root omission or private bridge satisfies this addition. The existing nested-failure corpus finding remains a separate incomplete task-2.2 obligation; this amendment grants no waiver or task advance.
+
 Retain detailed trim/AOT/generator diagnostics and individual classifications with no blanket suppression, reflection switch or private/whole-assembly roots. Resolve all OrcaCore-attributable warnings on the supported closure; third-party/toolchain warnings require explicit cause, supported-path safety and independent approval. Unexpected warnings fail the gate. Enable analysis in the affected projects during the source target; add broad IsAotCompatible/IsTrimmable metadata only after every exposed path is actually qualified or truthfully annotated in an amended public catalogue. Otherwise keep package metadata conservative and document the selected recipe.
 
 The normal lanes stay dotnet test as CI invokes them. The user's runner preference is retained for later evaluation; a test-runner migration is outside this issue. No source target may replace CI-path stress evidence with direct-runner evidence.
@@ -97,3 +117,31 @@ The normal lanes stay dotnet test as CI invokes them. The user's runner preferen
 ## Open Questions
 
 No deferred public-API or ownership decision. Implementation feasibility, exact warning identities and native execution results are obligations of the later target. If its implementation needs another API, different bytes or a different supported boundary, amend and review the contract before implementation proceeds beyond that boundary.
+
+The explicitly approved 2026-10-26 throttle metadata amendment authorizes only
+DynamicallyAccessedMembers(Interfaces) on the existing TStep parameter of
+OrcaCore.Hosting.StepExecutionThrottle.For<TStep>(int maxConcurrency). The body,
+capacity-first validation, exception parameter names, exact named-step identity
+and physical-slot ownership stay unchanged. NS-09a covers concrete/inherited
+IStep contracts, annotated generic callers and invalid types/capacities in JIT,
+full trim and Native AOT, and requires IL2090 to disappear without suppression.
+Generic application wrappers must propagate this interface metadata requirement.
+This method-scoped proof grants no package-wide compatibility badge. Approval is
+bound in artifacts/task-2-3-throttle-approval-binding-2026-10-26.json; the original
+proposal and held review remain immutable. Task 2 remains uncommitted and native
+host/whole-target approval remains pending.
+
+### Approved 2026-10-27 public-consumer boundary
+
+NS-10 follows the bounded public recipe approved in the adjacent amendment:
+typed inbound value construction/materialization, typed StepResult.WaitForEvent
+parking and physical cancellation/join, timers/retries, transient-pool grants,
+root Parallel and bounded ForEach. The public ephemeral closure exports neither
+live event ingress/resumption nor outgoing Publish. These receive no native
+credit. Existing internal event regressions remain required, without substituting
+for public-package execution. NS-07/08/11 prove public value rejection and
+retained-instance state; they make no public delivery claim. Every original
+AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required.
+A future ingress/publish capability requires its own reviewed public contract.
+This is an explicit qualification-scope adjustment, not the old full event
+requirement passing. Source/public API and the fixed codec are unchanged.
