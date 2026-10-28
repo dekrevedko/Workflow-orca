@@ -32,7 +32,7 @@ def identities(repo):
             source[name] = digest(path.read_bytes())
         if (name.startswith("tools/ephemeral-native-assessment/") and "__pycache__" not in name and path.suffix in (".py", ".cs", ".csproj")) or \
                 name.startswith("tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/") and path.suffix == ".cs" or \
-                name == ".github/workflows/ephemeral-native-support.yml":
+                name in (".github/workflows/ephemeral-native-support.yml", "tools/ephemeral-native-assessment/support_v2/diagnostic-decisions.json"):
             harness[name] = digest(path.read_bytes())
     return source, harness
 
@@ -111,7 +111,7 @@ def run(args):
     source, harness = identities(repo)
     properties = dict(PublishAot=args.flavor == "aot", PublishTrimmed=args.flavor != "jit", TrimMode="full", TrimmerSingleWarn=False,
                       TreatWarningsAsErrors=False, ILLinkTreatWarningsAsErrors=False)
-    report = dict(protocol=2, sourceSha=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+    report = dict(protocol=3, sourceSha=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
                   sourceTree=subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True).strip(),
                   sourceDirty=bool(subprocess.check_output(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd=repo)),
                   consumerBuildPropsIsolated=True,

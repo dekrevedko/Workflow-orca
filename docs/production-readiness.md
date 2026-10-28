@@ -216,18 +216,22 @@ adds no general native-support or production-readiness badge. All findings and
 unavailable unsupported-workload metrics are retained. Process-memory and managed-
 heap observations keep their separate meanings and host-specific names.
 
-## Issue #13 support implementation pending (2026-10-24)
+## Issue #13 source-qualified recipe; release pending (2026-10-27)
 
-Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
-canonical contract is synchronized; product implementation and native support
-qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
-boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
-unsupported for that released profile. This amendment does not change that fact.
+Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
+this source's bounded public ephemeral recipe. Native run 40629471843 passed
+self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
+and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
+Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
+version is published by this approval. See [the qualified recipe](ephemeral-native-support.md).
 
 The approved metadata API, process seal, static bootstrap and explicit .NET 10
-F1 admission restriction are source obligations, not readiness evidence. The
-planned proof is six real native public-package cells plus every original and
-R1 control, exact source/package/harness identity and individual diagnostics.
+F1 admission restriction are implemented. Six real native public-package cells
+pass 356 case executions, all original journeys/NS groups/subcases, exact source/
+package/harness identity and individual diagnostic gates. Full validation passed
+969 unit, 188 provider/integration and 302 Infrastructure cases, fifty unfiltered
+dotnet test stress runs and 79.32% CI engine line coverage. This is bounded
+compatibility evidence, not a stable-release or general production-readiness badge.
 No blanket suppression, private roots, reflected JSON switch or successful
 publish substitutes for execution. No faster/smaller, provider/DAG, additional
 RID or all-package claim is made. Existing CI coverage/publication facts and

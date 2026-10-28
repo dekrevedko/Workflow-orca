@@ -304,7 +304,7 @@ extras are unsupported for that exact profile. It adds no provider, role,
 fingerprint, friend, codec resolver or serializer hook. PR-016 and PR-041 remain
 unchanged; any compatibility remediation needs its own reviewed amendment.
 
-## PR-016 native metadata amendment (issue #13; implementation pending)
+## PR-016 native metadata amendment (issue #13; source-qualified, release pending)
 
 The fixed engine-owned orcacore-json-v1 wire contract remains authoritative.
 The metadata entry point is OrcaCore.WorkflowJsonMetadata.Register<TContext>()

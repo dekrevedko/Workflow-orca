@@ -378,7 +378,7 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 <!-- dag-run-contract-proposal:end -->
 
-## Native metadata vocabulary (issue #13; implementation pending)
+## Native metadata vocabulary (issue #13; source-qualified, release pending)
 
 Generated mode means the process uses one application source-generated JSON
 metadata context under the engine-owned orcacore-json-v1 options. It is a type

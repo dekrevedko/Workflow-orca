@@ -1,0 +1,183 @@
+{
+  "schemaVersion": 1,
+  "jsonReflectionEnabled": false,
+  "mode": "--all",
+  "runtimeSettings": {
+    "frameworkDescription": ".NET 10.0.14",
+    "runtimeVersion": "10.0.14",
+    "dynamicCodeSupported": false,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "tieredCompilationAppContextOverride": null,
+    "tieringObservation": "Only explicit AppContext/config/environment settings are observable here; null means no such override, not a measured JIT tier."
+  },
+  "cases": [
+    {
+      "id": "AOT-01",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-02",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-03",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-04",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "WaitCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-05",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "WorkflowCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-06",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "ClosedDrain",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-07",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Incomplete",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-08",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-09",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Parallel",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-10",
+      "outcome": "Passed",
+      "assertions": 16,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release",
+        "host bound 2, node bound 3: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-11",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-12",
+      "outcome": "Passed",
+      "assertions": 5,
+      "phase": "UnsupportedDeclaredConverter",
+      "observations": [
+        "OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for 'Customized'. (workflow:$)\n   at OrcaCore.Core.Authoring.<PublicWorkflowDefinitions>FA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation`1) + 0x5b\n   at OrcaCore.EphemeralWorkflowCompletionBuilder`1.Build() + 0x42\n   at Cases.<>c__DisplayClass15_0.<UnsupportedConverter>b__1() + 0xe1\n   at Probe.<Error>d__5.MoveNext() + 0x61"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-13",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "InputBoundary",
+      "observations": [
+        "System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object, Type, HashSet`1, Boolean) + 0x605\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object, Type, HashSet`1, Boolean) + 0x2dd\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object, Type) + 0x50\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T) + 0x38\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.<StartCoreAsync>d__24`1.MoveNext() + 0x15c\n--- End of stack trace from previous location ---\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.<StartAsync>d__23`2.MoveNext() + 0x1e4\n--- End of stack trace from previous location ---\n   at Cases.<>c__DisplayClass16_0.<<CyclicInput>b__2>d.MoveNext() + 0x9c\n--- End of stack trace from previous location ---\n   at Probe.<Error>d__5.MoveNext() + 0x4f"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-14",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Start",
+      "observations": [
+        "Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes."
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-15",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-16",
+      "outcome": "Passed",
+      "assertions": 11,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    }
+  ],
+  "quiescentCounters": {
+    "phase": "after individual case cleanup; informational counters, no retained bootstrap owner",
+    "cumulativeUserPlusKernelCpuMs": 58.251,
+    "peakWorkingSetBytes": 41062400,
+    "workingSetBytes": 41062400,
+    "linuxPrivateResidentBytes": 29728768,
+    "estimatedManagedBytesNoForcedGc": 7736152,
+    "lastCollectionHeapBytes": 4570920,
+    "collectionCounts": [
+      1,
+      1,
+      1
+    ]
+  },
+  "loadedModulePaths": [
+    "/home/runner/work/_temp/issue-13-work/journey/publish/NativeConsumer",
+    "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+    "/usr/lib/x86_64-linux-gnu/libicui18n.so.74.2",
+    "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+    "/usr/lib/x86_64-linux-gnu/libicudata.so.74.2",
+    "/usr/lib/x86_64-linux-gnu/libicuuc.so.74.2",
+    "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+    "/usr/lib/x86_64-linux-gnu/libc.so.6",
+    "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+    "/usr/lib/x86_64-linux-gnu/libm.so.6",
+    "[vdso]",
+    "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+  ]
+}

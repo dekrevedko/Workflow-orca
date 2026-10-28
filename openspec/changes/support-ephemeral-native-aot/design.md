@@ -1,6 +1,6 @@
 ## Context
 
-Issue #13 follows the approved issue #3 assessment at native run 39721105482. Both native JIT controls passed 16/16. Default trimmed/AOT artifacts failed during definition/schema resolution; explicitly enabling JSON reflection advanced to nonpublic-constructor, runtime-property and closed-type metadata failures. Those results remain immutable historical facts. The R1 contract checkpoint contained no product implementation. The authorized uncommitted tasks 2.2–2.3 implement metadata/API behavior and typed dispatch; native-host qualification and the whole-target review remain pending.
+Issue #13 follows the approved issue #3 assessment at native run 39721105482. Both native JIT controls passed 16/16. Default trimmed/AOT artifacts failed during definition/schema resolution; explicitly enabling JSON reflection advanced to nonpublic-constructor, runtime-property and closed-type metadata failures. Those results remain immutable historical facts. The R1 contract checkpoint contained no product implementation. Tasks 2.2–2.5 implement metadata/API behavior and typed dispatch with approved native-host evidence; checkpoint 8566986 / user-verdict child 1ad2a59 close that gate. Publication remains pending.
 
 ## Goals / Non-Goals
 
@@ -128,8 +128,7 @@ full trim and Native AOT, and requires IL2090 to disappear without suppression.
 Generic application wrappers must propagate this interface metadata requirement.
 This method-scoped proof grants no package-wide compatibility badge. Approval is
 bound in artifacts/task-2-3-throttle-approval-binding-2026-10-26.json; the original
-proposal and held review remain immutable. Task 2 remains uncommitted and native
-host/whole-target approval remains pending.
+proposal and held review remain immutable. Task 2 is approved at 8566986 / 1ad2a59; publication remains pending.
 
 ### Approved 2026-10-27 public-consumer boundary
 
@@ -145,3 +144,37 @@ AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required
 A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
+
+### Current publication preparation (2026-10-27)
+
+The exact 327-path task-2 source/evidence target is checkpointed at 8566986, tree
+6f697b1374800a2b5d7b4196f9c841f0330d6247, with user-approval-only child 1ad2a59.
+Task 3.1 binds that actual chain, prepares source-qualified/release-pending guides
+and a PR draft, and removes only the temporary workflow push trigger. That initial
+preparation kept canonical/delta blocks, product source, public catalogue and
+executable baselines unchanged. The source-qualified recipe retains every explicit boundary amendment
+and excludes live event delivery/publishing, other engines/RIDs and broad badges.
+Task 3.1 remains uncommitted for independent review; push, PR, issue changes,
+release and merge are not authorized. Existing released-version/assessment facts
+and all dated frozen records remain unchanged.
+
+### Post-review codec corrections (2026-10-28)
+
+The current target additionally fixes the two whole-AOT review findings in three
+internal serialization files. Exclude write-only descriptors from serialized
+closure checks while retaining the approved synthetic-initializer restriction.
+Validate every actual serialized member value, including fields/internal getters
+and collection elements; keep the public-property prepass and avoid recursively
+reading object properties in the added serializer callback. This preserves public
+getter counts (two) and included getter counts (one), while rejecting unapproved
+runtime values in both modes. The legacy reflection resolver is created lazily
+inside the existing JIT-only fence; Generated mode gets no reflection fallback.
+
+These are corrections under the existing codec rules, not another admission
+exception or public amendment. The former included-member behavior could silently
+lose subtype data and is intentionally rejected now. Valid wire bytes, fingerprints,
+ownership and public/API baselines remain fixed. Protocol 3 retains every original
+journey/group/subcase and adds member regressions. Run 40762764617 executes the
+exact corrected source/feed/harness on the required six native cells, 384/384.
+Current correction source/native approvals remain unset pending review. The only
+authorized push was temporary evidence commit 7f1034c on codex/issue-13-native-evidence.

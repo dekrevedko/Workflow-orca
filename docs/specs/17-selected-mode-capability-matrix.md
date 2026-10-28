@@ -3078,19 +3078,21 @@ The six default cells and four extras remain separate; these observations apply
 only to the tested consumer/package/toolchain profile. Any product compatibility
 remediation needs a separate amendment.
 
-## Issue #13 generated metadata contract (implementation pending)
+## Issue #13 generated metadata contract (source-qualified; release pending)
 
-Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
-canonical contract is synchronized; product implementation and native support
-qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
-boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
-unsupported for that released profile. This amendment does not change that fact.
+Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
+this source's bounded public ephemeral recipe. Native run 40629471843 passed
+self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
+and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
+Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
+version is published by this approval. See [the qualified recipe](../ephemeral-native-support.md).
 
-### Exact prospective surface
+### Exact implemented surface
 
 Namespace/assembly/package OrcaCore. The following declaration is approved for
-the source slice; it is not available in released preview.2. The declaration
-companion and executable API/compile/package baselines move with the task-2.2 source; whole-target/native qualification remains pending.
+the implemented source; it is not available in released preview.2. The declaration
+companion and executable API/compile/package baselines match checkpoint 8566986;
+whole-target/source qualification is approved for the bounded recipe only.
 
 ```csharp
 public static class WorkflowJsonMetadata
@@ -3154,7 +3156,7 @@ bodies and strong-value attributes remain fixed. Ordinary generated DTOs may use
 the product attribution; explicit context converter settings remain prohibited,
 even when listing this factory. Construction/conversion has no metadata seal,
 registration or DI/host effects. NS-02d/NS-06g–h supplement the existing cases;
-API/compile/package coverage is task 2.2, native qualification is still task 2.4.
+API/compile/package coverage and all six native cells include NS-02d/NS-06g–h.
 This adds no compatibility claim for other engines or released preview.2.
 
 ### Approved throttle metadata annotation (2026-10-26)
@@ -3164,8 +3166,8 @@ Interfaces metadata requirement on TStep. Validation body/order, exact named-ste
 identity, errors and physical ownership remain unchanged. Annotated generic
 wrappers propagate the same requirement. NS-09a covers valid/inherited steps,
 invalid types and capacity-first validation in JIT, trim and AOT with no IL2090.
-This is method-scoped catalogue approval; native host qualification remains
-implementation pending under task 2.4. The authoring declaration companion does
+This is method-scoped catalogue approval, included in all six approved native
+cells; no broader API or engine is qualified. The authoring declaration companion does
 not declare this hosting value type; its authoring surface remains unchanged.
 
 ### Approved 2026-10-27 public-consumer boundary

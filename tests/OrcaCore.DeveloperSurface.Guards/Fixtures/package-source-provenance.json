@@ -5,12 +5,12 @@
     {
       "id": "OrcaCore",
       "project": "src/OrcaCore.Abstractions/OrcaCore.csproj",
-      "sourceSha256": "fba17f4dbba4154a149cb766481d852638a496096b5eaef24a82f0aa60006243"
+      "sourceSha256": "d55cc7aefd2f80285833ffe7a1f566ffa5353245b27a2de00293ea7e515dad26"
     },
     {
       "id": "OrcaCore.Core",
       "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
-      "sourceSha256": "8d051930300b7603a87b5780053a2eeb9d72d889adbd3c1bcbbbe19db5d366a1"
+      "sourceSha256": "68f37f07de08f5a64e46efdec604d24f1b6a7cf93ad4acaa2da63dd97fcd4cc5"
     },
     {
       "id": "OrcaCore.Dag",

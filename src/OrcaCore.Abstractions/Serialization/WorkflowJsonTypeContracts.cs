@@ -47,7 +47,7 @@ internal static class WorkflowJsonTypeContracts
                         throw new WorkflowJsonContractException("SFE-TYPE-002",
                             $"Generated .NET 10 omission restriction: root '{root.FullName}' contains '{type.FullName}.{property.Name}' with an omittable synthetic member initializer in context '{context.FullName}'. Use an ordinary setter, a genuine JSON-constructor-bound member, or remove the omission policy.");
                 }
-                if (property.Get is not null || property.Set is not null || property.AssociatedParameter is not null)
+                if (property.Get is not null)
                     Visit(property.PropertyType);
             }
             return info;

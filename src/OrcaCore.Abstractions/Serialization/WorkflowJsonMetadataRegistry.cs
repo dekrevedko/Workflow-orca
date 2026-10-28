@@ -170,9 +170,13 @@ internal static class WorkflowJsonMetadataRegistry
 
     private sealed class FixedMetadataResolver(JsonSerializerContext application) : IJsonTypeInfoResolver
     {
-        public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions serializerOptions) =>
-            ((IJsonTypeInfoResolver)WorkflowJsonProductContext.Default).GetTypeInfo(type, serializerOptions) ??
-            ((IJsonTypeInfoResolver)application).GetTypeInfo(type, serializerOptions);
+        public JsonTypeInfo? GetTypeInfo(Type type, JsonSerializerOptions serializerOptions)
+        {
+            var info = ((IJsonTypeInfoResolver)WorkflowJsonProductContext.Default).GetTypeInfo(type, serializerOptions) ??
+                ((IJsonTypeInfoResolver)application).GetTypeInfo(type, serializerOptions);
+            if (info is not null) FixedWorkflowValueCodec.ValidateSerializedMembers(info);
+            return info;
+        }
     }
 
     internal static JsonTypeInfo? ResolveContract(Type root)

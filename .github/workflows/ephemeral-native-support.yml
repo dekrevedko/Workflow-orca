@@ -2,8 +2,6 @@ name: Issue 13 native support qualification
 
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/issue-13-native-evidence]
 
 permissions:
   contents: read

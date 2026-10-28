@@ -749,7 +749,7 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 <!-- dag-run-contract-proposal:end -->
 
-## Ephemeral native support (AC-563–574; implementation pending)
+## Ephemeral native support (AC-563–574; source-qualified, release pending)
 
 - **AC-563** NS-01: Static role-registration → metadata → authoring bootstrap is reachable before definition construction, without DI/provider/step resolution or admission; fresh-process missing-install and original JIT missing-engine controls are actionable. [NF-034]
 
@@ -775,5 +775,5 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 - **AC-574** NS-12: The exact metadata API compiles from package OrcaCore without an internal bridge or extra public API; fresh-process/package bootstrap and multiple-provider controls pass. CI uses dotnet test, all six native cells retain original AOT-01–16 assertions, exact package/source identities and individual diagnostic accounting. No support badge or broader package claim precedes independent native qualification. [NF-034]
 
-These are mandatory future source/package/native assertions. Markdown, a green
+These are mandatory source/package/native regression assertions. Markdown, a green
 contract lane or the original unsupported assessment supplies no execution credit.

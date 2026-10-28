@@ -135,9 +135,9 @@ GitHub release download feed.
 ## Remaining work
 
 - Durable DAG execution is incomplete; package availability does not complete its implementation gates.
-- Trimming and Native AOT are unsupported for the assessed Windows/Ubuntu profiles,
-  including the labelled JSON-reflection-enabled extra runs. Closing issue #3 records
-  the completed assessment; it does not add native support.
+- Released preview.2 retains issue #3's unsupported trimming/AOT profiles. Issue #13
+  qualifies a new source candidate's bounded ephemeral recipe; its release is pending.
+  See [native support and startup requirements](docs/ephemeral-native-support.md).
 - Retention is opt-in and is not a byte/RSS cap or a minimum result-retention guarantee.
   Shutdown requires the actual dependency owner to retain resources after `Incomplete`.
 
@@ -189,17 +189,20 @@ benchmarks, and solution are the active implementation.
 Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
 The public-package consumer passes all sixteen JIT scenarios on Windows Server 2025
 and Ubuntu 24.04. Trimmed and Native AOT defaults and JSON-reflection-enabled extras
-are unsupported for this exact tested profile. No Native AOT/trimming support is
-promised. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
+are unsupported for the earlier preview.2 profile. That assessment grants no
+native support to those released packages. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
 for the tested packages, toolchain, raw evidence and reproduction instructions.
 
-## Native AOT/trimming support work (issue #13; implementation pending)
+## Native AOT and trimming (issue #13; source-qualified, release pending)
 
-The approved [issue #13 contract](openspec/changes/support-ephemeral-native-aot/proposal.md)
-adds a finite generated-metadata path for the selected ephemeral journey. Product
-implementation and native qualification are pending; preview.2 retains the
-unsupported trimmed/AOT assessment above. No new support claim or package-wide
-compatibility badge is made. The [developer guide](docs/ephemeral-engine-developer-guide.md#issue-13-native-metadata-path-implementation-pending)
-records the prospective startup/type boundary and early failure remedies.
+Source checkpoint `8566986`, approved at verdict child `1ad2a59`, passes the selected
+public ephemeral recipe on Windows Server 2025 x64 and Ubuntu 24.04 x64 in JIT,
+full-trim and Native AOT profiles. [Native run 40629471843](https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843)
+records all six cells. Preview.2 remains the existing released version and lacks
+`WorkflowJsonMetadata`; no new version or broad compatibility badge is published.
 
-The approved issue #13 catalogue additionally makes the existing sealed OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory accessible to the framework generator for ordinary DTOs containing product strong values. Keep the product attributes; do not list the factory in context converter options. Candidate source/API validation is task 2.2, and native/whole-target qualification remains pending. This is not a preview.2 recipe or a broader compatibility claim.
+The [qualified recipe](docs/ephemeral-native-support.md) explains packages,
+source-generated metadata, process-wide startup order, the finite type boundary
+and diagnostics. Keep product converter attributes; do not add the public factory
+to context options. Live event delivery/resumption and outgoing publishing remain
+outside native credit. Durable/DAG/providers and other RIDs need separate proof.

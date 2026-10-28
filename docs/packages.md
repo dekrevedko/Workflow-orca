@@ -135,8 +135,23 @@ mirroring an existing prerelease to GitHub Packages without rebuilding it. The
 registries use separate authentication and permissions. Signing, SourceLink, and stable API
 compatibility remain outside this prerelease workflow.
 
-## Issue #13 candidate compatibility boundary (implementation pending)
+## Issue #13 candidate compatibility boundary (source-qualified; release pending)
 
-Released 0.1.0-preview.2 does not contain WorkflowJsonMetadata. Its existing registry installation/authentication instructions remain unchanged. Candidate packages for issue #13 will be packed from reviewed source and tested outside repository build props with fresh caches and source mapping. Only the actual selected OrcaCore/Core/Ephemeral closure can gain a finite qualified claim; the twelve-package inventory is not an all-package AOT badge.
+Checkpoint `8566986` and user-approval child `1ad2a59` qualify the selected
+`OrcaCore` / `OrcaCore.Core` / `OrcaCore.Engine.Ephemeral` recipe described in
+[the native support guide](ephemeral-native-support.md). The approved six-cell
+candidate feed uses validation version `0.0.0-phase0`; it is not a published
+package version. Preview.2 lacks `WorkflowJsonMetadata` and remains unsupported
+for the earlier assessed trimmed/AOT profiles.
 
-The issue #13 catalogue amendment exposes the existing sealed product StrongStringValueJsonConverterFactory in OrcaCore, with its constructor and two existing overrides, for ordinary generated strong-value DTOs. The package consumer must not add it to context options. This adds no package/dependency/friend and no released-preview.2 or all-package native support claim.
+A future prerelease must use a new, unused version, pass release/registry gates
+and verify its source/profile before installation instructions name it as
+available. No new release version is assigned by this publication-preparation
+target. Local source builds can use a distinct private prerelease label; do not
+substitute preview.2 or mix versions across the selected closure.
+
+The existing product `StrongStringValueJsonConverterFactory` is public for
+ordinary generated strong-value DTOs. Keep product attributes; explicit context
+converter options, including this factory, remain prohibited. The twelve-package
+inventory grants no all-package native badge. Existing NuGet.org/GitHub Packages
+authentication and published-version instructions above are unchanged.

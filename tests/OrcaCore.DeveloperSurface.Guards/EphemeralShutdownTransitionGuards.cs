@@ -73,7 +73,7 @@ public sealed class EphemeralShutdownTransitionGuards
     {
         using var fixture = Load();
         var current = fixture.RootElement;
-        current.GetProperty("schemaVersion").GetInt32().Should().Be(20);
+        current.GetProperty("schemaVersion").GetInt32().Should().Be(22);
         var before = JsonNode.Parse(Git("show", SourceVerdictCommit + ":" + Registry))!.AsObject();
         var after = JsonNode.Parse(current.GetRawText())!.AsObject();
         // The native-support extension is independently validated, including unchanged prior records.

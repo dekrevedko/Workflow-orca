@@ -1,0 +1,63 @@
+{
+  "base": "1ad2a5946b2874fd709571376a67799f5c7f9cd1",
+  "checkpoint": "8566986850dc377f5a69e165dd58936be50ad722",
+  "tree": "6f697b1374800a2b5d7b4196f9c841f0330d6247",
+  "verdictChild": "1ad2a5946b2874fd709571376a67799f5c7f9cd1",
+  "stage": "PublicationPreparedPendingIndependentReview",
+  "openspec": {
+    "passed": 25,
+    "failed": 0
+  },
+  "build": {
+    "warnings": 0,
+    "errors": 0
+  },
+  "infrastructure": {
+    "passed": 302,
+    "failed": 0,
+    "skipped": 0,
+    "trxSha256": "2fae39a961bdb43a7a2ca802aae287eac5c7527bde4078f048f860d1b4141c24"
+  },
+  "resharper": {
+    "version": "2026.2.3.1",
+    "platform": "Any CPU",
+    "configuration": "Release",
+    "framework": "net10.0",
+    "buildEnabled": true,
+    "scopeFiles": 3,
+    "errors": 0,
+    "warnings": 53,
+    "notes": 44,
+    "sarifSha256": "012a895b644d0a41a17ef78106b54a49df29bac137ea79eae6e9ba4be10aa610"
+  },
+  "guideConsumer": {
+    "result": 42,
+    "codeSha256": "5ffecf9aeb508666a0f5109fe92b657dd4c9aa6ea8a7dd02c51ffa8b5f643487",
+    "selectedProductPackages": [
+      "OrcaCore",
+      "OrcaCore.Core",
+      "OrcaCore.Engine.Ephemeral"
+    ],
+    "projectReferences": false,
+    "freshCache": true,
+    "localEmptyMsbuildBoundary": true,
+    "mode": "JIT; no new six-cell execution claim"
+  },
+  "localLinksChecked": 81,
+  "productSourceChanged": false,
+  "canonicalDeltaChanged": false,
+  "apiCompilePackageBaselinesChanged": false,
+  "workflowOnlyTemporaryPushTriggerRemoved": true,
+  "temporaryEvidenceCommitRequiredByNewGuard": false,
+  "task26Checked": true,
+  "task31Open": true,
+  "pushAuthorized": false,
+  "prOpened": false,
+  "packageReleasePublished": false,
+  "carriedResults": "969 unit; 188 provider/integration; 50 stress runs; 79.3158% engine coverage; six native cells/356 cases are approved task-2 evidence, not rerun here",
+  "resolvedSelfReviewFindings": [
+    "Use permanent approved checkpoint for historical workflow bytes instead of non-ancestor temporary commit",
+    "Include hosting/DI implementation dependency for standalone guide sample",
+    "Separate each profile publish output and retain individual trim diagnostics"
+  ]
+}

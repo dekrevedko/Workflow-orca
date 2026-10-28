@@ -214,19 +214,21 @@ work-lane consolidation remain separate maintenance.
 
 ## Issue #13 native support transition (2026-10-24)
 
-Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
-canonical contract is synchronized; product implementation and native support
-qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
-boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
-unsupported for that released profile. This amendment does not change that fact.
+Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
+this source's bounded public ephemeral recipe. Native run 40629471843 passed
+self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
+and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
+Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
+version is published by this approval. See [the qualified recipe](../ephemeral-native-support.md).
 
 One coherent task-2 target owns canonical/docs reconciliation, Git-backed
 contract binding, tests, source, executable baselines and six-cell native proof.
 Major internal slices receive a separate review before advancing; no separate
-activation target is required. Source approval/native qualification remain null
-until the final reviewed implementation target. Public/API/compile/package
-baselines and the declaration companion move with actual source in task 2.2,
-never in advance. Validation-branch pushes need their own authorization.
+activation target is required. Task 2 is now checkpointed and approved; its exact
+Git chain and scoped source/native approval are bound for publication review.
+Public/API/compile/package baselines moved with source. Task 3.1 preparation stays
+uncommitted for independent review; push/PR/release/merge need later authority.
+The temporary validation-branch push authorization does not authorize publication.
 Publication/PR/merge/issue closure remain later gates; no squash. Issue #1
 archival and Core work-lane consolidation remain separate maintenance work.
 

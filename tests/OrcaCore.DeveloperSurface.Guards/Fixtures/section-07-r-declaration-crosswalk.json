@@ -3,13 +3,13 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 366,
-    "physicalDeclarations": 1511,
-    "activeFiles": 212,
-    "activeDeclarations": 823,
+    "physicalFiles": 368,
+    "physicalDeclarations": 1512,
+    "activeFiles": 213,
+    "activeDeclarations": 824,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
-    "outOfBandFixtureFiles": 23,
+    "outOfBandFixtureFiles": 24,
     "outOfBandFixtureDeclarations": 0,
     "inactiveProjectFiles": 0,
     "inactiveProjectDeclarations": 0,
@@ -648,6 +648,12 @@
       "declarations": 7
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/CodecMemberCorrectionGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 1
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtureCollection.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
@@ -691,6 +697,12 @@
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/CodecCases.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/NativeMetadata.csproj",
+      "status": "out-of-band-fixture",
+      "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/CodecMemberCases.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/NativeMetadata.csproj",
       "status": "out-of-band-fixture",
       "declarations": 0

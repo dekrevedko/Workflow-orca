@@ -1,0 +1,704 @@
+{
+  "schemaVersion": 1,
+  "protocol": 3,
+  "stage": "NativeRequalifiedPendingReview",
+  "runId": 40762764617,
+  "runUrl": "https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617",
+  "sourceCommit": "7f1034c4f0733da48caf6814f37933f7c38ac9af",
+  "sourceTree": "b5ce42f910b95a90ce3acf8d149d9d54210a2a1e",
+  "globalSourceApproval": false,
+  "globalNativeSupportApproval": false,
+  "publicBoundary": "PublicValuesTypedWaitParkingTimersRetryPoolCompositionOnly",
+  "liveEventDeliveryQualified": false,
+  "outgoingPublishingQualified": false,
+  "totalCases": 384,
+  "cells": [
+    {
+      "host": "ubuntu-24.04",
+      "flavor": "aot",
+      "cases": 55,
+      "diagnosticRecords": 8,
+      "reportPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/ubuntu-24.04-aot/support-report.json",
+      "reportSha256": "2d72a2538c8e8891739775ea756531580804ee9ba6c0b593e8fefcce8bcc87b4",
+      "githubJobId": 123080089033
+    },
+    {
+      "host": "ubuntu-24.04",
+      "flavor": "jit",
+      "cases": 82,
+      "diagnosticRecords": 0,
+      "reportPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/ubuntu-24.04-jit/support-report.json",
+      "reportSha256": "73ef03a061ce2de93364077e9a5fea4a2783bce092c19ddf50f12d2ab74fe689",
+      "githubJobId": 123080088974
+    },
+    {
+      "host": "ubuntu-24.04",
+      "flavor": "trimmed",
+      "cases": 55,
+      "diagnosticRecords": 4,
+      "reportPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/ubuntu-24.04-trimmed/support-report.json",
+      "reportSha256": "1aad1d89e6e2b7d072d5c9d3ee7e4a5cc398e7f36ef40b29138907ec646f8e43",
+      "githubJobId": 123080088981
+    },
+    {
+      "host": "windows-2025",
+      "flavor": "aot",
+      "cases": 55,
+      "diagnosticRecords": 8,
+      "reportPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/windows-2025-aot/support-report.json",
+      "reportSha256": "b9676db7ebc6cc938afe2a4ab71564c148e0e61bb17a364d6bd04b6c6f51260c",
+      "githubJobId": 123080089239
+    },
+    {
+      "host": "windows-2025",
+      "flavor": "jit",
+      "cases": 82,
+      "diagnosticRecords": 0,
+      "reportPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/windows-2025-jit/support-report.json",
+      "reportSha256": "f01877c4f4aad9afadf4b5469cb11658e64855afeadd4328aa291741139efce2",
+      "githubJobId": 123080089180
+    },
+    {
+      "host": "windows-2025",
+      "flavor": "trimmed",
+      "cases": 55,
+      "diagnosticRecords": 4,
+      "reportPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/windows-2025-trimmed/support-report.json",
+      "reportSha256": "833fb824ab837f03322ce84e632c3f9abc3919e492298b15239e963a6bc4990a",
+      "githubJobId": 123080089055
+    }
+  ],
+  "files": {
+    "artifacts-api.json": {
+      "sha256": "b54bf7499e90ba1448f509ab439feacd57848dd5a7c4bb9e029ee25129df665f",
+      "bytes": 5130
+    },
+    "diagnostic-review.json": {
+      "sha256": "35e5b069047ae3eb473a0e8815ab431505b7737f6c222ae710590fa79e42a96d",
+      "bytes": 9227
+    },
+    "feed-verification.json": {
+      "sha256": "56cdbb91fc9bfc479963939846ba6b6a04e923f5ac9cc0b39cb4a017c0692ab4",
+      "bytes": 1746
+    },
+    "jobs-api.json": {
+      "sha256": "b735742f718e1cf96f9a570dd863f5b937d373c3f0f8a3f7ae3e5334c272be6b",
+      "bytes": 23687
+    },
+    "run-api.json": {
+      "sha256": "a54d2655f81e8f9f27e3727df2c7e8a87d9b2ab8821f1c59448084b66a1417a1",
+      "bytes": 13159
+    },
+    "ubuntu-24.04-aot/case-outputs.json": {
+      "sha256": "376e6435b1672664e12808828c71c25106b908be5f58dffdae3eefd1a8c0a93d",
+      "bytes": 30108
+    },
+    "ubuntu-24.04-aot/cc-version.log": {
+      "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+      "bytes": 245
+    },
+    "ubuntu-24.04-aot/clang-version.log": {
+      "sha256": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53",
+      "bytes": 110
+    },
+    "ubuntu-24.04-aot/dotnet-info.log": {
+      "sha256": "fe3c443ed582d5c8a3279ce933dc12fbddef6812d08504d2e5804c8b0a625ee0",
+      "bytes": 2896
+    },
+    "ubuntu-24.04-aot/host.json": {
+      "sha256": "547289684be42e302a2812a9253c7f22abc5aa2e5c2ca4a15e57fcac30d6b399",
+      "bytes": 1112
+    },
+    "ubuntu-24.04-aot/journey-artifact-closure.json": {
+      "sha256": "8b0409d010c4760ed2bb58228a3dabd40071adfb3a12b16257ce25cca6745954",
+      "bytes": 268
+    },
+    "ubuntu-24.04-aot/journey-cached-product-dlls.json": {
+      "sha256": "e15e987967230bcdc2db02aa66de0f621ee97e5789b94f876c155b54acee371c",
+      "bytes": 407
+    },
+    "ubuntu-24.04-aot/journey-file.log": {
+      "sha256": "073ba231b5c9073ae3adc1e69b3783c68452bad61726195c85344105ac7e4351",
+      "bytes": 274
+    },
+    "ubuntu-24.04-aot/journey-generated.json": {
+      "sha256": "dcd43429c8ad59fa008af4b12b75902c25a05c592e02ea693cad0196c0c21977",
+      "bytes": 6042
+    },
+    "ubuntu-24.04-aot/journey-ldd.log": {
+      "sha256": "a344df4172910bdba96f00445145fe26c3a7c4971a6cb0810515e18fbfb5c26e",
+      "bytes": 222
+    },
+    "ubuntu-24.04-aot/journey-materialized-inputs.json": {
+      "sha256": "a75775f36cc8c8dee31627c8db2aaa469767aad94c8c301933dfcb67f831f6d5",
+      "bytes": 525
+    },
+    "ubuntu-24.04-aot/journey-project.assets.json": {
+      "sha256": "a901a3ef23d2e053ac43ed22f052e2b600a5f61b9f646f8c51869ebe82962277",
+      "bytes": 134904
+    },
+    "ubuntu-24.04-aot/journey-publish-command.json": {
+      "sha256": "ef4164e4c797c818a485b459abeab5503cb6b0d37952eb6e7d677cd84c747d2d",
+      "bytes": 559
+    },
+    "ubuntu-24.04-aot/journey-publish.log": {
+      "sha256": "3eb1afd210d8b440416469b25fb98e5aa05e51cdd130d56b8bf058ae639159f9",
+      "bytes": 354
+    },
+    "ubuntu-24.04-aot/ld-version.log": {
+      "sha256": "cbb0374a4d23f91537f8588348c460085a38ba5af336bed511060b72a1e76bf7",
+      "bytes": 281
+    },
+    "ubuntu-24.04-aot/ldd-version.log": {
+      "sha256": "0a361b537ea92ca84098127af4bbb1aa2144b39551239bdcd1bccb53ec4c5df0",
+      "bytes": 287
+    },
+    "ubuntu-24.04-aot/metadata-artifact-closure.json": {
+      "sha256": "c2fd9669213f0b0b3917d78d93879b813ccbb73b48b8008bd6d5ec0706e9a419",
+      "bytes": 269
+    },
+    "ubuntu-24.04-aot/metadata-cached-product-dlls.json": {
+      "sha256": "e15e987967230bcdc2db02aa66de0f621ee97e5789b94f876c155b54acee371c",
+      "bytes": 407
+    },
+    "ubuntu-24.04-aot/metadata-file.log": {
+      "sha256": "5297a9a170f96da8952f5e571e925c26a9c746220bdeec22d21118c03c7a550f",
+      "bytes": 275
+    },
+    "ubuntu-24.04-aot/metadata-ldd.log": {
+      "sha256": "baf5485f820b06bcef3ece4433a9a4c954b4acfd5314782c8d75c8b00a50e150",
+      "bytes": 222
+    },
+    "ubuntu-24.04-aot/metadata-materialized-inputs.json": {
+      "sha256": "5e6e45a41a942370524614f245b49c47e803593830a69f7008e3a20728518f8a",
+      "bytes": 900
+    },
+    "ubuntu-24.04-aot/metadata-project.assets.json": {
+      "sha256": "a43ff228f8dcb6bc19cd944a57b1ab2218e63f562f3bfc7a6ee305761f53e299",
+      "bytes": 134908
+    },
+    "ubuntu-24.04-aot/metadata-publish-command.json": {
+      "sha256": "8a6e06222d94ed2d637237301fac001326d47ca2c03e9a72f91a9be9dfef8574",
+      "bytes": 561
+    },
+    "ubuntu-24.04-aot/metadata-publish.log": {
+      "sha256": "0ab0337a62d7a08d9c519d99b56e6b1f5727505a459620d28add106c93e4d6fd",
+      "bytes": 5415
+    },
+    "ubuntu-24.04-aot/missing-engine-materialized-inputs.json": {
+      "sha256": "e7da48bccc8813a140b5b8c17688108339d97d1b53f8c35b52d2f6b3179a2b67",
+      "bytes": 268
+    },
+    "ubuntu-24.04-aot/missing-engine-project.assets.json": {
+      "sha256": "28649009229a0c318e19b9ca055c492f199e1b060a3989eae07449051ee7261d",
+      "bytes": 39034
+    },
+    "ubuntu-24.04-aot/missing-engine-publish.log": {
+      "sha256": "b7e1761fe8b366e5eb2da28c219e7f770e3b13182b52612ebdbf6b9b4b353164",
+      "bytes": 373
+    },
+    "ubuntu-24.04-aot/support-report.json": {
+      "sha256": "2d72a2538c8e8891739775ea756531580804ee9ba6c0b593e8fefcce8bcc87b4",
+      "bytes": 126315
+    },
+    "ubuntu-24.04-jit/case-outputs.json": {
+      "sha256": "9200d56b7b0061355bdcedd23fc4303fe6e4219f46d6ad7bb187b57562f62169",
+      "bytes": 52860
+    },
+    "ubuntu-24.04-jit/cc-version.log": {
+      "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+      "bytes": 245
+    },
+    "ubuntu-24.04-jit/clang-version.log": {
+      "sha256": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53",
+      "bytes": 110
+    },
+    "ubuntu-24.04-jit/dotnet-info.log": {
+      "sha256": "fe3c443ed582d5c8a3279ce933dc12fbddef6812d08504d2e5804c8b0a625ee0",
+      "bytes": 2896
+    },
+    "ubuntu-24.04-jit/host.json": {
+      "sha256": "547289684be42e302a2812a9253c7f22abc5aa2e5c2ca4a15e57fcac30d6b399",
+      "bytes": 1112
+    },
+    "ubuntu-24.04-jit/journey-artifact-closure.json": {
+      "sha256": "747821c06b1d8081a578c16b6ae3480a4c83dad7aa4a3d9a49a5b9a02a1e2cb6",
+      "bytes": 32158
+    },
+    "ubuntu-24.04-jit/journey-cached-product-dlls.json": {
+      "sha256": "e15e987967230bcdc2db02aa66de0f621ee97e5789b94f876c155b54acee371c",
+      "bytes": 407
+    },
+    "ubuntu-24.04-jit/journey-file.log": {
+      "sha256": "e3c7e6645f5bb401bee18893365a0ac2c0ecf09bcdc67a66a7e1484d31be92dd",
+      "bytes": 274
+    },
+    "ubuntu-24.04-jit/journey-generated.json": {
+      "sha256": "b2cf1aacfaa231400b76c82a470ad00bfdd14bb9926832c49c14f1ab7fd539ee",
+      "bytes": 10148
+    },
+    "ubuntu-24.04-jit/journey-ldd.log": {
+      "sha256": "c3eed55a25c1347457bbb8789df19fe79fc43c45919d94cfffc97d77df19ce39",
+      "bytes": 522
+    },
+    "ubuntu-24.04-jit/journey-legacy.json": {
+      "sha256": "0fbe6d5912dcfeecb79b7816d31cf8119bed93c9d0e828b82959d7fef82382c4",
+      "bytes": 10247
+    },
+    "ubuntu-24.04-jit/journey-materialized-inputs.json": {
+      "sha256": "a75775f36cc8c8dee31627c8db2aaa469767aad94c8c301933dfcb67f831f6d5",
+      "bytes": 525
+    },
+    "ubuntu-24.04-jit/journey-project.assets.json": {
+      "sha256": "b6de9f05f8f32306fe8347190346dfd2e353c2e8228f01d60ac4f82772f45dc8",
+      "bytes": 117897
+    },
+    "ubuntu-24.04-jit/journey-publish-command.json": {
+      "sha256": "1deb361e0091358356738a4fb107103946c857444c7eecc8ff638c098abb31d5",
+      "bytes": 561
+    },
+    "ubuntu-24.04-jit/journey-publish.log": {
+      "sha256": "88f4fc9f84b7ae8e16b976e4ac63d73df1eef22ccf2d0e396a6b08fc42146527",
+      "bytes": 329
+    },
+    "ubuntu-24.04-jit/ld-version.log": {
+      "sha256": "cbb0374a4d23f91537f8588348c460085a38ba5af336bed511060b72a1e76bf7",
+      "bytes": 281
+    },
+    "ubuntu-24.04-jit/ldd-version.log": {
+      "sha256": "0a361b537ea92ca84098127af4bbb1aa2144b39551239bdcd1bccb53ec4c5df0",
+      "bytes": 287
+    },
+    "ubuntu-24.04-jit/metadata-artifact-closure.json": {
+      "sha256": "3af8eef959d66f201bca71028da36d3557e4845218b8643b8ab8562e211eeb2e",
+      "bytes": 32159
+    },
+    "ubuntu-24.04-jit/metadata-cached-product-dlls.json": {
+      "sha256": "e15e987967230bcdc2db02aa66de0f621ee97e5789b94f876c155b54acee371c",
+      "bytes": 407
+    },
+    "ubuntu-24.04-jit/metadata-file.log": {
+      "sha256": "254ab1c8008a2efabfca50b77a6126daafc0afb0d71e52f0658acf3ba8336cd2",
+      "bytes": 275
+    },
+    "ubuntu-24.04-jit/metadata-ldd.log": {
+      "sha256": "40372096f4e32d5e7ea4b712f22d8cff0198778e219605fc32bc484c6a639daa",
+      "bytes": 522
+    },
+    "ubuntu-24.04-jit/metadata-materialized-inputs.json": {
+      "sha256": "5e6e45a41a942370524614f245b49c47e803593830a69f7008e3a20728518f8a",
+      "bytes": 900
+    },
+    "ubuntu-24.04-jit/metadata-project.assets.json": {
+      "sha256": "f14d3dc4e1fcf0b6dd958af52826aa7bc65afdf98e0e2e874d70dd10bf4c1536",
+      "bytes": 117901
+    },
+    "ubuntu-24.04-jit/metadata-publish-command.json": {
+      "sha256": "8eeb4b282c62cb8863e326ab2a9741c403f0db9ba3b58c4cdc5079453848b9fc",
+      "bytes": 563
+    },
+    "ubuntu-24.04-jit/metadata-publish.log": {
+      "sha256": "83635a27da844b26c550fdeac72aebf3a85de7a1d30c9d9b73d7db201161d6de",
+      "bytes": 330
+    },
+    "ubuntu-24.04-jit/missing-engine-materialized-inputs.json": {
+      "sha256": "e7da48bccc8813a140b5b8c17688108339d97d1b53f8c35b52d2f6b3179a2b67",
+      "bytes": 268
+    },
+    "ubuntu-24.04-jit/missing-engine-project.assets.json": {
+      "sha256": "aef6e0cd44d46652c6656b720fff18a8f1d9a6e7520199b750dc26abf16b6668",
+      "bytes": 22027
+    },
+    "ubuntu-24.04-jit/missing-engine-publish.log": {
+      "sha256": "65b891e5d7ce090506ba04808de3a5dd75f2345449dba34a73b9fb5dd5f52ede",
+      "bytes": 348
+    },
+    "ubuntu-24.04-jit/support-report.json": {
+      "sha256": "73ef03a061ce2de93364077e9a5fea4a2783bce092c19ddf50f12d2ab74fe689",
+      "bytes": 102143
+    },
+    "ubuntu-24.04-trimmed/case-outputs.json": {
+      "sha256": "b4f6315170492873bc7bf880da6f43b40f8d584d984f3f94efcb6e3ebeb8e58c",
+      "bytes": 31512
+    },
+    "ubuntu-24.04-trimmed/cc-version.log": {
+      "sha256": "3e8cc208c40f60832f67377aa1b03c3e7e858f20cd5d365464944700c0bd7ad1",
+      "bytes": 245
+    },
+    "ubuntu-24.04-trimmed/clang-version.log": {
+      "sha256": "3635b8631d4ebcd8ed7586f4e01e7a6b44407de9d38db6e01daca9c242ed7a53",
+      "bytes": 110
+    },
+    "ubuntu-24.04-trimmed/dotnet-info.log": {
+      "sha256": "fe3c443ed582d5c8a3279ce933dc12fbddef6812d08504d2e5804c8b0a625ee0",
+      "bytes": 2896
+    },
+    "ubuntu-24.04-trimmed/host.json": {
+      "sha256": "547289684be42e302a2812a9253c7f22abc5aa2e5c2ca4a15e57fcac30d6b399",
+      "bytes": 1112
+    },
+    "ubuntu-24.04-trimmed/journey-artifact-closure.json": {
+      "sha256": "a24a856711fd7d2d735658aba45af116519aa9b1a2d499719efecbb0073ad022",
+      "bytes": 9450
+    },
+    "ubuntu-24.04-trimmed/journey-cached-product-dlls.json": {
+      "sha256": "e15e987967230bcdc2db02aa66de0f621ee97e5789b94f876c155b54acee371c",
+      "bytes": 407
+    },
+    "ubuntu-24.04-trimmed/journey-file.log": {
+      "sha256": "e3c7e6645f5bb401bee18893365a0ac2c0ecf09bcdc67a66a7e1484d31be92dd",
+      "bytes": 274
+    },
+    "ubuntu-24.04-trimmed/journey-generated.json": {
+      "sha256": "22f4cea6b27f0d045692cc5a833105663820ef12dd8c5f95e1027b850593b700",
+      "bytes": 7629
+    },
+    "ubuntu-24.04-trimmed/journey-ldd.log": {
+      "sha256": "2251496a1433cacb1ccba4baea468f7c427445bf8af444b8f09b15a000a1bc29",
+      "bytes": 522
+    },
+    "ubuntu-24.04-trimmed/journey-materialized-inputs.json": {
+      "sha256": "a75775f36cc8c8dee31627c8db2aaa469767aad94c8c301933dfcb67f831f6d5",
+      "bytes": 525
+    },
+    "ubuntu-24.04-trimmed/journey-project.assets.json": {
+      "sha256": "27624e5ec7d8e12682612899d8fc48c6407005b61c8663dfa0c55406d4777523",
+      "bytes": 120770
+    },
+    "ubuntu-24.04-trimmed/journey-publish-command.json": {
+      "sha256": "d8246bedec1e550e951b956dafe8054035c220d3d37c40a35bc28662d318bdc0",
+      "bytes": 560
+    },
+    "ubuntu-24.04-trimmed/journey-publish.log": {
+      "sha256": "2f72cb7e9970d201811f11041caa38d2272cac7a97f07697283cca64b8a95ff7",
+      "bytes": 396
+    },
+    "ubuntu-24.04-trimmed/ld-version.log": {
+      "sha256": "cbb0374a4d23f91537f8588348c460085a38ba5af336bed511060b72a1e76bf7",
+      "bytes": 281
+    },
+    "ubuntu-24.04-trimmed/ldd-version.log": {
+      "sha256": "0a361b537ea92ca84098127af4bbb1aa2144b39551239bdcd1bccb53ec4c5df0",
+      "bytes": 287
+    },
+    "ubuntu-24.04-trimmed/metadata-artifact-closure.json": {
+      "sha256": "a2c4788a4a05339576dc3f88700a0c1acf1e0782d9c6c560473a951bec80acd7",
+      "bytes": 6566
+    },
+    "ubuntu-24.04-trimmed/metadata-cached-product-dlls.json": {
+      "sha256": "e15e987967230bcdc2db02aa66de0f621ee97e5789b94f876c155b54acee371c",
+      "bytes": 407
+    },
+    "ubuntu-24.04-trimmed/metadata-file.log": {
+      "sha256": "254ab1c8008a2efabfca50b77a6126daafc0afb0d71e52f0658acf3ba8336cd2",
+      "bytes": 275
+    },
+    "ubuntu-24.04-trimmed/metadata-ldd.log": {
+      "sha256": "c98fc39320be356e8fa0229417075286c9efa46a97b07a65d6dbe70a57b35101",
+      "bytes": 522
+    },
+    "ubuntu-24.04-trimmed/metadata-materialized-inputs.json": {
+      "sha256": "5e6e45a41a942370524614f245b49c47e803593830a69f7008e3a20728518f8a",
+      "bytes": 900
+    },
+    "ubuntu-24.04-trimmed/metadata-project.assets.json": {
+      "sha256": "dc357de791c079369f4fc6e15e2f578ba7d477c6588c7717ee50b539a7753414",
+      "bytes": 120774
+    },
+    "ubuntu-24.04-trimmed/metadata-publish-command.json": {
+      "sha256": "044f07931658d026363391d8f24c6f4d0e925ced2d69094698fc921f77c15dcb",
+      "bytes": 562
+    },
+    "ubuntu-24.04-trimmed/metadata-publish.log": {
+      "sha256": "cabba96f80121d2e1ac450ed4690f5711f69862e6525e99b5c3b4ddc24d28550",
+      "bytes": 2962
+    },
+    "ubuntu-24.04-trimmed/missing-engine-materialized-inputs.json": {
+      "sha256": "e7da48bccc8813a140b5b8c17688108339d97d1b53f8c35b52d2f6b3179a2b67",
+      "bytes": 268
+    },
+    "ubuntu-24.04-trimmed/missing-engine-project.assets.json": {
+      "sha256": "b4986c1e0a2c7fb2ca1973a0ef65ba4f11be17caecc9dc2cf95cfd8832179cdb",
+      "bytes": 24900
+    },
+    "ubuntu-24.04-trimmed/missing-engine-publish.log": {
+      "sha256": "dc561af76dd7804e9c00ad4bd6586c26e594b3ab7a55d6b3080491bd6db157a2",
+      "bytes": 415
+    },
+    "ubuntu-24.04-trimmed/support-report.json": {
+      "sha256": "1aad1d89e6e2b7d072d5c9d3ee7e4a5cc398e7f36ef40b29138907ec646f8e43",
+      "bytes": 107280
+    },
+    "windows-2025-aot/case-outputs.json": {
+      "sha256": "c141e3b119dd56e3f76386bfe94fbcc0da1478a2ba1731e61775f8ba9cf540a6",
+      "bytes": 30636
+    },
+    "windows-2025-aot/dotnet-info.log": {
+      "sha256": "9e827cba8ab8edd2ec126842ca3c78b860c6d8c15ab966fe8999a415b5be8a05",
+      "bytes": 5701
+    },
+    "windows-2025-aot/host.json": {
+      "sha256": "f71ee73b806edbab17474b0fee45b7ee3b09842c043046b6b4212456dee615a9",
+      "bytes": 562
+    },
+    "windows-2025-aot/journey-artifact-closure.json": {
+      "sha256": "a06181246e98c777970bb0a3eafee649283ccfea25bd323a03c47aff723c4c11",
+      "bytes": 272
+    },
+    "windows-2025-aot/journey-cached-product-dlls.json": {
+      "sha256": "4d31b8961ecfeca0dcde8a731838a9f389ff0307728f164125ed91d23ba730a8",
+      "bytes": 419
+    },
+    "windows-2025-aot/journey-generated.json": {
+      "sha256": "5355b596e8e075527242e211fb132e2b0042fa3a4b5382ff2d1c33f03dd28693",
+      "bytes": 6650
+    },
+    "windows-2025-aot/journey-materialized-inputs.json": {
+      "sha256": "7bdf147e4c0911854202df5546babe5f3b02ac315f6bd4c43ece93c1814913db",
+      "bytes": 525
+    },
+    "windows-2025-aot/journey-native-imports.log": {
+      "sha256": "8d7da944d5a39c08e6a95d85eccb9dee12787e7b2a1a5d44d9c5e3ec94431408",
+      "bytes": 750
+    },
+    "windows-2025-aot/journey-project.assets.json": {
+      "sha256": "720754a8e6d0829fc4cd31d98bab4c2c59765c77550dec16a70aaf3a0edad07b",
+      "bytes": 127251
+    },
+    "windows-2025-aot/journey-publish-command.json": {
+      "sha256": "6a7ba47065481d43e6ea1f566bda917dacece2cba30777b55a802d8f9e2dc02e",
+      "bytes": 533
+    },
+    "windows-2025-aot/journey-publish.log": {
+      "sha256": "e827b12c2cab0930f84b994f58e8d6e217d74980d0acff20380a5d1607b91cdf",
+      "bytes": 318
+    },
+    "windows-2025-aot/metadata-artifact-closure.json": {
+      "sha256": "7d3e8002c3c3ab562fc7a988f091a66ef8f34b028612b4f5006528102ee98ea1",
+      "bytes": 273
+    },
+    "windows-2025-aot/metadata-cached-product-dlls.json": {
+      "sha256": "4d31b8961ecfeca0dcde8a731838a9f389ff0307728f164125ed91d23ba730a8",
+      "bytes": 419
+    },
+    "windows-2025-aot/metadata-materialized-inputs.json": {
+      "sha256": "a9425d5252572934f4a553f3d3b67ff63a1eba56a44277e86a19f97b0b9df296",
+      "bytes": 900
+    },
+    "windows-2025-aot/metadata-native-imports.log": {
+      "sha256": "887d9fd595c6631d75b1f8817872063f027b896fdbb20174e82f997441ca28ef",
+      "bytes": 751
+    },
+    "windows-2025-aot/metadata-project.assets.json": {
+      "sha256": "6b23a338c8de341470a20a488fbb83efa5f7b7246ac3b622c51faaa76e6ea8d8",
+      "bytes": 127255
+    },
+    "windows-2025-aot/metadata-publish-command.json": {
+      "sha256": "66d6a26170f037b7a09a8b8b06f98db86e1587609e6c289db8d0324f4229c13d",
+      "bytes": 535
+    },
+    "windows-2025-aot/metadata-publish.log": {
+      "sha256": "b7a1fecbc77b386081c577d6ca8c4fd60cee96f2d5d77c2e92cceaf5caa23cd7",
+      "bytes": 5179
+    },
+    "windows-2025-aot/missing-engine-materialized-inputs.json": {
+      "sha256": "a3222ac09a16e5a7c6824d0e9dd2a0ac334e37fb4f1a59661590dedd1500517c",
+      "bytes": 268
+    },
+    "windows-2025-aot/missing-engine-project.assets.json": {
+      "sha256": "3e81973e1fefe57aeb3a91c1f4ff32f9947eed985f8e4ca51bf5a9050d9dab05",
+      "bytes": 29093
+    },
+    "windows-2025-aot/missing-engine-publish.log": {
+      "sha256": "95d544d9fcd18265cfcecde31c6ffe10dd1f2fa562b847fb50913f2c2ff934bb",
+      "bytes": 337
+    },
+    "windows-2025-aot/support-report.json": {
+      "sha256": "b9676db7ebc6cc938afe2a4ab71564c148e0e61bb17a364d6bd04b6c6f51260c",
+      "bytes": 125378
+    },
+    "windows-2025-jit/case-outputs.json": {
+      "sha256": "5b9a21860efe3dd07077a14e143b52b2186c3f399066551dfde7c23eddb29aeb",
+      "bytes": 58459
+    },
+    "windows-2025-jit/dotnet-info.log": {
+      "sha256": "9e827cba8ab8edd2ec126842ca3c78b860c6d8c15ab966fe8999a415b5be8a05",
+      "bytes": 5701
+    },
+    "windows-2025-jit/host.json": {
+      "sha256": "f71ee73b806edbab17474b0fee45b7ee3b09842c043046b6b4212456dee615a9",
+      "bytes": 562
+    },
+    "windows-2025-jit/journey-artifact-closure.json": {
+      "sha256": "0877952355b604719e2126ec00938d8b5b7d74f67c64227a43db8b22cd14e334",
+      "bytes": 32270
+    },
+    "windows-2025-jit/journey-cached-product-dlls.json": {
+      "sha256": "4d31b8961ecfeca0dcde8a731838a9f389ff0307728f164125ed91d23ba730a8",
+      "bytes": 419
+    },
+    "windows-2025-jit/journey-generated.json": {
+      "sha256": "39813865ba58ac134f005b87f94276831fdde7d1be60b85ff46e290d4c6f6e65",
+      "bytes": 12256
+    },
+    "windows-2025-jit/journey-legacy.json": {
+      "sha256": "c14c79c69f8d25ea24cc066db85941db905346183e95a220615f136f3e85aca0",
+      "bytes": 12628
+    },
+    "windows-2025-jit/journey-materialized-inputs.json": {
+      "sha256": "7bdf147e4c0911854202df5546babe5f3b02ac315f6bd4c43ece93c1814913db",
+      "bytes": 525
+    },
+    "windows-2025-jit/journey-native-imports.log": {
+      "sha256": "cba815a354c66e71bc36be3b9256c10c2d596ca3c7fe697e193417f331e6a106",
+      "bytes": 772
+    },
+    "windows-2025-jit/journey-project.assets.json": {
+      "sha256": "977bede13417f93364ff45fdd4571440fded60e41d343d2d345b63f2919cda89",
+      "bytes": 121152
+    },
+    "windows-2025-jit/journey-publish-command.json": {
+      "sha256": "d0fe5e73634d72ee25e133e06da8a58d003a4d7a02c815ccbbc99411188815c0",
+      "bytes": 535
+    },
+    "windows-2025-jit/journey-publish.log": {
+      "sha256": "79b1ca38198b979fa08b259369fca68fda1cd80e18967407d1b0c0a32de196ee",
+      "bytes": 292
+    },
+    "windows-2025-jit/metadata-artifact-closure.json": {
+      "sha256": "54b4847e4559443cd2a8d02d3753beb5310d3cf6366c618bf573ecec9f9dd134",
+      "bytes": 32271
+    },
+    "windows-2025-jit/metadata-cached-product-dlls.json": {
+      "sha256": "4d31b8961ecfeca0dcde8a731838a9f389ff0307728f164125ed91d23ba730a8",
+      "bytes": 419
+    },
+    "windows-2025-jit/metadata-materialized-inputs.json": {
+      "sha256": "a9425d5252572934f4a553f3d3b67ff63a1eba56a44277e86a19f97b0b9df296",
+      "bytes": 900
+    },
+    "windows-2025-jit/metadata-native-imports.log": {
+      "sha256": "2eb9aaf7bd3eff884b9adbbd7bd52e2eb79f5659872dffd8c99f220432d91c49",
+      "bytes": 773
+    },
+    "windows-2025-jit/metadata-project.assets.json": {
+      "sha256": "3744ba4b79169ae5667e46b1f621e08730b88036160a01ad081d032b46222936",
+      "bytes": 121156
+    },
+    "windows-2025-jit/metadata-publish-command.json": {
+      "sha256": "976fe167a92c075c90191a320276006354273a51c575340d9a8dcfc1bbe37cd1",
+      "bytes": 537
+    },
+    "windows-2025-jit/metadata-publish.log": {
+      "sha256": "795dff8ac2e53fa1356df8c3a80035e52180f25012754b5c073a79fa340e9b48",
+      "bytes": 293
+    },
+    "windows-2025-jit/missing-engine-materialized-inputs.json": {
+      "sha256": "a3222ac09a16e5a7c6824d0e9dd2a0ac334e37fb4f1a59661590dedd1500517c",
+      "bytes": 268
+    },
+    "windows-2025-jit/missing-engine-project.assets.json": {
+      "sha256": "a88c4217a045f214336e8f54e23566528bbdec4645f66a4d9f46c0ad415e6db1",
+      "bytes": 22994
+    },
+    "windows-2025-jit/missing-engine-publish.log": {
+      "sha256": "032558bf9c525a6261a3c9a910f8ea5d4a746cf6af410d12cbd27aca7cc0cafa",
+      "bytes": 311
+    },
+    "windows-2025-jit/support-report.json": {
+      "sha256": "f01877c4f4aad9afadf4b5469cb11658e64855afeadd4328aa291741139efce2",
+      "bytes": 101345
+    },
+    "windows-2025-trimmed/case-outputs.json": {
+      "sha256": "6c82d67bd3179daddbfd33fb2920b5b38e19492964610979267456d9fc0e333a",
+      "bytes": 35771
+    },
+    "windows-2025-trimmed/dotnet-info.log": {
+      "sha256": "9e827cba8ab8edd2ec126842ca3c78b860c6d8c15ab966fe8999a415b5be8a05",
+      "bytes": 5701
+    },
+    "windows-2025-trimmed/host.json": {
+      "sha256": "f71ee73b806edbab17474b0fee45b7ee3b09842c043046b6b4212456dee615a9",
+      "bytes": 562
+    },
+    "windows-2025-trimmed/journey-artifact-closure.json": {
+      "sha256": "3c9d28db9e64fcde9c3b2e5e5ae1ca34cce325b78e2b966ca6c8eb69f273ce11",
+      "bytes": 9540
+    },
+    "windows-2025-trimmed/journey-cached-product-dlls.json": {
+      "sha256": "4d31b8961ecfeca0dcde8a731838a9f389ff0307728f164125ed91d23ba730a8",
+      "bytes": 419
+    },
+    "windows-2025-trimmed/journey-generated.json": {
+      "sha256": "b0538bb1bd00e4fa1bf01cb8d0fa4060fcec6e2fca47417c8bc5e1ad80b38817",
+      "bytes": 11517
+    },
+    "windows-2025-trimmed/journey-materialized-inputs.json": {
+      "sha256": "7bdf147e4c0911854202df5546babe5f3b02ac315f6bd4c43ece93c1814913db",
+      "bytes": 525
+    },
+    "windows-2025-trimmed/journey-native-imports.log": {
+      "sha256": "cba815a354c66e71bc36be3b9256c10c2d596ca3c7fe697e193417f331e6a106",
+      "bytes": 772
+    },
+    "windows-2025-trimmed/journey-project.assets.json": {
+      "sha256": "4da2ba9303b1dbc8fd5986d372dd7c69c6713ef10643c1458303738288e1bab0",
+      "bytes": 124094
+    },
+    "windows-2025-trimmed/journey-publish-command.json": {
+      "sha256": "805725f43349d344b7bfa400b04b228177badf31ec565e185da1e67c88b9f6b2",
+      "bytes": 534
+    },
+    "windows-2025-trimmed/journey-publish.log": {
+      "sha256": "7d52a8e1b699956e7283dcdc6bd41a69b69ef2e4d18ce573fd3d0c34da23a29d",
+      "bytes": 360
+    },
+    "windows-2025-trimmed/metadata-artifact-closure.json": {
+      "sha256": "ca170aa2b3c78a4b9c06b045f6c55121fa7fbb39043c4e0dcf1bd41640b00d77",
+      "bytes": 6514
+    },
+    "windows-2025-trimmed/metadata-cached-product-dlls.json": {
+      "sha256": "4d31b8961ecfeca0dcde8a731838a9f389ff0307728f164125ed91d23ba730a8",
+      "bytes": 419
+    },
+    "windows-2025-trimmed/metadata-materialized-inputs.json": {
+      "sha256": "a9425d5252572934f4a553f3d3b67ff63a1eba56a44277e86a19f97b0b9df296",
+      "bytes": 900
+    },
+    "windows-2025-trimmed/metadata-native-imports.log": {
+      "sha256": "2eb9aaf7bd3eff884b9adbbd7bd52e2eb79f5659872dffd8c99f220432d91c49",
+      "bytes": 773
+    },
+    "windows-2025-trimmed/metadata-project.assets.json": {
+      "sha256": "d1dd301341d3230243bc97431c10e63f4b6482714edf718a79d51e1dc1599a95",
+      "bytes": 124098
+    },
+    "windows-2025-trimmed/metadata-publish-command.json": {
+      "sha256": "203e63a27618703c51c8af0b5ecf566611a484362be1bc562118bbd35796fbc1",
+      "bytes": 536
+    },
+    "windows-2025-trimmed/metadata-publish.log": {
+      "sha256": "3c95d7f7b414c8a6e40a18df9acd236856092e0e3788e971467a6a6f38acdfd9",
+      "bytes": 2826
+    },
+    "windows-2025-trimmed/missing-engine-materialized-inputs.json": {
+      "sha256": "a3222ac09a16e5a7c6824d0e9dd2a0ac334e37fb4f1a59661590dedd1500517c",
+      "bytes": 268
+    },
+    "windows-2025-trimmed/missing-engine-project.assets.json": {
+      "sha256": "3be9273a32ea6e66c522e9375fd018aeaa5080950176ac0a7e4bdac2efff41a9",
+      "bytes": 25936
+    },
+    "windows-2025-trimmed/missing-engine-publish.log": {
+      "sha256": "2bc384d3d8397fb83486923c480fc55ac3c4e2624dd6ee2fd59c194a5f8783d7",
+      "bytes": 379
+    },
+    "windows-2025-trimmed/support-report.json": {
+      "sha256": "833fb824ab837f03322ce84e632c3f9abc3919e492298b15239e963a6bc4990a",
+      "bytes": 106413
+    }
+  },
+  "sourceAndHarnessIdentitiesVerified": true,
+  "packageFeedVerified": true,
+  "goldenAndStrongCorporaUnchangedFromApprovedBaseline": true
+}

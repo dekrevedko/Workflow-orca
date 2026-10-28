@@ -1,0 +1,21 @@
+{
+  "packageHashes": {
+    "OrcaCore.0.0.0-phase0.nupkg": "9281bfc26f935bf7f24f81cfc8f946a24b2ea5769c235b7806c83f1c55c0c411",
+    "OrcaCore.Core.0.0.0-phase0.nupkg": "b6071f328d86c295b8065fa62102c837092172f6f4b064d96dc14c80c6a05029",
+    "OrcaCore.Dag.0.0.0-phase0.nupkg": "6218a7d91407ca96256b667bfed889a23390beb7bdce5fd55e900b2beb1747f2",
+    "OrcaCore.Dag.Hosting.0.0.0-phase0.nupkg": "f097f2df04c4656a12c82c74b4c4ecbf74a2b4ea2177952707df185c3014a06b",
+    "OrcaCore.Durable.Hosting.0.0.0-phase0.nupkg": "50b3ac1340c582700c738f9cb212478bb8a4f7ea7514b9b9261afc602c24e507",
+    "OrcaCore.Engine.Durable.0.0.0-phase0.nupkg": "5ab3f7dbdf91e5f33eea39e145c823bc07eebbc5828d0dd6e8fd2d15c8ca7158",
+    "OrcaCore.Engine.Ephemeral.0.0.0-phase0.nupkg": "9dcc4a96cd0253703dc1d76fc462e8e79e16f0117449d2f292a9fa5611145ffd",
+    "OrcaCore.Provider.Abstractions.0.0.0-phase0.nupkg": "c7c6446c6152ff80b94ee1da3d90e743e134f688471e1a8ce299108c39635b7b",
+    "OrcaCore.Providers.InMemory.0.0.0-phase0.nupkg": "498b2653dd9921c6e4184c26ac9b1083679eeb1d55fac21b0b039d676d4eb1bc",
+    "OrcaCore.Providers.PostgreSql.0.0.0-phase0.nupkg": "468853da788ccf6381dae6ccc14534a5666a96feef05800a2e4563f44fb1b70c",
+    "OrcaCore.Providers.SqlServer.0.0.0-phase0.nupkg": "1ba7409ec64228fdcf9cd3c082710a19c6d3c8a1d6134663a4433f44c14026bc",
+    "OrcaCore.Runtime.Protocol.0.0.0-phase0.nupkg": "8fb723f8b8498a2a2da52e90ec81d678b2f5e792120ed39525402e2f523171e7"
+  },
+  "archiveDllHashes": {
+    "OrcaCore.dll": "f13d7c04e08dc03e2b32decb46f61219b13eaea455b8e00c8236fff5076b9c6e",
+    "OrcaCore.Core.dll": "7cb73340ff842c265987c5e0784912e2652573ddb3226d1acfc1af27a93b9cd2",
+    "OrcaCore.Engine.Ephemeral.dll": "10b738fced393163f06830fa691127563da1ba338048d3df0108b25c986f2ee4"
+  }
+}

@@ -181,6 +181,27 @@ release or product remediation. The assessment workflow now uses manual dispatch
 its temporary evidence-branch push trigger has been removed. The original native
 receipts and independent verdict remain immutable.
 
-## Issue #13 qualification/publication boundary (implementation pending)
+## Issue #13 qualification approved; publication pending (2026-10-27)
 
-No issue #13 validation branch, PR, package or release is published by the contract/canonical transition. The original issue #3 workflow/run remains historical; hosted native validation pushes require separate authorization. A new release can claim only its actually qualified source/package/profile, after the usual CI/review/publication gates.
+Implementation checkpoint `8566986` has parent `10aec46`, the approved tree
+`6f697b1374800a2b5d7b4196f9c841f0330d6247` and exactly 327 changed paths.
+Its sole direct child `1ad2a59` contains only the direct user approval verdict.
+[Native run 40629471843](https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843)
+passed Windows Server 2025 and Ubuntu 24.04: JIT 76/76, full trim 51/51 and AOT
+51/51 per host. Product/harness hashes bind these 356 case executions to the
+approved source; validation-only Git commit `609f1045` supplies that feed. The
+approval covers this bounded recipe, including its three explicit amendments.
+
+OpenSpec 25/25, Release warnings-as-errors 0/0, Infrastructure 302/302, six unit
+projects 969/969, provider/integration 188/188, fifty unfiltered dotnet test stress
+runs and the 79.32% CI engine-coverage gate passed. Scoped ReSharper findings are
+retained and triaged. These results are not a claim that a PR CI run has occurred.
+
+Task 3.1 prepares guides, a local PR draft and the Git-bound completion record.
+No issue branch is pushed, PR opened, issue edited, version tagged or package/
+release published here. The support workflow is now manual-only; the temporary
+validation-branch trigger is removed without changing its jobs. Preview.2 and
+issue #3's immutable unsupported assessment remain unchanged. The [qualified
+recipe](ephemeral-native-support.md) excludes live event delivery/publishing,
+other engines/RIDs and broad twelve-package compatibility claims. Merge must be
+a separately authorized merge commit, never a squash or rebase.

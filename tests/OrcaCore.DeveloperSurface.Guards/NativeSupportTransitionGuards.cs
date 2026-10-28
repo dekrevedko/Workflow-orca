@@ -22,7 +22,9 @@ public sealed class NativeSupportTransitionGuards
     private const string VerdictSha = "4389efe8e8d58366e6064ba6cbd6d5d55a5fcf77d111d21759cdbedf3b61a554";
     private const string Binding = Prefix + "artifacts/task-2-1-contract-binding-2026-10-24.md";
     private const string BindingSha = "0b7b6fda7ad1c52e0420261bd48b7c3f0b9e6719a7179132829c11fb2873b4d6";
-    private const string Stage = "ContractApprovedCanonicalSynchronizedSourcePending";
+    private const string ApprovedStage = "CanonicalSourceAndNativeApprovedPublicationReviewPending";
+    private const string Stage = "CanonicalApprovedCodecCorrectionsPendingReview";
+    private const string SourceApproval = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md";
     private const string CatalogueBinding = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-catalogue-approval-binding-2026-10-25.json";
     private const string CatalogueBindingSha = "efc13e6b51aa50bdeb41997471177a94a23bcdd6e1fe4bdb85be42af5be92181";
     private static readonly Dictionary<string, string> CatalogueDeltaHashes = new(StringComparer.Ordinal)
@@ -83,11 +85,11 @@ public sealed class NativeSupportTransitionGuards
     }
 
     [Fact]
-    public void RegistryExtension_PreservesEveryPriorRecordAndKeepsSourceApprovalUnset()
+    public void RegistryExtension_PreservesEveryPriorRecordAndBindsSourceApproval()
     {
         using var document = Load();
         var root = document.RootElement;
-        root.GetProperty("schemaVersion").GetInt32().Should().Be(20);
+        root.GetProperty("schemaVersion").GetInt32().Should().Be(22);
         var old = JsonNode.Parse(Git("show", VerdictCommit + ":" + Registry));
         var current = JsonNode.Parse(root.GetRawText())!.AsObject();
         current.Remove("nativeSupportContractEvidence");
@@ -98,8 +100,10 @@ public sealed class NativeSupportTransitionGuards
         S(evidence, "stage").Should().Be(Stage);
         S(evidence, "canonicalPreparationTask").Should().Be("2.1");
         S(evidence, "implementationReviewTask").Should().Be("2.5");
+        ValidateImplementationApproval(root);
         foreach (var key in new[] { "sourceApprovalEvidencePath", "nativeQualificationEvidencePath" })
-            evidence.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null);
+            evidence.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null,
+                "the base checkpoint approval does not approve the codec corrections");
         var records = root.GetProperty("nativeSupportPendingAmendments").EnumerateArray().ToArray();
         records.Select(x => S(x, "capability")).Should().Equal(Capabilities);
         foreach (var record in records)
@@ -118,13 +122,15 @@ public sealed class NativeSupportTransitionGuards
             S(record, "canonicalReviewTask").Should().Be("2.5");
             record.GetProperty("sourceTasks").EnumerateArray().Select(x => x.GetString())
                 .Should().Equal("2.2", "2.3", "2.4", "2.5", "2.6");
-            foreach (var key in new[] { "canonicalApprovalEvidencePath", "sourceApprovalEvidencePath", "nativeQualificationEvidencePath" })
+            S(record, "canonicalApprovalEvidencePath").Should().Be(SourceApproval);
+            foreach (var key in new[] { "sourceApprovalEvidencePath", "nativeQualificationEvidencePath" })
                 record.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null);
         }
         var tasks = Read(Prefix + "tasks.md");
         foreach (var task in new[] { "1.1", "1.2", "1.3", "1.4" })
             tasks.Should().Contain("- [x] " + task + " ");
-        foreach (var task in new[] { "2.6", "3.1", "3.2" })
+        tasks.Should().Contain("- [x] 2.6 ");
+        foreach (var task in new[] { "3.1", "3.2" })
             tasks.Should().Contain("- [ ] " + task + " ");
     }
 
@@ -174,7 +180,7 @@ public sealed class NativeSupportTransitionGuards
     }
 
     [Fact]
-    public void NumberedOwnersAndMatrix_PreserveTheExactPendingApiAndF1P3Obligations()
+    public void NumberedOwnersAndMatrix_PreserveTheExactReviewedApiAndF1P3Obligations()
     {
         Read("docs/specs/11-non-functional-requirements.md").Should().Contain("NF-034");
         var acceptance = Read("docs/specs/12-acceptance-criteria.md");
@@ -183,7 +189,7 @@ public sealed class NativeSupportTransitionGuards
         var matrix = Read("docs/specs/17-selected-mode-capability-matrix.md");
         const string api = "public static class WorkflowJsonMetadata\n{\n    public static void Register<TContext>()\n        where TContext : System.Text.Json.Serialization.JsonSerializerContext, new();\n}";
         matrix.Should().Contain("```csharp\n" + api + "\n```");
-        matrix.Should().Contain("implementation pending").And.Contain("IsMemberInitializer=true")
+        matrix.Should().Contain("source-qualified; release pending").And.Contain("IsMemberInitializer=true")
             .And.Contain("SFE-TYPE-002").And.Contain("SFE-TYPE-003");
         matrix.Should().Contain("TerminalRetention", "the existing host policy signature remains part of document 17");
         var protocol = Read(Prefix + "artifacts/contract-r1-consumer-protocol-2026-10-23.md");
@@ -199,7 +205,7 @@ public sealed class NativeSupportTransitionGuards
     {
         using var matrixRegistry = Load();
         var matrix = matrixRegistry.RootElement.GetProperty("nativeSupportContractEvidence").GetProperty("nativeMatrixExecution");
-        S(matrix, "stage").Should().Be("ExecutionReviewedWholeTargetPending");
+        S(matrix, "stage").Should().Be("ExecutionAndWholeTargetApproved");
         const string indexPath = "openspec/changes/support-ephemeral-native-aot/artifacts/native-task-2-4-2026-10-27/index.json";
         S(matrix, "artifactPath").Should().Be(indexPath);
         S(matrix, "artifactSha256").Should().Be("4d5ad4ef7480daa14296347ef06ba57922ceed46d9f648ee0fcc60e90f99daeb");
@@ -228,7 +234,18 @@ public sealed class NativeSupportTransitionGuards
             S(report.RootElement, "sourceSha").Should().Be(S(index, "sourceCommit"));
             foreach (var table in new[] { "sourceFiles", "harnessFiles" })
                 foreach (var file in report.RootElement.GetProperty(table).EnumerateObject())
-                    Hash(File.ReadAllBytes(PathOf(file.Name))).Should().Be(file.Value.GetString(), "native evidence must bind current source/harness bytes");
+                {
+                    if (file.Name == ".github/workflows/ephemeral-native-support.yml")
+                    {
+                        var tested = Git("show", "8566986850dc377f5a69e165dd58936be50ad722:" + file.Name);
+                        Hash(Encoding.UTF8.GetBytes(tested)).Should().Be(file.Value.GetString());
+                        Read(file.Name).Should().Be(Normalize(tested).Replace(
+                            "  push:\n    branches: [codex/issue-13-native-evidence]\n", "", StringComparison.Ordinal),
+                            "publication removes only the temporary trigger; every tested job/harness byte is preserved");
+                    }
+                    else Hash(Encoding.UTF8.GetBytes(Git("show", "8566986850dc377f5a69e165dd58936be50ad722:" + file.Name)))
+                        .Should().Be(file.Value.GetString(), "protocol-2 evidence remains bound to its approved historical source");
+                }
         }
 
         using var registry = Load();
@@ -247,15 +264,63 @@ public sealed class NativeSupportTransitionGuards
         foreach (var amended in CatalogueDeltaHashes)
             S(binding.GetProperty("approvedFileSha256"), Prefix + "specs/" + amended.Key + "/spec.md").Should().Be(amended.Value);
         foreach (var row in registry.RootElement.GetProperty("nativeSupportPendingAmendments").EnumerateArray())
-            S(row, "authoringCompanionDisposition").Should().Be("MetadataConverterAndTypedDispatchImplementedNativeQualificationPending");
+            S(row, "authoringCompanionDisposition").Should().Be("MetadataConverterAndTypedDispatchSourceAndNativeApproved");
         ValidateWholeTargetReview(registry.RootElement);
         Read(Prefix + "tasks.md").Should().Contain("- [x] 2.4 ").And.Contain("- [x] 2.5 ");
+    }
+
+    private static void ValidateImplementationApproval(JsonElement root)
+    {
+        var evidence = root.GetProperty("nativeSupportContractEvidence");
+        var extension = evidence.GetProperty("sourceApprovalBinding");
+        const string path = "openspec/changes/support-ephemeral-native-aot/artifacts/task-3-1-implementation-approval-binding-2026-10-27.json";
+        S(extension, "artifactPath").Should().Be(path);
+        S(extension, "artifactSha256").Should().Be("6abf023553a1546f52d331d01bfb82aff1f41634b8235e7e3f76713b89f614c5");
+        S(extension, "stage").Should().Be(ApprovedStage);
+        Hash(File.ReadAllBytes(PathOf(path))).Should().Be(S(extension, "artifactSha256"));
+        using var document = JsonDocument.Parse(Read(path));
+        var binding = document.RootElement;
+        S(binding, "stage").Should().Be(ApprovedStage);
+        S(binding, "approvalAuthority").Should().Be("DirectUserApproval");
+        const string checkpoint = "8566986850dc377f5a69e165dd58936be50ad722";
+        const string child = "1ad2a5946b2874fd709571376a67799f5c7f9cd1";
+        S(binding, "checkpointCommit").Should().Be(checkpoint);
+        S(binding, "checkpointParent").Should().Be(VerdictCommit);
+        S(binding, "checkpointTree").Should().Be("6f697b1374800a2b5d7b4196f9c841f0330d6247");
+        S(binding, "approvalEvidenceCommit").Should().Be(child);
+        S(binding, "verdictPath").Should().Be(SourceApproval);
+        S(binding, "verdictSha256").Should().Be("657a03a70b3d8aea73a0fc5e21e866561130d36d9cdd7067c2ad8f8930ded588");
+        Git("show", "-s", "--format=%P", checkpoint).Trim().Should().Be(VerdictCommit);
+        Git("show", "-s", "--format=%T", checkpoint).Trim().Should().Be(S(binding, "checkpointTree"));
+        Git("show", "-s", "--format=%P", child).Trim().Should().Be(checkpoint);
+        Git("diff-tree", "--no-commit-id", "--name-only", "-r", child).Trim().Should().Be(SourceApproval);
+        var bytes = File.ReadAllBytes(PathOf(SourceApproval));
+        bytes.Length.Should().Be(binding.GetProperty("verdictBytes").GetInt32());
+        Hash(bytes).Should().Be(S(binding, "verdictSha256"));
+        Encoding.UTF8.GetBytes(Git("show", child + ":" + SourceApproval)).Should().Equal(bytes);
+        var manifest = S(binding, "manifestPath");
+        Read(manifest).Should().Be(Normalize(Git("show", checkpoint + ":" + manifest)));
+        var paths = Read(manifest).Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        paths.Should().HaveCount(327).And.OnlyHaveUniqueItems();
+        Git("diff-tree", "--no-commit-id", "--name-only", "-r", checkpoint)
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(paths);
+        _ = Git("merge-base", "--is-ancestor", child, "HEAD");
+        foreach (var key in new[] { "liveEventDeliveryQualified", "outgoingPublishingQualified", "allPackagesQualified",
+                     "published", "issueBranchPushed", "prOpened" })
+            binding.GetProperty(key).GetBoolean().Should().BeFalse();
+        binding.GetProperty("releaseVersion").ValueKind.Should().Be(JsonValueKind.Null);
+        foreach (var key in new[] { "catalogueAmendment", "throttleMetadataAmendment" })
+            S(evidence.GetProperty(key), "stage").Should().Be("CatalogueAndImplementationApproved");
+        var workflow = binding.GetProperty("workflowChange");
+        Hash(File.ReadAllBytes(PathOf(S(workflow, "path")))).Should().Be(S(workflow, "preparedSha256"));
+        Read("docs/ephemeral-native-support.md").Should().Contain("source-qualified; release pending")
+            .And.Contain("Live event delivery/resumption and outgoing publishing receive no native credit");
     }
 
     private static void ValidateWholeTargetReview(JsonElement root)
     {
         var binding = root.GetProperty("nativeSupportContractEvidence").GetProperty("wholeTargetValidation");
-        S(binding, "stage").Should().Be("SelfReviewedUserApprovalPending");
+        S(binding, "stage").Should().Be("SelfReviewedAndUserApproved");
         S(binding, "task").Should().Be("2.5");
         const string recordPath = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-5-validation-record-2026-10-27.json";
         const string reviewPath = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-5-independent-review-verdict-2026-10-27.md";
@@ -272,7 +337,8 @@ public sealed class NativeSupportTransitionGuards
         foreach (var key in new[] { "sourceApprovalEvidencePath", "nativeQualificationEvidencePath" })
             record.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null);
         foreach (var file in record.GetProperty("sourceFiles").EnumerateObject())
-            Hash(File.ReadAllBytes(PathOf(file.Name))).Should().Be(file.Value.GetString());
+            Hash(Encoding.UTF8.GetBytes(Git("show", "8566986850dc377f5a69e165dd58936be50ad722:" + file.Name)))
+                .Should().Be(file.Value.GetString(), "the prior whole-target review remains immutable historical evidence");
         foreach (var file in record.GetProperty("artifacts").EnumerateObject())
             Hash(File.ReadAllBytes(PathOf(Prefix + "artifacts/validation-task-2-5-2026-10-27/" + file.Name)))
                 .Should().Be(S(file.Value, "sha256"));

@@ -122,3 +122,13 @@ and the [installation configuration](packages.md#install-from-github-packages).
 ## Issue #13 release claim boundary (implementation pending)
 
 The approved contract/canonical transition publishes no packages and changes no credentials, registries or release workflow. A later qualified version must retain its own source/package/native evidence and use an unused version through the existing gates. The metadata API is absent from released preview.2; old unsupported assessment facts cannot be relabeled as support.
+
+## Publish a source-qualified native candidate
+
+Issue #13 source checkpoint `8566986`, approved at `1ad2a59`, qualifies only the
+[selected ephemeral recipe](ephemeral-native-support.md). It does not publish a
+new version or change preview.2's unsupported assessment. Choose a new unused
+version only at an authorized release gate, bind its source/profile, and retain
+the normal CI, clean consumer and registry verification steps. Publishing all
+twelve packages grants no twelve-package AOT/trimming badge. This preparation
+authorizes no tag, workflow dispatch, registry push or release.

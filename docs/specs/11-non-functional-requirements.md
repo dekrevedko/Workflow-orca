@@ -204,3 +204,9 @@ AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required
 A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
+
+Qualification status (2026-10-27): checkpoint 8566986 / user-verdict child 1ad2a59
+approve the bounded source/native recipe and its explicit converter, throttle and
+public-consumer amendments. All six native cells pass; publication is pending.
+This status does not relax NF-034 or grant live event/publishing, other engine/RID
+or released-preview.2 support. [Qualified recipe](../ephemeral-native-support.md)

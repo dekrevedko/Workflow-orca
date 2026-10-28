@@ -407,7 +407,7 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 <!-- dag-run-contract-proposal:end -->
 
-## Statically reachable ephemeral native path (issue #13; implementation pending)
+## Statically reachable ephemeral native path (issue #13; source-qualified, release pending)
 
 The selected native path SHALL retain closed typed operations from authoring
 through definition installation, identity/start snapshots, named/delegate steps,
@@ -422,6 +422,7 @@ authoring on the native path. It installs the Core boundary by a static referenc
 without DI resolution, provider construction, step construction or work admission.
 The JIT definition-first recipe remains supported. All physical work ownership,
 Closed draining, acceptance/abort, commit authority, retention/pins/key expiry
-and Stopping/Completed semantics remain unchanged. This is a pending source
-obligation; current source/release execution receives no native support credit.
+and Stopping/Completed semantics remain unchanged. Checkpoint 8566986 / user-verdict child 1ad2a59 qualify this bounded source
+recipe. Released preview.2 and capabilities outside that recipe receive no new
+native support credit.
 [NF-034, AC-563, AC-571–574]

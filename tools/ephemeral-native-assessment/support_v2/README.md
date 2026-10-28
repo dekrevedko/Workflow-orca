@@ -1,7 +1,10 @@
-# Issue #13 support protocol v2
+# Issue #13 support protocol v3
 
-Candidate support tooling; six native cells passed in run 40629471843 (2026-10-27).
-Whole-target source/native approval and publication remain pending. The directly approved
+Protocol 3 adds the post-review codec member controls. Requalification of the
+corrected source is pending. Protocol 2's six cells passed in run 40629471843
+(2026-10-27); those records remain historical and do not qualify the fixes.
+Whole-target source/native approval is recorded at 8566986 / 1ad2a59; publication
+remains pending. The directly approved
 2026-10-27 bounded recipe resolves the earlier NS-10 conflict without adding an
 API. Live event delivery/resumption and outgoing publishing receive no support
 credit. The
@@ -22,9 +25,9 @@ work directory is physically outside the checkout:
   Program.cs adaptation installs the static role and the source-generated
   JourneyContext before the original sixteen assertions. Both generated and
   unconfigured-legacy JIT controls execute; the latter skips metadata installation.
-* Metadata: the five reviewed NativeMetadata fixture files are copied. Program.cs
+* Metadata: the reviewed NativeMetadata fixture files are copied. Program.cs
   gains a post-assertion runtime-feature marker, static role installation except
-  for the missing-install negative, and two supplemental case dispatches. NativeExtras
+  for the missing-install negative, and supplemental case dispatches. NativeExtras
   adds the registration/first-use race, public getter-barrier retention/key
   control, typed wait/value/physical-join, queued pool grant and throttle-capacity
   boundary assertions. The pool test uses a public MeterListener queue-depth
@@ -32,7 +35,10 @@ work directory is physically outside the checkout:
   serialized provisional starts/timer dispatch cannot masquerade as pool queuing.
   The app clock is an exact renamed copy of the historical public clock.
   All original assertions remain. Configuration cases run in separate processes.
-  Eight legacy-only controls run under JIT.
+  Ten legacy-only controls run under JIT. The member-boundary cases use ordinary
+  Metadata and Default contexts: write-only members preserve admission, included
+  fields/properties reject unapproved subtypes and collections, getter counts are
+  preserved, and rejected values leave start keys and accepted waits intact.
 * Isolation: an OrcaCore-only consumer in each profile proves missing native
   installation without Core's AOT module initializer having already installed the
   boundary. Its second JIT process preserves the existing missing-engine
@@ -57,17 +63,23 @@ python -B -X utf8 -m unittest discover -s tools/ephemeral-native-assessment/supp
 ```
 
 The scoped workflow is `.github/workflows/ephemeral-native-support.yml`.
-Its temporary push trigger names only `codex/issue-13-native-evidence`. Creating
-and pushing that validation-only commit still requires separate authorization;
-the issue branch and author index remain uncommitted. Remove the temporary
-trigger at the publication gate. No PR or issue edit is part of this run.
+It is manual-only after task 3.1 removes the temporary evidence-branch push
+trigger. The qualified run/validation commits remain immutable history; its jobs
+are unchanged. Protocol 3 extends the harness and requires a new exact-source run.
+Dispatching or pushing later validation
+still needs the relevant authority. No PR or issue edit is part of this tooling.
 
 `--preflight` allows local development but deliberately fails native qualification.
 The runner never recursively deletes command-line paths. Hosted cleanup verifies
 the exact temporary path and ownership marker after preserving raw evidence;
 local cleanup belongs to the disposable validation-worktree owner.
 
-Final execution: https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843
+Historical protocol-2 execution: https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843
 Both native JIT cells pass 76/76; each full-trim/AOT cell passes 51/51. The
 24 exact non-product counterexample warning records are independently reviewed
 and count-pinned; no product-path warning or live-event capability is credited.
+
+Protocol 3 requires 82 JIT cases and 55 full-trim/AOT cases per host (384 total).
+The 13 original mandatory subcases and all 16 original journeys remain. The
+current gate refuses protocol-2 evidence; use `--allow-historical` only to inspect
+those immutable old records. Warning decisions are included in harness hashes.

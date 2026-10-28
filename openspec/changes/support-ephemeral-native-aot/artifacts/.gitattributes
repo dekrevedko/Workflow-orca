@@ -1,0 +1,6 @@
+# Preserve the corrected native evidence bytes across Windows/Linux checkouts.
+native-codec-fixes-2026-10-28/** -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# Preserve GCC's unmodified version banner, including its final blank line.
+native-codec-fixes-2026-10-28/**/cc-version.log whitespace=blank-at-eol,-blank-at-eof,space-before-tab,cr-at-eol
+# Preserve the raw Windows ReSharper report as emitted.
+codec-member-fixes-native-resharper-2026-10-28.sarif -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol

@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "stage": "NativeRequalifiedPendingReview",
+  "baseCheckpoint": "8566986850dc377f5a69e165dd58936be50ad722",
+  "baseVerdictCommit": "1ad2a5946b2874fd709571376a67799f5c7f9cd1",
+  "authorizationQuote": "Fix them",
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null,
+  "sourceFiles": {
+    "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs": "d12cd231a5bfc6743ee7ca9778bb519897f4878c28e1f7bd469197fd540ba4ff",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs": "7faf1674272992dfab9ab39d74e30b40e9fbb82b8b5b25d66ff3574412652edd",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs": "4b44b25affd51c8d039304d9d74c063602e02f2c48341fb8425feed946b8c617"
+  },
+  "harnessFiles": {
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/CodecMemberCases.cs": "ca1310c18e837e1b2b62dbfef6208c29f57364413fa0bf99a22b78990ea0923e",
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/Program.cs": "70ee38ca03e66cc689bfa85af53695062df901ef29059a22fb4ef67910488096",
+    "tests/OrcaCore.DeveloperSurface.Guards/NativeMetadataApiGuards.cs": "d841248e8441e8326fde03448456fd44a64c0c0b7743040ddd62183d339f7968",
+    "tools/ephemeral-native-assessment/support_v2/support_gate.py": "7722949ab5bcb5713cf14b893a16ef7abc14da30cc5d6399c464d2ce531e7ae0",
+    "tools/ephemeral-native-assessment/support_v2/run_support.py": "f27c9fb0cf476d55938d8306e55b36cfe73a742f2b5b9f79656c7859342255a9",
+    "tools/ephemeral-native-assessment/support_v2/test_support_gate.py": "f3dfb1c314f84b2f3d490149e7afbee187bf116818858ad1c575d870e3a49eb6",
+    "tools/ephemeral-native-assessment/support_v2/diagnostic-decisions.json": "7329c9a085a31587913b82d6ffd38d6c99c2053afde8ae9142ca7cb1b6e9acbb"
+  },
+  "nativeMatrix": {
+    "indexPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/index.json",
+    "indexSha256": "3658a18154c07a0924ca41af5fd14a86a4de858d22f70760d834656516de4147",
+    "totalCases": 384,
+    "runId": 40762764617,
+    "sourceCommit": "7f1034c4f0733da48caf6814f37933f7c38ac9af",
+    "protocol": 3
+  },
+  "fixes": {
+    "reviewF1": "Only serialized members enter Generated declared closure; the original omittable initializer restriction stays.",
+    "reviewF2": "Validate actual serializer getter results, including field and internal members, without additional getter reads; old public prepass remains.",
+    "P3": "Acceptance criteria describe ongoing regression assertions rather than future implementation."
+  },
+  "localValidation": {
+    "unit": 969,
+    "metadata": 41,
+    "trimmed": 55,
+    "aot": 55,
+    "qualifiedNativeHost": false
+  },
+  "published": false,
+  "issueBranchPushed": false,
+  "prOpened": false,
+  "nativeValidationAuthorization": {
+    "userQuote": "Ok continue",
+    "scope": "Temporary evidence branch only, following the presented hosted-matrix plan; no issue-branch checkpoint, PR, merge or publication"
+  }
+}

@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 20,
+  "schemaVersion": 22,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -795,7 +795,7 @@
     "verdictSha256": "d2ea311bdd255dcdf4171b237646eb8a845a9e019173e8407888db01ffe589ae"
   },
   "nativeSupportContractEvidence": {
-    "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+    "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
     "checkpointCommit": "6122025828c7e8e3525ad8f2e24048024cbbb2d5",
     "checkpointParent": "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
     "checkpointTree": "2b981a667a0c08aca7215118e73f0e40b91db8ac",
@@ -807,25 +807,25 @@
     "implementationReviewTask": "2.5",
     "sourceApprovalEvidencePath": null,
     "nativeQualificationEvidencePath": null,
-    "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending",
+    "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved",
     "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-1-contract-binding-2026-10-24.md",
     "artifactNormalizedSha256": "0b7b6fda7ad1c52e0420261bd48b7c3f0b9e6719a7179132829c11fb2873b4d6",
     "catalogueAmendment": {
       "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-catalogue-approval-binding-2026-10-25.json",
       "artifactSha256": "efc13e6b51aa50bdeb41997471177a94a23bcdd6e1fe4bdb85be42af5be92181",
-      "stage": "CatalogueApprovedImplementationPendingReview"
+      "stage": "CatalogueAndImplementationApproved"
     },
     "throttleMetadataAmendment": {
       "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-3-throttle-approval-binding-2026-10-26.json",
       "artifactSha256": "39cc08fd67953977a309cfa3d1aa662a59bdafa04e365147225c861cef5138a3",
-      "stage": "CatalogueApprovedImplementationPendingReview"
+      "stage": "CatalogueAndImplementationApproved"
     },
     "publicConsumerBoundaryAmendment": {
       "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-4-boundary-approval-binding-2026-10-27.json",
       "artifactSha256": "fecfe2efeb5c0d1c675f01ad8a13131891a6631b3647f27d519a2271a50e9512"
     },
     "nativeMatrixExecution": {
-      "stage": "ExecutionReviewedWholeTargetPending",
+      "stage": "ExecutionAndWholeTargetApproved",
       "task": "2.4",
       "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-task-2-4-2026-10-27/index.json",
       "artifactSha256": "4d5ad4ef7480daa14296347ef06ba57922ceed46d9f648ee0fcc60e90f99daeb",
@@ -835,12 +835,22 @@
       "sourceCommit": "609f1045db0f863b43be58843654f03cecb47d56"
     },
     "wholeTargetValidation": {
-      "stage": "SelfReviewedUserApprovalPending",
+      "stage": "SelfReviewedAndUserApproved",
       "task": "2.5",
       "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-5-validation-record-2026-10-27.json",
       "artifactSha256": "c26c101f802fc6f39fecbfb17c88f26b978e94e1a6e5337304c0a8df0df50c0b",
       "reviewPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-5-independent-review-verdict-2026-10-27.md",
       "reviewSha256": "bbcee0355982247289a28828fa617f77071a3f4e7894dc2a176f6d6b3a65acc7"
+    },
+    "sourceApprovalBinding": {
+      "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-3-1-implementation-approval-binding-2026-10-27.json",
+      "artifactSha256": "6abf023553a1546f52d331d01bfb82aff1f41634b8235e7e3f76713b89f614c5",
+      "stage": "CanonicalSourceAndNativeApprovedPublicationReviewPending"
+    },
+    "codecMemberCorrections": {
+      "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/codec-member-corrections-2026-10-28.json",
+      "artifactSha256": "e14e591cb641b21fb05fde9bba0369e04f7cd7c507d26fc04aee79b171e8a3d7",
+      "stage": "NativeRequalifiedPendingReview"
     }
   },
   "nativeSupportPendingAmendments": [
@@ -848,7 +858,7 @@
       "id": "ephemeral-native-support-developer-facing-surface",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "developer-facing-surface",
-      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -865,7 +875,7 @@
         "2.5",
         "2.6"
       ],
-      "canonicalApprovalEvidencePath": null,
+      "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
       "sourceApprovalEvidencePath": null,
       "nativeQualificationEvidencePath": null,
       "numberedRequirementPaths": [
@@ -879,13 +889,13 @@
       "acceptanceCriteriaPaths": [
         "docs/specs/12-acceptance-criteria.md"
       ],
-      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved"
     },
     {
       "id": "ephemeral-native-support-quality-and-verification",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "quality-and-verification",
-      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -902,7 +912,7 @@
         "2.5",
         "2.6"
       ],
-      "canonicalApprovalEvidencePath": null,
+      "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
       "sourceApprovalEvidencePath": null,
       "nativeQualificationEvidencePath": null,
       "numberedRequirementPaths": [
@@ -916,13 +926,13 @@
       "acceptanceCriteriaPaths": [
         "docs/specs/12-acceptance-criteria.md"
       ],
-      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved"
     },
     {
       "id": "ephemeral-native-support-structured-fiber-execution",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "structured-fiber-execution",
-      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
       "declaredRequirementCount": 1,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -938,7 +948,7 @@
         "2.5",
         "2.6"
       ],
-      "canonicalApprovalEvidencePath": null,
+      "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
       "sourceApprovalEvidencePath": null,
       "nativeQualificationEvidencePath": null,
       "numberedRequirementPaths": [
@@ -952,13 +962,13 @@
       "acceptanceCriteriaPaths": [
         "docs/specs/12-acceptance-criteria.md"
       ],
-      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved"
     },
     {
       "id": "ephemeral-native-support-workflow-contracts",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "workflow-contracts",
-      "stage": "ContractApprovedCanonicalSynchronizedSourcePending",
+      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -975,7 +985,7 @@
         "2.5",
         "2.6"
       ],
-      "canonicalApprovalEvidencePath": null,
+      "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
       "sourceApprovalEvidencePath": null,
       "nativeQualificationEvidencePath": null,
       "numberedRequirementPaths": [
@@ -989,7 +999,7 @@
       "acceptanceCriteriaPaths": [
         "docs/specs/12-acceptance-criteria.md"
       ],
-      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchImplementedNativeQualificationPending"
+      "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved"
     }
   ]
 }

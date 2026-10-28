@@ -1,0 +1,95 @@
+{
+  "schemaVersion": 1,
+  "stage": "FullCorrectedTargetValidatedApprovalPending",
+  "base": "1ad2a5946b2874fd709571376a67799f5c7f9cd1",
+  "historicalImplementationCheckpoint": "8566986850dc377f5a69e165dd58936be50ad722",
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null,
+  "sourceFiles": {
+    "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs": "d12cd231a5bfc6743ee7ca9778bb519897f4878c28e1f7bd469197fd540ba4ff",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs": "7faf1674272992dfab9ab39d74e30b40e9fbb82b8b5b25d66ff3574412652edd",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs": "4b44b25affd51c8d039304d9d74c063602e02f2c48341fb8425feed946b8c617"
+  },
+  "sourceAndTestBytesUnchangedSinceLocalValidation": true,
+  "nativeMatrix": {
+    "indexPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-codec-fixes-2026-10-28/index.json",
+    "indexSha256": "3658a18154c07a0924ca41af5fd14a86a4de858d22f70760d834656516de4147",
+    "totalCases": 384,
+    "runId": 40762764617,
+    "sourceCommit": "7f1034c4f0733da48caf6814f37933f7c38ac9af",
+    "protocol": 3
+  },
+  "qualifiedNativeCasesPassed": 384,
+  "nativeCoveragePerCell": {
+    "originalJourneys": 16,
+    "groups": 12,
+    "mandatorySubcases": 13
+  },
+  "nativeSourceInputIdentitiesVerified": 360,
+  "nativeHarnessIdentitiesVerified": 20,
+  "exactNativeFeedPackagesVerified": 12,
+  "selectedPackageDllsVerified": 3,
+  "nativeDiagnosticRecords": 24,
+  "newProductDiagnostics": 0,
+  "freshValidation": {
+    "openSpecPassed": 25,
+    "releaseBuildWarnings": 0,
+    "releaseBuildErrors": 0,
+    "infrastructurePassed": 309,
+    "finalDocumentationAndBindingGuardsPassed": 25,
+    "gateNegativeTestsPassed": 6,
+    "resharper": {
+      "version": "2026.2.3.1",
+      "counts": {
+        "error": 0,
+        "note": 2
+      },
+      "newDiagnostics": 0,
+      "scope": "CodecMemberCorrectionGuards.cs",
+      "noBuildReason": "Compatible fresh Release guard build passed immediately before analysis",
+      "sarifPath": "openspec/changes/support-ephemeral-native-aot/artifacts/codec-member-fixes-native-resharper-2026-10-28.sarif",
+      "sarifSha256": "c41f4d88b41917b7212b5d0e0f403505a9de8c53c9509bdc73a52152084f4d5c"
+    }
+  },
+  "unchangedSourceValidation": {
+    "recordPath": "openspec/changes/support-ephemeral-native-aot/artifacts/codec-member-fixes-validation-2026-10-28.json",
+    "recordSha256": "7130430c48e273abc9c8be9b0012fb8f4ed72e68966e7e9bae18dd390ebf4ed7",
+    "unitPassed": 969,
+    "metadataPassed": 41,
+    "providerIntegrationPassed": 188,
+    "requirementsPassed": 60,
+    "stressRuns": 50,
+    "stressPassed": 17600,
+    "coverage": {
+      "passed": true,
+      "coveredLines": "15956",
+      "lineRate": 0.793357199681782,
+      "requiredRate": 0.75,
+      "validLines": "20112"
+    },
+    "additionalPreAotDifferentialCasesPassed": 13,
+    "fullSourceAndFixtureReSharperErrors": 0
+  },
+  "harnessSetupAttempts": [
+    {
+      "lane": "fresh Infrastructure first attempt",
+      "passed": 307,
+      "failed": 2,
+      "classification": "Missing local exact package feed; two prerequisite checks, no product failure",
+      "resolution": "Packed 12 current-source packages in the owned worktree; full rerun 309/309"
+    },
+    {
+      "lane": "author native evidence comparison",
+      "classification": "First comparator omitted line-only warning locations without columns; fixed comparison, all 24 exact warning bodies/counts match after only a 14-line shift",
+      "productSourceChanged": false
+    }
+  ],
+  "apiCompileDependencyAndCanonicalBaselinesUnchanged": true,
+  "issueBranchCheckpointCreated": false,
+  "issueBranchPushed": false,
+  "temporaryValidationBranchPushed": true,
+  "prOpened": false,
+  "merged": false,
+  "published": false,
+  "releaseVersion": null
+}
