@@ -134,3 +134,9 @@ The [publishing guide](nuget-publishing.md) covers NuGet.org trusted publishing 
 mirroring an existing prerelease to GitHub Packages without rebuilding it. The
 registries use separate authentication and permissions. Signing, SourceLink, and stable API
 compatibility remain outside this prerelease workflow.
+
+## Issue #13 candidate compatibility boundary (implementation pending)
+
+Released 0.1.0-preview.2 does not contain WorkflowJsonMetadata. Its existing registry installation/authentication instructions remain unchanged. Candidate packages for issue #13 will be packed from reviewed source and tested outside repository build props with fresh caches and source mapping. Only the actual selected OrcaCore/Core/Ephemeral closure can gain a finite qualified claim; the twelve-package inventory is not an all-package AOT badge.
+
+The issue #13 catalogue amendment exposes the existing sealed product StrongStringValueJsonConverterFactory in OrcaCore, with its constructor and two existing overrides, for ordinary generated strong-value DTOs. The package consumer must not add it to context options. This adds no package/dependency/friend and no released-preview.2 or all-package native support claim.

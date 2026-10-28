@@ -118,3 +118,7 @@ settings; this is irreversible. The job summary records the actual visibility an
 repository link. Consumers still need authentication for a public GitHub NuGet feed.
 See [GitHub's visibility documentation](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
 and the [installation configuration](packages.md#install-from-github-packages).
+
+## Issue #13 release claim boundary (implementation pending)
+
+The approved contract/canonical transition publishes no packages and changes no credentials, registries or release workflow. A later qualified version must retain its own source/package/native evidence and use an unused version through the existing gates. The metadata API is absent from released preview.2; old unsupported assessment facts cannot be relabeled as support.

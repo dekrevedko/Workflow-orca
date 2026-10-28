@@ -85,7 +85,7 @@ internal sealed class BranchScopeBuilder<TParentState, TResult>
         branches.Add(new StructuredBranchAuthoring(
             branchId,
             typeof(TBranchState),
-            inputProjector,
+            StructuredInvocationCache.Bind(inputProjector)!,
             branch.Instructions));
         return this;
     }
@@ -105,11 +105,14 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     internal BranchBuilder(AuthoringLifecycleHandle lifecycle)
     {
         this.lifecycle = lifecycle;
+        StructuredInvocationCache.BindState<TBranchState>();
+        ClosedResultBindings.Bind<TResult>();
     }
 
     /// <summary>
     /// Adds a parameterless business step to the branch-private state flow.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Legacy internal parameterless step construction; public authoring uses DI-bound AddNamedStep.")]
     public BranchBuilder<TBranchState, TResult> Then<TStep>()
         where TStep : IStep<TBranchState>
     {
@@ -129,7 +132,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     {
         ArgumentNullException.ThrowIfNull(stepFactory);
         using var operation = Mutate();
-        instructions.Add(new BranchStepAuthoringInstruction(null, stepFactory, ConsumePendingPolicies()));
+        instructions.Add(new BranchStepAuthoringInstruction(null, StructuredInvocationCache.Bind(stepFactory), ConsumePendingPolicies()));
         return this;
     }
 
@@ -265,7 +268,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
             global::OrcaCore.WorkflowEventContract.Create(
                 global::OrcaCore.EventName.Create(eventName),
                 global::OrcaCore.EventContractVersion.Initial),
-            correlationSelector,
+            StructuredInvocationCache.Bind(correlationSelector)!,
             WaitMode.Resident,
             Timeout: null));
         return this;
@@ -282,7 +285,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         using var operation = Mutate();
         instructions.Add(new BranchWaitAuthoringInstruction(
             eventContract,
-            correlationSelector,
+            StructuredInvocationCache.Bind(correlationSelector)!,
             mode,
             timeout));
     }
@@ -303,7 +306,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         using var operation = Mutate();
         instructions.Add(new BranchPublishAuthoringInstruction(
             eventContract,
-            correlationSelector,
+            StructuredInvocationCache.Bind(correlationSelector)!,
             payloadType,
             payloadSelector));
     }
@@ -337,7 +340,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
             ? EmptyNested("if:false")
             : InvokeNested(otherwise, "if:false");
         instructions.Add(new BranchIfAuthoringInstruction(
-            condition,
+            StructuredInvocationCache.Bind(condition)!,
             thenBuilder.Instructions,
             elseBuilder.Instructions));
     }
@@ -366,7 +369,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
         var nested = InvokeNested(body, "lease:body");
         instructions.Add(new BranchResourceLeaseAuthoringInstruction(
             null,
-            request,
+            StructuredInvocationCache.Bind(request),
             nested.Instructions));
     }
 
@@ -378,7 +381,7 @@ internal sealed class BranchBuilder<TBranchState, TResult>
     {
         ArgumentNullException.ThrowIfNull(resultProjector);
         using var operation = Mutate();
-        instructions.Add(new BranchReturnAuthoringInstruction(typeof(TResult), resultProjector));
+        instructions.Add(new BranchReturnAuthoringInstruction(typeof(TResult), StructuredInvocationCache.Bind(resultProjector)!));
         return this;
     }
 

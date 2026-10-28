@@ -1,0 +1,102 @@
+name: Issue 13 native support qualification
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [codex/issue-13-native-evidence]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ephemeral-native-support-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  packages:
+    name: One exact candidate feed
+    runs-on: windows-2025
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Build and pack the exact source once
+        shell: pwsh
+        run: |
+          dotnet build OrcaCore.slnx -c Release -warnaserror
+          if ($LASTEXITCODE -ne 0) { throw 'Candidate source build failed' }
+          ./tests/OrcaCore.DeveloperSurface.Guards/pack-exact-package-feed.ps1 -NoBuild -OutputDirectory "${{ github.workspace }}/artifacts/phase0-packages"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: issue-13-candidate-feed
+          path: artifacts/phase0-packages/*.nupkg
+          if-no-files-found: error
+
+  native:
+    name: Native ${{ matrix.os }} ${{ matrix.flavor }}
+    needs: packages
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2025, ubuntu-24.04]
+        flavor: [jit, trimmed, aot]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: git config --global core.autocrlf false
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/download-artifact@v4
+        with:
+          name: issue-13-candidate-feed
+          path: ${{ runner.temp }}/issue-13-feed
+      - name: Ubuntu Native AOT prerequisites
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang zlib1g-dev
+      - name: Negative gate controls
+        run: python -B -X utf8 -m unittest discover -s tools/ephemeral-native-assessment/support_v2 -p test_support_gate.py
+      - name: Publish and execute native package consumers
+        shell: pwsh
+        run: |
+          python -B -X utf8 tools/ephemeral-native-assessment/support_v2/run_support.py --repository "${{ github.workspace }}" --feed "${{ runner.temp }}/issue-13-feed" --work "${{ runner.temp }}/issue-13-work" --output "${{ runner.temp }}/issue-13-evidence" --flavor "${{ matrix.flavor }}"
+          if ($LASTEXITCODE -ne 0) { throw 'Native support evidence is incomplete, failed or unclassified' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: issue-13-${{ matrix.os }}-${{ matrix.flavor }}
+          path: ${{ runner.temp }}/issue-13-evidence
+          if-no-files-found: error
+      - name: Remove only the owned disposable consumer work
+        if: always()
+        shell: pwsh
+        run: |
+          $supportWork = Join-Path $env:RUNNER_TEMP 'issue-13-work'
+          if (Test-Path -LiteralPath $supportWork) {
+            $resolvedWork = (Resolve-Path -LiteralPath $supportWork).Path
+            $expectedWork = [IO.Path]::GetFullPath($supportWork)
+            if ($resolvedWork -cne $expectedWork) { throw 'Unexpected cleanup target' }
+            $marker = Join-Path $resolvedWork '.owned-issue-13-support'
+            if ((Get-Content -LiteralPath $marker -Raw).Trim() -cne 'disposable support-v2 work') { throw 'Unowned cleanup target' }
+            Remove-Item -LiteralPath $resolvedWork -Recurse -Force
+          }
+
+  records:
+    name: Six native cells bind the same source and packages
+    needs: native
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: issue-13-*
+          path: evidence
+      - run: python -B -X utf8 tools/ephemeral-native-assessment/support_v2/support_gate.py evidence

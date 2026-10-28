@@ -1,4 +1,3 @@
-using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -23,12 +22,9 @@ internal sealed class AuthoredLocationJsonConverter : JsonConverter<AuthoredLoca
 
         try
         {
-            return (AuthoredLocation)typeof(AuthoredLocation)
-                .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-                .Single()
-                .Invoke([value]);
+            return new AuthoredLocation(value);
         }
-        catch (TargetInvocationException exception) when (exception.InnerException is ArgumentException inner)
+        catch (ArgumentException inner)
         {
             throw new JsonException("The failure authored location is not canonical.", inner);
         }
@@ -107,27 +103,14 @@ internal sealed class FailureOccurrenceJsonConverter : JsonConverter<FailureOccu
             throw new JsonException("A failure item occurrence index cannot be negative.");
         }
 
-        return (FailureOccurrence)typeof(FailureOccurrence.Item)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters() is
-                [{ ParameterType: var parameterType }] &&
-                parameterType == typeof(int))
-            .Invoke([index]);
+        return new FailureOccurrence.Item(index);
     }
 
     private static FailureOccurrence CreateRootOccurrence() =>
-        (FailureOccurrence)typeof(FailureOccurrence.Root)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters().Length == 0)
-            .Invoke([]);
+        new FailureOccurrence.Root();
 
     private static FailureOccurrence CreateBranchOccurrence(string branchId) =>
-        (FailureOccurrence)typeof(FailureOccurrence.Branch)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters() is
-                [{ ParameterType: var parameterType }] &&
-                parameterType == typeof(AuthoredBranchId))
-            .Invoke([AuthoredBranchId.Create(branchId)]);
+        new FailureOccurrence.Branch(AuthoredBranchId.Create(branchId));
 
     private static void RequireObject(JsonElement element)
     {
@@ -187,10 +170,10 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
         var code = RequiredString(root, "code");
         var message = RequiredString(root, "message");
         var location = root.TryGetProperty("authoredLocation", out var locationElement)
-            ? JsonSerializer.Deserialize<AuthoredLocation>(locationElement.GetRawText(), options)
+            ? (AuthoredLocation?)JsonSerializer.Deserialize(locationElement.GetRawText(), options.GetTypeInfo(typeof(AuthoredLocation)))
             : null;
         var occurrence = root.TryGetProperty("occurrence", out var occurrenceElement)
-            ? JsonSerializer.Deserialize<FailureOccurrence>(occurrenceElement.GetRawText(), options)
+            ? (FailureOccurrence?)JsonSerializer.Deserialize(occurrenceElement.GetRawText(), options.GetTypeInfo(typeof(FailureOccurrence)))
             : null;
         if (!root.TryGetProperty("causes", out var causesElement) ||
             causesElement.ValueKind != JsonValueKind.Array)
@@ -199,9 +182,9 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
         }
 
         var causes = causesElement.EnumerateArray()
-            .Select(element => JsonSerializer.Deserialize<WorkflowFailure>(
+            .Select(element => (WorkflowFailure?)JsonSerializer.Deserialize(
                 element.GetRawText(),
-                options) ?? throw new JsonException("A workflow failure cause cannot be null."))
+                options.GetTypeInfo(typeof(WorkflowFailure))) ?? throw new JsonException("A workflow failure cause cannot be null."))
             .ToArray();
         if (location is null || occurrence is null)
         {
@@ -220,14 +203,14 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
         writer.WriteString("code", value.Code);
         writer.WriteString("message", value.Message);
         writer.WritePropertyName("authoredLocation");
-        JsonSerializer.Serialize(writer, value.AuthoredLocation, options);
+        JsonSerializer.Serialize(writer, value.AuthoredLocation, options.GetTypeInfo(typeof(AuthoredLocation)));
         writer.WritePropertyName("occurrence");
-        JsonSerializer.Serialize(writer, value.Occurrence, options);
+        JsonSerializer.Serialize(writer, value.Occurrence, options.GetTypeInfo(typeof(FailureOccurrence)));
         writer.WritePropertyName("causes");
         writer.WriteStartArray();
         foreach (var cause in value.Causes)
         {
-            JsonSerializer.Serialize(writer, cause, options);
+            JsonSerializer.Serialize(writer, cause, options.GetTypeInfo(typeof(WorkflowFailure)));
         }
 
         writer.WriteEndArray();
@@ -240,10 +223,7 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
         AuthoredLocation location,
         FailureOccurrence occurrence,
         IReadOnlyList<WorkflowFailure> causes) =>
-        (WorkflowFailure)typeof(WorkflowFailure)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single()
-            .Invoke([code, message, location, occurrence, causes]);
+        new WorkflowFailure(code, message, location, occurrence, causes);
 
     private static string RequiredString(JsonElement element, string name)
     {

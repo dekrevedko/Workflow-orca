@@ -17,6 +17,7 @@ internal sealed class SelectedWorkflowAuthoring<TState>
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         Mode = mode;
+        global::OrcaCore.Core.Execution.StructuredInvocationCache.BindState<TState>();
     }
 
     internal DefinitionId DefinitionId { get; }

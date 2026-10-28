@@ -215,3 +215,20 @@ Trimmed/AOT defaults and JSON-reflection-enabled extras remain unsupported, so t
 adds no general native-support or production-readiness badge. All findings and
 unavailable unsupported-workload metrics are retained. Process-memory and managed-
 heap observations keep their separate meanings and host-specific names.
+
+## Issue #13 support implementation pending (2026-10-24)
+
+Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
+canonical contract is synchronized; product implementation and native support
+qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
+boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
+unsupported for that released profile. This amendment does not change that fact.
+
+The approved metadata API, process seal, static bootstrap and explicit .NET 10
+F1 admission restriction are source obligations, not readiness evidence. The
+planned proof is six real native public-package cells plus every original and
+R1 control, exact source/package/harness identity and individual diagnostics.
+No blanket suppression, private roots, reflected JSON switch or successful
+publish substitutes for execution. No faster/smaller, provider/DAG, additional
+RID or all-package claim is made. Existing CI coverage/publication facts and
+shutdown/retention limitations remain unchanged. [NF-034, AC-563–574]

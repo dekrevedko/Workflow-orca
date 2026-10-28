@@ -1660,6 +1660,7 @@ meanings.
 | `SFE-AUTH-LEASE-003` | `LeaseBlocksContinueAsNew`: rollover is reached before a lexical lease scope exits. |
 | `SFE-TYPE-001` | `IncompatibleStateOrResultType`: a hand-built graph has incompatible state/result/output contracts. |
 | `SFE-TYPE-002` | `CodecUnsupportedShape`: a required persisted/detached value shape cannot use `orcacore-json-v1`. |
+| `SFE-TYPE-003` | `CodecMetadataMissing`: a required declared/transitive value contract is absent from the registered generated metadata context; add the closure and configure before first use. |
 | `SFE-LIMIT-001` | `InvalidForEachLimit`: a hand-built fan-out bypasses positive item/concurrency bounds. |
 | `SFE-RUN-001` | `NonQuiescentContinueAsNew`: runtime defense rejects rollover while a descendant or owned obligation remains. |
 | `SFE-RUN-002` | `LeaseAncestryViolation`: runtime defense terminally fails before queue/pool mutation and suppresses merges/restart loops. |
@@ -1775,7 +1776,10 @@ public sealed class StepExecutionThrottle
     private StepExecutionThrottle(Type stepType, int maxConcurrency);
     public Type StepType { get; }
     public int MaxConcurrency { get; }
-    public static StepExecutionThrottle For<TStep>(int maxConcurrency);
+    public static StepExecutionThrottle For<
+        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
+            System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]
+        TStep>(int maxConcurrency);
 }
 
 public sealed class TransientPoolDefinition
@@ -3073,3 +3077,108 @@ compile/package baseline, dependency, friend or fixed-codec/DI ownership rule.
 The six default cells and four extras remain separate; these observations apply
 only to the tested consumer/package/toolchain profile. Any product compatibility
 remediation needs a separate amendment.
+
+## Issue #13 generated metadata contract (implementation pending)
+
+Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
+canonical contract is synchronized; product implementation and native support
+qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
+boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
+unsupported for that released profile. This amendment does not change that fact.
+
+### Exact prospective surface
+
+Namespace/assembly/package OrcaCore. The following declaration is approved for
+the source slice; it is not available in released preview.2. The declaration
+companion and executable API/compile/package baselines move with the task-2.2 source; whole-target/native qualification remains pending.
+
+```csharp
+public static class WorkflowJsonMetadata
+{
+    public static void Register<TContext>()
+        where TContext : System.Text.Json.Serialization.JsonSerializerContext, new();
+}
+```
+
+One ordinary generated Metadata/Default context covers the finite application
+closure. It is process-wide, installed atomically and sealed by first workflow
+use (including a failure). A repeated same type is a no-op; other types and late
+registration after a legacy seal reject without changing the incumbent. Context
+construction/validation failure installs nothing and permits retry before use.
+No options/resolver/converter parameter, public reset, new role option/fingerprint,
+dependency or friend is added. Provider/scope ownership remains unchanged.
+
+The native recipe is existing AddOrcaCoreEphemeralEngine role registration,
+then metadata registration, then author/build, provider construction and existing
+typed registry/facade calls. Role setup statically installs Core without DI
+resolution/work admission. Existing JIT definition-first usage stays compatible.
+
+### Codec and qualification boundary
+
+orcacore-json-v1 options, product converters, bytes/fingerprints, limits and
+common-admitted-shape values remain fixed. Generated mode on .NET 10 rejects
+reachable JSON members where AssociatedParameter.IsMemberInitializer=true and
+JsonIgnore.Condition is present and not Never. Known closure fails Build/TryBuild
+with SFE-TYPE-002 before effects; direct boundaries use NotSupportedException.
+The rule covers omitted and present values, never changes legacy Reflection
+round trips and never bans a positional value state merely for its initializer
+flag. Missing contracts use SFE-TYPE-003 with type/context/remedy. An unused
+excluded context root does not invalidate Register.
+
+Baked enum policy and handwritten renamed-property contexts reject before
+publication, even with empty converter lists/default options; valid retry is
+required. All NS-02a–c/NS-06a–f and original AOT-01–16 assertions remain mandatory.
+Native Windows Server 2025 and Ubuntu 24.04 each execute JIT/full-trim/AOT with
+SDK-default disabled reflection JSON for trim/AOT. Individual warning accounting,
+exact candidate packages and independent qualification gate any support claim.
+Durable/DAG/providers/other RIDs and broad compatibility attributes are excluded.
+[NF-034, AC-563–574]
+
+### Approved product-converter catalogue amendment (2026-10-25)
+
+In assembly/package OrcaCore, retain namespace OrcaCore.Abstractions.Ids:
+
+```csharp
+public sealed class StrongStringValueJsonConverterFactory
+    : System.Text.Json.Serialization.JsonConverterFactory
+{
+    public StrongStringValueJsonConverterFactory();
+    public override bool CanConvert(System.Type typeToConvert);
+    public override System.Text.Json.Serialization.JsonConverter CreateConverter(
+        System.Type typeToConvert, System.Text.Json.JsonSerializerOptions options);
+}
+```
+
+Only the existing class accessibility changes. Its eleven-type switch, converter
+bodies and strong-value attributes remain fixed. Ordinary generated DTOs may use
+the product attribution; explicit context converter settings remain prohibited,
+even when listing this factory. Construction/conversion has no metadata seal,
+registration or DI/host effects. NS-02d/NS-06g–h supplement the existing cases;
+API/compile/package coverage is task 2.2, native qualification is still task 2.4.
+This adds no compatibility claim for other engines or released preview.2.
+
+### Approved throttle metadata annotation (2026-10-26)
+
+The existing StepExecutionThrottle.For<TStep> declaration above carries only the
+Interfaces metadata requirement on TStep. Validation body/order, exact named-step
+identity, errors and physical ownership remain unchanged. Annotated generic
+wrappers propagate the same requirement. NS-09a covers valid/inherited steps,
+invalid types and capacity-first validation in JIT, trim and AOT with no IL2090.
+This is method-scoped catalogue approval; native host qualification remains
+implementation pending under task 2.4. The authoring declaration companion does
+not declare this hosting value type; its authoring surface remains unchanged.
+
+### Approved 2026-10-27 public-consumer boundary
+
+NS-10 follows the bounded public recipe approved in the adjacent amendment:
+typed inbound value construction/materialization, typed StepResult.WaitForEvent
+parking and physical cancellation/join, timers/retries, transient-pool grants,
+root Parallel and bounded ForEach. The public ephemeral closure exports neither
+live event ingress/resumption nor outgoing Publish. These receive no native
+credit. Existing internal event regressions remain required, without substituting
+for public-package execution. NS-07/08/11 prove public value rejection and
+retained-instance state; they make no public delivery claim. Every original
+AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required.
+A future ingress/publish capability requires its own reviewed public contract.
+This is an explicit qualification-scope adjustment, not the old full event
+requirement passing. Source/public API and the fixed codec are unchanged.

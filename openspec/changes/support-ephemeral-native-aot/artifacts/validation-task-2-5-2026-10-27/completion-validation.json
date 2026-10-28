@@ -1,0 +1,95 @@
+{
+  "stage": "CompletionTailVerifiedSelfReviewPendingUserApproval",
+  "selfReviewSha256": "bbcee0355982247289a28828fa617f77071a3f4e7894dc2a176f6d6b3a65acc7",
+  "validationRecordSha256": "c26c101f802fc6f39fecbfb17c88f26b978e94e1a6e5337304c0a8df0df50c0b",
+  "completionFileSha256": {
+    "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs": "83736ebeeb54f34c0453e93a7e61bfbe34871ec37d48779720cba8a206d0385b",
+    "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json": "def3a09532d76c84fefb4e923477f340d3ceaab37a1a27a7b98e2d8b8e75b74d",
+    "openspec/changes/support-ephemeral-native-aot/tasks.md": "3647c239d553aa7599a85bde551cb7d69ca9020b70061894d2d082477fe1466e"
+  },
+  "lanes": [
+    {
+      "lane": "final-resharper",
+      "args": [
+        "jb",
+        "inspectcode",
+        "OrcaCore.slnx",
+        "--no-updates",
+        "--build",
+        "--properties:Configuration=Release;Platform=Any CPU",
+        "--target-framework=net10.0",
+        "--severity=SUGGESTION",
+        "--jobs=2",
+        "--include=tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+        "--output=E:\\oc13t25\\artifacts\\task25\\final-resharper.sarif",
+        "--caches-home=E:\\oc13t25\\artifacts\\task25\\resharper-cache"
+      ],
+      "exit": 0,
+      "seconds": 47.68
+    },
+    {
+      "lane": "final-infrastructure",
+      "args": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+        "--no-build",
+        "--no-restore",
+        "-c",
+        "Release",
+        "--filter",
+        "Disposition=Infrastructure",
+        "--collect:XPlat Code Coverage",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "artifacts/task25/final-infrastructure",
+        "--",
+        "DataCollectionRunSettings.DataCollectors.DataCollector.Configuration.Include=[OrcaCore.Engine.*]*"
+      ],
+      "exit": 0,
+      "seconds": 143.38
+    },
+    {
+      "lane": "final-openspec",
+      "args": [
+        "openspec.cmd",
+        "validate",
+        "--all",
+        "--strict",
+        "--json"
+      ],
+      "exit": 0,
+      "seconds": 1.57
+    }
+  ],
+  "infrastructure": {
+    "passed": 302,
+    "failed": 0,
+    "skipped": 0,
+    "trxSha256": "cb4e5afb1f4eb4dea8a86a717cb476375fd38d5a88d269e4f4af703837dc77f3"
+  },
+  "resharper": {
+    "errors": 0,
+    "warnings": 3,
+    "notes": 1,
+    "rules": [
+      "RedundantNameQualifier",
+      "UseCollectionExpression"
+    ],
+    "disposition": "Retained style suggestions; no behavior defect",
+    "sarifSha256": "ac8b068bb8276f97935b8be89f2ef13eec56bb67ef82e266c1174e59cf7e3898"
+  },
+  "initialConcurrentInspectionFailure": {
+    "exit": 4,
+    "cause": "MSB3027/MSB3021: coverage test host held engine DLLs during concurrent InspectCode build; repeated sequentially after the test host exited",
+    "productFailure": false,
+    "originalLogRetained": true
+  },
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null,
+  "productSourceChanged": false,
+  "apiBaselineChanged": false,
+  "selfReviewIncludedInCheckpoint": true,
+  "futureExternalVerdictOnlyChild": true
+}

@@ -1,0 +1,5 @@
+  Determining projects to restore...
+  Restored D:\a\_temp\issue-13-work\missing-engine\app\NativeConsumer.csproj (in 288 ms).
+  NativeConsumer -> D:\a\_temp\issue-13-work\missing-engine\app\bin\Release\net10.0\win-x64\NativeConsumer.dll
+  Optimizing assemblies for size. This process might take a while.
+  NativeConsumer -> D:\a\_temp\issue-13-work\missing-engine\publish\

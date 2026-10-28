@@ -8,6 +8,7 @@ namespace OrcaCore.Core.Definitions;
 /// </summary>
 internal abstract record WorkflowDefinitionRuntimeMetadata
 {
+    internal abstract TResult Visit<TResult>(IWorkflowDefinitionVisitor<TResult> visitor);
     internal abstract IReadOnlyList<ResourcePoolName> RequiredDurablePools { get; }
 
     internal abstract bool ContainsPublish { get; }
@@ -15,6 +16,7 @@ internal abstract record WorkflowDefinitionRuntimeMetadata
 
 internal sealed record WorkflowDefinition<TState> : WorkflowDefinitionRuntimeMetadata
 {
+    internal override TResult Visit<TResult>(IWorkflowDefinitionVisitor<TResult> visitor) => visitor.Visit(this);
     internal WorkflowDefinition(
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
@@ -62,6 +64,11 @@ internal sealed record WorkflowDefinition<TState> : WorkflowDefinitionRuntimeMet
     public SequenceNode<TState> RootSequence { get; }
 
     public WorkflowPolicySet Policies { get; }
+}
+
+internal interface IWorkflowDefinitionVisitor<out TResult>
+{
+    TResult Visit<TState>(WorkflowDefinition<TState> definition);
 }
 
 /// <summary>

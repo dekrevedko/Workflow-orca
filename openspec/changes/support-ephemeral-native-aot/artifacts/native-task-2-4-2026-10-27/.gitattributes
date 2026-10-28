@@ -1,0 +1,4 @@
+# Preserve native evidence bytes across Windows/Linux checkouts.
+* -text whitespace=blank-at-eol,blank-at-eof,space-before-tab,cr-at-eol
+# GCC's unmodified version banner ends in a blank line.
+cc-version.log whitespace=blank-at-eol,-blank-at-eof,space-before-tab,cr-at-eol

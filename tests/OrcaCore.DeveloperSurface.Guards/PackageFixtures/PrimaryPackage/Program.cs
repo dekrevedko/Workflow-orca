@@ -1,4 +1,5 @@
 using OrcaCore;
+using System.Text.Json.Serialization;
 
 var fixedDefinitionId = DefinitionId.Parse("b5d94580-4dd8-41f1-b485-033facdf82d8");
 var payloadless = WorkflowEventContract.Create(EventName.Create("ready"), EventContractVersion.Initial);
@@ -18,4 +19,13 @@ _ = typeof(EphemeralWorkflowRef<,>);
 _ = typeof(DurableWorkflowRef<>);
 _ = typeof(DurableWorkflowRef<,>);
 
-internal sealed record Payload(string Value);
+var factory = new OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory();
+_ = factory.CanConvert(typeof(EventName));
+_ = factory.CreateConverter(typeof(EventName), new System.Text.Json.JsonSerializerOptions());
+_ = typeof(WorkflowJsonMetadata);
+_ = (Action)WorkflowJsonMetadata.Register<PrimaryMetadataContext>;
+
+[JsonSerializable(typeof(Payload))]
+internal partial class PrimaryMetadataContext : JsonSerializerContext;
+
+internal sealed record Payload(string Value, EventName Name);

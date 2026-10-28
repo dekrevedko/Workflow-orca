@@ -192,3 +192,14 @@ and Ubuntu 24.04. Trimmed and Native AOT defaults and JSON-reflection-enabled ex
 are unsupported for this exact tested profile. No Native AOT/trimming support is
 promised. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
 for the tested packages, toolchain, raw evidence and reproduction instructions.
+
+## Native AOT/trimming support work (issue #13; implementation pending)
+
+The approved [issue #13 contract](openspec/changes/support-ephemeral-native-aot/proposal.md)
+adds a finite generated-metadata path for the selected ephemeral journey. Product
+implementation and native qualification are pending; preview.2 retains the
+unsupported trimmed/AOT assessment above. No new support claim or package-wide
+compatibility badge is made. The [developer guide](docs/ephemeral-engine-developer-guide.md#issue-13-native-metadata-path-implementation-pending)
+records the prospective startup/type boundary and early failure remedies.
+
+The approved issue #13 catalogue additionally makes the existing sealed OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory accessible to the framework generator for ordinary DTOs containing product strong values. Keep the product attributes; do not list the factory in context converter options. Candidate source/API validation is task 2.2, and native/whole-target qualification remains pending. This is not a preview.2 recipe or a broader compatibility claim.

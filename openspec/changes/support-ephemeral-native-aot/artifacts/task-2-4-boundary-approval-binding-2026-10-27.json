@@ -1,0 +1,22 @@
+{
+  "approvalAuthority": "DirectUserApproval",
+  "amendmentPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-native-consumer-boundary-amendment-2026-10-27.md",
+  "amendmentSha256": "e814166d449b7d047c2ef55457dcede305f29e3468222edb3272b44da52e4bd6",
+  "approvalQuote": "Approve the bounded public recipe",
+  "validationApprovalQuote": "Authorize temporary validation branch",
+  "authorizedRemoteBranch": "codex/issue-13-native-evidence",
+  "issueBranchMustStayUncommitted": true,
+  "priorPreparationTree": "388050bb16764214f9e953abb0e99c478eeb4008",
+  "previousDeltaSha256": {
+    "developer-facing-surface": "a448d9b9489c2bf0bb952c3ed04670a6eb44712ff6f5d1526b05329f7ce23d03",
+    "quality-and-verification": "bf2e37f53409b22ea1fa2f178112bd8141b3f8a318341bf9a3d5d79b08b2eab0",
+    "structured-fiber-execution": "12e3a971faab7d5368f4f61234f379ef4d5d0f27500fce84631df38081df8970",
+    "workflow-contracts": "e0d4f9322935d73b645384eb04f25514feed9ca8300a90388bac92e4882f225a"
+  },
+  "currentDeltaSha256": {
+    "structured-fiber-execution": "0c5ef301edd14633c98204031026b1175bf997bee0fbbc93e4b55881a7d0dca3",
+    "quality-and-verification": "82089bd834be4348ed7aab632cde1e37cdff67e9967e9e0d0217e56de88ca4bc"
+  },
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null
+}

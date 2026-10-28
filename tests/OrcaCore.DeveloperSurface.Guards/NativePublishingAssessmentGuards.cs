@@ -62,7 +62,9 @@ public sealed class NativePublishingAssessmentGuards
         var root = FixtureDefinitions.RepositoryRoot();
         var change = ChangeDirectory(root);
         var delta = Normalize(File.ReadAllText(Path.Combine(change, "specs/quality-and-verification/spec.md")));
-        var canonical = Normalize(File.ReadAllText(Path.Combine(root, "openspec/specs/quality-and-verification/spec.md")));
+        // Preserve the exact approved assessment layer; a later approved amendment may append its own layer.
+        var canonical = Normalize(Git(root, "show", "763918930d571c2aee05a46cd7c0164836e0af28:openspec/specs/quality-and-verification/spec.md"));
+        Normalize(File.ReadAllText(Path.Combine(root, "openspec/specs/quality-and-verification/spec.md"))).Should().StartWith(canonical);
         var baseline = Normalize(Git(root, "show", "dbd829e2104fba70f6f678513fcaa08bf17a6045:openspec/specs/quality-and-verification/spec.md"));
         canonical.Should().StartWith(baseline);
         var additions = Blocks(delta);

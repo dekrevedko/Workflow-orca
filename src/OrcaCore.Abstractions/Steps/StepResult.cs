@@ -9,6 +9,13 @@ public abstract record StepResult
     {
     }
 
+    internal virtual bool TryReadWait(out WorkflowEventContract contract, out CorrelationId correlation)
+    {
+        contract = null!;
+        correlation = null!;
+        return false;
+    }
+
     /// <summary>
     /// Indicates that the current step completed and execution may advance.
     /// </summary>
@@ -44,6 +51,13 @@ public abstract record StepResult
         public WorkflowEventContract EventContract { get; }
 
         public CorrelationId CorrelationId { get; }
+
+        internal override bool TryReadWait(out WorkflowEventContract contract, out CorrelationId correlation)
+        {
+            contract = EventContract;
+            correlation = CorrelationId;
+            return true;
+        }
     }
 
     /// <summary>
@@ -64,6 +78,13 @@ public abstract record StepResult
         public WorkflowEventContract<TPayload> EventContract { get; }
 
         public CorrelationId CorrelationId { get; }
+
+        internal override bool TryReadWait(out WorkflowEventContract contract, out CorrelationId correlation)
+        {
+            contract = EventContract;
+            correlation = CorrelationId;
+            return true;
+        }
     }
 
 }

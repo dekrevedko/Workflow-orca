@@ -1,4 +1,3 @@
-using System.Collections;
 using System.Reflection;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
@@ -36,28 +35,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         }
 
         items = ForEachSnapshotMaterializer.Materialize(items, forEach.ItemType);
-        var partitionMethod = forEach.Partitioner.GetType().GetMethod("Partition") ??
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
-                "ForEach partitioner has no Partition method.");
-        var partitions = partitionMethod.Invoke(forEach.Partitioner, [items]) as IEnumerable ??
-            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
-                "ForEach partitioner returned no work descriptors.");
-        var inputType = typeof(global::OrcaCore.Core.Building.ForEachItemInput<>)
-            .MakeGenericType(forEach.ItemType);
+        var partitions = ClosedForEachBindings.For(forEach.Partitioner).Partition(items);
         var branch = scopePlan.Branches.Single();
         var descriptors = new List<ForEachItemDescriptor>();
         foreach (var partition in partitions)
         {
-            var partitionType = partition!.GetType();
-            var index = (int)(partitionType.GetProperty("Index")?.GetValue(partition) ??
-                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
-                    "ForEach partition index is missing."));
-            var partitionItems = partitionType.GetProperty("Items")?.GetValue(partition) ??
-                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
-                    "ForEach partition items are missing.");
-            var input = Activator.CreateInstance(inputType, index, partitionItems) ??
-                throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
-                    $"Could not create ForEach item input for index '{index}'.");
+            var index = partition.Index;
+            var input = partition.Input;
             object? itemState;
             try
             {

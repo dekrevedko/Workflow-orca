@@ -180,3 +180,7 @@ with a merge commit only after CI is green. This does not authorize a package
 release or product remediation. The assessment workflow now uses manual dispatch;
 its temporary evidence-branch push trigger has been removed. The original native
 receipts and independent verdict remain immutable.
+
+## Issue #13 qualification/publication boundary (implementation pending)
+
+No issue #13 validation branch, PR, package or release is published by the contract/canonical transition. The original issue #3 workflow/run remains historical; hosted native validation pushes require separate authorization. A new release can claim only its actually qualified source/package/profile, after the usual CI/review/publication gates.

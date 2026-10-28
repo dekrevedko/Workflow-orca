@@ -1,0 +1,8 @@
+openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-2026-10-25.md
+openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-manifest-2026-10-25.txt
+openspec/changes/support-ephemeral-native-aot/design.md
+openspec/changes/support-ephemeral-native-aot/proposal.md
+openspec/changes/support-ephemeral-native-aot/specs/developer-facing-surface/spec.md
+openspec/changes/support-ephemeral-native-aot/specs/quality-and-verification/spec.md
+openspec/changes/support-ephemeral-native-aot/specs/workflow-contracts/spec.md
+openspec/changes/support-ephemeral-native-aot/tasks.md

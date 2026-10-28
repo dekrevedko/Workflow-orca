@@ -23,7 +23,7 @@ public static class ExactAuthoring
         typeof(DurableWorkflowDefinition<>), typeof(DurableWorkflowDefinition<,>),
         typeof(EphemeralWorkflowRef<>), typeof(EphemeralWorkflowRef<,>),
         typeof(DurableWorkflowRef<>), typeof(DurableWorkflowRef<,>),
-        typeof(EventContractVersion), typeof(WorkflowEventContract), typeof(WorkflowEventContract<>),
+        typeof(OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory), typeof(WorkflowJsonMetadata), typeof(EventContractVersion), typeof(WorkflowEventContract), typeof(WorkflowEventContract<>),
         typeof(WorkflowEventRoute), typeof(WorkflowInboundEvent), typeof(WorkflowInboundEvent<>),
         typeof(WorkflowEventAcceptanceResult), typeof(WorkflowEventAcceptanceRejection),
         typeof(WorkflowOutboundEvent), typeof(WorkflowEventDispatchFailure), typeof(WorkflowEventDispatchResult),

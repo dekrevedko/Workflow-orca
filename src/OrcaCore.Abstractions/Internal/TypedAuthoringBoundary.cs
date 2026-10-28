@@ -164,8 +164,11 @@ internal static class TypedAuthoringBoundary
     {
         get
         {
+            _ = WorkflowJsonMetadataRegistry.Seal();
             if (Volatile.Read(ref operations) is not { } current)
             {
+                if (!RuntimeFeature.IsDynamicCodeSupported || !System.Text.Json.JsonSerializer.IsReflectionEnabledByDefault)
+                    throw new InvalidOperationException("Native workflow authoring requires installation: call AddOrcaCoreEphemeralEngine, then WorkflowJsonMetadata.Register, before authoring definitions.");
                 try
                 {
                     var core = Assembly.Load(CoreAssemblyName);

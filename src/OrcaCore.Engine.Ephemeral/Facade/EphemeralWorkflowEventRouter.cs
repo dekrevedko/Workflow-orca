@@ -1,4 +1,3 @@
-using System.Reflection;
 using OrcaCore.Core.Internal;
 using LegacyStatus = OrcaCore.WorkflowInstanceStatus;
 using System.Security.Cryptography;
@@ -158,7 +157,7 @@ internal sealed class EphemeralWorkflowEventRouter(
             inboundEvent.CorrelationId,
             inboundEvent.OccurredAt,
             payloadBytes ?? []);
-        await RaiseEventAsync(binding!.StateType, instanceId, envelope, cancellationToken).ConfigureAwait(false);
+        await binding!.Runtime.RaiseEventAsync(instanceId, envelope, cancellationToken).ConfigureAwait(false);
         lock (gate)
         {
             accepted[(instanceId, inboundEvent.EventId.Value)] = fingerprint;
@@ -179,21 +178,6 @@ internal sealed class EphemeralWorkflowEventRouter(
             foreach (var key in accepted.Keys.Where(key => key.InstanceId.Equals(instanceId)).ToArray())
                 accepted.Remove(key);
         }
-    }
-
-    private async Task RaiseEventAsync(
-        Type stateType,
-        InstanceId instanceId,
-        EventEnvelope envelope,
-        CancellationToken cancellationToken)
-    {
-        var method = typeof(EphemeralWorkflowEngine)
-            .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(candidate => candidate.Name == nameof(EphemeralWorkflowEngine.RaiseEventCoreAsync) &&
-                candidate.IsGenericMethodDefinition);
-        var task = (Task)method.MakeGenericMethod(stateType)
-            .Invoke(engine, [instanceId, envelope, cancellationToken])!;
-        await task.ConfigureAwait(false);
     }
 
     private static string EventFingerprint(

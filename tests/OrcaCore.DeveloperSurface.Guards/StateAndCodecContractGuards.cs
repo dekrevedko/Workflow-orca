@@ -112,7 +112,8 @@ public sealed class StateAndCodecGreenGuards
         var sourceRoot = Path.Combine(FixtureDefinitions.RepositoryRoot(), "src");
         var expectedCallCounts = new Dictionary<string, int>(StringComparer.Ordinal)
         {
-            ["OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs"] = 2,
+            // Reflection and generated metadata each have one encode/decode boundary in the same fixed codec.
+            ["OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs"] = 4,
             ["OrcaCore.Abstractions/Serialization/WorkflowFailureJsonConverters.cs"] = 6,
             ["OrcaCore.Runtime.Protocol/Durable/DurableContinuationSignal.cs"] = 2,
             ["OrcaCore.Runtime.Protocol/Durable/DurableExecutionEnvelopeV2.cs"] = 2,

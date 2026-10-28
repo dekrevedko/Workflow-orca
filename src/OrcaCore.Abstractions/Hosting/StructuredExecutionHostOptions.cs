@@ -63,7 +63,10 @@ public sealed class StepExecutionThrottle
     public int MaxConcurrency { get; }
 
     /// <summary>Creates a throttle for the exact named step type <typeparamref name="TStep"/>.</summary>
-    public static StepExecutionThrottle For<TStep>(int maxConcurrency)
+    public static StepExecutionThrottle For<
+        [System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembers(
+            System.Diagnostics.CodeAnalysis.DynamicallyAccessedMemberTypes.Interfaces)]
+        TStep>(int maxConcurrency)
     {
         ArgumentOutOfRangeException.ThrowIfLessThan(maxConcurrency, 1);
         var stepType = typeof(TStep);

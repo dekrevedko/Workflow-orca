@@ -406,3 +406,22 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Statically reachable ephemeral native path (issue #13; implementation pending)
+
+The selected native path SHALL retain closed typed operations from authoring
+through definition installation, identity/start snapshots, named/delegate steps,
+queries/output, selectors/merges, typed waits/events, retry/timer/resource
+callbacks, branch/item snapshots and failure construction. Supported execution
+SHALL NOT rely on runtime-only generic instantiation, DynamicInvoke, compiled
+expression IL, property-name dispatch, hidden-constructor discovery or dynamic
+assembly loading. Bounded reflection requires individual metadata/analyzer proof.
+
+Call the existing ephemeral role registration before metadata registration and
+authoring on the native path. It installs the Core boundary by a static reference
+without DI resolution, provider construction, step construction or work admission.
+The JIT definition-first recipe remains supported. All physical work ownership,
+Closed draining, acceptance/abort, commit authority, retention/pins/key expiry
+and Stopping/Completed semantics remain unchanged. This is a pending source
+obligation; current source/release execution receives no native support credit.
+[NF-034, AC-563, AC-571–574]
