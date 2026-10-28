@@ -1,0 +1,544 @@
+{
+  "ubuntu-24.04": {
+    "aot": {
+      "769796b0973015fb25578f59b6606c4992cb4be77ca44681444fdac92c543ffb": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(349,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<T>(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "1a228814e170b0b73b1117c29e45d515883d4d9f27544fe3d557e975937cbbbc": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(349,24): warning IL3050: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<T>(JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "bf7f0b16e276722c696d6a979c06944cd570c24d48a7333770ace9972bf64928": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(351,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "3975b78ca5d02cbdbdbd743deaca925613511985f95b949ec806a37b3408a480": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(351,24): warning IL3050: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "00f0e16531f5f4351177045c0c25b28e70fccf97c4a7b0a6b6effcd99d913bb1": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(349): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<Payload>(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "d2ad7383d25044621a4771feb51dfc85ba84d9f5f2e551cf14f4cca22f1cdb9d": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(349): AOT analysis warning IL3050: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<Payload>(JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "3920bdcfd6ee58cf1d187b84c818d09b11b9d7e0482030547231c5a4f8db7e50": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(351): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type,String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "6c629cdf2963dd3b5a7e4742869b86f26cabcdfb079b93a886d09212d1883033": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(351): AOT analysis warning IL3050: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type,String)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      }
+    },
+    "jit": {},
+    "trimmed": {
+      "769796b0973015fb25578f59b6606c4992cb4be77ca44681444fdac92c543ffb": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(349,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<T>(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "bf7f0b16e276722c696d6a979c06944cd570c24d48a7333770ace9972bf64928": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(351,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "6008222a6a8b8d398917878790f763bc7c02714bcd7bf1571842657cd76885e0": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(349,13): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type, JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "5fc98f3c6ddaaf4c069a9e3d8ff6f9c92b42af4767640d2e9b895c7d7e9b4dbd": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-ubuntu-24.04-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>/Program.cs(351,13): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type, JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>/NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      }
+    }
+  },
+  "windows-2025": {
+    "aot": {
+      "d259ba3717f7acf2cbdd678b1827bdc1286c022dd4bfd8486ed6f1a4c92fcf4f": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(349,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<T>(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "28296b9904d5d1ec5cf37aed497ac2f763181a5a697adb226ead3676fb968c1f": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(349,24): warning IL3050: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<T>(JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "4bfdcef19439eb027a10651e0c3d5c0a5e219730dcefd4593dd0da979e7b5850": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(351,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "34d278308bc81c2baf27143d3851eebab8ec3cfda16c76ec224ac1982893517f": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(351,24): warning IL3050: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "3ee9c6dde58a7ab827bf3097fd871b1e8797affaa61eeeccad804b27e3b4d9ed": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(349): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<Payload>(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "1b321ad250dc5288a547d4a2397a83a039d46a49fe735f8819aeab3bb257c933": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(349): AOT analysis warning IL3050: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<Payload>(JsonSerializerOptions)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "39e36468662732d770400c5d204a5cf27ea1b0c515cc6444632b2d4b23520433": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(351): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type,String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "0488cadc8ba704dfaf260494913c5af987d136a71fe7347d56d4324571b097c9": {
+        "count": 1,
+        "code": "IL3050",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-aot/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(351): AOT analysis warning IL3050: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type,JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type,String)' which has 'RequiresDynamicCodeAttribute' can break functionality when AOT compiling. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      }
+    },
+    "jit": {},
+    "trimmed": {
+      "d259ba3717f7acf2cbdd678b1827bdc1286c022dd4bfd8486ed6f1a4c92fcf4f": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(349,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo<T>(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "4bfdcef19439eb027a10651e0c3d5c0a5e219730dcefd4593dd0da979e7b5850": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(351,24): warning IL2026: Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "8b71e569680cd5dd256622301a1e130ab0958fb685e6e7cc9d038ffec8d8f733": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately constructs a closed Payload contract",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(349,13): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type, JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonTypeInfo(JsonSerializerOptions)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      },
+      "676911073bc391246d1d24ed3477d2f87a80ec58e4399cf3c98d67b769692a79": {
+        "count": 1,
+        "code": "IL2026",
+        "disposition": "ReviewedNonProductCounterexample",
+        "cause": "HandmadeContext.GetTypeInfo deliberately creates the known int property named changed",
+        "rationale": "Only Payload and int are used; Payload has direct construction/get/set delegates and DefaultContext source-generated metadata roots int. This is the framework counterexample before engine registration, not a product metadata path. The published native negative reproduces changed:7, then Register rejects this handwritten resolver before publishing/sealing, and the valid generated context retry preserves Value:7. The public workflow codec never accepts or calls this resolver. No arbitrary runtime type, suppression or root is approved.",
+        "proof": {
+          "runId": 40628433270,
+          "sourceCommit": "c863d1a87268173bb1a4314b052589fb72459bda",
+          "metadataProgramSha256": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+          "sourceLines": [
+            349,
+            351
+          ],
+          "case": "handwritten-rejected",
+          "caseOutcome": "Passed",
+          "evidence": "issue-13-windows-2025-trimmed/metadata/handwritten-rejected.stdout.log"
+        },
+        "normalizedDiagnostic": "<consumer>\\Program.cs(351,13): Trim analysis warning IL2026: HandmadeContext.System.Text.Json.Serialization.Metadata.IJsonTypeInfoResolver.GetTypeInfo(Type, JsonSerializerOptions): Using member 'System.Text.Json.Serialization.Metadata.JsonTypeInfo.CreateJsonPropertyInfo(Type, String)' which has 'RequiresUnreferencedCodeAttribute' can break functionality when trimming application code. JSON serialization and deserialization might require types that cannot be statically analyzed and might need runtime code generation. Use System.Text.Json source generation for native AOT applications. [<consumer>\\NativeConsumer.csproj]",
+        "reviewAuthority": "IndependentSelfReview",
+        "supportedProductPath": false
+      }
+    }
+  }
+}
