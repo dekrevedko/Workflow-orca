@@ -1,7 +1,6 @@
 """Fail-closed issue #13 qualification; historical assessment-v1 stays unchanged."""
 import json
 from pathlib import Path
-import sys
 
 FLAVORS = ("jit", "trimmed", "aot")
 HOSTS = ("windows-2025", "ubuntu-24.04")
@@ -54,14 +53,26 @@ SUBCASES = {
 }
 BOUNDARY = "PublicValuesTypedWaitParkingTimersRetryPoolCompositionOnly"
 
+# Preserve protocol 2 as history; it cannot qualify the member-boundary fixes.
+BASE_NATIVE_CASES, BASE_LEGACY_CASES, BASE_GROUPS = NATIVE_CASES, LEGACY_CASES, GROUPS
+NATIVE_CASES += ("write-only-generated", "write-only-default", "included-members-generated", "included-members-default")
+LEGACY_CASES += ("write-only-legacy", "included-members-legacy")
+GROUPS = {**GROUPS,
+          "NS-06": GROUPS["NS-06"] + ["write-only-generated", "write-only-default"],
+          "NS-08": GROUPS["NS-08"] + ["included-members-generated", "included-members-default"],
+          "NS-11": GROUPS["NS-11"] + ["included-members-generated", "included-members-default"]}
+
 
 def require(condition, message):
     if not condition:
         raise ValueError(message)
 
 
-def validate_cell(record):
-    require(record.get("protocol") == 2, "Not support protocol v2")
+def validate_cell(record, minimum_protocol=3):
+    protocol = record.get("protocol")
+    require(protocol in (2, 3) and protocol >= minimum_protocol, "Support protocol 3 is required for current qualification")
+    native, legacy, groups = ((BASE_NATIVE_CASES, BASE_LEGACY_CASES, BASE_GROUPS) if protocol == 2
+                              else (NATIVE_CASES, LEGACY_CASES, GROUPS))
     host = record["host"]
     require(host.get("qualified") and host.get("os") in HOSTS and
             host.get("architecture") == "x64" and not host.get("container"), "Unqualified native host")
@@ -88,9 +99,9 @@ def validate_cell(record):
                 "Forbidden warning/root/reflection override")
     cases = record["cases"]
     ids = [case["id"] for case in cases]
-    required = set(AOT_IDS) | set(NATIVE_CASES)
+    required = set(AOT_IDS) | set(native)
     if flavor == "jit":
-        required |= {"legacy-" + name for name in AOT_IDS} | set(LEGACY_CASES) | {"jit-missing-engine"}
+        required |= {"legacy-" + name for name in AOT_IDS} | set(legacy) | {"jit-missing-engine"}
     require(len(ids) == len(set(ids)) and set(ids) == required, "Missing, duplicated or unexpected assertion case")
     for case in cases:
         proof = (case.get("assertions", 0) > 0 if case["id"] in AOT_IDS or case["id"].startswith("legacy-AOT-")
@@ -110,7 +121,7 @@ def validate_cell(record):
     require(set(approved) == {row["identity"] for row in record["diagnostics"]}, "Stale diagnostic approval")
     require(record.get("publicBoundary") == BOUNDARY and record.get("liveEventDeliveryQualified") is False and
             record.get("outgoingPublishingQualified") is False, "Unapproved event capability claim")
-    for table, expected in (("coverage", GROUPS), ("subcases", SUBCASES)):
+    for table, expected in (("coverage", groups), ("subcases", SUBCASES)):
         require(set(record.get(table, {})) == set(expected), "Missing explicit " + table)
         for name, witnesses in expected.items():
             coverage = record[table][name]
@@ -123,22 +134,24 @@ def validate_cell(record):
                 "Legacy/generated parity differs")
 
 
-def validate_matrix(records):
+def validate_matrix(records, minimum_protocol=3):
     require(len(records) == 6, "Exactly six cells required")
     require({(r["host"]["os"], r["flavor"]) for r in records} ==
             {(os, flavor) for os in HOSTS for flavor in FLAVORS}, "Missing or duplicate host/profile")
     for record in records:
-        validate_cell(record)
-        for key in ("sourceSha", "sourceTree", "sourceFiles", "harnessFiles", "packageHashes", "golden", "strong"):
+        validate_cell(record, minimum_protocol)
+        for key in ("protocol", "sourceSha", "sourceTree", "sourceFiles", "harnessFiles", "packageHashes", "golden", "strong"):
             require(record[key] == records[0][key], "Cross-cell drift: " + key)
 
 
-def sample_record(os, flavor):
+def sample_record(os, flavor, protocol=3):
     """Synthetic schema fixture for negative gate controls, never native evidence."""
-    ids = list(AOT_IDS) + list(NATIVE_CASES)
+    native, legacy, groups = ((BASE_NATIVE_CASES, BASE_LEGACY_CASES, BASE_GROUPS) if protocol == 2
+                              else (NATIVE_CASES, LEGACY_CASES, GROUPS))
+    ids = list(AOT_IDS) + list(native)
     if flavor == "jit":
-        ids += ["legacy-" + name for name in AOT_IDS] + list(LEGACY_CASES) + ["jit-missing-engine"]
-    return dict(protocol=2, host=dict(os=os, qualified=True, architecture="x64", container=False),
+        ids += ["legacy-" + name for name in AOT_IDS] + list(legacy) + ["jit-missing-engine"]
+    return dict(protocol=protocol, host=dict(os=os, qualified=True, architecture="x64", container=False),
                 flavor=flavor, publishExitCode=0,
                 publishProperties=dict(PublishAot=flavor == "aot", PublishTrimmed=flavor != "jit", TrimMode="full", TrimmerSingleWarn=False),
                 jsonReflectionEnabled=flavor == "jit", dynamicCodeSupported=flavor != "aot",
@@ -150,12 +163,17 @@ def sample_record(os, flavor):
                             runtimeFeatures=dict(reflection=flavor == "jit", dynamic=flavor != "aot")) for name in ids],
                 diagnostics=[], diagnosticDecisions={}, commands=[], golden="fixture", strong="fixture",
                 publicBoundary=BOUNDARY, liveEventDeliveryQualified=False, outgoingPublishingQualified=False,
-                coverage={name:dict(outcome="Passed", witnesses=rows + (["jit-missing-engine"] if name == "NS-12" and flavor == "jit" else [])) for name,rows in GROUPS.items()},
+                coverage={name:dict(outcome="Passed", witnesses=rows + (["jit-missing-engine"] if name == "NS-12" and flavor == "jit" else [])) for name,rows in groups.items()},
                 subcases={name:dict(outcome="Passed", witnesses=rows) for name,rows in SUBCASES.items()},
                 legacyGolden="fixture", legacyStrong="fixture")
 
 
 if __name__ == "__main__":
-    records = [json.loads(path.read_text(encoding="utf-8")) for folder in sys.argv[1:] for path in Path(folder).rglob("support-report.json")]
-    validate_matrix(records)
+    import argparse
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--allow-historical", action="store_true", help="Read protocol-2 history; never qualifies current fixes")
+    parser.add_argument("folders", nargs="+")
+    args = parser.parse_args()
+    records = [json.loads(path.read_text(encoding="utf-8")) for folder in args.folders for path in Path(folder).rglob("support-report.json")]
+    validate_matrix(records, minimum_protocol=2 if args.allow_historical else 3)
     print("Six native support cells agree; independent review is still required.")

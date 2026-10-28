@@ -24,6 +24,20 @@ try
             WorkflowJsonMetadata.Register<StrongMetadataContext>();
             Check(Materialize(EventName.Create("catalogue-value")).Value == "catalogue-value", "direct factory use does not configure or seal metadata");
             break;
+        case "included-members-generated":
+        case "included-members-default":
+        case "included-members-legacy":
+            if (args[0].EndsWith("generated", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<CodecMemberContext>();
+            if (args[0].EndsWith("default", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<CodecMemberDefaultContext>();
+            await CodecMemberCases.IncludedMembers();
+            break;
+        case "write-only-generated":
+        case "write-only-default":
+        case "write-only-legacy":
+            if (args[0].EndsWith("generated", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<CodecMemberContext>();
+            if (args[0].EndsWith("default", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<CodecMemberDefaultContext>();
+            await CodecMemberCases.WriteOnly();
+            break;
         case "graph-members-generated":
         case "graph-members-legacy":
             if (args[0].EndsWith("generated", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<AppContext>();

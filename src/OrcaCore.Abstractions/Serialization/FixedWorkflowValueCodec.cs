@@ -3,6 +3,7 @@ using System.Collections.Concurrent;
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.Json.Serialization.Metadata;
 
 #if ORCACORE_CORE_CODEC_COPY
 namespace OrcaCore.Core.Internal;
@@ -16,7 +17,13 @@ namespace OrcaCore.Internal;
 internal static class FixedWorkflowValueCodec
 {
     private static readonly ConcurrentDictionary<Type, bool> DeclaredTypeSupport = new();
-    private static readonly JsonSerializerOptions SerializerOptions = CreateSerializerOptions();
+    private static JsonSerializerOptions? serializerOptions;
+
+    private static JsonSerializerOptions SerializerOptions
+    {
+        [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Unconfigured legacy JIT serializer metadata only.")]
+        get => LazyInitializer.EnsureInitialized(ref serializerOptions, CreateSerializerOptions);
+    }
 
     internal const string Format = "orcacore-json-v1";
 
@@ -101,7 +108,8 @@ internal static class FixedWorkflowValueCodec
                     if (!IsSupportedGeneratedShape(derived.DerivedType, options, active)) return false;
             foreach (var property in info.Properties)
             {
-                if (property.Get is null && property.Set is null && property.AssociatedParameter is null) continue;
+                // Like the legacy serialized-member walk, exclude write-only members.
+                if (property.Get is null) continue;
                 if (property.AttributeProvider?.GetCustomAttributes(typeof(JsonConverterAttribute), inherit: false).Length > 0 &&
                     type.Assembly != typeof(global::OrcaCore.DefinitionId).Assembly) return false;
                 if (!IsSupportedGeneratedShape(property.PropertyType, options, active)) return false;
@@ -243,7 +251,8 @@ internal static class FixedWorkflowValueCodec
     private static void ValidateGraph(
         object? value,
         Type declaredType,
-        HashSet<object> activeReferences)
+        HashSet<object> activeReferences,
+        bool inspectProperties = true)
     {
         if (value is null)
         {
@@ -293,8 +302,8 @@ internal static class FixedWorkflowValueCodec
             {
                 foreach (DictionaryEntry entry in (IDictionary)value)
                 {
-                    ValidateGraph(entry.Key, keyType, activeReferences);
-                    ValidateGraph(entry.Value, valueType, activeReferences);
+                    ValidateGraph(entry.Key, keyType, activeReferences, inspectProperties);
+                    ValidateGraph(entry.Value, valueType, activeReferences, inspectProperties);
                 }
             }
             finally
@@ -325,7 +334,7 @@ internal static class FixedWorkflowValueCodec
             {
                 foreach (var item in (IEnumerable)value)
                 {
-                    ValidateGraph(item, elementType, activeReferences);
+                    ValidateGraph(item, elementType, activeReferences, inspectProperties);
                 }
             }
             finally
@@ -348,7 +357,7 @@ internal static class FixedWorkflowValueCodec
             if (!approved) throw UnsupportedPolymorphism(runtimeType, declaredType);
         }
 
-        if (IsLeafType(runtimeType))
+        if (IsLeafType(runtimeType) || !inspectProperties)
         {
             return;
         }
@@ -364,8 +373,7 @@ internal static class FixedWorkflowValueCodec
             if (generated is not null)
             {
                 foreach (var property in generated.GetTypeInfo(runtimeType).Properties)
-                    if (property.Get is not null && property.AttributeProvider is PropertyInfo member &&
-                        (member.GetMethod?.IsPublic == true || member.SetMethod?.IsPublic == true))
+                    if (property.Get is not null && IsPrevalidatedProperty(property))
                         ValidateGraph(property.Get(value), property.PropertyType, activeReferences);
             }
             else
@@ -535,9 +543,37 @@ internal static class FixedWorkflowValueCodec
         }
     }
 
+    // Validate each actual serializer read, including fields and nonpublic getters.
+    // Do not walk its properties here: that would invoke nested getters again.
+    internal static void ValidateSerializedMembers(JsonTypeInfo info)
+    {
+        foreach (var property in info.Properties)
+        {
+            if (property.Get is not { } getter) continue;
+            var declaredType = property.PropertyType;
+            var valueType = Nullable.GetUnderlyingType(declaredType) ?? declaredType;
+            var leaf = IsLeafType(valueType);
+            property.Get = owner =>
+            {
+                var value = getter(owner);
+                if (value is not null && (!leaf || value.GetType() != valueType))
+                    ValidateGraph(value, declaredType, new HashSet<object>(ReferenceEqualityComparer.Instance), inspectProperties: false);
+                return value;
+            };
+        }
+    }
+
+    private static bool IsPrevalidatedProperty(JsonPropertyInfo property) =>
+        property.AttributeProvider is PropertyInfo member &&
+        (member.GetMethod?.IsPublic == true || member.SetMethod?.IsPublic == true);
+
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Unconfigured legacy JIT serializer metadata only.")]
     private static JsonSerializerOptions CreateSerializerOptions()
     {
-        var options = new JsonSerializerOptions();
+        var options = new JsonSerializerOptions
+        {
+            TypeInfoResolver = new DefaultJsonTypeInfoResolver { Modifiers = { ValidateSerializedMembers } }
+        };
         options.Converters.Add(new AuthoredLocationJsonConverter());
         options.Converters.Add(new FailureOccurrenceJsonConverter());
         options.Converters.Add(new WorkflowFailureJsonConverter());

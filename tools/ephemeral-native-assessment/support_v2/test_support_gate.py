@@ -11,6 +11,24 @@ class SupportGateTests(unittest.TestCase):
         for changed in (records[:-1], records + [copy.deepcopy(records[0])]):
             with self.assertRaises(ValueError): validate_matrix(changed)
 
+    def test_old_matrix_requires_explicit_history_validation(self):
+        records = [sample_record(os, flavor, protocol=2) for os in ("windows-2025", "ubuntu-24.04") for flavor in ("jit", "trimmed", "aot")]
+        validate_matrix(records, minimum_protocol=2)
+        with self.assertRaises(ValueError): validate_matrix(records)
+
+    def test_member_boundary_cases_and_witnesses_are_required(self):
+        for name in ("write-only-generated", "write-only-default", "included-members-generated", "included-members-default"):
+            record = sample_record("ubuntu-24.04", "aot")
+            record["cases"] = [case for case in record["cases"] if case["id"] != name]
+            with self.subTest(case=name):
+                with self.assertRaises(ValueError): validate_cell(record)
+        record = sample_record("windows-2025", "jit")
+        record["cases"] = [case for case in record["cases"] if case["id"] != "included-members-legacy"]
+        with self.assertRaises(ValueError): validate_cell(record)
+        record = sample_record("ubuntu-24.04", "trimmed")
+        record["coverage"]["NS-08"]["witnesses"].remove("included-members-generated")
+        with self.assertRaises(ValueError): validate_cell(record)
+
     def test_rejects_each_invalid_native_record(self):
         mutations = [
             lambda r: r.update(protocol=1),
