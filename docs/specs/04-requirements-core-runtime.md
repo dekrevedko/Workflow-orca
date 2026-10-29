@@ -422,7 +422,7 @@ authoring on the native path. It installs the Core boundary by a static referenc
 without DI resolution, provider construction, step construction or work admission.
 The JIT definition-first recipe remains supported. All physical work ownership,
 Closed draining, acceptance/abort, commit authority, retention/pins/key expiry
-and Stopping/Completed semantics remain unchanged. Checkpoint 8566986 / user-verdict child 1ad2a59 qualify this bounded source
+and Stopping/Completed semantics remain unchanged. User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify this bounded source
 recipe. Released preview.2 and capabilities outside that recipe receive no new
 native support credit.
 [NF-034, AC-563, AC-571–574]

@@ -3080,8 +3080,8 @@ remediation needs a separate amendment.
 
 ## Issue #13 generated metadata contract (source-qualified; release pending)
 
-Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
-this source's bounded public ephemeral recipe. Native run 40629471843 passed
+User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
+this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
 and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
 Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
@@ -3091,7 +3091,7 @@ version is published by this approval. See [the qualified recipe](../ephemeral-n
 
 Namespace/assembly/package OrcaCore. The following declaration is approved for
 the implemented source; it is not available in released preview.2. The declaration
-companion and executable API/compile/package baselines match checkpoint 8566986;
+companion and executable API/compile/package baselines match checkpoint d8c55f3;
 whole-target/source qualification is approved for the bounded recipe only.
 
 ```csharp

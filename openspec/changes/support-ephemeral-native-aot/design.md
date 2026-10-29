@@ -145,7 +145,7 @@ A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
 
-### Current publication preparation (2026-10-27)
+### Initial publication preparation (2026-10-27)
 
 The exact 327-path task-2 source/evidence target is checkpointed at 8566986, tree
 6f697b1374800a2b5d7b4196f9c841f0330d6247, with user-approval-only child 1ad2a59.
@@ -154,13 +154,14 @@ and a PR draft, and removes only the temporary workflow push trigger. That initi
 preparation kept canonical/delta blocks, product source, public catalogue and
 executable baselines unchanged. The source-qualified recipe retains every explicit boundary amendment
 and excludes live event delivery/publishing, other engines/RIDs and broad badges.
-Task 3.1 remains uncommitted for independent review; push, PR, issue changes,
-release and merge are not authorized. Existing released-version/assessment facts
+That preparation is included in the later corrected checkpoint d8c55f3; its
+publication binding/PR material has a separate review. Push, PR, issue changes,
+release and merge remain gated. Existing released-version/assessment facts
 and all dated frozen records remain unchanged.
 
 ### Post-review codec corrections (2026-10-28)
 
-The current target additionally fixes the two whole-AOT review findings in three
+Checkpoint d8c55f3 fixes the two whole-AOT review findings in three
 internal serialization files. Exclude write-only descriptors from serialized
 closure checks while retaining the approved synthetic-initializer restriction.
 Validate every actual serialized member value, including fields/internal getters
@@ -176,5 +177,10 @@ lose subtype data and is intentionally rejected now. Valid wire bytes, fingerpri
 ownership and public/API baselines remain fixed. Protocol 3 retains every original
 journey/group/subcase and adds member regressions. Run 40762764617 executes the
 exact corrected source/feed/harness on the required six native cells, 384/384.
-Current correction source/native approvals remain unset pending review. The only
-authorized push was temporary evidence commit 7f1034c on codex/issue-13-native-evidence.
+The user then approved checkpointing with "Continue": d8c55f3 has the exact
+216-path tree 8a1b648c and direct review-only child 25fa36c. Preserve the execution
+record's original pending-review fields as a checkpoint receipt. Current approval
+is a separate DirectUserApproval binding resolving that Git chain and all native
+identities. The author review is not external approval. Only temporary evidence
+commit 7f1034c on codex/issue-13-native-evidence has been pushed; publication,
+merge, issue closure and release remain separately gated.

@@ -1,0 +1,70 @@
+{
+  "schemaVersion": 1,
+  "stage": "PublicationBindingSelfReviewReady",
+  "base": "25fa36c2ab79153e93c68f0d598779198c50cdbb",
+  "checkpointCommit": "d8c55f32741f43523e528dd45ad49e6a0fbe7837",
+  "checkpointTree": "8a1b648c5a1f75ed196d96a9d091b8554b511634",
+  "reviewOnlyChild": "25fa36c2ab79153e93c68f0d598779198c50cdbb",
+  "approvalBindingPath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+  "approvalBindingSha256": "bdc5db130b8e4d6f4c45cc5a63f9c3fe07fac56aed0040d78c1ee089359f1963",
+  "freshValidation": {
+    "openSpecPassed": 25,
+    "releaseBuildWarnings": 0,
+    "releaseBuildErrors": 0,
+    "localFeedPackages": 12,
+    "infrastructurePassed": 309,
+    "semanticMutationProbesCaught": 3,
+    "restoredControlPassed": 1,
+    "resharper": {
+      "version": "2026.2.3.1",
+      "configuration": "Release",
+      "platform": "Any CPU",
+      "framework": "net10.0",
+      "scope": [
+        "CodecMemberCorrectionGuards.cs",
+        "EphemeralShutdownTransitionGuards.cs",
+        "NativeSupportTransitionGuards.cs",
+        "OpenSpecCorpusGuards.cs"
+      ],
+      "noBuildReason": "Compatible fresh full Release build succeeded before analysis",
+      "counts": {
+        "error": 0,
+        "note": 46,
+        "warning": 53
+      },
+      "sarifPath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-binding-resharper-2026-10-28.sarif",
+      "sarifSha256": "ab74623bd5254a48e0a3eec369af75e4bef6b3a0a0e4b6ac0a94ba1b6b314e8d"
+    },
+    "newReSharperFindings": 0
+  },
+  "initialInfrastructureAttempt": {
+    "passed": 308,
+    "failed": 1,
+    "classification": "Harness setup race: concurrently changing untracked ReSharper cache was visible to the freeze projection. Moved all output under existing ignored .artifacts/publishing-validation path; full lane 309/309 with guard unchanged."
+  },
+  "productAndCanonicalChanges": false,
+  "apiCompileDependencyAndPackageProvenanceBaselineChanges": false,
+  "historicalApprovalAndNativeArtifactsUnchanged": true,
+  "taskCheckboxesChanged": false,
+  "nativeSourceInputsUnchanged": 360,
+  "nativeHarnessInputsUnchanged": 20,
+  "existingNativeRunId": 40762764617,
+  "existingNativeCasesPassed": 384,
+  "runtimeUnitProviderStressAndCoverageLanes": "Not rerun: product/harness bytes unchanged; retain the approved correction receipts",
+  "githubSnapshot": {
+    "master": "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
+    "masterBehindBranchBase": false,
+    "issue13State": "OPEN",
+    "issueBranchPrs": [],
+    "newestPublishedTag": "v0.1.0-preview.2"
+  },
+  "prTitle": "Support trimming and Native AOT for ephemeral workflows",
+  "prBase": "master",
+  "prHead": "codex/issue-13-native-aot-trimming",
+  "prBodyPath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-pr-body-2026-10-28.md",
+  "publicationTargetCommitted": false,
+  "issueBranchPushed": false,
+  "prOpened": false,
+  "mergeAuthorized": false,
+  "releaseAuthorized": false
+}

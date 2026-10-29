@@ -205,3 +205,27 @@ issue #3's immutable unsupported assessment remain unchanged. The [qualified
 recipe](ephemeral-native-support.md) excludes live event delivery/publishing,
 other engines/RIDs and broad twelve-package compatibility claims. Merge must be
 a separately authorized merge commit, never a squash or rebase.
+
+## Issue #13 corrected source approved; publication pending (2026-10-28)
+
+Corrected checkpoint `d8c55f3` has parent `1ad2a59`, the approved 216-path tree
+`8a1b648c5a1f75ed196d96a9d091b8554b511634` and sole review-only child `25fa36c`.
+The user approved checkpointing with “Continue” after the exact-target request;
+the author self-review is not external approval. The
+[publication binding](../openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json)
+records that authority and verifies the checkpoint/tree/parent/verdict through Git.
+
+[Native run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617)
+qualifies temporary evidence commit `7f1034c`: JIT 82/82, full trim 55/55 and AOT
+55/55 on each required host, 384 total. All source/feed/harness identities bind;
+the original corpora and supported boundary remain unchanged. The 24 classified
+handwritten-context warning records only moved source line positions. The old
+356-case run and all dated artifacts remain immutable history.
+
+Correction validation passed 309 Infrastructure, 969 unit and 188 provider/
+integration cases, fifty CI-path stress runs and 79.3357% engine line coverage.
+The publication binding changes no product source or API; its own validation and
+review are recorded separately. Tasks 3.1/3.2 remain open until authorized PR/CI
+and merge completion. Only the temporary evidence branch is pushed. No PR, issue
+edit, tag, registry/release dispatch or publication is authorized here, and no
+release version is assigned. Merge remains a separately authorized merge commit.

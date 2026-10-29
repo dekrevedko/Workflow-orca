@@ -507,7 +507,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "dc6a3fbee9f63d150f79cedc2ed92e2606a599f4ad283d00eef4625b6b818da0";
+        "0106754fd139eecb0a7ee5d509dd61666443a2b38762010c254c9ef3767a27eb";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1704,7 +1704,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(22);
+        checkpoint.SchemaVersion.Should().Be(23);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -4815,7 +4815,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(22);
+        checkpoint.SchemaVersion.Should().Be(23);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");

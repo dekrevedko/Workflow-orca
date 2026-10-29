@@ -137,7 +137,7 @@ compatibility remain outside this prerelease workflow.
 
 ## Issue #13 candidate compatibility boundary (source-qualified; release pending)
 
-Checkpoint `8566986` and user-approval child `1ad2a59` qualify the selected
+User-approved corrected checkpoint `d8c55f3` and review-only child `25fa36c` qualify the selected
 `OrcaCore` / `OrcaCore.Core` / `OrcaCore.Engine.Ephemeral` recipe described in
 [the native support guide](ephemeral-native-support.md). The approved six-cell
 candidate feed uses validation version `0.0.0-phase0`; it is not a published

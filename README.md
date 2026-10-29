@@ -195,10 +195,10 @@ for the tested packages, toolchain, raw evidence and reproduction instructions.
 
 ## Native AOT and trimming (issue #13; source-qualified, release pending)
 
-Source checkpoint `8566986`, approved at verdict child `1ad2a59`, passes the selected
+User-approved corrected source `d8c55f3`, with review-only child `25fa36c`, passes the selected
 public ephemeral recipe on Windows Server 2025 x64 and Ubuntu 24.04 x64 in JIT,
-full-trim and Native AOT profiles. [Native run 40629471843](https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843)
-records all six cells. Preview.2 remains the existing released version and lacks
+full-trim and Native AOT profiles. [Native run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617)
+records all six cells, 384 cases total. Preview.2 remains the existing released version and lacks
 `WorkflowJsonMetadata`; no new version or broad compatibility badge is published.
 
 The [qualified recipe](docs/ephemeral-native-support.md) explains packages,

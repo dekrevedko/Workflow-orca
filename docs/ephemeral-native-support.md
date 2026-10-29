@@ -1,22 +1,14 @@
 # Ephemeral Native AOT and trimming support
 
-Codec corrections are pending independent review; native requalification passed in
-[run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617).
-The post-review fixes preserve write-only-member admission and validate actual
-serialized member values without extra getter reads. The checkpoint and native
-results below describe the earlier approved baseline, not approval of these fixes.
-
-The corrected candidate passes 82 JIT, 55 fully trimmed JIT and 55 Native AOT cases
-on each native host, 384 total, including the new member regressions. Its source,
-feed and harness identities agree across all six cells. Trimmed/AOT JSON reflection
-remains disabled and AOT reports dynamic code unavailable. The 24 diagnostic
-records match the earlier rejected handwritten-context counterexample, with only
-its source line positions shifted. The corrected target remains uncommitted and
-requires review and approval; these execution results grant no release approval.
-
-Earlier approved baseline status: **source-qualified; release pending**. This guide requires the issue #13
-source at checkpoint `8566986850dc377f5a69e165dd58936be50ad722`, approved by the
-direct user verdict at `1ad2a5946b2874fd709571376a67799f5c7f9cd1`.
+Status: **source-qualified; release pending**. This guide requires the corrected
+issue #13 source at checkpoint `d8c55f32741f43523e528dd45ad49e6a0fbe7837`,
+followed by review-only child `25fa36c2ab79153e93c68f0d598779198c50cdbb`.
+The user approved checkpointing after review; the author review is not external
+approval. The exact authority and Git chain are recorded in
+[the approval binding](../openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json).
+The corrections preserve write-only admission and validate actual serialized
+member values without extra getter reads. Unsupported runtime values in included
+fields/properties now reject in both modes rather than silently losing data.
 Published `0.1.0-preview.2` does not contain `WorkflowJsonMetadata` and keeps its
 earlier unsupported trimmed/AOT assessment. No new public package version is
 assigned or published here. The next release must use an unused version and pass
@@ -24,17 +16,21 @@ its own publication and registry verification gates.
 
 ## Qualified profiles
 
-[Native run 40629471843](https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843)
+[Native run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617)
 used one exact candidate feed, external PackageReference-only consumers, fresh
 caches and real native machines:
 
 | Host / RID | Self-contained JIT | Fully trimmed JIT | Native AOT |
 |---|---:|---:|---:|
-| Windows Server 2025 / win-x64 | 76/76 | 51/51 | 51/51 |
-| Ubuntu 24.04 / linux-x64 | 76/76 | 51/51 | 51/51 |
+| Windows Server 2025 / win-x64 | 82/82 | 55/55 | 55/55 |
+| Ubuntu 24.04 / linux-x64 | 82/82 | 55/55 | 55/55 |
 
 All sixteen original journeys, twelve NS groups and thirteen mandatory subcases
 per cell pass. Additional legacy controls account for the larger JIT count.
+All 384 cases bind the same corrected source, feed and harness. Original golden
+and strong-value corpora match the earlier approved baseline at 8566986 / 1ad2a59
+and [run 40629471843](https://github.com/dekrevedko/Workflow-orca/actions/runs/40629471843),
+whose dated records remain unchanged.
 Trimmed/AOT JSON reflection stayed at its SDK-default disabled value; AOT also
 reports dynamic code unavailable. The 24 individually reviewed diagnostics are
 the deliberate handwritten-framework counterexample, which product registration

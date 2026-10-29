@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 22,
+  "schemaVersion": 23,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -795,7 +795,7 @@
     "verdictSha256": "d2ea311bdd255dcdf4171b237646eb8a845a9e019173e8407888db01ffe589ae"
   },
   "nativeSupportContractEvidence": {
-    "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
+    "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
     "checkpointCommit": "6122025828c7e8e3525ad8f2e24048024cbbb2d5",
     "checkpointParent": "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
     "checkpointTree": "2b981a667a0c08aca7215118e73f0e40b91db8ac",
@@ -805,8 +805,8 @@
     "manifestPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-manifest-2026-10-23.txt",
     "canonicalPreparationTask": "2.1",
     "implementationReviewTask": "2.5",
-    "sourceApprovalEvidencePath": null,
-    "nativeQualificationEvidencePath": null,
+    "sourceApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+    "nativeQualificationEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
     "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved",
     "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-1-contract-binding-2026-10-24.md",
     "artifactNormalizedSha256": "0b7b6fda7ad1c52e0420261bd48b7c3f0b9e6719a7179132829c11fb2873b4d6",
@@ -850,7 +850,11 @@
     "codecMemberCorrections": {
       "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/codec-member-corrections-2026-10-28.json",
       "artifactSha256": "e14e591cb641b21fb05fde9bba0369e04f7cd7c507d26fc04aee79b171e8a3d7",
-      "stage": "NativeRequalifiedPendingReview"
+      "stage": "SourceAndNativeApprovedPublicationPending",
+      "approvalBinding": {
+        "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+        "artifactSha256": "bdc5db130b8e4d6f4c45cc5a63f9c3fe07fac56aed0040d78c1ee089359f1963"
+      }
     }
   },
   "nativeSupportPendingAmendments": [
@@ -858,7 +862,7 @@
       "id": "ephemeral-native-support-developer-facing-surface",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "developer-facing-surface",
-      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
+      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -876,8 +880,8 @@
         "2.6"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
-      "sourceApprovalEvidencePath": null,
-      "nativeQualificationEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+      "nativeQualificationEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
       "numberedRequirementPaths": [
         "docs/specs/03-domain-model-and-glossary.md",
         "docs/specs/04-requirements-core-runtime.md",
@@ -895,7 +899,7 @@
       "id": "ephemeral-native-support-quality-and-verification",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "quality-and-verification",
-      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
+      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -913,8 +917,8 @@
         "2.6"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
-      "sourceApprovalEvidencePath": null,
-      "nativeQualificationEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+      "nativeQualificationEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
       "numberedRequirementPaths": [
         "docs/specs/03-domain-model-and-glossary.md",
         "docs/specs/04-requirements-core-runtime.md",
@@ -932,7 +936,7 @@
       "id": "ephemeral-native-support-structured-fiber-execution",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "structured-fiber-execution",
-      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
+      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
       "declaredRequirementCount": 1,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -949,8 +953,8 @@
         "2.6"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
-      "sourceApprovalEvidencePath": null,
-      "nativeQualificationEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+      "nativeQualificationEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
       "numberedRequirementPaths": [
         "docs/specs/03-domain-model-and-glossary.md",
         "docs/specs/04-requirements-core-runtime.md",
@@ -968,7 +972,7 @@
       "id": "ephemeral-native-support-workflow-contracts",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "workflow-contracts",
-      "stage": "CanonicalApprovedCodecCorrectionsPendingReview",
+      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -986,8 +990,8 @@
         "2.6"
       ],
       "canonicalApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md",
-      "sourceApprovalEvidencePath": null,
-      "nativeQualificationEvidencePath": null,
+      "sourceApprovalEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
+      "nativeQualificationEvidencePath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
       "numberedRequirementPaths": [
         "docs/specs/03-domain-model-and-glossary.md",
         "docs/specs/04-requirements-core-runtime.md",

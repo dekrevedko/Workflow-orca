@@ -73,6 +73,9 @@ unsupported runtime subtypes/collections actually read by the serializer now
 reject rather than silently losing data. Valid bytes/fingerprints and getter
 counts remain unchanged. No public catalogue, canonical/delta requirement or
 executable API baseline changes. Run 40762764617 requalifies these exact corrected
-bytes in six native cells, 384 cases total. This target and publication preparation
-remain uncommitted for review; the old checkpoint's approval does not approve the
-corrections, and the temporary evidence push authorizes no issue-branch push or PR.
+bytes in six native cells, 384 cases total. The user approved the exact 216-path
+target with "Continue"; checkpoint d8c55f3 has tree 8a1b648c and review-only direct
+child 25fa36c. The publication approval binding records that actual authority and
+Git chain, rather than inheriting the old checkpoint's approval. Publication
+binding/PR preparation remains a reviewed target; the temporary evidence push
+and checkpoint approval authorize no issue-branch push, PR, merge or release.

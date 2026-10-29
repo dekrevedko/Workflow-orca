@@ -23,7 +23,8 @@ public sealed class NativeSupportTransitionGuards
     private const string Binding = Prefix + "artifacts/task-2-1-contract-binding-2026-10-24.md";
     private const string BindingSha = "0b7b6fda7ad1c52e0420261bd48b7c3f0b9e6719a7179132829c11fb2873b4d6";
     private const string ApprovedStage = "CanonicalSourceAndNativeApprovedPublicationReviewPending";
-    private const string Stage = "CanonicalApprovedCodecCorrectionsPendingReview";
+    private const string Stage = "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending";
+    private const string CorrectionApproval = Prefix + "artifacts/publication-codec-approval-binding-2026-10-28.json";
     private const string SourceApproval = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md";
     private const string CatalogueBinding = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-catalogue-approval-binding-2026-10-25.json";
     private const string CatalogueBindingSha = "efc13e6b51aa50bdeb41997471177a94a23bcdd6e1fe4bdb85be42af5be92181";
@@ -89,7 +90,7 @@ public sealed class NativeSupportTransitionGuards
     {
         using var document = Load();
         var root = document.RootElement;
-        root.GetProperty("schemaVersion").GetInt32().Should().Be(22);
+        root.GetProperty("schemaVersion").GetInt32().Should().Be(23);
         var old = JsonNode.Parse(Git("show", VerdictCommit + ":" + Registry));
         var current = JsonNode.Parse(root.GetRawText())!.AsObject();
         current.Remove("nativeSupportContractEvidence");
@@ -102,8 +103,8 @@ public sealed class NativeSupportTransitionGuards
         S(evidence, "implementationReviewTask").Should().Be("2.5");
         ValidateImplementationApproval(root);
         foreach (var key in new[] { "sourceApprovalEvidencePath", "nativeQualificationEvidencePath" })
-            evidence.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null,
-                "the base checkpoint approval does not approve the codec corrections");
+            S(evidence, key).Should().Be(CorrectionApproval,
+                "the corrections bind their own approved checkpoint, not the base approval");
         var records = root.GetProperty("nativeSupportPendingAmendments").EnumerateArray().ToArray();
         records.Select(x => S(x, "capability")).Should().Equal(Capabilities);
         foreach (var record in records)
@@ -124,7 +125,7 @@ public sealed class NativeSupportTransitionGuards
                 .Should().Equal("2.2", "2.3", "2.4", "2.5", "2.6");
             S(record, "canonicalApprovalEvidencePath").Should().Be(SourceApproval);
             foreach (var key in new[] { "sourceApprovalEvidencePath", "nativeQualificationEvidencePath" })
-                record.GetProperty(key).ValueKind.Should().Be(JsonValueKind.Null);
+                S(record, key).Should().Be(CorrectionApproval);
         }
         var tasks = Read(Prefix + "tasks.md");
         foreach (var task in new[] { "1.1", "1.2", "1.3", "1.4" })

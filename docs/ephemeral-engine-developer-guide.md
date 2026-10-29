@@ -256,8 +256,8 @@ host identities, individual findings and measurements are recorded in
 
 ## Issue #13 native metadata path (source-qualified; release pending)
 
-Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
-this source's bounded public ephemeral recipe. Native run 40629471843 passed
+User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
+this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
 and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
 Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new

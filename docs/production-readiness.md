@@ -216,10 +216,10 @@ adds no general native-support or production-readiness badge. All findings and
 unavailable unsupported-workload metrics are retained. Process-memory and managed-
 heap observations keep their separate meanings and host-specific names.
 
-## Issue #13 source-qualified recipe; release pending (2026-10-27)
+## Issue #13 source-qualified recipe; release pending (2026-10-28)
 
-Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
-this source's bounded public ephemeral recipe. Native run 40629471843 passed
+User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
+this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
 and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
 Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
@@ -227,10 +227,10 @@ version is published by this approval. See [the qualified recipe](ephemeral-nati
 
 The approved metadata API, process seal, static bootstrap and explicit .NET 10
 F1 admission restriction are implemented. Six real native public-package cells
-pass 356 case executions, all original journeys/NS groups/subcases, exact source/
+pass 384 case executions, all original journeys/NS groups/subcases, exact source/
 package/harness identity and individual diagnostic gates. Full validation passed
-969 unit, 188 provider/integration and 302 Infrastructure cases, fifty unfiltered
-dotnet test stress runs and 79.32% CI engine line coverage. This is bounded
+969 unit, 188 provider/integration and 309 Infrastructure cases, fifty unfiltered
+dotnet test stress runs and 79.3357% CI engine line coverage. This is bounded
 compatibility evidence, not a stable-release or general production-readiness badge.
 No blanket suppression, private roots, reflected JSON switch or successful
 publish substitutes for execution. No faster/smaller, provider/DAG, additional

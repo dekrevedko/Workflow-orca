@@ -125,7 +125,7 @@ The approved contract/canonical transition publishes no packages and changes no 
 
 ## Publish a source-qualified native candidate
 
-Issue #13 source checkpoint `8566986`, approved at `1ad2a59`, qualifies only the
+Issue #13 user-approved corrected checkpoint `d8c55f3`, with review-only child `25fa36c`, qualifies only the
 [selected ephemeral recipe](ephemeral-native-support.md). It does not publish a
 new version or change preview.2's unsupported assessment. Choose a new unused
 version only at an authorized release gate, bind its source/profile, and retain

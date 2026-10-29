@@ -214,8 +214,8 @@ work-lane consolidation remain separate maintenance.
 
 ## Issue #13 native support transition (2026-10-24)
 
-Implementation checkpoint 8566986 / user-approval verdict child 1ad2a59 qualify
-this source's bounded public ephemeral recipe. Native run 40629471843 passed
+User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
+this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
 and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
 Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
@@ -226,13 +226,14 @@ contract binding, tests, source, executable baselines and six-cell native proof.
 Major internal slices receive a separate review before advancing; no separate
 activation target is required. Task 2 is now checkpointed and approved; its exact
 Git chain and scoped source/native approval are bound for publication review.
-Public/API/compile/package baselines moved with source. Task 3.1 preparation stays
-uncommitted for independent review; push/PR/release/merge need later authority.
+Public/API/compile/package baselines moved with source. The corrected source is
+checkpointed; its publication binding/PR material has a separate review, and
+push/PR/release/merge need later authority.
 The temporary validation-branch push authorization does not authorize publication.
 Publication/PR/merge/issue closure remain later gates; no squash. Issue #1
 archival and Core work-lane consolidation remain separate maintenance work.
 
-The 2026-10-25 minimal converter catalogue amendment is explicitly approved for task 2.2: only accessibility of the existing sealed factory changes, with matching declaration/API/compile/package baselines. Task 2 remains uncommitted; typed dispatch is implemented in task 2.3 while native/whole-target gates are still open, and no support or source-checkpoint approval follows from this API slice.
+The 2026-10-25 minimal converter catalogue amendment was applied in task 2.2: only accessibility of the existing sealed factory changed, with matching declaration/API/compile/package baselines. Task 2 is checkpointed at 8566986 / 1ad2a59. The later codec corrections are approved at d8c55f3 / review-only child 25fa36c, after six-cell native requalification. The API amendment alone did not grant that later approval.
 
 The approved 2026-10-26 throttle annotation adds only
 DynamicallyAccessedMembers(Interfaces) to StepExecutionThrottle.For<TStep>'s

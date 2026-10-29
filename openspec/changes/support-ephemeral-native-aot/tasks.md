@@ -23,9 +23,12 @@ Post-review correction target (2026-10-28): fix the write-only admission and
 included-member runtime-validation findings under the existing codec requirements,
 preserve getter counts and exact public signatures, add Metadata/Default/legacy
 regressions, and requalify the corrected source with protocol 3. The base approval
-remains historical; correction source/native approvals stay unset and task 3.1
-stays open while independent review and approval are pending. Under the user's
+remains historical. The user approved the exact corrected target with "Continue";
+checkpoint d8c55f3 has tree 8a1b648c and review-only direct child 25fa36c. The frozen
+execution receipt remains unchanged and its current approval is bound separately
+in publication-codec-approval-binding-2026-10-28.json. Task 3.1 remains open for
+the publication binding/PR review and authorized push/CI. Under the earlier
 "Ok continue" authorization, temporary evidence commit 7f1034c was pushed only to
 codex/issue-13-native-evidence. Run 40762764617 passed all six native cells, 384
-cases total. The issue branch remains uncommitted and unpushed; PR, merge, issue
+cases total. The issue branch is checkpointed and unpushed; PR, merge, issue
 closure and release gates remain separate.
