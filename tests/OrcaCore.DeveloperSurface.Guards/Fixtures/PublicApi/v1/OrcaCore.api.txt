@@ -238,6 +238,10 @@ type public sealed class OrcaCore.Abstractions.Ids.StreamVersionJsonConverter : 
   ctor public .ctor()
   method public override Read(ref [System.Text.Json]System.Text.Json.Utf8JsonReader reader, [System.Private.CoreLib]System.Type! typeToConvert, [System.Text.Json]System.Text.Json.JsonSerializerOptions! options) -> [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion
   method public override Write([System.Text.Json]System.Text.Json.Utf8JsonWriter! writer, [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion value, [System.Text.Json]System.Text.Json.JsonSerializerOptions! options) -> [System.Private.CoreLib]System.Void
+type public sealed class OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory : [System.Text.Json]System.Text.Json.Serialization.JsonConverterFactory~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor()
+  method public override CanConvert([System.Private.CoreLib]System.Type! typeToConvert) -> [System.Private.CoreLib]System.Boolean
+  method public override CreateConverter([System.Private.CoreLib]System.Type! typeToConvert, [System.Text.Json]System.Text.Json.JsonSerializerOptions! options) -> [System.Text.Json]System.Text.Json.Serialization.JsonConverter!
 type public readonly struct OrcaCore.Abstractions.Ids.TimerId : [System.Private.CoreLib]System.ValueType~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore]OrcaCore.Abstractions.Ids.TimerId]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.IsReadOnlyAttribute()]
   ctor public .ctor([System.Private.CoreLib]System.Guid value)
   method public override Equals([System.Private.CoreLib]System.Object~ obj) -> [System.Private.CoreLib]System.Boolean
@@ -1016,7 +1020,7 @@ type public sealed class OrcaCore.ForEachOptions
   property [System.Private.CoreLib]System.Int32 MaxItems { get:public }
   property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int32] MaxConcurrency { get:public }
 type public sealed class OrcaCore.Hosting.StepExecutionThrottle attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
-  method public static For<TStep>([System.Private.CoreLib]System.Int32 maxConcurrency) -> [OrcaCore]OrcaCore.Hosting.StepExecutionThrottle! where [TStep : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  method public static For<TStep>([System.Private.CoreLib]System.Int32 maxConcurrency) -> [OrcaCore]OrcaCore.Hosting.StepExecutionThrottle! where [TStep : attributes [[System.Private.CoreLib]System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembersAttribute(8192), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
   property [System.Private.CoreLib]System.Int32 MaxConcurrency { get:public }
   property [System.Private.CoreLib]System.Type! StepType { get:public }
 type public sealed class OrcaCore.Hosting.StructuredExecutionHostOptions attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
@@ -1533,6 +1537,8 @@ type public enum OrcaCore.WorkflowInstanceStatus : [System.Private.CoreLib]Syste
   field public const [OrcaCore]OrcaCore.WorkflowInstanceStatus Terminated = 8
   field public const [OrcaCore]OrcaCore.WorkflowInstanceStatus TimedOut = 6
   field public const [OrcaCore]OrcaCore.WorkflowInstanceStatus Waiting = 2
+type public static class OrcaCore.WorkflowJsonMetadata
+  method public static Register<TContext>() -> [System.Private.CoreLib]System.Void where [TContext : [System.Text.Json]System.Text.Json.Serialization.JsonSerializerContext~ & new()]
 type public enum OrcaCore.WorkflowMode : [System.Private.CoreLib]System.Int32
   field public [System.Private.CoreLib]System.Int32 value__
   field public const [OrcaCore]OrcaCore.WorkflowMode Durable = 1

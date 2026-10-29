@@ -211,3 +211,47 @@ and extras remain unsupported, which is a valid assessment outcome. This creates
 no deferred public member or support promise. Product/API/annotation/codec
 remediation requires a separate reviewed amendment. Issue #1 archival and Core
 work-lane consolidation remain separate maintenance.
+
+## Issue #13 native support transition (2026-10-24)
+
+User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
+this source's bounded public ephemeral recipe. Native run 40762764617 passed
+self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
+and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
+Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
+version is published by this approval. See [the qualified recipe](../ephemeral-native-support.md).
+
+One coherent task-2 target owns canonical/docs reconciliation, Git-backed
+contract binding, tests, source, executable baselines and six-cell native proof.
+Major internal slices receive a separate review before advancing; no separate
+activation target is required. Task 2 is now checkpointed and approved; its exact
+Git chain and scoped source/native approval are bound for publication review.
+Public/API/compile/package baselines moved with source. The corrected source is
+checkpointed; its publication binding/PR material has a separate review, and
+push/PR/release/merge need later authority.
+The temporary validation-branch push authorization does not authorize publication.
+Publication/PR/merge/issue closure remain later gates; no squash. Issue #1
+archival and Core work-lane consolidation remain separate maintenance work.
+
+The 2026-10-25 minimal converter catalogue amendment was applied in task 2.2: only accessibility of the existing sealed factory changed, with matching declaration/API/compile/package baselines. Task 2 is checkpointed at 8566986 / 1ad2a59. The later codec corrections are approved at d8c55f3 / review-only child 25fa36c, after six-cell native requalification. The API amendment alone did not grant that later approval.
+
+The approved 2026-10-26 throttle annotation adds only
+DynamicallyAccessedMembers(Interfaces) to StepExecutionThrottle.For<TStep>'s
+existing generic parameter. NS-09a requires preserved validation/order/identity
+for valid/inherited/invalid steps and capacities, and removal of IL2090 in trim
+and AOT. It grants no package-wide badge or native-host qualification.
+
+### Approved 2026-10-27 public-consumer boundary
+
+NS-10 follows the bounded public recipe approved in the adjacent amendment:
+typed inbound value construction/materialization, typed StepResult.WaitForEvent
+parking and physical cancellation/join, timers/retries, transient-pool grants,
+root Parallel and bounded ForEach. The public ephemeral closure exports neither
+live event ingress/resumption nor outgoing Publish. These receive no native
+credit. Existing internal event regressions remain required, without substituting
+for public-package execution. NS-07/08/11 prove public value rejection and
+retained-instance state; they make no public delivery claim. Every original
+AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required.
+A future ingress/publish capability requires its own reviewed public contract.
+This is an explicit qualification-scope adjustment, not the old full event
+requirement passing. Source/public API and the fixed codec are unchanged.

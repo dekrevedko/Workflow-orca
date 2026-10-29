@@ -1,0 +1,10 @@
+{
+  "NativeConsumer": {
+    "bytes": 8126744,
+    "sha256": "0b79fa1a6f325e50da9a2214ffccf2684ee2312c99364a8b8f567ef09490a4a6"
+  },
+  "NativeConsumer.dbg": {
+    "bytes": 16377448,
+    "sha256": "40be6bada46077b36d733e0e79140ee8a564b40fd650dea7284efce4a23a1e34"
+  }
+}

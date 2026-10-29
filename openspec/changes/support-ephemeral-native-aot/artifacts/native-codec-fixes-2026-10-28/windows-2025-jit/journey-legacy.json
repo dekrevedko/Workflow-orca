@@ -1,0 +1,252 @@
+{
+  "schemaVersion": 1,
+  "jsonReflectionEnabled": true,
+  "mode": "--all",
+  "runtimeSettings": {
+    "frameworkDescription": ".NET 10.0.14",
+    "runtimeVersion": "10.0.14",
+    "dynamicCodeSupported": true,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "tieredCompilationAppContextOverride": null,
+    "tieringObservation": "Only explicit AppContext/config/environment settings are observable here; null means no such override, not a measured JIT tier."
+  },
+  "cases": [
+    {
+      "id": "AOT-01",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-02",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-03",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-04",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "WaitCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-05",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "WorkflowCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-06",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "ClosedDrain",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-07",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Incomplete",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-08",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-09",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Parallel",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-10",
+      "outcome": "Passed",
+      "assertions": 16,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release",
+        "host bound 2, node bound 3: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-11",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-12",
+      "outcome": "Passed",
+      "assertions": 5,
+      "phase": "UnsupportedDeclaredConverter",
+      "observations": [
+        "OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for 'Customized'. (workflow:$)\r\n   at OrcaCore.Core.Authoring.<PublicWorkflowDefinitions>FA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation`1 validation)\r\n   at OrcaCore.Core.Authoring.EphemeralWorkflowCompletionBuilder`1.Build()\r\n   at OrcaCore.Core.Authoring.TypedAuthoringOperations.BuildEphemeral[TInput](AuthoringKernelHandle handle)\r\n   at OrcaCore.EphemeralWorkflowCompletionBuilder`1.Build()\r\n   at Cases.<>c__DisplayClass15_0.<UnsupportedConverter>b__1() in D:\\a\\_temp\\issue-13-work\\journey\\app\\Cases.cs:line 239\r\n   at Probe.Error(Func`1 action) in D:\\a\\_temp\\issue-13-work\\journey\\app\\Program.cs:line 138"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-13",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "InputBoundary",
+      "observations": [
+        "System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences, Boolean inspectProperties)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateLegacyMembers(Object value, Type runtimeType, HashSet`1 activeReferences)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences, Boolean inspectProperties)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object value, Type declaredType)\r\n   at OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(Object value, Type declaredType)\r\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T value)\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartCoreAsync[TInput](DefinitionId definitionId, DefinitionVersion definitionVersion, DefinitionFingerprint definitionFingerprint, Type stateType, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartAsync[TInput,TOutput](EphemeralWorkflowDefinition`2 definition, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\r\n   at Cases.<>c__DisplayClass16_0.<<CyclicInput>b__2>d.MoveNext() in D:\\a\\_temp\\issue-13-work\\journey\\app\\Cases.cs:line 259\r\n--- End of stack trace from previous location ---\r\n   at Probe.Error(Func`1 action) in D:\\a\\_temp\\issue-13-work\\journey\\app\\Program.cs:line 138"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-14",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Start",
+      "observations": [
+        "Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes."
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-15",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-16",
+      "outcome": "Passed",
+      "assertions": 11,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    }
+  ],
+  "quiescentCounters": {
+    "phase": "after individual case cleanup; informational counters, no retained bootstrap owner",
+    "cumulativeUserPlusKernelCpuMs": 640.625,
+    "peakWorkingSetBytes": 60583936,
+    "workingSetBytes": 60583936,
+    "windowsPrivateCommitBytes": 23486464,
+    "estimatedManagedBytesNoForcedGc": 6511688,
+    "lastCollectionHeapBytes": 4212936,
+    "collectionCounts": [
+      1,
+      1,
+      1
+    ]
+  },
+  "loadedModulePaths": [
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\NativeConsumer.exe",
+    "C:\\Windows\\SYSTEM32\\ntdll.dll",
+    "C:\\Windows\\System32\\KERNEL32.DLL",
+    "C:\\Windows\\System32\\KERNELBASE.dll",
+    "C:\\Windows\\System32\\SHELL32.dll",
+    "C:\\Windows\\System32\\msvcp_win.dll",
+    "C:\\Windows\\System32\\ucrtbase.dll",
+    "C:\\Windows\\System32\\USER32.dll",
+    "C:\\Windows\\System32\\win32u.dll",
+    "C:\\Windows\\System32\\GDI32.dll",
+    "C:\\Windows\\System32\\gdi32full.dll",
+    "C:\\Windows\\System32\\wintypes.dll",
+    "C:\\Windows\\System32\\combase.dll",
+    "C:\\Windows\\System32\\RPCRT4.dll",
+    "C:\\Windows\\System32\\ADVAPI32.dll",
+    "C:\\Windows\\System32\\msvcrt.dll",
+    "C:\\Windows\\System32\\sechost.dll",
+    "C:\\Windows\\System32\\IMM32.DLL",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\hostfxr.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\hostpolicy.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\coreclr.dll",
+    "C:\\Windows\\System32\\ole32.dll",
+    "C:\\Windows\\System32\\OLEAUT32.dll",
+    "C:\\Windows\\System32\\bcryptPrimitives.dll",
+    "C:\\Windows\\SYSTEM32\\kernel.appcore.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Private.CoreLib.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\clrjit.dll",
+    "C:\\Windows\\SYSTEM32\\icu.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\NativeConsumer.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Runtime.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Text.Json.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Diagnostics.Process.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.ComponentModel.Primitives.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Collections.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Console.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\OrcaCore.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Linq.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Collections.NonGeneric.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Memory.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.DependencyInjection.Abstractions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\OrcaCore.Engine.Ephemeral.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\OrcaCore.Core.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Threading.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.ComponentModel.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Hosting.Abstractions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Collections.Concurrent.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Hosting.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Configuration.Abstractions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.DependencyInjection.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Diagnostics.DiagnosticSource.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Diagnostics.Tracing.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Configuration.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Primitives.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.FileProviders.Abstractions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.FileProviders.Physical.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Configuration.FileExtensions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Options.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Logging.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Diagnostics.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Logging.Abstractions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Threading.ThreadPool.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Threading.Channels.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Runtime.InteropServices.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Extensions.Diagnostics.Abstractions.dll",
+    "C:\\Windows\\SYSTEM32\\BCrypt.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Text.Encoding.Extensions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Text.Encodings.Web.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Numerics.Vectors.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Private.Uri.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Reflection.Emit.Lightweight.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Reflection.Primitives.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Reflection.Emit.ILGeneration.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Collections.Immutable.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Security.Cryptography.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.IO.Pipelines.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Runtime.Intrinsics.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Text.RegularExpressions.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Diagnostics.StackTrace.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.Reflection.Metadata.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\System.IO.MemoryMappedFiles.dll",
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\Microsoft.Win32.Primitives.dll"
+  ]
+}

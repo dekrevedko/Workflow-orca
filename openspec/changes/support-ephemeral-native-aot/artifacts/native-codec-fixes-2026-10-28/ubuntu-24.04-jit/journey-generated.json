@@ -1,0 +1,229 @@
+{
+  "schemaVersion": 1,
+  "jsonReflectionEnabled": true,
+  "mode": "--all",
+  "runtimeSettings": {
+    "frameworkDescription": ".NET 10.0.14",
+    "runtimeVersion": "10.0.14",
+    "dynamicCodeSupported": true,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "tieredCompilationAppContextOverride": null,
+    "tieringObservation": "Only explicit AppContext/config/environment settings are observable here; null means no such override, not a measured JIT tier."
+  },
+  "cases": [
+    {
+      "id": "AOT-01",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-02",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-03",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-04",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "WaitCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-05",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "WorkflowCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-06",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "ClosedDrain",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-07",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Incomplete",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-08",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-09",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Parallel",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-10",
+      "outcome": "Passed",
+      "assertions": 16,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release",
+        "host bound 2, node bound 3: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-11",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-12",
+      "outcome": "Passed",
+      "assertions": 5,
+      "phase": "UnsupportedDeclaredConverter",
+      "observations": [
+        "OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for 'Customized'. (workflow:$)\n   at OrcaCore.Core.Authoring.<PublicWorkflowDefinitions>FA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation`1 validation)\n   at OrcaCore.Core.Authoring.EphemeralWorkflowCompletionBuilder`1.Build()\n   at OrcaCore.Core.Authoring.TypedAuthoringOperations.BuildEphemeral[TInput](AuthoringKernelHandle handle)\n   at OrcaCore.EphemeralWorkflowCompletionBuilder`1.Build()\n   at Cases.<>c__DisplayClass15_0.<UnsupportedConverter>b__1() in /home/runner/work/_temp/issue-13-work/journey/app/Cases.cs:line 239\n   at Probe.Error(Func`1 action) in /home/runner/work/_temp/issue-13-work/journey/app/Program.cs:line 138"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-13",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "InputBoundary",
+      "observations": [
+        "System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences, Boolean inspectProperties)\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences, Boolean inspectProperties)\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object value, Type declaredType)\n   at OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(Object value, Type declaredType)\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T value)\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartCoreAsync[TInput](DefinitionId definitionId, DefinitionVersion definitionVersion, DefinitionFingerprint definitionFingerprint, Type stateType, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartAsync[TInput,TOutput](EphemeralWorkflowDefinition`2 definition, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\n   at Cases.<>c__DisplayClass16_0.<<CyclicInput>b__2>d.MoveNext() in /home/runner/work/_temp/issue-13-work/journey/app/Cases.cs:line 259\n--- End of stack trace from previous location ---\n   at Probe.Error(Func`1 action) in /home/runner/work/_temp/issue-13-work/journey/app/Program.cs:line 138"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-14",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Start",
+      "observations": [
+        "Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes."
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-15",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-16",
+      "outcome": "Passed",
+      "assertions": 11,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    }
+  ],
+  "quiescentCounters": {
+    "phase": "after individual case cleanup; informational counters, no retained bootstrap owner",
+    "cumulativeUserPlusKernelCpuMs": 826.226,
+    "peakWorkingSetBytes": 80474112,
+    "workingSetBytes": 80474112,
+    "linuxPrivateResidentBytes": 63221760,
+    "estimatedManagedBytesNoForcedGc": 6151272,
+    "lastCollectionHeapBytes": 3950256,
+    "collectionCounts": [
+      1,
+      1,
+      1
+    ]
+  },
+  "loadedModulePaths": [
+    "/home/runner/work/_temp/issue-13-work/journey/publish/NativeConsumer",
+    "/usr/lib/x86_64-linux-gnu/libcrypto.so.3",
+    "/usr/lib/x86_64-linux-gnu/libicui18n.so.74.2",
+    "/usr/lib/x86_64-linux-gnu/libicudata.so.74.2",
+    "/usr/lib/x86_64-linux-gnu/libssl.so.3",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/libSystem.Security.Cryptography.Native.OpenSsl.so",
+    "/usr/lib/x86_64-linux-gnu/libicuuc.so.74.2",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/libclrjit.so",
+    "/memfd:doublemapper (deleted)",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Private.CoreLib.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Text.Json.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Diagnostics.Process.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.ComponentModel.Primitives.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Collections.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Console.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Linq.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Collections.NonGeneric.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Memory.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Threading.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.ComponentModel.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Text.Encodings.Web.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Runtime.InteropServices.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Collections.Concurrent.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Diagnostics.DiagnosticSource.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Threading.Channels.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Private.Uri.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Collections.Immutable.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Security.Cryptography.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.IO.Pipelines.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Text.RegularExpressions.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Diagnostics.StackTrace.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.Reflection.Metadata.dll",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/System.IO.MemoryMappedFiles.dll",
+    "/memfd:doublemapper (deleted)",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/libcoreclr.so",
+    "/usr/lib/x86_64-linux-gnu/libc.so.6",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/libSystem.Native.so",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/libhostpolicy.so",
+    "/usr/lib/x86_64-linux-gnu/libstdc++.so.6.0.33",
+    "/usr/lib/x86_64-linux-gnu/librt.so.1",
+    "/home/runner/work/_temp/issue-13-work/journey/publish/libhostfxr.so",
+    "/usr/lib/x86_64-linux-gnu/libgcc_s.so.1",
+    "/usr/lib/x86_64-linux-gnu/libm.so.6",
+    "/usr/lib/x86_64-linux-gnu/libpthread.so.0",
+    "/usr/lib/x86_64-linux-gnu/libdl.so.2",
+    "[vdso]",
+    "/usr/lib/x86_64-linux-gnu/ld-linux-x86-64.so.2"
+  ]
+}

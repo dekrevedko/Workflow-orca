@@ -693,12 +693,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     };
                 }
 
-                CancelAllStructuredWaits();
-                instance.Fail(new WorkflowErrorDetails(
-                    failure.Code,
-                    failure.Message,
-                    instruction.Path,
-                    timeProvider.GetUtcNow()));
+                if (fiber.OwningScopeId is { } failedScopeId)
+                    FailScope(state, state.Scopes[failedScopeId], instance);
+                else
+                {
+                    CancelAllStructuredWaits();
+                    FailInstance(instance, failure, instruction.Path);
+                }
                 return new StepTransition(state, InstanceTerminated: true);
             }
             default:
@@ -948,7 +949,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             failure.Code,
             failure.Message,
             scope.ScopePlanId.Value,
-            timeProvider.GetUtcNow()));
+            timeProvider.GetUtcNow(), ToPublicFailure(failure)));
     }
 
     private static CompiledBranchPlan ResolveBranch(

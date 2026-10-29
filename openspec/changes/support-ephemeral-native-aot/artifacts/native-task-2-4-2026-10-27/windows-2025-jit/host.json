@@ -1,0 +1,19 @@
+{
+  "architecture": "x64",
+  "platform": "Windows-2025Server-10.0.26100-SP0",
+  "python": "3.12.10",
+  "qualified": true,
+  "cpuCount": 4,
+  "container": false,
+  "os": "windows-2025",
+  "clockResolutionSeconds": 1e-07,
+  "allocationNote": "Observed native host/VM allocation; no exclusive hardware or cold-file-cache control",
+  "runnerImage": {
+    "ImageOS": "win25-vs2026",
+    "ImageVersion": "20261021.278.1",
+    "RUNNER_OS": "Windows",
+    "RUNNER_ARCH": "X64"
+  },
+  "caption": "Microsoft Windows Server 2025 Datacenter",
+  "memoryBytes": 17174360064
+}

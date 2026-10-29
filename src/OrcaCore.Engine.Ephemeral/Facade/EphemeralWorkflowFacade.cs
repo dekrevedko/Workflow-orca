@@ -13,18 +13,6 @@ namespace OrcaCore.Engine.Ephemeral;
 
 internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
 {
-    private static readonly MethodInfo RegisterRuntimeMethod = typeof(EphemeralWorkflowEngine)
-        .GetMethods(BindingFlags.Instance | BindingFlags.Public)
-        .Single(method => method.Name == nameof(EphemeralWorkflowEngine.RegisterDefinition));
-    private static readonly MethodInfo PreflightRuntimeMethod = typeof(EphemeralWorkflowEngine)
-        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-        .Single(method => method.Name == nameof(EphemeralWorkflowEngine.PreflightDefinition));
-    private static readonly MethodInfo StartRuntimeMethod = typeof(EphemeralWorkflowEngine)
-        .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
-        .Single(method =>
-            method.Name == nameof(EphemeralWorkflowEngine.StartCoreAsync) &&
-            method.GetParameters().Length == 4);
-
     private readonly object gate;
     private readonly SemaphoreSlim startGate = new(1, 1);
     private readonly Dictionary<DefinitionKey, Registration> registrations = [];
@@ -43,7 +31,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
     {
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
-            definition,
+            definition.DefinitionId, definition.DefinitionVersion, definition.DefinitionFingerprint,
             global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeDefinition(definition),
             global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition),
             () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EphemeralDefinitionHandle<TInput>(
@@ -63,7 +51,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
     {
         ArgumentNullException.ThrowIfNull(definition);
         return RegisterCore(
-            definition,
+            definition.DefinitionId, definition.DefinitionVersion, definition.DefinitionFingerprint,
             global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeDefinition(definition),
             global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.RuntimeStateType(definition),
             () => global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.EphemeralDefinitionHandle<TInput, TOutput>(
@@ -150,22 +138,16 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
     }
 
     private WorkflowRegistrationResult<THandle> RegisterCore<THandle>(
-        object publicDefinition,
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint fingerprint,
         object runtimeDefinition,
         Type stateType,
         Func<THandle> createHandle)
     {
-        var definitionId = (DefinitionId)publicDefinition.GetType()
-            .GetProperty(nameof(EphemeralWorkflowDefinition<object>.DefinitionId))!
-            .GetValue(publicDefinition)!;
-        var definitionVersion = (DefinitionVersion)publicDefinition.GetType()
-            .GetProperty(nameof(EphemeralWorkflowDefinition<object>.DefinitionVersion))!
-            .GetValue(publicDefinition)!;
-        var fingerprint = (DefinitionFingerprint)publicDefinition.GetType()
-            .GetProperty(nameof(EphemeralWorkflowDefinition<object>.DefinitionFingerprint))!
-            .GetValue(publicDefinition)!;
+        var typedRuntime = EphemeralDefinitionRuntime.Bind(engine, runtimeDefinition);
         var key = new DefinitionKey(definitionId, definitionVersion);
-        var missingPools = MissingTransientPools(runtimeDefinition, stateType);
+        var missingPools = typedRuntime.MissingTransientPools();
         if (missingPools.Count > 0)
         {
             return new WorkflowRegistrationResult<THandle>.HostIncompatible(
@@ -187,12 +169,12 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
                             fingerprint));
             }
 
-            RegisterRuntimeMethod.MakeGenericMethod(stateType).Invoke(engine, [runtimeDefinition]);
+            typedRuntime.Register();
 
             var handle = createHandle();
             registrations.Add(
                 key,
-                new Registration(handle!, fingerprint, stateType, runtimeDefinition));
+                new Registration(handle!, fingerprint, stateType, runtimeDefinition, typedRuntime));
             return new WorkflowRegistrationResult<THandle>.Registered(handle);
         }
     }
@@ -321,11 +303,9 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
                 using (replayPin) return replay;
             }
 
-            var task = (Task)StartRuntimeMethod
-                .MakeGenericMethod(typeof(TInput), stateType)
-                .Invoke(engine, [definitionId, definitionVersion, input, cancellationToken])!;
-            await task.ConfigureAwait(false);
-            var snapshot = (LegacySnapshot)task.GetType().GetProperty("Result")!.GetValue(task)!;
+            IEphemeralDefinitionRuntime typedRuntime;
+            lock (gate) typedRuntime = registrations[new DefinitionKey(definitionId, definitionVersion)].Runtime;
+            var snapshot = await typedRuntime.StartAsync(definitionId, definitionVersion, input, cancellationToken).ConfigureAwait(false);
             provisional = snapshot;
             var ambiguous = FindAmbiguousWait(definitionId, snapshot);
             if (ambiguous is not null)
@@ -349,7 +329,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
                 definitionId,
                 definitionVersion,
                 definitionFingerprint,
-                stateType);
+                stateType, typedRuntime);
 
             lock (gate)
             {
@@ -491,6 +471,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
 
     private static WorkflowFailure? MapFailure(LegacySnapshot snapshot)
     {
+        if (snapshot.StructuredFailure is { } failure) return failure;
         if (string.IsNullOrWhiteSpace(snapshot.ErrorSummary))
         {
             return null;
@@ -541,7 +522,8 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         object Handle,
         DefinitionFingerprint Fingerprint,
         Type StateType,
-        object RuntimeDefinition);
+        object RuntimeDefinition,
+        IEphemeralDefinitionRuntime Runtime);
     private sealed record StartCoreResult(
         InstanceBinding? Instance,
         bool WasExisting,
@@ -552,7 +534,8 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         DefinitionId DefinitionId,
         DefinitionVersion DefinitionVersion,
         DefinitionFingerprint DefinitionFingerprint,
-        Type StateType);
+        Type StateType,
+        IEphemeralDefinitionRuntime Runtime);
 
     internal sealed record StartBinding(
         InstanceId InstanceId,
@@ -583,10 +566,7 @@ file static class FacadeHandleFactory
         Func<Type, CancellationToken, ValueTask<object?>> getState,
         Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation,
         Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate) =>
-        (WorkflowInstanceHandle)typeof(WorkflowInstanceHandle)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single()
-            .Invoke([instanceId, getSnapshot, getState, requestCancellation, terminate]);
+        new(instanceId, getSnapshot, getState, requestCancellation, terminate);
 
     internal static WorkflowInstanceHandle<TOutput> Create<TOutput>(
         InstanceId instanceId,
@@ -596,18 +576,7 @@ file static class FacadeHandleFactory
         Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate,
         Func<CancellationToken, ValueTask<WorkflowOutputResult<TOutput>>> getOutput,
         Func<CancellationToken, ValueTask<TOutput>> waitForOutput) =>
-        (WorkflowInstanceHandle<TOutput>)typeof(WorkflowInstanceHandle<TOutput>)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single()
-            .Invoke([
-                instanceId,
-                getSnapshot,
-                getState,
-                requestCancellation,
-                terminate,
-                getOutput,
-                waitForOutput
-            ]);
+        new(instanceId, getSnapshot, getState, requestCancellation, terminate, getOutput, waitForOutput);
 }
 
 internal static class FacadeValueFactory
@@ -615,7 +584,7 @@ internal static class FacadeValueFactory
     internal static PayloadFingerprint PayloadFingerprint<T>(T value)
     {
         var bytes = CoreWorkflowValueCodec.Serialize(value, typeof(T));
-        return Construct<PayloadFingerprint>(Convert.ToHexString(SHA256.HashData(bytes)));
+        return new PayloadFingerprint(Convert.ToHexString(SHA256.HashData(bytes)));
     }
 
     internal static DefinitionRegistrationConflict RegistrationConflict(
@@ -623,7 +592,7 @@ internal static class FacadeValueFactory
         DefinitionVersion definitionVersion,
         DefinitionFingerprint existing,
         DefinitionFingerprint attempted) =>
-        Construct<DefinitionRegistrationConflict>(
+        new DefinitionRegistrationConflict(
             definitionId,
             definitionVersion,
             existing,
@@ -636,7 +605,7 @@ internal static class FacadeValueFactory
         DefinitionVersion attemptedVersion,
         DefinitionFingerprint attemptedFingerprint,
         PayloadFingerprint attemptedInput) =>
-        Construct<StartIdempotencyConflict>(
+        new StartIdempotencyConflict(
             key,
             existing.DefinitionId,
             existing.DefinitionVersion,
@@ -648,37 +617,32 @@ internal static class FacadeValueFactory
             attemptedInput);
 
     internal static WorkflowInstanceNotFoundException InstanceNotFound(InstanceId instanceId) =>
-        Construct<WorkflowInstanceNotFoundException>(instanceId);
+        new WorkflowInstanceNotFoundException(instanceId);
 
     internal static WorkflowInstanceDefinitionMismatchException InstanceDefinitionMismatch(
         InstanceId instanceId,
         DefinitionId expected,
         DefinitionId actual) =>
-        Construct<WorkflowInstanceDefinitionMismatchException>(instanceId, expected, actual);
+        new WorkflowInstanceDefinitionMismatchException(instanceId, expected, actual);
 
     internal static WorkflowStateTypeMismatchException StateTypeMismatch(
         InstanceId instanceId,
         Type actual,
         Type requested) =>
-        Construct<WorkflowStateTypeMismatchException>(instanceId, actual, requested);
+        new WorkflowStateTypeMismatchException(instanceId, actual, requested);
 
     internal static WorkflowOutputUnavailableException OutputUnavailable(
         WorkflowInstanceStatus status,
         WorkflowFailure? failure) =>
-        Construct<WorkflowOutputUnavailableException>(status, failure);
+        new WorkflowOutputUnavailableException(status, failure);
 
     internal static AmbiguousWaitRegistrationException AmbiguousWait(
         DefinitionId definitionId,
         WorkflowEventContract eventContract,
         CorrelationId correlationId) =>
-        Construct<AmbiguousWaitRegistrationException>(definitionId, eventContract, correlationId);
+        new AmbiguousWaitRegistrationException(definitionId, eventContract, correlationId);
 
     internal static AuthoredLocation RootLocation() =>
-        Construct<AuthoredLocation>("workflow:$");
+        new AuthoredLocation("workflow:$");
 
-    private static T Construct<T>(params object?[] arguments) =>
-        (T)typeof(T)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters().Length == arguments.Length)
-            .Invoke(arguments);
 }

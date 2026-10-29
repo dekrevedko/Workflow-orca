@@ -1,0 +1,10 @@
+{
+  "NativeConsumer.exe": {
+    "bytes": 8417792,
+    "sha256": "e26e5f65f76ae4835c510c0ff6dff82c126739e448df2f48eb442610790aad13"
+  },
+  "NativeConsumer.pdb": {
+    "bytes": 36794368,
+    "sha256": "186faa2ef5ef8e13040c465589151e8f56dddc77bf67e1179c35bb94fc295612"
+  }
+}

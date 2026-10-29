@@ -303,3 +303,31 @@ steps. Both native JIT controls pass; trimmed/AOT defaults and reflection-enable
 extras are unsupported for that exact profile. It adds no provider, role,
 fingerprint, friend, codec resolver or serializer hook. PR-016 and PR-041 remain
 unchanged; any compatibility remediation needs its own reviewed amendment.
+
+## PR-016 native metadata amendment (issue #13; source-qualified, release pending)
+
+The fixed engine-owned orcacore-json-v1 wire contract remains authoritative.
+The metadata entry point is OrcaCore.WorkflowJsonMetadata.Register<TContext>()
+where TContext : System.Text.Json.Serialization.JsonSerializerContext, new().
+It selects one process-wide ordinary source-generated metadata context, with no
+new role option/fingerprint, dependency, friend, provider hook, options/resolver
+parameter or application converter. No provider/scope is captured or disposed.
+Context configuration/provenance is validated; a baked string-enum context and
+a handwritten renamed-property resolver reject with NotSupportedException before
+publication, retain retry and cannot be accepted merely because options look
+default. Same-type successful registration is idempotent without reconstruction.
+
+PR-016's existing wire semantics and unsupported shapes are preserved. Generated
+mode on .NET 10 adds exactly one declared-shape admission exception: reject a
+reachable member whose AssociatedParameter.IsMemberInitializer is true and whose
+JsonIgnore condition exists and is not Never. Reject before effects for omitted
+and present values; use SFE-TYPE-002, not the missing-metadata SFE-TYPE-003.
+No model construction/getter/sample deserialization may classify it. Unused
+excluded context roots do not invalidate registration. Positional records with
+no omission policy and genuine constructor-bound/mutable controls stay admitted.
+Only the common admitted shapes share rejection/byte/value parity. Unconfigured
+legacy JIT acceptance is unchanged; the context never enters a fingerprint.
+The selected three-package closure gains no durable/DAG/provider support claim.
+[NF-034, AC-563–574]
+
+The approved 2026-10-25 catalogue also exposes only the existing sealed OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory, its implicit parameterless constructor and two overrides. The eleven-type table/body and strong-value attributes remain unchanged. Ordinary generated DTO attribution is allowed; explicit context converter settings, even for this factory, still reject before publication with valid retry. No provider ownership or codec replacement is introduced.

@@ -1,0 +1,5 @@
+  Determining projects to restore...
+  Restored /home/runner/work/_temp/issue-13-work/journey/app/NativeConsumer.csproj (in 1.83 sec).
+  NativeConsumer -> /home/runner/work/_temp/issue-13-work/journey/app/bin/Release/net10.0/linux-x64/NativeConsumer.dll
+  Generating native code
+  NativeConsumer -> /home/runner/work/_temp/issue-13-work/journey/publish/

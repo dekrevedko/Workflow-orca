@@ -748,3 +748,32 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Ephemeral native support (AC-563–574; source-qualified, release pending)
+
+- **AC-563** NS-01: Static role-registration → metadata → authoring bootstrap is reachable before definition construction, without DI/provider/step resolution or admission; fresh-process missing-install and original JIT missing-engine controls are actionable. [NF-034]
+
+- **AC-564** NS-02: One context is process-wide across providers, repeats without reconstruction and owns no provider/scope. NS-02a/b reject the baked enum policy and handwritten renamed-property context despite default options; NS-02c proves valid retry and original numeric/member encoding. [NF-034] Supplemental NS-02d rejects explicit context converter settings naming the accessible product factory, before publication/seal/work, with valid default-context retry.
+
+- **AC-565** NS-03: First successful or failed workflow type/codec lookup seals Generated or legacy Reflection mode; late first registration conflicts, same-type generated registration remains idempotent, and no public reset exists. [NF-034]
+
+- **AC-566** NS-04: Barrier-controlled registration/first-use/concurrent-registration races publish an entire context or explicitly reject; reentrant configuration fails without deadlock, partial publication or reflection fallback. [NF-034]
+
+- **AC-567** NS-05: Throwing constructors/invalid options publish nothing and preserve their cause and retry before first use; both codec copies share one authoritative registration and seal. [NF-034]
+
+- **AC-568** NS-06: Exact codec bytes, fingerprints and detached values agree on common admitted shapes, with strong values, ordered collections and failure trees. Mandatory NS-06a–f cover root/nested omitted/present F1 rejection, admitted positional/mutable/constructor-bound controls, metadata-only classification and unused excluded context roots. [NF-034] Supplemental NS-06g–h cover all eleven strong-string types through ordinary external Metadata/Default root/nested/collection contracts, literal bytes/value/fingerprint parity, the exact public factory and unsupported direct requests without registration/seal effects.
+
+- **AC-569** NS-07: Missing root/transitive metadata produces SFE-TYPE-003 and the existing Build/TryBuild result/exception shapes with exact root/missing type/context/remedy; no user step, admission, start-key binding or commit occurs. Unsupported shapes retain SFE-TYPE-002. [NF-034]
+
+- **AC-570** NS-08: Dynamic unknown values, app converters, serialization-only or P3 contexts, the F1 shape, cycles/unapproved polymorphism/inaccessible members, forbidden collections and oversized values reject before commit/event consumption, leaving accepted instances and waits intact. [NF-034]
+
+- **AC-571** NS-09: Reference/struct/nullable/enum state and output execute named/delegate steps, queries, selectors/snapshots/merges through closed typed operations without runtime-only generic code or reflective property/hidden-constructor dispatch. NS-09a preserves StepExecutionThrottle.For<TStep> capacity-first and exact-step behavior for concrete/inherited/invalid types and annotated generic wrappers, with only the approved Interfaces parameter annotation and no IL2090. [NF-034]
+
+- **AC-572** NS-10: Under the approved 2026-10-27 bounded public recipe, typed inbound construction/materialization and StepResult.WaitForEvent parking/cancellation/join, timer/retry and transient-pool grant callbacks, root Parallel and bounded ForEach preserve ordering, physical ownership and failure aggregation in each native artifact. Live event delivery/resumption and outgoing publishing are not public ephemeral exports and receive no native credit; internal event regressions remain required without substituting for public-package execution. NS-07/08/11 prove public value rejection and retained-instance state without a public delivery claim. No original AOT assertion or NS group is removed. [NF-034]
+
+- **AC-573** NS-11: Generated metadata preserves retention/pins/key expiry, Closed drain, atomic acceptance/abort at Stopping, truthful Incomplete, physical settlement/Completed and no post-Completed user/DI/commit work. [NF-034]
+
+- **AC-574** NS-12: The exact metadata API compiles from package OrcaCore without an internal bridge or extra public API; fresh-process/package bootstrap and multiple-provider controls pass. CI uses dotnet test, all six native cells retain original AOT-01–16 assertions, exact package/source identities and individual diagnostic accounting. No support badge or broader package claim precedes independent native qualification. [NF-034]
+
+These are mandatory source/package/native regression assertions. Markdown, a green
+contract lane or the original unsupported assessment supplies no execution credit.

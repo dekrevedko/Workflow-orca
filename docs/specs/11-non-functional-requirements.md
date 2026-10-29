@@ -154,3 +154,60 @@ durable timer (reminder-style wake-up) split** — when to use each, what each s
   fingerprint versus opaque-code version-bump rules (DU-040..043), typed workflow I/O and DAG mapping, stable
   step-operation identity, scoped lease quarantine/stop proof, and the authoring rules for
   steps (CR-012). Removed and deferred members SHALL not appear as usable v1 examples.
+
+## NF-034 Ephemeral native support has an exact qualified boundary
+
+The selected ephemeral path SHALL qualify .NET 10 self-contained untrimmed JIT,
+full-trim JIT and Native AOT on native windows-2025/win-x64 and Ubuntu 24.04/linux-x64.
+Trimmed/AOT artifacts SHALL retain and assert SDK-default disabled reflection JSON.
+Every original AOT-01–16 assertion plus NS-01–12 and mandatory NS-02a–c/NS-06a–f
+SHALL pass in each applicable cell. A successful publish, skipped case or
+Unsupported classification SHALL NOT complete this support issue. Legacy JIT
+remains a separate control. NF-033's original assessment remains historical.
+
+The exact one-context process seal, static bootstrap and ownership rules SHALL
+be enforced without replacing the fixed codec. Generated mode's explicit .NET 10
+omittable synthetic-initializer restriction SHALL reject declared closures with
+SFE-TYPE-002 before effects, for omitted and present values; SFE-TYPE-003 SHALL
+identify missing metadata. Common admitted shapes SHALL retain exact bytes,
+fingerprints and detached values. No DI/scope disposal or admission rule changes.
+
+Each generator/trim/AOT warning SHALL have an individual disposition; supported
+OrcaCore paths SHALL be remediated. No blanket suppression, reflection-enabling
+switch or private/whole-assembly root establishes support. Real native public-
+package evidence SHALL bind exact source/package/harness/toolchain identities.
+Package-wide IsAotCompatible/IsTrimmable or extra public annotations require a
+separate reviewed exposed-surface proof/catalogue amendment. Keep conservative
+package metadata and implementation-pending guide wording until qualification.
+No performance advantage, new provider/DAG/RID support or released preview.2
+support follows from contract or canonical approval. [AC-563–574]
+
+NF-034 supplemental NS-02d/NS-06g–h require ordinary public-package Metadata and Default contexts for all eleven attributed strong-string types, root/nested/collection byte/value/fingerprint parity and unsupported direct-factory/configuration negatives. The catalogue accessibility change is not native qualification; every existing six-cell and individual-warning gate remains required.
+
+The approved 2026-10-26 throttle annotation adds only
+DynamicallyAccessedMembers(Interfaces) to StepExecutionThrottle.For<TStep>'s
+existing generic parameter. NS-09a requires preserved validation/order/identity
+for valid/inherited/invalid steps and capacities, and removal of IL2090 in trim
+and AOT. It grants no package-wide badge or native-host qualification.
+
+### Approved 2026-10-27 public-consumer boundary
+
+NS-10 follows the bounded public recipe approved in the adjacent amendment:
+typed inbound value construction/materialization, typed StepResult.WaitForEvent
+parking and physical cancellation/join, timers/retries, transient-pool grants,
+root Parallel and bounded ForEach. The public ephemeral closure exports neither
+live event ingress/resumption nor outgoing Publish. These receive no native
+credit. Existing internal event regressions remain required, without substituting
+for public-package execution. NS-07/08/11 prove public value rejection and
+retained-instance state; they make no public delivery claim. Every original
+AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required.
+A future ingress/publish capability requires its own reviewed public contract.
+This is an explicit qualification-scope adjustment, not the old full event
+requirement passing. Source/public API and the fixed codec are unchanged.
+
+Qualification status (2026-10-28): user-approved corrected checkpoint d8c55f3 /
+review-only child 25fa36c bind the bounded source/native recipe and its explicit
+converter, throttle and public-consumer amendments. All six native cells pass,
+384 cases total; publication is pending.
+This status does not relax NF-034 or grant live event/publishing, other engine/RID
+or released-preview.2 support. [Qualified recipe](../ephemeral-native-support.md)

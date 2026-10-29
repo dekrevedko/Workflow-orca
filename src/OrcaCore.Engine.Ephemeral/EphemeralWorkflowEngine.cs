@@ -444,7 +444,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 $"Definition '{snapshot.DefinitionId}' is not registered for snapshot projection.");
         }
 
-        var fingerprint = ConstructNonPublic<global::OrcaCore.DefinitionFingerprint>(registration.Fingerprint);
+        var fingerprint = new global::OrcaCore.DefinitionFingerprint(registration.Fingerprint);
         var terminal = LifecycleMachine.TerminalStatuses.Contains(snapshot.Status);
         return new global::OrcaCore.WorkflowInstanceSnapshot(
             snapshot.InstanceId,
@@ -458,7 +458,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             string.IsNullOrWhiteSpace(snapshot.EndOutcomeName)
                 ? null
                 : global::OrcaCore.WorkflowOutcomeName.Create(snapshot.EndOutcomeName),
-            ToApplicationFailure(snapshot.ErrorSummary),
+            snapshot.StructuredFailure ?? ToApplicationFailure(snapshot.ErrorSummary),
             snapshot.ActiveWaits.Select(wait => new global::OrcaCore.ActiveWaitSnapshot(
                 wait.WaitId,
                 FailureProvenance.LocationFromCompilerPath(wait.AuthoredPath),
@@ -486,11 +486,6 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             []);
     }
 
-    private static T ConstructNonPublic<T>(params object?[] arguments) =>
-        (T)typeof(T)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters().Length == arguments.Length)
-            .Invoke(arguments);
 
     private static bool SameRegistration(
         RegisteredDefinition existing,

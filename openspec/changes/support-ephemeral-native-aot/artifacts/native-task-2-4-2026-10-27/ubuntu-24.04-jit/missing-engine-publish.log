@@ -1,0 +1,4 @@
+  Determining projects to restore...
+  Restored /home/runner/work/_temp/issue-13-work/missing-engine/app/NativeConsumer.csproj (in 230 ms).
+  NativeConsumer -> /home/runner/work/_temp/issue-13-work/missing-engine/app/bin/Release/net10.0/linux-x64/NativeConsumer.dll
+  NativeConsumer -> /home/runner/work/_temp/issue-13-work/missing-engine/publish/

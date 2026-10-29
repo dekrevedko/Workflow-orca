@@ -2,6 +2,13 @@ using OrcaCore;
 
 public static class PositiveUsage
 {
+    public static System.Text.Json.Serialization.JsonConverter ProductConverter(Type type, System.Text.Json.JsonSerializerOptions options)
+    {
+        var factory = new OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory();
+        _ = factory.CanConvert(type);
+        return factory.CreateConverter(type, options);
+    }
+
     public static void ExerciseAllStagedFamilies(
         EphemeralWorkflowBuilder<object, object> ephemeral,
         DurableWorkflowBuilder<object, object> durable,
@@ -187,4 +194,11 @@ public static class PositiveUsage
 #else
     private sealed class ProbeStep : IStep<object>;
 #endif
+}
+
+public static class MetadataSignatureUsage
+{
+    public static void Configure<TContext>()
+        where TContext : System.Text.Json.Serialization.JsonSerializerContext, new() =>
+        OrcaCore.WorkflowJsonMetadata.Register<TContext>();
 }

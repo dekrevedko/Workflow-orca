@@ -274,7 +274,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "64b80c3defb2c055376dc3c03c02819e835a2b633e94f2b2006731e26858d12c";
+        "a6c69937b197e814462d918f42735f02757c08579715d9619a80f3f9dd985ace";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -318,10 +318,10 @@ public sealed class OpenSpecCorpusGuards
     private const string SemanticAppendixSourceSha256 =
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
-        "41f6472c2774363d2ab922c608922e787ec241333e1d1c0b76b0c6d529ab8ec3";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 20;
+        "327b054c4c0d4cc8f77347c26ac8342f9f355ba83a45d07567111d66190ce4d6";
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 26;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "eda81ed6ab0eb369eefba2872ff7687030c7f1f47f460d9cca5b81026a471484";
+        "cb5efc03ca9c2b141f3a74e2ee66a93c45f27e3420a417a2500dc2829639749c";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -375,7 +375,19 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/add-ephemeral-terminal-retention/artifacts/task-2-1-openspec-provenance-2026-10-16.md", "8b4e385a0a79816e583b54b3bee269d11f2b3c0b14bbc7493246ac7d7d43c0bb"),
             ("openspec/changes/add-ephemeral-host-shutdown/artifacts/contract-openspec-provenance-2026-10-18.md", "87f527a9a3cc39c6519fe75f860908778f705009fe23381e005104804f16c5e0"),
             ("openspec/changes/add-ephemeral-host-shutdown/artifacts/task-2-1-openspec-provenance-2026-10-19.md", "e7b975df3e0e42ba568c0ac4f1356def496701a1fd53e5a5808180eade642578"),
-            ("openspec/changes/assess-ephemeral-native-aot/artifacts/contract-openspec-provenance-2026-10-20.md", "492fb060d5046e7cd8b3cc088248fbef0eb631ed1110cd7ff6556f6383bd490a")
+            ("openspec/changes/assess-ephemeral-native-aot/artifacts/contract-openspec-provenance-2026-10-20.md", "492fb060d5046e7cd8b3cc088248fbef0eb631ed1110cd7ff6556f6383bd490a"),
+            ("openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-openspec-provenance-2026-10-21.md",
+                "64b80c3defb2c055376dc3c03c02819e835a2b633e94f2b2006731e26858d12c"),
+            ("openspec/changes/support-ephemeral-native-aot/artifacts/contract-openspec-provenance-2026-10-23.md",
+                "3365cf351f0e6f5c6ddf7eb774e6ce9c531140001049f7465ebe092412da3e60"),
+            ("openspec/changes/support-ephemeral-native-aot/artifacts/contract-r1-openspec-provenance-2026-10-23.md",
+                "8e5dc4add42f31668db907b158bd79efbe1d8e170360f2a9c9c65be1300ac967"),
+            ("openspec/changes/support-ephemeral-native-aot/artifacts/task-2-1-openspec-provenance-2026-10-24.md",
+                "88f6c8b8440b522940eca7fdb61f8da2b244021de18a7d8056a4cf4741f912ef"),
+            ("openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-openspec-provenance-2026-10-25.md",
+                "d994e8d2f80644a864ffb085b3d52ef0fbc3b3b7153a61b1b5f2107aff2ea5e5"),
+            ("openspec/changes/support-ephemeral-native-aot/artifacts/task-2-3-r1-openspec-provenance-2026-10-26.md",
+                "17a708272839f1319d0cdcf2aeee6438d98d0855f6202038f5217275a0428c05")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -495,7 +507,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "cbe6dc0aa7d601b09bdb8ac5daebd998777b96a8f1fd7f135482d167b66007bd";
+        "0106754fd139eecb0a7ee5d509dd61666443a2b38762010c254c9ef3767a27eb";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1692,7 +1704,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(19);
+        checkpoint.SchemaVersion.Should().Be(23);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -4803,7 +4815,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(19);
+        checkpoint.SchemaVersion.Should().Be(23);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");

@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "stage": "CatalogueApprovedImplementationPendingReview",
+  "approvalAuthority": "DirectUserApproval",
+  "approvalText": "Approved. Recheck drift, apply the converter amendment and finish task 2.2. Resolve the failure-corpus finding, run ReSharper and independently review before advancing. Keep task 2 uncommitted and clean up temp/build artifacts.",
+  "baseHead": "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd",
+  "approvedContentSha256": "477b88fde7bc4a1320cac82cdfa4fecab4e7c09c852fa3e517dd6f8a202cd8b5",
+  "manifestPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-manifest-2026-10-25.txt",
+  "amendmentPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-2026-10-25.md",
+  "amendmentSha256": "7fec9739fd0751989a62e646ba8eee79bd25bc7e8195a7a8abf0d1a1248b96d8",
+  "verdictPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-independent-review-verdict-2026-10-25.md",
+  "verdictSha256": "11b91e94f5a80786148c33b651dfd4ab60861d93271e1fab01e9e4c4d5ed46ca",
+  "approvedFileSha256": {
+    "openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-2026-10-25.md": "7fec9739fd0751989a62e646ba8eee79bd25bc7e8195a7a8abf0d1a1248b96d8",
+    "openspec/changes/support-ephemeral-native-aot/artifacts/contract-converter-catalogue-amendment-manifest-2026-10-25.txt": "beca7ca0dc7f6c549cf481dfba2a501e36a11f9dcf9b62309e268c560a0bed49",
+    "openspec/changes/support-ephemeral-native-aot/design.md": "855cf956b16a5079ecb7afe10c37d3662a38c02d15412e371334fb22ce6bc6b7",
+    "openspec/changes/support-ephemeral-native-aot/proposal.md": "7e803fd7a21f1500db09c22e2033ded55c6badc298792296b962434ac7b2bbdf",
+    "openspec/changes/support-ephemeral-native-aot/specs/developer-facing-surface/spec.md": "76662f6bff9137bfbc865d2c44bfb456ed6e7a895f0d14b2e5b8960ae3d68413",
+    "openspec/changes/support-ephemeral-native-aot/specs/quality-and-verification/spec.md": "2b984062dedc9be864f8620e9be53521620d64343ea0ed61b69fffad3997644b",
+    "openspec/changes/support-ephemeral-native-aot/specs/workflow-contracts/spec.md": "e0d4f9322935d73b645384eb04f25514feed9ca8300a90388bac92e4882f225a",
+    "openspec/changes/support-ephemeral-native-aot/tasks.md": "4290fe05afb1f181e15cc979390034e14950e55d1535d69abf0c2caef5da5f9e"
+  },
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null
+}

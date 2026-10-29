@@ -16,6 +16,12 @@ using System.Threading.Tasks;
 namespace OrcaCore
 {
 
+public static class WorkflowJsonMetadata
+{
+    public static void Register<TContext>()
+        where TContext : System.Text.Json.Serialization.JsonSerializerContext, new() => throw new NotSupportedException();
+}
+
 public sealed class EventContractVersion : IEquatable<EventContractVersion>
 {
     public EventContractVersion(int value) => throw new NotSupportedException();
@@ -1283,5 +1289,16 @@ public interface IWorkflowEventDispatcher
     ValueTask<WorkflowEventDispatchResult> DispatchAsync(
         WorkflowOutboundEvent outboundEvent,
         CancellationToken cancellationToken = default);
+}
+}
+
+namespace OrcaCore.Abstractions.Ids
+{
+public sealed class StrongStringValueJsonConverterFactory : System.Text.Json.Serialization.JsonConverterFactory
+{
+    public StrongStringValueJsonConverterFactory() => throw new NotSupportedException();
+    public override bool CanConvert(Type typeToConvert) => throw new NotSupportedException();
+    public override System.Text.Json.Serialization.JsonConverter CreateConverter(
+        Type typeToConvert, System.Text.Json.JsonSerializerOptions options) => throw new NotSupportedException();
 }
 }

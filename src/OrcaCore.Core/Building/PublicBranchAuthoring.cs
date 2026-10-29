@@ -261,7 +261,7 @@ internal static class PublicBranchPublishAuthoring
             eventContract,
             state => correlation(AuthoringContracts.Snapshot(state)),
             typeof(TPayload),
-            (Func<TState, TPayload>)(state => payload(AuthoringContracts.Snapshot(state))));
+            global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind((Func<TState, TPayload>)(state => payload(AuthoringContracts.Snapshot(state)))));
     }
 }
 

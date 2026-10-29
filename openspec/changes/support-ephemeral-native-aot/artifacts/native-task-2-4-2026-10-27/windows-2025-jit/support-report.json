@@ -1,0 +1,1646 @@
+{
+  "protocol": 2,
+  "sourceSha": "609f1045db0f863b43be58843654f03cecb47d56",
+  "sourceTree": "356efdf129675c3a937c179ed54830e1b4a6560c",
+  "sourceDirty": false,
+  "consumerBuildPropsIsolated": true,
+  "sourceFiles": {
+    "Directory.Build.props": "5ae95e754fee43c4b747012a7c6444310e146f8a27e193c6240439a3fadfceae",
+    "Directory.Packages.props": "294db11ee9f450c89abc200ebe8824c8f2c16b5e1214d94222caa637cfd218f1",
+    "global.json": "18303059fe920620f05e25d0157b7ed4a74934841e6a34b0b86d713fbf631444",
+    "src/OrcaCore.Abstractions/Authoring/BranchAuthoringFacades.cs": "5aa732b4ecc8b14e993a7f03f71f1b11373cdcb087827d14643dcddc098ec848",
+    "src/OrcaCore.Abstractions/Authoring/NestedAuthoringFacades.cs": "b59ed5c56eab59c7952881fea04192791c1d501d7e2414cc428b555075c780d8",
+    "src/OrcaCore.Abstractions/Authoring/WorkflowAuthoringFacades.cs": "a26104872c197bb81ede3ab79a7806e668ed083ef6d098460ebc43d52a620dd4",
+    "src/OrcaCore.Abstractions/Diagnostics/OrcaCoreDiagnostics.cs": "2115cf2bbefa34f923e8234976bc13d3d849247e18bddf616571e0f06bb9cd98",
+    "src/OrcaCore.Abstractions/Diagnostics/OrcaCoreMetrics.cs": "1f7a94aa1845443461a55efba85e2e03a5aca2473ebfaff2f7d98706a82dad6f",
+    "src/OrcaCore.Abstractions/Errors/DeadlineExceptions.cs": "31301cabd675337bf177c6d9203df7fc0e09c7a6831c6f84fa8146df3ec3ad3b",
+    "src/OrcaCore.Abstractions/Errors/LeaseLostException.cs": "7c61929cefe5861f77e0ecbab252f4e136d923dc1f7b35f5ec5ef817423f837a",
+    "src/OrcaCore.Abstractions/Errors/OrcaCoreException.cs": "8c7dc8d7e7a3ddcd3247721d143073d739a5663381e0ce2508235924de333f03",
+    "src/OrcaCore.Abstractions/Errors/ResourcePoolNotConfiguredException.cs": "dc10d65e1dbc23f120684c62bfd83d9fbd692ca2eea96cfaa119549f5a637bb8",
+    "src/OrcaCore.Abstractions/Errors/WorkflowConcurrencyException.cs": "3415dcd15dda496084efb9f1cb4287fc02a1f722062912d25d2fcdceff8a8c15",
+    "src/OrcaCore.Abstractions/Errors/WorkflowDefinitionException.cs": "2d48a273b85962503c6dd9f719eb03d80f6e90403ca53c17ee50e7268e20379f",
+    "src/OrcaCore.Abstractions/Errors/WorkflowLifecycleException.cs": "33eb132417e51473c40bb8187bf21efc3ddabf81f54ab1b8258c051706558837",
+    "src/OrcaCore.Abstractions/Errors/WorkflowRoutingException.cs": "6b9af793f816c4fc199c6259b9c7ec26abde5ea67c5dcf97d239896cc38b9376",
+    "src/OrcaCore.Abstractions/Errors/WorkflowVersionException.cs": "4ea05e362cca21afe7ce37301ef36bcb1c031450da28d165554c9a585cdaa385",
+    "src/OrcaCore.Abstractions/Events/EventEnvelope.cs": "2b33ffbaed384f9d2026fb057310688829d1a944b109ece8cd022aed0e157095",
+    "src/OrcaCore.Abstractions/Events/WorkflowEventContract.cs": "985213c7d1cb600cef4719627d71c5bcac0f052a6c27f720be185714d791d1b3",
+    "src/OrcaCore.Abstractions/Events/WorkflowInboundEvent.cs": "00fe9ef27b36f78063c1b56d7ff6b2cd4c5a62acf930dcbd27f9408cbd064e7c",
+    "src/OrcaCore.Abstractions/Events/WorkflowOutboundEvent.cs": "2ebc2cd9e7edeb0eec8221a39a964d57be04d3f4e53be60745977108ac8bc9c3",
+    "src/OrcaCore.Abstractions/Facades/WorkflowDefinitionContracts.cs": "0655589fa0c19878e9b81b4c245796d0e17c3403408c42a4bf7947b42119bfca",
+    "src/OrcaCore.Abstractions/Facades/WorkflowDefinitionRegistryContracts.cs": "f8cf635f53005be072f904928f936e808fe8441c8368ff90b213f5e08b3d7bc7",
+    "src/OrcaCore.Abstractions/Facades/WorkflowFacadeContracts.cs": "fed746a7a356770ecf8cfa84b6a321a893a2811587fdbde4600ef6cb3b5be627",
+    "src/OrcaCore.Abstractions/Hosting/StructuredExecutionHostOptions.cs": "c364d94a6fc48382568f5f38986c52ac17cb03af696892c1b3a8d89f81392ede",
+    "src/OrcaCore.Abstractions/Ids/CausationId.cs": "75e4bd2141adb9b86051c385e0b6b844b6ae2e3a030b874b0409eb65ee2e621b",
+    "src/OrcaCore.Abstractions/Ids/CommandId.cs": "b04753950aac66f22c9942212e4d9b709855e0c1c3cb10cb2f158f752442b1aa",
+    "src/OrcaCore.Abstractions/Ids/CorrelationId.cs": "4e447025177cf923886e32a7ede6ce213b75e89708e966b60e8e19c9ce52eda6",
+    "src/OrcaCore.Abstractions/Ids/DefinitionId.cs": "16464dbb2705c1fb99b8013088a15a5499f7341cea0897f2646d4ea018a9ff6c",
+    "src/OrcaCore.Abstractions/Ids/DefinitionVersion.cs": "e5a17c7ad79f9b6375f54af3cb21843667dec08d3015b5a2576cfc8cfae1f609",
+    "src/OrcaCore.Abstractions/Ids/DurableAggregateKind.cs": "c37a181495ef4d1286715b55672a60c8e6194b1304873ef617ce9f2bde49d7a1",
+    "src/OrcaCore.Abstractions/Ids/EventId.cs": "6caace9fc12404b2b4f78d76111a8c5a1b44d84dbc6709f63db85d98feea6b0d",
+    "src/OrcaCore.Abstractions/Ids/FiberId.cs": "38ebf0bff56475a73ae0788cf719bd40713ef0cd5f23d9fc6db65617fcd1190c",
+    "src/OrcaCore.Abstractions/Ids/InstanceId.cs": "321e34155bcf43b3a7e88ebe8b7517f3111a3ac7e4901747f78fd03e5ba6a216",
+    "src/OrcaCore.Abstractions/Ids/InstanceIdJsonConverter.cs": "a330f6c18cf796c1f24d3accceecd46d1e6f01a2655109befd54fcdecc017911",
+    "src/OrcaCore.Abstractions/Ids/OutboxRecordId.cs": "6345ae8f835d19d2d929fc68ec4c5f2a09d9c9ef609639ae9cef00a818a7a538",
+    "src/OrcaCore.Abstractions/Ids/StreamVersion.cs": "1e1936717210841781d1ded2b13b8ac2e34c564164cac09daa421f94acfda122",
+    "src/OrcaCore.Abstractions/Ids/StrongStringValueJsonConverterFactory.cs": "606c4701fdde0cf25b011ede7114d53e4b37c4ec1a7c3a33e3a8f73f418892b5",
+    "src/OrcaCore.Abstractions/Ids/StrongValues.cs": "d078dea988e033b6d6ce8b81e5a405c916e303f52b19b6ddf7655a769eff39c1",
+    "src/OrcaCore.Abstractions/Ids/TimerId.cs": "6323ac3a2d2f4a9a419bbc805b8c62e1adb411f5a8d4e891d3c36a31dd94391f",
+    "src/OrcaCore.Abstractions/Ids/WaitId.cs": "a68d6cc27daad399b92de604e4326bea945d0b19dd6d18916ddb9fa720a4b115",
+    "src/OrcaCore.Abstractions/Ids/WorkflowStreamId.cs": "a92e58d6d6fcc866c85f9dd9a29fa7b0e7333759d605bea3029a3d6069d365d0",
+    "src/OrcaCore.Abstractions/Instances/AuthoringValues.cs": "5e02a0fb824d4086ba8815d88ac7aef0adc7b0da75539170805545092dee4649",
+    "src/OrcaCore.Abstractions/Instances/PublicWorkflowValues.cs": "5b208b6d4564a9d5e222906e8d819f05308eb893f808775aa0cd6963ae9b979f",
+    "src/OrcaCore.Abstractions/Instances/ReadOnlyStateSnapshot.cs": "3ead5290ddffa4d9b1cb5a0b0b66aa89668f244a1120ebdf9514f470ecaf24d6",
+    "src/OrcaCore.Abstractions/Instances/WorkflowDiagnosticCatalog.cs": "7c475a0c299f5061bded8970bc27453f0d22f66317ad82a5e57aa942a0790d8e",
+    "src/OrcaCore.Abstractions/Internal/TypedAuthoringBoundary.cs": "3ce982efb6f1649dec699707261a6b44a0c9d30c031283b5fc834c3453b8e352",
+    "src/OrcaCore.Abstractions/OrcaCore.csproj": "60e13b68f124bc288ae8115bf26f49677ef8bc76a1b69b437b070ed29d1c8627",
+    "src/OrcaCore.Abstractions/Primitives/Option.cs": "faeb59d1bbbaf476e386a2100f418f42760370cfa740790727cba70449b267e3",
+    "src/OrcaCore.Abstractions/Primitives/Result.cs": "f3c226ba06a4db8fe2c7d0bc85b8c54af97bf130e4a733f653b3f43f28457b84",
+    "src/OrcaCore.Abstractions/Primitives/ValidationError.cs": "d6deae130970dc3ff8714e75134591470f0e588b36d371e14be0467206b70463",
+    "src/OrcaCore.Abstractions/Properties/AssemblyInfo.cs": "5828d3f14efced5fc02b4eec1ea6ffae7355c9221aff935878279bd34d0f3e27",
+    "src/OrcaCore.Abstractions/Providers/ResourcePoolRequirement.cs": "0d57030ad1d53efb69bf57f68db1aa79ef34495d8bdedaba3baf3eb559605ac5",
+    "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs": "4ae5c53a74270ce08201e88a8e6be3c3741dadaea3127dd35aef6c2747c77cc7",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowFailureJsonConverters.cs": "062f1c65720b9d708ea54eb20edd5f6bfcd54c18015544f64e407706e9d00fec",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadata.cs": "230a7257c3ca9d61d708444682cbbf577df346203c92236452cf7966d189c81d",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs": "4c4d72f5e1fd2b1b66b6fce36fa73e1ba6bad40802edaf34e0b48a5272bf1242",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonProductContext.cs": "13aa7fad708ee7206be068bba9b126644dd4d34493f7c21cdee2cd761d0e5ed0",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs": "485a67670aa427e613b7ee001c2c91267b5910d4a7241e99c25821b6949a30d6",
+    "src/OrcaCore.Abstractions/Steps/ForEachItemContext.cs": "0cfa34af1bbb167ac8b9943e5b609801a40d616e13dbb1463fef8d1155724764",
+    "src/OrcaCore.Abstractions/Steps/IStep.cs": "16dc7615a68fcdff461ea34fd9ee7abd38533d6e9200d623428f9cedc352708c",
+    "src/OrcaCore.Abstractions/Steps/StepContext.cs": "be9791db9d684e86a24cbaab05d5bb229f1ff56ff7e7418391a2a654acdfb09c",
+    "src/OrcaCore.Abstractions/Steps/StepExecutionContext.cs": "989ec99e819e0aa541c43edcf3f0c2ed2942aabfeb846c74a3681f89e0bb4700",
+    "src/OrcaCore.Abstractions/Steps/StepResult.cs": "5eefd12da51224a1cb04ed54855e154a70077ea60b75f18448a62ddc6a11c53e",
+    "src/OrcaCore.Core/Building/AuthoringLifecycle.cs": "0d1adc51fb79bf350c7035448ff339b97acc8d7abd0a11d9378773845716c3ce",
+    "src/OrcaCore.Core/Building/BuilderValidationCodes.cs": "ba5ba93a87b8361960fdc64d1d1a85b4e86b50d22e56f9dd68ae8ebb3dc34fc6",
+    "src/OrcaCore.Core/Building/PublicBranchAuthoring.cs": "8d5c56360d84a5c57a3b3ee2f76ad84038f142c2066fe9627c20908dc3acd1f4",
+    "src/OrcaCore.Core/Building/PublicNestedAuthoring.cs": "e33f9de44b51163e425db31e85f7f7a943b6fabab0f67a164e3e0f81d54734fe",
+    "src/OrcaCore.Core/Building/PublicStagedAuthoring.cs": "ede91e300230e883ab1a54ef3b8c5dcfbd9817e7329cd9047b505ffa1dd32457",
+    "src/OrcaCore.Core/Building/PublicWorkflowDefinitions.cs": "42bc592f581de2a44cfdfdacdd3243e9489cde4b5cee6b2f96c0df184fafa9de",
+    "src/OrcaCore.Core/Building/SelectedWorkflowAuthoring.cs": "8cae79efee560fa02c3b4e4ee792965061fd0bcba319a4b4712bdd83c0d333bf",
+    "src/OrcaCore.Core/Building/SelectedWorkflowBuilder.cs": "99be7feffaa1063d146b05db9edbbaf92da52d5b5904cca0cd3fe3ae1db4d61f",
+    "src/OrcaCore.Core/Building/StructuredBranchBuilders.cs": "8e154f8f65c10a62094d0f1b058caaae38212438d9c04be6e9c9a619790d6dbb",
+    "src/OrcaCore.Core/Building/TypedAuthoringOperations.cs": "d9d32cb275744c831624febe72c5124307a5844e932c6cd5973d02409500b1dc",
+    "src/OrcaCore.Core/Building/Workflow.cs": "0c22f6f780e12e5d40a7e939870e9bd177162be0a583fa5e9ca5a4fff01d902c",
+    "src/OrcaCore.Core/Compilation/CompiledPlanModels.cs": "97767d2e71ca177259f025154305ff647f7b421bb5f8f3a61bbc5b5500cf4d79",
+    "src/OrcaCore.Core/Compilation/CompiledWorkflowPlan.cs": "36c43b0e5f6b44301cd0e3645f9324d5f67ca9646c40c8bd248d38c4079128bf",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Branches.cs": "811e6dce4b831172832e0a2dca3ced6ce3efa07c5c3a3022a6c49ac12ca17637",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Capabilities.cs": "6bbfbb59c7067be53568720d0358b296db4a1d578ff23cb08c54c469e3a0148c",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Fingerprint.cs": "5bd8dc59fb50a4ed29b2742fbba0d66110d076a851803427f2723331092ba882",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.ForEach.cs": "5b4ff75d5c40e4e1d8972e266a56572a065597dd9e7d1713108e106409ad237f",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Instructions.cs": "b9312bb8ffc6eaf7223b6d84a7eb87f6b2ceeb5e51c29ca09c42ed6ece774f97",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Limits.cs": "f10e626221f5e2b4772c4268a8c41d41207f89450e6542483670011b46ee8dc9",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Models.cs": "2f8fe8acee667f35333e29941c0a787d5206fd29f72bf99f79cd4ca8ff9f8f65",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Nodes.cs": "1fd3ad1a21e4f10343b1ee73f64b3eaccfff5d5116db778856b9a4fac0dd8fe1",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.TypeContracts.cs": "ed67cc92271eaa9a6f4cce2d0d0b46f60dcd4da83b5d46e430bb9f63a0616acc",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.cs": "e020a4c6cd8fea02cd64f45d2ffab6bbd9badd0c5edfdd690068ea8eb6d1d086",
+    "src/OrcaCore.Core/Compilation/DefinitionCompilerCodes.cs": "001bd0e2ee6e1483027146370167cf0560054a1002491fe98177c04028aa827d",
+    "src/OrcaCore.Core/Compilation/DefinitionCompilerOptions.cs": "627bbb8830e61181de913e4baacbaeba71859336c09ecd6b1be9550a8d3b0a7e",
+    "src/OrcaCore.Core/Compilation/WorkflowWaitMode.cs": "e1375174bfd9656f4c3e961777761889b41d2e44cdf976fdf3ac21e6fd1f4595",
+    "src/OrcaCore.Core/Concurrency/InstanceLane.cs": "fea500e6900cf1fccad292c7a8512a9ba22606a220b523f368faae60542670be",
+    "src/OrcaCore.Core/Definitions/BranchId.cs": "e7bee3cf49ea75dafef76e944bdbf2f6685c5f5430216188da5aa8d1c26cc732",
+    "src/OrcaCore.Core/Definitions/ExecutionPointer.cs": "2d3bfa1de4209320de790e93947c71bd653cd4a4095e876ad4ca18db81e601d3",
+    "src/OrcaCore.Core/Definitions/ForEachFailurePolicy.cs": "d76d767e371330f1f8e735b7d6016e40aa6b28af39784e6f2cffbfc27aab9626",
+    "src/OrcaCore.Core/Definitions/ForEachJoinPolicy.cs": "eb8c97ba094d9a8c7591760b6851f6f1b24ac849394caf42d2928a8eb0fb62fc",
+    "src/OrcaCore.Core/Definitions/Nodes.cs": "55ae5a6ae862952a7d2f3fddd22135460e2a7d8cfa5e47f9b1ce8aa66858cdba",
+    "src/OrcaCore.Core/Definitions/ReadOnlyList.cs": "8be7b3ed52c808d4a6cf92dcea8566ade0d9ce5b22cb75910250ee518efd46bb",
+    "src/OrcaCore.Core/Definitions/WorkflowDefinition.cs": "160eafd20819322a20695194d389a78fa73a933e4918d8ac5fb41cf8a9f105c3",
+    "src/OrcaCore.Core/Definitions/WorkflowNode.cs": "d1c7dd379710a42c59a2c54ae3c2f098a27ff6a9989981d28e85182e00c6ec25",
+    "src/OrcaCore.Core/Definitions/WorkflowPartition.cs": "b401a8525648843f211b795847cb4b1d14789d2128bad5a7ab70a8dabc1affbc",
+    "src/OrcaCore.Core/Definitions/WorkflowPartitioner.cs": "89f535a3ca7b7d6d46a3a3016a6544f2fdda70123ece82c52f7f06fcf4e20666",
+    "src/OrcaCore.Core/Definitions/WorkflowPolicySet.cs": "bcbb36cf07129a59bbc673fb0565d7a2991e7bcb21e99d1e3534d122168addca",
+    "src/OrcaCore.Core/Execution/ClosedForEachBindings.cs": "5eb864899b7106e8c993297a8171cbfb5f2cda8da441b4dd1d2cc3692c8ecebb",
+    "src/OrcaCore.Core/Execution/ClosedResultBindings.cs": "2d2134b744feb357d0487a1a40186e3f80c6bf3a834d54407a622ada2192df29",
+    "src/OrcaCore.Core/Execution/ExecutionStatusDeriver.cs": "69fce182ed4ce4eea973e14f74c8dc9af9e79ed4dec85faadb9708f1c1204ece",
+    "src/OrcaCore.Core/Execution/FailureProvenance.cs": "5656a5084aa5cc4d0967126fc55dc3a8b1f9262050dfafebc5b7f9b0aff80a72",
+    "src/OrcaCore.Core/Execution/FiberIdentity.cs": "5dc8cf73deaf1b3df8dfcb406e34faaed7aeed7da831155684359526c200b89c",
+    "src/OrcaCore.Core/Execution/FiberModel.cs": "ed73a85c613207708686d38707e3de0c2327c066175db49a89cf0a4cdd88c045",
+    "src/OrcaCore.Core/Execution/FiberQuantumBudget.cs": "d63f59efd6e4a5d2aa23f6368e61372aa91fea4ad5a5d7bd0ba8af1998df6058",
+    "src/OrcaCore.Core/Execution/FiberReducer.cs": "e2559348cecc1334463ec1b59bacff0e764146df7a5dcda7736e3c2488d2b0da",
+    "src/OrcaCore.Core/Execution/FiberScheduler.cs": "76726096a33014df33163b387b019fda0d246b18bf55cf03f5a8cca2a7d3c88b",
+    "src/OrcaCore.Core/Execution/ForEachSnapshotMaterializer.cs": "0f66c04ccb6bfb9bef9542b3b1cb181ad53ecda814fd448dc7bcdf6d4d44467d",
+    "src/OrcaCore.Core/Execution/InstructionExecutionResult.cs": "05ddb72d056bc3d7174a84d081faee3900b3bc9fe381bf5c6858e3bd72f25f7b",
+    "src/OrcaCore.Core/Execution/ScopeMergeAdapter.cs": "c12e1b2e6b0c19f93c60096fb118f62a9f5bbc24a6d74aa9f3cdd541f526e994",
+    "src/OrcaCore.Core/Execution/ScopeOwnershipTraversal.cs": "5a993e0f21d8931524965133f4670bd69f8df6c6f67374645c04bccf39d005f5",
+    "src/OrcaCore.Core/Execution/ScopeReducer.cs": "77ae63054b5becf38240a5444cb6b3f0bdc36c0c65868497c461fcfb726b6ce4",
+    "src/OrcaCore.Core/Execution/StepResultWaitAccessor.cs": "0cc6a1f1b10189dcadb56714b349e2520403f98d6e6ce4b73fb9d8b98a380328",
+    "src/OrcaCore.Core/Execution/StructuredExecutionLimitException.cs": "dc01805157627045a9d9a06c200062499bdb27bd875cb06efa4ec1b9388f2548",
+    "src/OrcaCore.Core/Execution/StructuredExecutionState.cs": "0bd70238c7af3158030d2b446aa103689c34cb3549d62a5b92374bc876220a8b",
+    "src/OrcaCore.Core/Execution/StructuredInvocationCache.cs": "c77e66fc89a8d0076e3ba507472743aa75af9a3477db8338cc514a65696e0d70",
+    "src/OrcaCore.Core/Execution/StructuredValueMaterialization.cs": "28346ce083fe910c46a6d9e72ba4232f58bec949be6fa9f5f1f68c6e37028352",
+    "src/OrcaCore.Core/GlobalUsings.cs": "b038b8db29f841fd75c349af60ed09c9b4c5593cbc7672e70b462ecb77be32c8",
+    "src/OrcaCore.Core/Internal/CoreWorkflowValueCodec.cs": "f91835d51947e192fa65f891e6dfaee73a23e323ac1f6ce967658c278848a159",
+    "src/OrcaCore.Core/InternalTypeAliases.cs": "4240cb124ac129d869011c1e47f1fce175a7ad594d12a0a20624ee632782cab5",
+    "src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs": "c1febba45c2f58eeefd5ec75803257cb62bbb14bf13c9572622a5d0bdd2e7936",
+    "src/OrcaCore.Core/Lifecycle/LifecycleTransition.cs": "67183a3d3bc7665f662bf4dda45e7ac9fb1a61f0b34d245909d48bde17bdafe4",
+    "src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs": "9f205352d6acdd7abc4828c7f257309eac029a58868aba3d6c18ff8ad6d81325",
+    "src/OrcaCore.Core/OrcaCore.Core.csproj": "0ff02fff68f1254c838186152d49a2d75ee90001a8a2bfe2ab6d29ae4183cff6",
+    "src/OrcaCore.Core/Primitives/InternalValidation.cs": "85379e013225339ca23862431fb181b8f2063ec86d77859e3c1de5c2151be4c8",
+    "src/OrcaCore.Core/Properties/AssemblyInfo.cs": "f92b0e9fda01cbdce89f250ec6c3a3717a4bcec482ce6b5fda9ddb6e36f9e2e8",
+    "src/OrcaCore.Dag.Hosting/DagHostingAssemblyMarker.cs": "2470965db21cddc232df49eaee5abf71f28aae03accbd17825c65706b9816d87",
+    "src/OrcaCore.Dag.Hosting/DagHostingServices.cs": "f8148fb20ea64b3e7c3c182d17f845f41cde11a5f1a4423d78918c8c7173ef65",
+    "src/OrcaCore.Dag.Hosting/DagInputMappingAdapter.cs": "24409768764167edbaef1face8a0fb6721f1219d49b3f54bf31cda9a47cae770",
+    "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj": "649a5867ce3a2539489541bd215d833993566148ee7fdf5fdab51ca823e8e799",
+    "src/OrcaCore.Dag.Hosting/OrcaCoreDagHostingServiceCollectionExtensions.cs": "b79ddf0ae0e64e20fa6b9843ff7e974ecfa84ebc85740b0480ec5ee89edaf8f1",
+    "src/OrcaCore.Dag/DagAssemblyMarker.cs": "9da7c187c06c022fd1cbfe7fd1cc82c64a4e22b9f2b6b19709559a4c0961e5c4",
+    "src/OrcaCore.Dag/DagAuthoring.cs": "ac1cd1d1d21a20763b4396a7ec52a077b173132d870dfad2d3dd57460bac225f",
+    "src/OrcaCore.Dag/DagFailureContracts.cs": "5e07250d9b0bf0227e2408a9a6ad788b8db6f4cddaacdbf074bad6e0134375fb",
+    "src/OrcaCore.Dag/DagRuntimeView.cs": "389abb1a036d8f0e17001942b36d6253870e2d21bf82ced826a9a1d52ddfa02a",
+    "src/OrcaCore.Dag/OrcaCore.Dag.csproj": "e58c99a0e644520ca8dae831289fd782a7df25d45a9a97f9d0ce8e834cca734f",
+    "src/OrcaCore.Durable.Hosting/Diagnostics/DurableRuntimeTelemetryObserver.cs": "1149fbcd93aa2d5c292541b5fd75f8678ba26028e4706090732173a58e7d1731",
+    "src/OrcaCore.Durable.Hosting/DurableEngineHostOptions.cs": "1e7221059a8abc29206ff3ed435b8d47a0329c8a34a3f198d2f74ba5f932641f",
+    "src/OrcaCore.Durable.Hosting/DurableHostedServiceOptions.cs": "0d11fa5e28dc71717d4e246ae44a05bcb5fdab83087f25c114e955819aa320c8",
+    "src/OrcaCore.Durable.Hosting/DurableResourcePoolOptions.cs": "68e3c2fcc4ecd1d2f0cfe40c2632b8054e32fe36f114e2349deeaf54ece431a1",
+    "src/OrcaCore.Durable.Hosting/DurableWorkflowEventIngress.cs": "b6e8123f13a70552dbfff966aa39ed100f6e42a9ae4abc9333ac7bc4cce867e5",
+    "src/OrcaCore.Durable.Hosting/IWorkflowEventDispatcher.cs": "4eae45375e9f65627d67a39ebea2f7318440bae0a2dec143e7c1ca7f7b974deb",
+    "src/OrcaCore.Durable.Hosting/IWorkflowEventIngress.cs": "a9d97efef8a75256a9f586bfc201fce0d4fcab6227cf257cc9912b544da870bb",
+    "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj": "285f0d72136d3be5eb3f33f41fd39a14f50632318aa583a58c4b98b3716e4df6",
+    "src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs": "75169117621b4904a35c86db7157e044f26734df4551496f5361dfaa21d513f4",
+    "src/OrcaCore.Durable.Hosting/Properties/AssemblyInfo.cs": "9481cf3af6b453b7d31f41a3ba0e89d4d30e90be2ce66b447e41ad2be4bb9197",
+    "src/OrcaCore.Durable.Hosting/README.md": "e611b3c134c8939fb2ab6339bb9e0e80622bc803d36570d0d9327575195773a8",
+    "src/OrcaCore.Durable.Hosting/ResourceLeaseManagementContracts.cs": "24ce15cdbb797a51e379a89862fbe50e07890924841b4d023280276e8b073ef6",
+    "src/OrcaCore.Durable.Hosting/ResourceLeases/DurableResourceLeaseFacades.cs": "4626653ac7951851a761ab12c3acfd86d762e3b8fff5673e3e42fb80cb094fe8",
+    "src/OrcaCore.Durable.Hosting/ResourceLeases/DurableResourcePoolManagement.cs": "2c365c47467aa03bc949d6e029805b69ef32eca68f7313208565057db783eae0",
+    "src/OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs": "753da8919b1b52c5b129c085299cdbd7471ba3c5b7a588d104db917eb14acc6d",
+    "src/OrcaCore.Durable.Hosting/Services/HostedServiceFailureBoundary.cs": "207f47d39f9e9c0c0034a0e6db7effd645b64b17a8a7e581034cbda1e40e5f40",
+    "src/OrcaCore.Durable.Hosting/Services/OrcaCoreContinuationPumpHostedService.cs": "35ee6b8f3f01df2da4d11999e04d9ca22f632dce6e3b10db522a619df261a3de",
+    "src/OrcaCore.Durable.Hosting/Services/OrcaCoreHostedServiceLog.cs": "b0ab488380b32dfaf51129d9afbeae4bb8a7b2c3c843ad033545b3eba1742409",
+    "src/OrcaCore.Durable.Hosting/Services/OrcaCoreOperationalSweepHostedService.cs": "aaaf49c3702b2d807fbfefd95370f6dff470403b1343edff4844df9db607d460",
+    "src/OrcaCore.Durable.Hosting/Services/OrcaCoreOutboxPumpHostedService.cs": "5cfa0fda3edb53cd134e14a120167445a5a8b75d1f9f64ce44bc2b3f234ef203",
+    "src/OrcaCore.Durable.Hosting/Services/OrcaCoreTimerHostedService.cs": "36f56400c61a7c99f1cd2bdcda306316f80ba78336071bc204e1ee71c0ecd4f3",
+    "src/OrcaCore.Durable.Hosting/Services/OrcaCoreWorkflowEventOutboxPumpHostedService.cs": "f9c14d7634ee729c18225fcdad86ab4cdf04e4f6bcf39826625c8ad363d4b502",
+    "src/OrcaCore.Durable.Hosting/Services/WorkflowEventOutboxPump.cs": "3b05dab27947d5490a02e9074d2da690deafa543be82b2ebd6f191c5a4ef6ffe",
+    "src/OrcaCore.Durable.Hosting/WorkflowEventDispatchContracts.cs": "ac5ed6b4b51d004c407641b6dd8eb2e7ed4cbf31c817a58b9e77b895a0554af7",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableAggregateModels.cs": "f89ca62f63ecf65b46f88b1fa715bb4bcc68e05881e8dd929ab0643bb1408026",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableAggregateState.cs": "f75671a25e9d32636bb487175eff08283037990d965692598de7202e0a2f1caa",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableLifecycleCommandHandler.cs": "01add68ef37ee09ead03f9609e3f96b3e669b136ebdfe7a625b6efb31fa81812",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableResourcePoolCommandHandler.cs": "83659a226886b17b773b38ef6f7d9effb71b2932e89931ff4692edcb34496e9d",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableResourcePoolState.cs": "2efcf74f9f0256cdef6236d545ed617e40df4ce4345fb88f5a31c951fdd12259",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableTimerState.cs": "d66265ecdcb5b8d9b3e84271e7c6d55a10b07290ef400effeb003be560cbaaab",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableWaitState.cs": "e79d0b91aec4c6efdcc1c1e8bc3dd02784890355bebe0053d2a90174a8b0ab06",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableWaitTimerCommandHandler.cs": "2dadcee6a3b42c299fc24d677f1a41025bb20fe96ce8f96a47f293250d86941d",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowAggregate.cs": "04982b3ce8645c66f7e818b0f96485884d3f5efacf96f90a2172f6c3ec015943",
+    "src/OrcaCore.Engine.Durable/Aggregates/DurableWorkflowReplayApplier.cs": "d78c07bb45319f0548df73afe3723300e65183589f3c8ad4f66bcdf2eec66ba9",
+    "src/OrcaCore.Engine.Durable/Building/DurableWorkflowBuilder.cs": "43e4cd9e281517918086660e74efd065effc7795aad8942395670e7e37e7b139",
+    "src/OrcaCore.Engine.Durable/Definitions/DurableDefinitionRegistry.cs": "9b2b31a6f5ec3bcdfefb47048abbe0f0b3927c98d5efda896971da2e94978cbb",
+    "src/OrcaCore.Engine.Durable/Diagnostics/OrcaCoreDurableDiagnostics.cs": "4d037697549566b4dcea21e71d25fcd77c217b38892cee0857584909ecd87b3d",
+    "src/OrcaCore.Engine.Durable/Driver/DurableContinuationPump.cs": "1fc698f3b4e591e9862e8aa8e2b47125601f767209e4a8ac61fd27e98d1fec2c",
+    "src/OrcaCore.Engine.Durable/Driver/DurableDriverCatalog.cs": "04b486042a416f67bbf2eae7acb8a521b000d5fdd1c0fed1a78d336baf9273ce",
+    "src/OrcaCore.Engine.Durable/Driver/DurableDriverModels.cs": "565484aa2703a8e5eeb2bb46a24d024338b24ffedfa1b61beed72e17df5ae632",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.ControlFlow.cs": "c8812a94565b6a4d26ec011f5e69b821cd57ee1f78c803a0af27f04efb7db150",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Helpers.cs": "4b6aa381368c2233b01bd75582dd439b69fdc177ca28177d006fc6c6fcf747bc",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Initialization.cs": "2f63dfaace1b99a54cc855996c77372be59901bc68f123122a85aa48f10c7f43",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.LeaseReconciliation.cs": "68950bac38e46e931bcd93f8d1d84b3cf3545fca5f4c52e0b36e17994288de7e",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Leases.cs": "cee932e820d1cc1c363743a6cc48d3982a1e577fc033b6ec7214fcd4c7fcf9d3",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Limits.cs": "1e70824f078ee315fb1d02b27196e310e2b23668ba16dc5db0079e1fd15a464e",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Models.cs": "0df23c8e9c17b4a8b773b5be7340798ebfa617bb8dc06f4b9fe5362c2fd2048b",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Quantum.cs": "ecfc62159fc2b5d45d89b22f5743803e2dc042a7ea6383338336515df120e37f",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Scopes.cs": "69c603c765d1577884e1939551245f93933f0ae21b813f0f0384a79a9e949e22",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.StepThrottles.cs": "1eccf44060f46867b5bda391b87cfe85ca674e2d2706f69fb518d20401a82bfe",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Terminals.cs": "361cebdace218b3f7e9db8667b7e75e5ef535b32ae42e9a3c6b480edd888a2eb",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Utilities.cs": "6d02d91750836bb1453dd387bc92b054f2c9e69337b34a2aed0c074e94d0469d",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.cs": "df03b5db96daf705b82333ffd73d942acb213bde733f4683ded7699271e37f73",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberEnvelopeMapper.cs": "54745adbbdda2d92de136988957dbc7625e736f291765ed15428ceab8340aa32",
+    "src/OrcaCore.Engine.Durable/Driver/DurableFiberEnvelopeValidator.cs": "5a2e2238daba629a15cbd11ea31b0da4aaeb6c96e4b941a2173f26587567a069",
+    "src/OrcaCore.Engine.Durable/Driver/DurableInboxContinuationPump.cs": "77379810a92f8e9ee5285f74b2ccc163c95a1ebf1a94b2f4ba845903db621248",
+    "src/OrcaCore.Engine.Durable/Driver/DurableLeaseObligationPhase.cs": "cf23920b6b0160b01862ba965aac06b1ca0f44f3d413ca43719e03aa53a359a4",
+    "src/OrcaCore.Engine.Durable/Driver/DurablePolicyWinnerSelector.cs": "be6874b4d5809b323c5519c58ddf25cbcc2464e9c306629bdbadec9803f379dd",
+    "src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseDiagnostics.cs": "e2f0746c847da85cec4d0e8b192907e1cb6ed2e3badab2ae458449458c421669",
+    "src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseRecovery.cs": "9dc40fe3fc64801e95e087f00d3586f01632dd2dc64fdb87d6df7a0b2f65562e",
+    "src/OrcaCore.Engine.Durable/Driver/DurableStepThrottleCoordinator.cs": "b23883dca2d2c30bb6ec01a7d73ac573bd55e384a03387a8ea86d872e28bcc1d",
+    "src/OrcaCore.Engine.Durable/Driver/DurableWorkflowDriver.cs": "ae337d1faee375f849daf025f1cd892bd45a0b8ef8254f9c1e1099119ef3581a",
+    "src/OrcaCore.Engine.Durable/Driver/IDurableDriverObserver.cs": "97f70cfc376df30f90af390e3f5fb50c6a2810a6a8c68e998d1080f693363d71",
+    "src/OrcaCore.Engine.Durable/Driver/StepContextContracts.cs": "317fa14b51d6a657bec2c84ce9590fa567c80cfab4c3a518a3b94cf938a3e2b1",
+    "src/OrcaCore.Engine.Durable/DurableApplicationContractFactory.cs": "4aba874bfd4c3909429341088c560d530c95c2b9d37a4d0a646e8730e8485835",
+    "src/OrcaCore.Engine.Durable/DurableInboxPoisonCodes.cs": "8d3fddecaeae3232a7f159c0488f25ced23d43071f5486831d1cb99bebd61fdf",
+    "src/OrcaCore.Engine.Durable/DurableWaitResidency.cs": "a57602f685ce3279eef56d89ade9e08f308589fa36771ec56faecc5e36cbc8a4",
+    "src/OrcaCore.Engine.Durable/Execution/DurableAggregateLoader.cs": "5f5dc6689e267b0215d2921d31bc4a6c1e9ca44e842b836d095052ba967ffab7",
+    "src/OrcaCore.Engine.Durable/Execution/DurableCheckpointMapper.cs": "8f49a159abdc268e6d3514145440754be52677b12d9e5391402a14fa8405242e",
+    "src/OrcaCore.Engine.Durable/Execution/DurableCommandProcessor.cs": "ce196ee765c7d93d7924c977949c839140d92043235edf0236da27fc23bc7c28",
+    "src/OrcaCore.Engine.Durable/Execution/DurableCommandRuntime.cs": "35c5caaae78a7cd52b5611ae32e5e8dcb1daa6095b0b2bd35f600f32931d5f4c",
+    "src/OrcaCore.Engine.Durable/Execution/DurableCommandTelemetry.cs": "8e9306014448ec368694767e8b23554c0089cf764e622f7b1d0ddfd72ba843c7",
+    "src/OrcaCore.Engine.Durable/Execution/DurableCommitMaterializer.cs": "bcff8e215bf4fa4f189a57b49c23e289b2b6211a23612b514dd2a632a9e9a2fe",
+    "src/OrcaCore.Engine.Durable/Execution/DurableCommitPipeline.cs": "570e1d98c21aba79a10751d70dd84afcb38a8373a8a2990d9f55c1b9c1798f01",
+    "src/OrcaCore.Engine.Durable/Execution/DurableEventEnvelopeFingerprint.cs": "de3131a0b505fa63832e62814f5aa28914d47f31748cbc65a67951afa04969b2",
+    "src/OrcaCore.Engine.Durable/Execution/DurableInboundEventNormalizer.cs": "1f616c861d11baf468e5c7bad9d93e26fbcb1c6169b6dc46f1d6e95bb30ea2c8",
+    "src/OrcaCore.Engine.Durable/Execution/DurableInboxPreflight.cs": "d651d189ef2f6623415e567c554138a0499559d2ee44a5f88821029c20b9b963",
+    "src/OrcaCore.Engine.Durable/Execution/DurableResourcePoolCommitEffects.cs": "895289d13ae9254989e921b51ca3c46e14934a11fc5b919cf64b848710280331",
+    "src/OrcaCore.Engine.Durable/Execution/DurableStartService.cs": "b66b4946a6442a0e894e6116a8ccff73cffe48c748b5200e372b3f5ae436781b",
+    "src/OrcaCore.Engine.Durable/Execution/DurableWorkflowInputFingerprint.cs": "4cc44d7c7feee31928b0526ef8c501b2ef945616ec8e3b96fc0b53dbfd421c71",
+    "src/OrcaCore.Engine.Durable/Execution/DurableWorkflowRuntime.cs": "2a37ff8b63d8bc6aa691bbd0e19be2614dbda180c58b805fb14eac663ac32d90",
+    "src/OrcaCore.Engine.Durable/Execution/IWorkflowRuntimeObserver.cs": "c33b4977fa85cba0de7cb769c901f2103c3624a46fffcd48c1bc0735b45f8054",
+    "src/OrcaCore.Engine.Durable/Execution/JsonWorkflowPayloadSerializer.cs": "9b86a4410963a29e76d4b138a6267ca3ba08f78307766d1a24554f123154f42e",
+    "src/OrcaCore.Engine.Durable/Execution/SerializedPayload.cs": "c5127038ecea525de8b3969eee3c6b9ed95e63072e79d4c2fdc65fc0dab34bd2",
+    "src/OrcaCore.Engine.Durable/Facade/DurableWorkflowCatalog.cs": "2a82bfa97fd7b0d5c557d55243b50b2df1ce051130ab8269587c8e403cd13aa8",
+    "src/OrcaCore.Engine.Durable/Facade/DurableWorkflowEventIngressCore.cs": "38bc6b4a4997459107692d5c5ed480419fa276671c13d811a8b238c17fab1dd7",
+    "src/OrcaCore.Engine.Durable/Facade/DurableWorkflowFacade.cs": "3b4b240ec6398a4e2168e883f1d7345cf51eee18f9f3c33c963d097d193bf367",
+    "src/OrcaCore.Engine.Durable/InternalTypeAliases.cs": "4240cb124ac129d869011c1e47f1fce175a7ad594d12a0a20624ee632782cab5",
+    "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj": "2e59211cdff9bf887f04eb8b0fffa13c66bb8c9cb1380e6cd068f74910bc9adb",
+    "src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs": "a644e374527561dc032b09c6087c404c938659917cf1fd948fdffd1620313a42",
+    "src/OrcaCore.Engine.Durable/Outbox/DurableWorkflowOutboundEventCodec.cs": "801bda2f9c31a4c0c052af0ba3ddc19b64d7f429470e921da63bf0f3f9793961",
+    "src/OrcaCore.Engine.Durable/Outbox/IOutboxPumpObserver.cs": "b96e1a8dc79bec9597f0867772d955f9d88f9f49ccd4515a1a067345fc366aab",
+    "src/OrcaCore.Engine.Durable/Outbox/OutboxDispatchOutcome.cs": "c4c671fccb435ba0f2b3783b0751be81b7e516b41bdcc9ef9c22ae1dcfe5b7b5",
+    "src/OrcaCore.Engine.Durable/Outbox/OutboxKindMessageDispatcher.cs": "40e9b7eb25f3a6a7e1e0a0b7adda0aa1b1fb164efb549353577dabf9ab8b4341",
+    "src/OrcaCore.Engine.Durable/Properties/AssemblyInfo.cs": "f3525122c33e6921fad76b56d28e65aa1485e7e840a3f447dd4eb607b7b451c3",
+    "src/OrcaCore.Engine.Durable/ResourceGovernance/DurableResourceLeaseCommitBarriers.cs": "b1aff1e087c2eec6b58be03f379fad095efb715d108df45dcc514d276e175c7b",
+    "src/OrcaCore.Engine.Durable/Versioning/DurableVersionCompatibility.cs": "474c88ed416e34357ebb8c23ec7aa034cc181f0a2bfa46a18f854ab541890df0",
+    "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs": "2310f272b6cc6ecd6c836fb017e4b55bdc52f2319d897891d25f2c9590be2aab",
+    "src/OrcaCore.Engine.Ephemeral/EphemeralContractAdapter.cs": "f4813521b4b61b4f93feea891b8958b99a64d40d854afad8afa26ce49bebe831",
+    "src/OrcaCore.Engine.Ephemeral/EphemeralEngineHostOptions.cs": "ffbd9c9614c08cc2384c474d7c8ea823e395b80f8808ee49478c8ff3ee5798f8",
+    "src/OrcaCore.Engine.Ephemeral/EphemeralTerminalRetentionPolicy.cs": "67161f4742433e5a180ca95c0306b9b9127ae761a80af0b809e60bba4553725c",
+    "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs": "2ba38171be9958acc645ccafcea1789916943088d6a603d242153b1e18789ccb",
+    "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngineOptions.cs": "8074110f32ad4b2e0ab11859eec4e9ce237e4b6bc8be34e3947d6e199304ef38",
+    "src/OrcaCore.Engine.Ephemeral/Execution/ConditionEvaluator.cs": "7724c05f7850fc8d7921c7f7cccaca829acd68fb6e10521b14f1c43df1eb0004",
+    "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralInstanceLifetime.cs": "74890a6e7c17ef85804e82fbdae430860a5e5186adb52c06d430606faf4e0cb4",
+    "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralProjectionModels.cs": "f91b46ecc44c6ff427b7c7fdbe4be797c43c8130fde55c8d1a3989c452eed20c",
+    "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralRetentionCoordinator.cs": "aa6c8ac1fb4689f78486125cf768c46146797fe64006963b05e1cc0d1dad1153",
+    "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralRoutingIndex.cs": "16bc30f33ea6dcb568cfddd0b06ab5f676136f02ada627cf45bd5e18562675bd",
+    "src/OrcaCore.Engine.Ephemeral/Execution/IInstanceRegistry.cs": "43c8fc57360267515be7a75d74164769d01a0e2d823ca3a15de02d15c2689390",
+    "src/OrcaCore.Engine.Ephemeral/Execution/ISequenceExecutionEngine.cs": "2ec9a2bbee1b8b77b8ef34963a44c94fe009e7cd3de3685dcef03372300595cc",
+    "src/OrcaCore.Engine.Ephemeral/Execution/IWorkflowInstance.cs": "e8584d5603fdd3e26d6e5e7ab2e4d5884a3220868b0579e7dfa644a554f04362",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Branches.cs": "4415fc77d0b872cc8cc48dbbf6ce44b3c25e8e6e288ed5b66fa8440cc72be9e0",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Failures.cs": "8556b505b94dd1ae85541b8babfcf5da3de218c18a0561899465e2cfcf988459",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.ForEach.cs": "a10e49f89fd52a5f7c4b0311c37dac1c4ca4536f0efddf25e7db8bd7e3cebe6f",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Helpers.cs": "7c55a0f458573497f6f32003e451a6f6e21ba7be418c27dcedc9a202749e95b2",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Limits.cs": "1dbce387630d79a6eed6552a745a2fa6020c6d0a4d227e2dcbaa2eb289e9f425",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Merge.cs": "3026b8546ea86e1be99c419532cbd9f86f432d579dd2c42df008d4c86dd0e50c",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Quantum.cs": "838b3bb80d90c9748c1f14df42ec3b064127db4b27395843430a4353eab39767",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Resources.cs": "94352a32b64c6b22a91a0145b55c0a7dad89aeb2291ed0812b5934474d76f8d8",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Retries.cs": "48e6af49409bd6878ac571fc466e16b1f5ea6b31e7b758cce4b92a36da2682ee",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Steps.cs": "ea9c788108026e292f8f6b9be7970e60ed0f7e88d50b8d54ef70a50feb1d3fa3",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs": "060f0d979adb22c7c2c121cb9d40c7a59d2de1aa75dd6a30162c8dbc34d1275b",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryInstanceRegistry.cs": "13b69f9445cef9e139eefa966d95becd293117fb1c740bc7c1a64899d6938bf4",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs": "83749be9f5466895e2cc3f8eff86d55d4cdcdd136063897bf28b8b4e11e49660",
+    "src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs": "c7a1995df7c55eeee86be24feee6a2cf1de1bf6c51678defb9037b6f467f7afc",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InterpreterFactory.cs": "9c3a20f4ff3357ba7a3b111331175d667177ab05260763181e4357176a9184b5",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InterpreterRunState.cs": "541dd8922151467439be8e1035700b7b6649ff3366aa4e2760cf7dd7b0ed024f",
+    "src/OrcaCore.Engine.Ephemeral/Execution/ParallelJoin.cs": "16e5cd3f0d7ea2f33a9dc623eca08dc651ff5bae3c5cc7800b8dc8e3b3b68583",
+    "src/OrcaCore.Engine.Ephemeral/Execution/ResumeEventSlot.cs": "03cd57b21e691ded2dc42b6bb38eeb2233b544169d70d943ea770b35b19a9ae7",
+    "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeTimerRecord.cs": "b67c005ee737dc709181fe2015d6aaa51b90f7996d549e43081898bc6f4c1e90",
+    "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeWaitRecord.cs": "28c03e503c03b66ee370812e930417f73af0a9c162cf7b51edb4d8dd0dbc7298",
+    "src/OrcaCore.Engine.Ephemeral/Execution/SequenceExecutionContext.cs": "390613643efe92204d3cdd72fa329ef05e27cc8ceb38d5afc637523635c74329",
+    "src/OrcaCore.Engine.Ephemeral/Execution/StepContextContracts.cs": "83d56bdf12184ad36449bd9dcc205984762799b3d484650fd9817f825a3515b2",
+    "src/OrcaCore.Engine.Ephemeral/Execution/StepExecutionResult.cs": "f165ace5e3fa8fc22c3637edd936dbd982baa2c41de8d7c53dc813b3aaa0c4ce",
+    "src/OrcaCore.Engine.Ephemeral/Execution/StepExecutor.cs": "ec9ab37dedd9f325c11a520fde86063ddc02ea98e6894ab7d1a08dfeb0471924",
+    "src/OrcaCore.Engine.Ephemeral/Execution/SuspensionScheduler.cs": "80744cd197bc3f0f839ca5e8523b282e99fe883822cd136a352bb5ca8f6cb671",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WaitExecutor.cs": "c0b894e64b7c757565acaaaeaa5a94a4d128c83c350b6eab31563afd4c6a05d2",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WhileNodeRunner.cs": "ed112c4fcfdea1cbe14def69cbd6d9618c736e564a8c5700a6c46b224ff60fc1",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowErrorDetails.cs": "189559dd255ae4c2c02849f95b4c9807f0567b41818a23d39d5d277a6e6c4f99",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowFailureHandler.cs": "841b4df20006d2f41c9af62e71b9e6b3fc1484464b5f1e91fc7e85a17a5b3928",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs": "80a71fcd51a9acf44f76e9e1c9d0ed504cdbb166ccf05f7cdc906ad1f0ef1e2f",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowLifecycleTransition.cs": "6988481d0365cd81c786f79137d9ea21318aa3b24a5da0097220ea6f5b5462dc",
+    "src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs": "cfabd54d102a31c0afd3b64eab138456df7efcf3c228eb4ca3e93e858b8f8754",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralDefinitionRuntime.cs": "dd1ae6c40296194263eb657342d9c25740b1c1f78ed4dac96f595d861c9399cf",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowCatalog.cs": "37621f0a6f94390aa7eee06dcddea26628f556fd2a3294d410cc4dcec8ac9f42",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs": "61e4ecd4aeeace79c8242438f0af79cfad2a81807850e26daea1f5e1e3fc21f2",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowFacade.cs": "ea0b9e94564685acbf7966d792622bc3fe660958fbb59c357b98d93c21332084",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowQueries.cs": "d254837be1cbf2a3f339deb40ac3a1aeb23d14f0bc2a5b38e699b2903b96aa87",
+    "src/OrcaCore.Engine.Ephemeral/Governance/ResourceGovernanceCoordinator.cs": "2b53d954c7f5072e8c98694d7a4ebb310ee65d907c6511243191ae02d6647e84",
+    "src/OrcaCore.Engine.Ephemeral/Hosting/EphemeralHostLifetime.cs": "a8cd15546da59c7f1d7ba9e53ba4f23246e3a79db9c2177ab7bb6501b150fd13",
+    "src/OrcaCore.Engine.Ephemeral/Hosting/IEphemeralWorkflowHostLifetime.cs": "e77fb14e8023de0388b9ca19f2ad523d9d3ee6c58895b89262519ad39bcbbb48",
+    "src/OrcaCore.Engine.Ephemeral/Hosting/OrcaCoreEphemeralEngineServiceCollectionExtensions.cs": "17d6ae42d621c6d29e8b3ef3aaafca93fe2ccaa94321b17a9638f5e992af2060",
+    "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj": "6ab202007dc34078fe35f4c018731f27bf54462a95eb254985275c4d5cef409f",
+    "src/OrcaCore.Engine.Ephemeral/Properties/AssemblyInfo.cs": "cd8b6ef63376248d3550c8608fc999b5f235395819ba3f078ea7072ef9162dfd",
+    "src/OrcaCore.Engine.Ephemeral/Timers/EphemeralTimerService.cs": "055a5652f9a0d09c0f3340e92f12a43c5e74d4d300af6ae14bc52ae5569540aa",
+    "src/OrcaCore.Provider.Abstractions/DurableProviderRole.cs": "e64fa28d3b59ab3a362409b5ad07c4bc8d89f68aa764f750ce8785febcf3645c",
+    "src/OrcaCore.Provider.Abstractions/EventStoreConflict.cs": "5fd25d294964178dbc5a34c8088eee4a6c38af03d4ae9648f9622eb2d55e000d",
+    "src/OrcaCore.Provider.Abstractions/IDurableResourceGovernanceStore.cs": "5d04ffdadc2b94d87b98b0edc980dbe30adc5d4747d6edb88dc6d2c3ecbedf18",
+    "src/OrcaCore.Provider.Abstractions/IResourcePoolStore.cs": "ea944ac5c18a7ed52c1922ec541fbe565a0142b40e7191b928833f92c3d67c92",
+    "src/OrcaCore.Provider.Abstractions/InboxRouteKeyJsonConverter.cs": "61f889ab9d2e6fa544a643b4107e76ef7c654d6114c10f37202df845f8f22d37",
+    "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj": "10bbc12179f3afdfaa2c84ef2991d64d4083279df8c70590c339252fc1f82d1e",
+    "src/OrcaCore.Provider.Abstractions/ProviderCommitContracts.cs": "ba97fc9151dcc7e47e6bd0f743535129c78b9283bc82bf2e4ed8ed6e7d72773e",
+    "src/OrcaCore.Provider.Abstractions/ProviderPorts.cs": "e5a55ba9416a5e264fc7c19b919d09c7736860869dbf56daa0968b3c1cfa7864",
+    "src/OrcaCore.Provider.Abstractions/WorkflowOperationalModels.cs": "addbb811fe223f4040e12ecc4cded760eb03e3652384a00a61f2e90dab28605b",
+    "src/OrcaCore.Provider.Abstractions/WorkflowProjectionModels.cs": "a1ffac75f5a6e189bb45215b20c11201165c93e555ffa9d987c5653a575c789a",
+    "src/OrcaCore.Provider.Abstractions/WorkflowProviderMaintenance.cs": "52331ed27c1e9f7ac3f353b08bbbf9b2c365960f28fcc64ea2e7cd131508f738",
+    "src/OrcaCore.Providers.InMemory/Diagnostics/OrcaCoreInMemoryProviderDiagnostics.cs": "186e75706d49c48e3251a4154b2f43d45cefa83363fc2788ca7a188999324254",
+    "src/OrcaCore.Providers.InMemory/InMemoryResourceGovernanceStore.cs": "3fed488f7a86dec89fc5d9f349177c77eef9c702eac4c3ba39fb6f818f1e7e2a",
+    "src/OrcaCore.Providers.InMemory/InMemoryResourcePoolStore.cs": "cc41615284894edf48cdb651bd056eb17a145eea6ece2cf5fe7888af10db8ee3",
+    "src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs": "6042862867d1cebadef563b5b04bb9bb6dc228f3925269d19e1f8e559229bb22",
+    "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj": "614ed88a77f06325cca96bfae752ca010ced493576d6f17b7681c90af7113d3c",
+    "src/OrcaCore.Providers.InMemory/OrcaCoreInMemoryProviderServiceCollectionExtensions.cs": "2b4efdee5669fc63c75bf8146ccaf48e45570a6aee64adeb86aa083dbc49cc12",
+    "src/OrcaCore.Providers.PostgreSql/Diagnostics/OrcaCorePostgreSqlProviderDiagnostics.cs": "1e985d168403686e25a6b033aa016f8513b099b44f03e89f0a9f6b4bb22bba15",
+    "src/OrcaCore.Providers.PostgreSql/Internal/EmbeddedSqlMigrations.cs": "558c721817b558f1e57ecb03490e318f96b551cefb8855adea64ffbc69865e30",
+    "src/OrcaCore.Providers.PostgreSql/Internal/PostgreSqlJsonSerializerContext.cs": "4165d6c6c6ca1e49e8f66745a9fb74b3f68e11c4447a0807d48702db70d9e117",
+    "src/OrcaCore.Providers.PostgreSql/Internal/PostgreSqlProviderInitializationHostedService.cs": "b4c26a48ab42db9950bca0d87d0219c1d9c8eb65929d4d355ca5cf6192b8614a",
+    "src/OrcaCore.Providers.PostgreSql/Internal/RelationalMigration.cs": "e4977750042e312094f48bcb497fb47f259c476aca10ef622e3a6a40e184fd67",
+    "src/OrcaCore.Providers.PostgreSql/Internal/RelationalMigrationRunner.cs": "d1063c6dcf7ed389f7d0b3d6e4aef2574958131a26c927ab43006ef15892b14e",
+    "src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql": "c7c2ca376fd4c0b42d0276705425a9adf9ea75f35a32bfd62b2d630e33a63027",
+    "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj": "b3f045580451941ba31ef95be963505dd34c3f5b3d40671a0f3106b832885d12",
+    "src/OrcaCore.Providers.PostgreSql/OrcaCorePostgreSqlProviderServiceCollectionExtensions.cs": "4e1ce75e157ebe1db207a2023b49e40a2faf4d247542629f34d4875b9e8612a7",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlResourceGovernanceStore.cs": "44149cb0804e93a7965a588feca185ccb1a0332b48ae7a3a221df55667cb5e72",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs": "4928957603057b01fe924b5749be3fd7a9052c1c2ee1a2c15ca59b5b04d4c39e",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Operational.cs": "077d2e5dbdc838e57a2d8539b2b24c75a4c2b1423e9219f26cab8458fa6a20e5",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Projections.cs": "5c8a956fb010c4da45fc0577631605967b51787e851754c31d7cecdfdb5aeb95",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Retention.cs": "84500455ad61a7427d0f214476c273555f7c17b27acac78095f2a0fa06cde3c4",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Timers.cs": "ff8cd8209cf687d5def2049811e9d95b317a4eda6eadea836d9e056e078f0920",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs": "4a832e5ae7eef75bd567d53f84c89b5075dbccb08cb3e0b8c0afe059d16fd600",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStoreMigrations.cs": "2792b39dba0f4078166e21bf019734774eddb7ad3776ebe96efa6aeab6f47fba",
+    "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStoreOptions.cs": "5957a649afb9141afad48845d3894862614de0942e0d67e8bef6b6b68dbf711b",
+    "src/OrcaCore.Providers.PostgreSql/Properties/AssemblyInfo.cs": "05deef1b2bcc82779971f85f21eea9f50658856a999cc366147b50f74f2a2174",
+    "src/OrcaCore.Providers.SqlServer/Diagnostics/SqlServerDiagnosticsSources.cs": "b0a0ef03ab017021c6297f443c2c0a46480dfc72160066115782b477ed7c2fa9",
+    "src/OrcaCore.Providers.SqlServer/Internal/EmbeddedSqlServerMigrations.cs": "57f4ca67a51773b5bc4fbf65fc7ea0deefd129b568b9dc79ada0ec3f3f394367",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerMigration.cs": "aa23280aa66ddd19a3ec240abc816e3a81e215eaddeb4aa72a932f2f65f2177e",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerProviderInitializationHostedService.cs": "5fb346960d44b1faf4ba27c71cb781d56a0d59b705ffd410940eaaee0370f915",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerResourceGovernanceStateEngine.cs": "744bd77af92bc7890bb2169b04fee8d837eebdc7c1a250c6e39202e1a1c67cb8",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerResourceGovernanceStore.cs": "83dd3e80122e5907c26328b7203b13c6673d5a61f0108233cef51b742b2aeee4",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerResourcePoolStateEngine.cs": "2a5926c924c6e52e5b30ab2e58cecd5a808968c04e7c75cbdea22720d75e3e90",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerResourcePoolStore.cs": "548f194588a739f3d79b5cb73ce5499c3f64a2157682bf21d19a9c45e3827d5f",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerSchema.cs": "39a662f906d29e76498123e6734b69609c448e8d1b34ba589730b1fcc74ea1a6",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerStateDocumentStore.cs": "a6450efc1196639488bcea5eb145e055d6148f54d339cc76fb36b6a83b3faad7",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStateEngine.cs": "ab0f59ee9e236f6b804c74cb1509840888e49b8746a7ce94496a74240aa85be3",
+    "src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStore.cs": "d15d9270d17219bfd809ad95f13ce8625151a61640ca69e48a8c0f407e177ec5",
+    "src/OrcaCore.Providers.SqlServer/Migrations/001_initial.sql": "683239cf0309f7dfbd4954f81228b9c9693c092dce7566f3aa0dc682a0eb2619",
+    "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj": "9aed2bb7011f3864f719fe29f5e34110cb06b5587dc51f75c0c1ef43dc4e480a",
+    "src/OrcaCore.Providers.SqlServer/OrcaCoreSqlServerProviderServiceCollectionExtensions.cs": "b8e29c70b3c7459b07cae4dc2305aa23e4415dddd23dec6228ff795a523f0c36",
+    "src/OrcaCore.Providers.SqlServer/Properties/AssemblyInfo.cs": "9d896123826c809e659abd312f9b05d9048db514a571cba2644ffb99211e4d22",
+    "src/OrcaCore.Runtime.Protocol/Durable/DurableContinuationSignal.cs": "be8ce3351b6e22fe98120e2fd90e31219113cb1dd8ac13063fa65e0d4c57f03a",
+    "src/OrcaCore.Runtime.Protocol/Durable/DurableExecutionEnvelopeV2.cs": "29595ab33ec1252c03e07a2d3c564bb2a8ea0e726b09cae4fb0303720b3690a1",
+    "src/OrcaCore.Runtime.Protocol/Durable/DurableParkReason.cs": "ffe8ee957bd88c4634ab1364a078e59bb4b6211f5bbfe3fbdd4543bd55477539",
+    "src/OrcaCore.Runtime.Protocol/Durable/WaitMode.cs": "13e5182f35342f5da1ba4463148cb911bc79909a0c0b17788abecd8fd2317a04",
+    "src/OrcaCore.Runtime.Protocol/Durable/WorkflowCommand.cs": "c89cbe36828d92f4844a3c3057e670ced60226ef2fc6b14f21e23c6743113cf7",
+    "src/OrcaCore.Runtime.Protocol/Durable/WorkflowEvent.cs": "3c1cc00963e2484ae160023f65309c1af159f7767ac28ee0dc9b5730bdc303d2",
+    "src/OrcaCore.Runtime.Protocol/OrcaCore.Runtime.Protocol.csproj": "5705570335bff6281eb7f39db7f1c7898a23afed823990c9c443f98300927cae",
+    "src/OrcaCore.Runtime.Protocol/ResourceGovernanceContracts.cs": "a44ec0c927cb97ffc4d6631ae9be6ad529f6dcde6449138ff50ae4e7bf9ab45e",
+    "src/OrcaCore.Runtime.Protocol/ResourceGovernanceRecordJsonConverter.cs": "589a58d0202f813b6f30f603d6e29c49eeffefb3e40044f841f315f9f5b87bac",
+    "src/OrcaCore.Runtime.Protocol/ResourceGovernanceStoreContracts.cs": "5b3b5d7efd79915671e66f8b468217e30f28e031397195e35b783c6a6945771a",
+    "src/OrcaCore.Runtime.Protocol/ResourcePoolModels.cs": "bccfc230ca6d65b6b8dc26af34d925b00707dd5d9c34f679759eb7c8e1e440d8",
+    "src/OrcaCore.Runtime.Protocol/Serialization/OrcaCoreJsonSerializerContext.cs": "f70cbd0f92cfad8557f1965f144484ea211b188122859cf94fe78db7fbf67755",
+    "src/OrcaCore.Runtime.Protocol/Serialization/WorkflowEventCodec.cs": "a95799c264e41babbb20ba9c6846b819a729f729f78e6d11f2ce90649c6f16ce"
+  },
+  "harnessFiles": {
+    ".github/workflows/ephemeral-native-support.yml": "d957bae5a055e9195a361cef59caaa300a6c2bd327344e6f902aaf1c81489411",
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/CodecCases.cs": "febd6e3e23d31cc3a531bbda831870c7e511b0c2cd08c48d9aa25d39935ff421",
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/DispatchCases.cs": "b539eee03bf3c9ca5493332f375f0fe1e42b6136521dac4ffd68ff5afdfc2c0e",
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/OwnershipCases.cs": "5cdc329b4dcc42c4e534a12ae80f9dc26455b279b5d6dee275adfee5c2954dab",
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/Program.cs": "c952df34de3f4fdee3322d6378f5dc29b54904e350b2269e1e5e52de78939bdd",
+    "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/StrongValueCases.cs": "af0bde607b7f7e2ce2883e0802e31bf0cd52bc50e39d6cd054cac86ccc2a0171",
+    "tools/ephemeral-native-assessment/consumer/Cases.cs": "d50fe45386198b31c698d8a9c3e8ec079d7c0d75e4f7a3dd4ef3ba799d71e9c1",
+    "tools/ephemeral-native-assessment/consumer/NativeConsumer.csproj": "67934f48bd81279635d97f3bc2060ce9a7e6f39b20f54e7f056a7f6846fe738d",
+    "tools/ephemeral-native-assessment/consumer/Program.cs": "dad5b1059438430e25e50c424947f0ed3651e6147151a71be7ed759beae60187",
+    "tools/ephemeral-native-assessment/consumer/Support.cs": "fa72e7292156d213b8c880ba7954c2803f4bd3a87d5279744e3d291207b8e749",
+    "tools/ephemeral-native-assessment/gate.py": "775863cf18972dcf303223c630fb9c68db47b5ab6a949e0fe2b7e08c56854201",
+    "tools/ephemeral-native-assessment/run_assessment.py": "eb0970990eb49b881166a2d429913201d2b9f450a3adb9a44e592cd05747d439",
+    "tools/ephemeral-native-assessment/support_v2/NativeExtras.cs": "21a6e69eaaf0587d804a85687cf3f973276a07dcac822d5b394e035f8ffab993",
+    "tools/ephemeral-native-assessment/support_v2/SupportContext.cs": "99ddb4357e460fc9ad5bd909ccff989042df0f963a4f9f9a37711a1bd39eb41c",
+    "tools/ephemeral-native-assessment/support_v2/run_support.py": "a5cc1cfde45cf63335f3558798bb2aa7580d7d08de7922edc56da4e01d06f5c3",
+    "tools/ephemeral-native-assessment/support_v2/support_gate.py": "d2b414939e44523cbec86e53629bd5b4de7c59427fd62f3ed1fadb62361fc4e0",
+    "tools/ephemeral-native-assessment/support_v2/test_support_gate.py": "70ec01a3992c1a65c84e708c494f4908291ff2c789ecc4dd01ee01abfd0bf774",
+    "tools/ephemeral-native-assessment/test_gate.py": "f243ff1627da3ee086a8a440da52bacaa66e9c532d1526e012803d79c790ff89"
+  },
+  "host": {
+    "architecture": "x64",
+    "platform": "Windows-2025Server-10.0.26100-SP0",
+    "python": "3.12.10",
+    "qualified": true,
+    "cpuCount": 4,
+    "container": false,
+    "os": "windows-2025",
+    "clockResolutionSeconds": 1e-07,
+    "allocationNote": "Observed native host/VM allocation; no exclusive hardware or cold-file-cache control",
+    "runnerImage": {
+      "ImageOS": "win25-vs2026",
+      "ImageVersion": "20261021.278.1",
+      "RUNNER_OS": "Windows",
+      "RUNNER_ARCH": "X64"
+    },
+    "caption": "Microsoft Windows Server 2025 Datacenter",
+    "memoryBytes": 17174360064
+  },
+  "flavor": "jit",
+  "packageHashes": {
+    "OrcaCore.0.0.0-phase0.nupkg": "d7c9f70b0f1aa12b3228640d90a5296cf583f57ab304dddec672646900944e48",
+    "OrcaCore.Core.0.0.0-phase0.nupkg": "f1c7e4f5855e3b5f27c55394f93897db0b6e48bcd443c9a767935f5ea2636989",
+    "OrcaCore.Dag.0.0.0-phase0.nupkg": "3a01625905e161b6db92d78f97fc9b41d563bc6b4e5aaa72b485483c4f8b7f7a",
+    "OrcaCore.Dag.Hosting.0.0.0-phase0.nupkg": "57afb0b7ebd1aad37e608b977fd36bd4586666d67d2b6b8bb504b2a4ce69d7e0",
+    "OrcaCore.Durable.Hosting.0.0.0-phase0.nupkg": "5365458492c16a958cabe9cea912a5824a1b977943eec8da4f87b300c95416c4",
+    "OrcaCore.Engine.Durable.0.0.0-phase0.nupkg": "f10dffb5512ece233d93302c7efd4b14004dd0981d479d84d4881d6ba4470816",
+    "OrcaCore.Engine.Ephemeral.0.0.0-phase0.nupkg": "610fff5bdd1ba0bb1419fbf53df9e528529bfed626ae909d67ddb20c784eb5c6",
+    "OrcaCore.Provider.Abstractions.0.0.0-phase0.nupkg": "78a58cb308b781cb2b26945c6ba6c567d09feff385a09109d44503a817ff55e8",
+    "OrcaCore.Providers.InMemory.0.0.0-phase0.nupkg": "50e702d0c531ba13aa9679d340e7184709192ab36241fd01ec213cf282cef2d5",
+    "OrcaCore.Providers.PostgreSql.0.0.0-phase0.nupkg": "12743c2b687c3fbc37569bb9cfb2fca8424b8e5bd3728373cba44e334e4032bd",
+    "OrcaCore.Providers.SqlServer.0.0.0-phase0.nupkg": "169981d26e51aa3e872cfbaf3f42074ca86cef4424f80f2db7ee2d7234450d7c",
+    "OrcaCore.Runtime.Protocol.0.0.0-phase0.nupkg": "a4b0212666ef4244f4de6a72f81ab174ac93ade09e2041e6667eeb42b137e119"
+  },
+  "selectedPackages": [
+    "OrcaCore",
+    "OrcaCore.Core",
+    "OrcaCore.Engine.Ephemeral"
+  ],
+  "publishProperties": {
+    "PublishAot": false,
+    "PublishTrimmed": false,
+    "TrimMode": "full",
+    "TrimmerSingleWarn": false,
+    "TreatWarningsAsErrors": false,
+    "ILLinkTreatWarningsAsErrors": false
+  },
+  "publishExitCode": 0,
+  "cases": [
+    {
+      "id": "AOT-01",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-02",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-03",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-04",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "WaitCancellation",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-05",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "WorkflowCancellation",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-06",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "ClosedDrain",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-07",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Incomplete",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-08",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-09",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Parallel",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-10",
+      "outcome": "Passed",
+      "assertions": 16,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release",
+        "host bound 2, node bound 3: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-11",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-12",
+      "outcome": "Passed",
+      "assertions": 5,
+      "phase": "UnsupportedDeclaredConverter",
+      "observations": [
+        "OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for 'Customized'. (workflow:$)\r\n   at OrcaCore.Core.Authoring.<PublicWorkflowDefinitions>FA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation`1 validation)\r\n   at OrcaCore.Core.Authoring.EphemeralWorkflowCompletionBuilder`1.Build()\r\n   at OrcaCore.Core.Authoring.TypedAuthoringOperations.BuildEphemeral[TInput](AuthoringKernelHandle handle)\r\n   at OrcaCore.EphemeralWorkflowCompletionBuilder`1.Build()\r\n   at Cases.<>c__DisplayClass15_0.<UnsupportedConverter>b__1() in D:\\a\\_temp\\issue-13-work\\journey\\app\\Cases.cs:line 239\r\n   at Probe.Error(Func`1 action) in D:\\a\\_temp\\issue-13-work\\journey\\app\\Program.cs:line 138"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-13",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "InputBoundary",
+      "observations": [
+        "System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object value, Type declaredType)\r\n   at OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(Object value, Type declaredType)\r\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T value)\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartCoreAsync[TInput](DefinitionId definitionId, DefinitionVersion definitionVersion, DefinitionFingerprint definitionFingerprint, Type stateType, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartAsync[TInput,TOutput](EphemeralWorkflowDefinition`2 definition, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\r\n   at Cases.<>c__DisplayClass16_0.<<CyclicInput>b__2>d.MoveNext() in D:\\a\\_temp\\issue-13-work\\journey\\app\\Cases.cs:line 259\r\n--- End of stack trace from previous location ---\r\n   at Probe.Error(Func`1 action) in D:\\a\\_temp\\issue-13-work\\journey\\app\\Program.cs:line 138"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-14",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Start",
+      "observations": [
+        "Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes."
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-15",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "AOT-16",
+      "outcome": "Passed",
+      "assertions": 11,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-01",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-02",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-03",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-04",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "WaitCancellation",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-05",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "WorkflowCancellation",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-06",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "ClosedDrain",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-07",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Incomplete",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-08",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-09",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Parallel",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-10",
+      "outcome": "Passed",
+      "assertions": 16,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release",
+        "host bound 2, node bound 3: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-11",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-12",
+      "outcome": "Passed",
+      "assertions": 5,
+      "phase": "UnsupportedDeclaredConverter",
+      "observations": [
+        "OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for 'Customized'. (workflow:$)\r\n   at OrcaCore.Core.Authoring.<PublicWorkflowDefinitions>FA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation`1 validation)\r\n   at OrcaCore.Core.Authoring.EphemeralWorkflowCompletionBuilder`1.Build()\r\n   at OrcaCore.Core.Authoring.TypedAuthoringOperations.BuildEphemeral[TInput](AuthoringKernelHandle handle)\r\n   at OrcaCore.EphemeralWorkflowCompletionBuilder`1.Build()\r\n   at Cases.<>c__DisplayClass15_0.<UnsupportedConverter>b__1() in D:\\a\\_temp\\issue-13-work\\journey\\app\\Cases.cs:line 239\r\n   at Probe.Error(Func`1 action) in D:\\a\\_temp\\issue-13-work\\journey\\app\\Program.cs:line 138"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-13",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "InputBoundary",
+      "observations": [
+        "System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateLegacyMembers(Object value, Type runtimeType, HashSet`1 activeReferences)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet`1 activeReferences)\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object value, Type declaredType)\r\n   at OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(Object value, Type declaredType)\r\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T value)\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartCoreAsync[TInput](DefinitionId definitionId, DefinitionVersion definitionVersion, DefinitionFingerprint definitionFingerprint, Type stateType, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartAsync[TInput,TOutput](EphemeralWorkflowDefinition`2 definition, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\r\n   at Cases.<>c__DisplayClass16_0.<<CyclicInput>b__2>d.MoveNext() in D:\\a\\_temp\\issue-13-work\\journey\\app\\Cases.cs:line 259\r\n--- End of stack trace from previous location ---\r\n   at Probe.Error(Func`1 action) in D:\\a\\_temp\\issue-13-work\\journey\\app\\Program.cs:line 138"
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-14",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Start",
+      "observations": [
+        "Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes."
+      ],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-15",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "legacy-AOT-16",
+      "outcome": "Passed",
+      "assertions": 11,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": [],
+      "exitCode": 0
+    },
+    {
+      "id": "strong-metadata",
+      "exitCode": 0,
+      "passMarker": "PASS strong-metadata",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "strong-default",
+      "exitCode": 0,
+      "passMarker": "PASS strong-default",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "product-converter-options-rejected",
+      "exitCode": 0,
+      "passMarker": "PASS product-converter-options-rejected",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "public-factory-no-seal",
+      "exitCode": 0,
+      "passMarker": "PASS public-factory-no-seal",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "graph-members-generated",
+      "exitCode": 0,
+      "passMarker": "PASS graph-members-generated",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "foreach-array-missing",
+      "exitCode": 0,
+      "passMarker": "PASS foreach-array-missing",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "closed-typed-ownership",
+      "exitCode": 0,
+      "passMarker": "PASS closed-typed-ownership",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "closed-typed-dispatch",
+      "exitCode": 0,
+      "passMarker": "PASS closed-typed-dispatch",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "registration-parity",
+      "exitCode": 0,
+      "passMarker": "PASS registration-parity",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "baked-enum-rejected",
+      "exitCode": 0,
+      "passMarker": "PASS baked-enum-rejected",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "handwritten-rejected",
+      "exitCode": 0,
+      "passMarker": "PASS handwritten-rejected",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "configuration-failures",
+      "exitCode": 0,
+      "passMarker": "PASS configuration-failures",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "authoring-seals",
+      "exitCode": 0,
+      "passMarker": "PASS authoring-seals",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "pending-registration-conflict",
+      "exitCode": 0,
+      "passMarker": "PASS pending-registration-conflict",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "f1-shape-rejection",
+      "exitCode": 0,
+      "passMarker": "PASS f1-shape-rejection",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "product-contracts",
+      "exitCode": 0,
+      "passMarker": "PASS product-contracts",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "idempotence-and-provider-ownership",
+      "exitCode": 0,
+      "passMarker": "PASS idempotence-and-provider-ownership",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "missing-metadata-seals",
+      "exitCode": 0,
+      "passMarker": "PASS missing-metadata-seals",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "same-context-race",
+      "exitCode": 0,
+      "passMarker": "PASS same-context-race",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "reentrant-registration",
+      "exitCode": 0,
+      "passMarker": "PASS reentrant-registration",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "static-bootstrap",
+      "exitCode": 0,
+      "passMarker": "PASS static-bootstrap",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "f1-positive-generated",
+      "exitCode": 0,
+      "passMarker": "PASS f1-positive-generated",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "f1-member-metadata",
+      "exitCode": 0,
+      "passMarker": "PASS f1-member-metadata",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "unsupported-before-missing",
+      "exitCode": 0,
+      "passMarker": "PASS unsupported-before-missing",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "codec-negative-boundaries",
+      "exitCode": 0,
+      "passMarker": "PASS codec-negative-boundaries",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "completed-constructor-context",
+      "exitCode": 0,
+      "passMarker": "PASS completed-constructor-context",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "golden-generated",
+      "exitCode": 0,
+      "passMarker": "PASS golden-generated",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "failure-and-size-boundaries",
+      "exitCode": 0,
+      "passMarker": "PASS failure-and-size-boundaries",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "explicit-empty-converters",
+      "exitCode": 0,
+      "passMarker": "PASS explicit-empty-converters",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "native-first-use-race",
+      "exitCode": 0,
+      "passMarker": "PASS native-first-use-race",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "retention-pins-key-expiry",
+      "exitCode": 0,
+      "passMarker": "PASS retention-pins-key-expiry",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "typed-wait-and-public-values",
+      "exitCode": 0,
+      "passMarker": "PASS typed-wait-and-public-values",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "transient-pool-grant",
+      "exitCode": 0,
+      "passMarker": "PASS transient-pool-grant",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "throttle-capacity-boundaries",
+      "exitCode": 0,
+      "passMarker": "PASS throttle-capacity-boundaries",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "strong-legacy",
+      "exitCode": 0,
+      "passMarker": "PASS strong-legacy",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "graph-members-legacy",
+      "exitCode": 0,
+      "passMarker": "PASS graph-members-legacy",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "first-use-wins-race",
+      "exitCode": 0,
+      "passMarker": "PASS first-use-wins-race",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "legacy-success-seals",
+      "exitCode": 0,
+      "passMarker": "PASS legacy-success-seals",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "f1-positive-legacy",
+      "exitCode": 0,
+      "passMarker": "PASS f1-positive-legacy",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "golden-legacy",
+      "exitCode": 0,
+      "passMarker": "PASS golden-legacy",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "failure-and-size-legacy",
+      "exitCode": 0,
+      "passMarker": "PASS failure-and-size-legacy",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "legacy-failure-seals",
+      "exitCode": 0,
+      "passMarker": "PASS legacy-failure-seals",
+      "outcome": "Passed",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "native-missing-install",
+      "exitCode": 0,
+      "outcome": "Passed",
+      "passMarker": "PASS native-missing-install",
+      "runtimeFeatures": {
+        "reflection": false,
+        "dynamic": true
+      }
+    },
+    {
+      "id": "jit-missing-engine",
+      "exitCode": 0,
+      "outcome": "Passed",
+      "passMarker": "PASS jit-missing-engine",
+      "runtimeFeatures": {
+        "reflection": true,
+        "dynamic": true
+      }
+    }
+  ],
+  "commands": [
+    [
+      "dotnet",
+      "publish",
+      "D:\\a\\_temp\\issue-13-work\\journey\\app\\NativeConsumer.csproj",
+      "-c",
+      "Release",
+      "-r",
+      "win-x64",
+      "--self-contained",
+      "true",
+      "--nologo",
+      "-v",
+      "minimal",
+      "-clp:NoSummary",
+      "-o",
+      "D:\\a\\_temp\\issue-13-work\\journey\\publish",
+      "-p:RestorePackagesPath=D:\\a\\_temp\\issue-13-work\\cache",
+      "-p:PublishAot=false",
+      "-p:PublishTrimmed=false",
+      "-p:TrimMode=full",
+      "-p:TrimmerSingleWarn=false",
+      "-p:TreatWarningsAsErrors=false",
+      "-p:ILLinkTreatWarningsAsErrors=false"
+    ],
+    [
+      "dotnet",
+      "publish",
+      "D:\\a\\_temp\\issue-13-work\\metadata\\app\\NativeConsumer.csproj",
+      "-c",
+      "Release",
+      "-r",
+      "win-x64",
+      "--self-contained",
+      "true",
+      "--nologo",
+      "-v",
+      "minimal",
+      "-clp:NoSummary",
+      "-o",
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish",
+      "-p:RestorePackagesPath=D:\\a\\_temp\\issue-13-work\\cache",
+      "-p:PublishAot=false",
+      "-p:PublishTrimmed=false",
+      "-p:TrimMode=full",
+      "-p:TrimmerSingleWarn=false",
+      "-p:TreatWarningsAsErrors=false",
+      "-p:ILLinkTreatWarningsAsErrors=false"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "strong-metadata"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "strong-default"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "product-converter-options-rejected"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "public-factory-no-seal"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "graph-members-generated"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "foreach-array-missing"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "closed-typed-ownership"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "closed-typed-dispatch"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "registration-parity"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "baked-enum-rejected"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "handwritten-rejected"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "configuration-failures"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "authoring-seals"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "pending-registration-conflict"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "f1-shape-rejection"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "product-contracts"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "idempotence-and-provider-ownership"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "missing-metadata-seals"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "same-context-race"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "reentrant-registration"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "static-bootstrap"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "f1-positive-generated"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "f1-member-metadata"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "unsupported-before-missing"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "codec-negative-boundaries"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "completed-constructor-context"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "golden-generated"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "failure-and-size-boundaries"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "explicit-empty-converters"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "native-first-use-race"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "retention-pins-key-expiry"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "typed-wait-and-public-values"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "transient-pool-grant"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "throttle-capacity-boundaries"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "strong-legacy"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "graph-members-legacy"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "first-use-wins-race"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "legacy-success-seals"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "f1-positive-legacy"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "golden-legacy"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "failure-and-size-legacy"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\metadata\\publish\\NativeConsumer.exe",
+      "legacy-failure-seals"
+    ],
+    [
+      "dotnet",
+      "publish",
+      "D:\\a\\_temp\\issue-13-work\\missing-engine\\app\\NativeConsumer.csproj",
+      "-c",
+      "Release",
+      "-r",
+      "win-x64",
+      "--self-contained",
+      "true",
+      "--nologo",
+      "-v",
+      "minimal",
+      "-o",
+      "D:\\a\\_temp\\issue-13-work\\missing-engine\\publish",
+      "-p:RestorePackagesPath=D:\\a\\_temp\\issue-13-work\\cache",
+      "-p:PublishAot=false",
+      "-p:PublishTrimmed=false",
+      "-p:TrimMode=full",
+      "-p:TrimmerSingleWarn=false",
+      "-p:TreatWarningsAsErrors=false",
+      "-p:ILLinkTreatWarningsAsErrors=false"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\missing-engine\\publish\\NativeConsumer.exe",
+      "native-missing-install"
+    ],
+    [
+      "D:\\a\\_temp\\issue-13-work\\missing-engine\\publish\\NativeConsumer.exe",
+      "jit-missing-engine"
+    ]
+  ],
+  "diagnostics": [],
+  "diagnosticDecisions": {},
+  "claim": "Candidate execution evidence only; pending independent review and whole-target approval",
+  "archiveDllHashes": {
+    "OrcaCore.dll": "7cd8c86a803b1ec6959edcace3c50ff7892d0512bf4213fda1059ca64833634a",
+    "OrcaCore.Core.dll": "585138096ade3c2eda397c52777c9f18cb559952314055b95f6e57d34c87d9a1",
+    "OrcaCore.Engine.Ephemeral.dll": "f37f1f7be0f9180b04e8ab2b06cf9f01a36d663432163c4fad8c5ae333664bc2"
+  },
+  "packageDllsVerified": true,
+  "jsonReflectionEnabled": true,
+  "dynamicCodeSupported": true,
+  "strong": "4F76B90B0BF652A21A95CDECC3756AB31814FEB0AD931950B53C8368185DBDCE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E3E85C4DB0CF0DF328317276F5B3F0287E8DB39C512BE2F74D3530F9ABC97BAF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|76B63AA738E0D04AB04BB506CA67FA9FD89B8DD3FCCAB35F65A6D4BF2BD40CE5/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|48C78A9B3F070A21203FA760C17E5D752F525AFB2209D6A68A363069A543A2D2/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E33A1B6538D6B9AA3FBBF0E47D37C83346478316C77018F2F5BAF8F78B5E17B0/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|FD356F0BFB176A0DE2DDDF517CF09A350D686CFDB1DFD68B80058420E0AA645B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|88759F198AF37C878B9B9DD8B14B539D97C3D6499427FABFCD26F47CF25201C3/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DB3A6BE430CD5A1BF36D22EEB41C29AC431C9C81132EAB33D94EB59DDD4A7805/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|AAF84FC5A00F5002BDE25797ED8BB21ECB364C84907A4BAAE3BF8201A46C1806/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|92511F57E6C04CB10FB6EA5898E0E86966B90756C1049F85C9615C9146E7827F/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|9356FBBDA8FE3B2C5C81B4BC3405A85AEAE9BD4D240B449FD171F3E2AAF0D0CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|2A0E9345C8359CBB58CB9C8559AC52FBC6F37302E3D25CD3E6FA63AF94A4A346/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|5ECC11F8D47DC4A5B37317C1AA6A3B73F71628999FBF4DFA1C28FD8702AEB5FB/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F703AAC156A7971068F8FABC0250EF97C1D757A48C76FDED8E7DF8515ECA09CE/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|280865ABA36C6A3E746B72A5FEC91E4245BFD3ABBADF84106F600459D28611EE/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|8683B3D7DD98D56AB30082729E8F306DC3636E3E7327686A9CDA3F071C1DE655/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|6AC44B311AF3BF42B02ED17C8C35ED3EB3787A3CEA6784BF2B4DCEC4BF45B329/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|CBA0AC1B7127460EE2B60355700910BF8524136BC22C55BE3F42DBB80C57126B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|00C328C7DD3FB5DA980F287D7466C5811381B5458A5F542F00E4BA6D039F5278/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|444D0210357F5154342049D6FBD602BABB693B5BEDC96D8B5D18615B328979B5/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|DF6DF72B0E4BE8FE69EA495C5446B2CF36409037F186D6739D2A4F887D1ADD17/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|3C3DF5EEF04D9E79F73560C13ABB31EC4FB11528A8954DA9EAE458617692E6D0/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8E1C46855FF850A75BA20470A4EB1E4DB6FB57F34931364E8A84DB31E03BECA1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|622AFC2F623D857BB0633EA4DCFD1BD657C6952EB41C4F23DD2CC12160A39490/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|9D64B82DCEBBD7C991A7F0B3FB06A7747BD1CCC9644AF063A525199B3F8B16FE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F1C1A9903F437AB4AF2B132E9E6BB5ACCB006A2EC772F7D0CA40CF1E8C2BA1F1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|9061C95ED838283A357EAD48E606D69140054552997690DB236D5A57497D688A/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|68B62CEB1A183C388B35B01A36ABB70B820530DDDCC52077237014E983682D40/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8A3698607F817A708497224374C0FE6712F35DEB5409251F126C59E413C5EA24/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|D0D499B550B1669697A605EB1B6CA3EB6335A13DF16C53E4C67817B9B4E41AE0/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|F3A3488D0FF1FAF3F746DD35AF0912FDEFB6C4E2A3FF7CD0E59A494149719B3E/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DDF1C4D70AAF63DBA5163113C62C05A72B3EC4A8A926620EE0BA055A80EC80CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|F690FDDDB75F436B9849757A640778CCFB3CD071D8C0E5A165E193F7A5380F8F/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E",
+  "golden": "745AFCA1B3AE86F3EFE7AF5543140E621180A534B4FF6B1CDADB2D49C016B9C7/09A7D5965EEF7E12C6A97973CCF33FC0900F28FCD1219C3B62B9BDDC2B4C2A1D|BE7FA3CC9B3690332C3BF3791C933D7F12FDDFB42A9BA5500FA20400485EABD1/64C6285A0E3EDE27519409C03EA8753A5E0CBDFC8DFE6D52F9AA14EA5599A578|AA64A11ECCD98342D1877BA28DCB5F4285BA9ECA204B17B6FE3329C1AEB9DE44/7902699BE42C8A8E46FBBB4501726517E86B22C56A189F7625A6DA49081B2451|B5CFDCB448324481D2A7178F325229AE14A964280411F8CB36B1E5BB04CA0A5B/6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B|AFC0AF013F1A646A9BF43C5EA59CCA76FC38E0603194BE1109F1D44B347BAF2D/AF1A1FC110B6094C48582B0EF83553CB7908D7A4365424EEF28E76EF6C88D630|D8C568FE4FFADBC4208A6516292C76B45EFB21DFFF06D720C7F8A33FC69EAE62/83744FEAC5ED0990322AF80B4AD963704487ECD0625369B31CFDFDA4F9C1366A|5CF129BF580728A8669C04AEDB5F3F66B22C8D9F4B507F8E8E5AB26AB812911A/D9C834271FABD91510E151BF701A677CD48BEA13C7D41A6CEC208CC47E48888D",
+  "legacyStrong": "4F76B90B0BF652A21A95CDECC3756AB31814FEB0AD931950B53C8368185DBDCE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E3E85C4DB0CF0DF328317276F5B3F0287E8DB39C512BE2F74D3530F9ABC97BAF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|76B63AA738E0D04AB04BB506CA67FA9FD89B8DD3FCCAB35F65A6D4BF2BD40CE5/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|48C78A9B3F070A21203FA760C17E5D752F525AFB2209D6A68A363069A543A2D2/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E33A1B6538D6B9AA3FBBF0E47D37C83346478316C77018F2F5BAF8F78B5E17B0/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|FD356F0BFB176A0DE2DDDF517CF09A350D686CFDB1DFD68B80058420E0AA645B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|88759F198AF37C878B9B9DD8B14B539D97C3D6499427FABFCD26F47CF25201C3/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DB3A6BE430CD5A1BF36D22EEB41C29AC431C9C81132EAB33D94EB59DDD4A7805/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|AAF84FC5A00F5002BDE25797ED8BB21ECB364C84907A4BAAE3BF8201A46C1806/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|92511F57E6C04CB10FB6EA5898E0E86966B90756C1049F85C9615C9146E7827F/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|9356FBBDA8FE3B2C5C81B4BC3405A85AEAE9BD4D240B449FD171F3E2AAF0D0CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|2A0E9345C8359CBB58CB9C8559AC52FBC6F37302E3D25CD3E6FA63AF94A4A346/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|5ECC11F8D47DC4A5B37317C1AA6A3B73F71628999FBF4DFA1C28FD8702AEB5FB/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F703AAC156A7971068F8FABC0250EF97C1D757A48C76FDED8E7DF8515ECA09CE/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|280865ABA36C6A3E746B72A5FEC91E4245BFD3ABBADF84106F600459D28611EE/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|8683B3D7DD98D56AB30082729E8F306DC3636E3E7327686A9CDA3F071C1DE655/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|6AC44B311AF3BF42B02ED17C8C35ED3EB3787A3CEA6784BF2B4DCEC4BF45B329/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|CBA0AC1B7127460EE2B60355700910BF8524136BC22C55BE3F42DBB80C57126B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|00C328C7DD3FB5DA980F287D7466C5811381B5458A5F542F00E4BA6D039F5278/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|444D0210357F5154342049D6FBD602BABB693B5BEDC96D8B5D18615B328979B5/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|DF6DF72B0E4BE8FE69EA495C5446B2CF36409037F186D6739D2A4F887D1ADD17/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|3C3DF5EEF04D9E79F73560C13ABB31EC4FB11528A8954DA9EAE458617692E6D0/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8E1C46855FF850A75BA20470A4EB1E4DB6FB57F34931364E8A84DB31E03BECA1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|622AFC2F623D857BB0633EA4DCFD1BD657C6952EB41C4F23DD2CC12160A39490/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|9D64B82DCEBBD7C991A7F0B3FB06A7747BD1CCC9644AF063A525199B3F8B16FE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F1C1A9903F437AB4AF2B132E9E6BB5ACCB006A2EC772F7D0CA40CF1E8C2BA1F1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|9061C95ED838283A357EAD48E606D69140054552997690DB236D5A57497D688A/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|68B62CEB1A183C388B35B01A36ABB70B820530DDDCC52077237014E983682D40/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8A3698607F817A708497224374C0FE6712F35DEB5409251F126C59E413C5EA24/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|D0D499B550B1669697A605EB1B6CA3EB6335A13DF16C53E4C67817B9B4E41AE0/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|F3A3488D0FF1FAF3F746DD35AF0912FDEFB6C4E2A3FF7CD0E59A494149719B3E/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DDF1C4D70AAF63DBA5163113C62C05A72B3EC4A8A926620EE0BA055A80EC80CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|F690FDDDB75F436B9849757A640778CCFB3CD071D8C0E5A165E193F7A5380F8F/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E",
+  "legacyGolden": "745AFCA1B3AE86F3EFE7AF5543140E621180A534B4FF6B1CDADB2D49C016B9C7/09A7D5965EEF7E12C6A97973CCF33FC0900F28FCD1219C3B62B9BDDC2B4C2A1D|BE7FA3CC9B3690332C3BF3791C933D7F12FDDFB42A9BA5500FA20400485EABD1/64C6285A0E3EDE27519409C03EA8753A5E0CBDFC8DFE6D52F9AA14EA5599A578|AA64A11ECCD98342D1877BA28DCB5F4285BA9ECA204B17B6FE3329C1AEB9DE44/7902699BE42C8A8E46FBBB4501726517E86B22C56A189F7625A6DA49081B2451|B5CFDCB448324481D2A7178F325229AE14A964280411F8CB36B1E5BB04CA0A5B/6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B|AFC0AF013F1A646A9BF43C5EA59CCA76FC38E0603194BE1109F1D44B347BAF2D/AF1A1FC110B6094C48582B0EF83553CB7908D7A4365424EEF28E76EF6C88D630|D8C568FE4FFADBC4208A6516292C76B45EFB21DFFF06D720C7F8A33FC69EAE62/83744FEAC5ED0990322AF80B4AD963704487ECD0625369B31CFDFDA4F9C1366A|5CF129BF580728A8669C04AEDB5F3F66B22C8D9F4B507F8E8E5AB26AB812911A/D9C834271FABD91510E151BF701A677CD48BEA13C7D41A6CEC208CC47E48888D",
+  "coverage": {
+    "NS-01": {
+      "outcome": "Passed",
+      "witnesses": [
+        "static-bootstrap",
+        "native-missing-install"
+      ]
+    },
+    "NS-02": {
+      "outcome": "Passed",
+      "witnesses": [
+        "idempotence-and-provider-ownership",
+        "baked-enum-rejected",
+        "handwritten-rejected",
+        "product-converter-options-rejected"
+      ]
+    },
+    "NS-03": {
+      "outcome": "Passed",
+      "witnesses": [
+        "authoring-seals",
+        "missing-metadata-seals"
+      ]
+    },
+    "NS-04": {
+      "outcome": "Passed",
+      "witnesses": [
+        "same-context-race",
+        "pending-registration-conflict",
+        "native-first-use-race",
+        "reentrant-registration"
+      ]
+    },
+    "NS-05": {
+      "outcome": "Passed",
+      "witnesses": [
+        "configuration-failures"
+      ]
+    },
+    "NS-06": {
+      "outcome": "Passed",
+      "witnesses": [
+        "golden-generated",
+        "strong-metadata",
+        "strong-default",
+        "f1-shape-rejection",
+        "f1-positive-generated",
+        "f1-member-metadata"
+      ]
+    },
+    "NS-07": {
+      "outcome": "Passed",
+      "witnesses": [
+        "missing-metadata-seals",
+        "foreach-array-missing",
+        "unsupported-before-missing",
+        "typed-wait-and-public-values"
+      ]
+    },
+    "NS-08": {
+      "outcome": "Passed",
+      "witnesses": [
+        "codec-negative-boundaries",
+        "failure-and-size-boundaries",
+        "configuration-failures",
+        "typed-wait-and-public-values"
+      ]
+    },
+    "NS-09": {
+      "outcome": "Passed",
+      "witnesses": [
+        "closed-typed-dispatch",
+        "throttle-capacity-boundaries"
+      ]
+    },
+    "NS-10": {
+      "outcome": "Passed",
+      "witnesses": [
+        "AOT-08",
+        "AOT-09",
+        "AOT-10",
+        "AOT-11",
+        "typed-wait-and-public-values",
+        "transient-pool-grant"
+      ]
+    },
+    "NS-11": {
+      "outcome": "Passed",
+      "witnesses": [
+        "closed-typed-ownership",
+        "retention-pins-key-expiry",
+        "AOT-06",
+        "AOT-07",
+        "typed-wait-and-public-values"
+      ]
+    },
+    "NS-12": {
+      "outcome": "Passed",
+      "witnesses": [
+        "static-bootstrap",
+        "idempotence-and-provider-ownership",
+        "jit-missing-engine"
+      ]
+    }
+  },
+  "subcases": {
+    "NS-02a": {
+      "outcome": "Passed",
+      "witnesses": [
+        "baked-enum-rejected"
+      ]
+    },
+    "NS-02b": {
+      "outcome": "Passed",
+      "witnesses": [
+        "handwritten-rejected"
+      ]
+    },
+    "NS-02c": {
+      "outcome": "Passed",
+      "witnesses": [
+        "baked-enum-rejected",
+        "handwritten-rejected"
+      ]
+    },
+    "NS-02d": {
+      "outcome": "Passed",
+      "witnesses": [
+        "product-converter-options-rejected"
+      ]
+    },
+    "NS-06a": {
+      "outcome": "Passed",
+      "witnesses": [
+        "f1-shape-rejection"
+      ]
+    },
+    "NS-06b": {
+      "outcome": "Passed",
+      "witnesses": [
+        "f1-shape-rejection"
+      ]
+    },
+    "NS-06c": {
+      "outcome": "Passed",
+      "witnesses": [
+        "f1-positive-generated"
+      ]
+    },
+    "NS-06d": {
+      "outcome": "Passed",
+      "witnesses": [
+        "f1-positive-generated"
+      ]
+    },
+    "NS-06e": {
+      "outcome": "Passed",
+      "witnesses": [
+        "f1-member-metadata"
+      ]
+    },
+    "NS-06f": {
+      "outcome": "Passed",
+      "witnesses": [
+        "f1-shape-rejection"
+      ]
+    },
+    "NS-06g": {
+      "outcome": "Passed",
+      "witnesses": [
+        "strong-metadata",
+        "strong-default"
+      ]
+    },
+    "NS-06h": {
+      "outcome": "Passed",
+      "witnesses": [
+        "public-factory-no-seal",
+        "strong-metadata",
+        "strong-default"
+      ]
+    },
+    "NS-09a": {
+      "outcome": "Passed",
+      "witnesses": [
+        "closed-typed-dispatch",
+        "throttle-capacity-boundaries"
+      ]
+    }
+  },
+  "publicBoundary": "PublicValuesTypedWaitParkingTimersRetryPoolCompositionOnly",
+  "liveEventDeliveryQualified": false,
+  "outgoingPublishingQualified": false
+}

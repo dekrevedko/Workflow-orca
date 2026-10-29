@@ -1,0 +1,901 @@
+{
+  "schemaVersion": 1,
+  "stage": "FullValidationCompleteApprovalPending",
+  "base": "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd",
+  "validatedInputTree": "30777062d26e7a8542eaffbdfd08bbd9fbe29652",
+  "validatedInputContentSha256": "d5fd2b0effb2bfbf630d33928c8c6693963969e0e566ce0fdae1e49fb5d03b26",
+  "task": "2.5",
+  "authorBranch": "codex/issue-13-native-aot-trimming",
+  "validationPlatform": "Windows 11 x64; native Linux Docker database containers, no substitute for native-support cells",
+  "openspec": {
+    "passed": 25,
+    "failed": 0
+  },
+  "releaseBuild": {
+    "warnings": 0,
+    "errors": 0,
+    "warningsAsErrors": true
+  },
+  "runs": [
+    {
+      "lane": "unit",
+      "name": "OrcaCore.Acceptance.Tests",
+      "total": 37,
+      "passed": 37,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "unit/OrcaCore.Acceptance.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_31_net10.0.trx",
+      "trxSha256": "0eff9c229a4b6ae5d09f0699199bb37a6357afa66bce5be6b7afcb8de106e7bd"
+    },
+    {
+      "lane": "unit",
+      "name": "OrcaCore.Core.Tests",
+      "total": 354,
+      "passed": 354,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "unit/OrcaCore.Core.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_03_net10.0.trx",
+      "trxSha256": "ad2a016c8826a21e73645132e8d8ad5c83d50d0641679857a6e20d8e601aeedc"
+    },
+    {
+      "lane": "unit",
+      "name": "OrcaCore.Engine.Durable.Tests",
+      "total": 102,
+      "passed": 102,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "unit/OrcaCore.Engine.Durable.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_22_net10.0.trx",
+      "trxSha256": "b49596ade6c225e067aaf9573abb111dd627e6c961665b1f9e90a9e856a685fb"
+    },
+    {
+      "lane": "unit",
+      "name": "OrcaCore.Engine.Ephemeral.Tests",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "unit/OrcaCore.Engine.Ephemeral.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_13_net10.0.trx",
+      "trxSha256": "fc871a28c98f0f350794e4af7e3e79e6ba0b29f6e20edc4a97410f16067621dc"
+    },
+    {
+      "lane": "unit",
+      "name": "OrcaCore.Hosting.Tests",
+      "total": 24,
+      "passed": 24,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "unit/OrcaCore.Hosting.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_42_net10.0.trx",
+      "trxSha256": "89e9aa985a2ba7b2e8f5d27a1b998e5ec7789626face42ecda92acbdc7c9cc32"
+    },
+    {
+      "lane": "unit",
+      "name": "OrcaCore.ProviderCertification",
+      "total": 100,
+      "passed": 100,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "unit/OrcaCore.ProviderCertification/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_53_net10.0.trx",
+      "trxSha256": "12966fd6d7ab00165f0da83bc8a2f1b063adee0f36e4cf7fc7618ab14686b55b"
+    },
+    {
+      "lane": "provider",
+      "name": "OrcaCore.Integration.Tests",
+      "total": 11,
+      "passed": 11,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "provider/OrcaCore.Integration.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_08_45_net10.0.trx",
+      "trxSha256": "6bbe461087f14e034442c42696cffc91df940362786f2dbe7b98d6a37e299aa4"
+    },
+    {
+      "lane": "provider",
+      "name": "OrcaCore.Providers.PostgreSql.Tests",
+      "total": 103,
+      "passed": 103,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "provider/OrcaCore.Providers.PostgreSql.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_03_net10.0.trx",
+      "trxSha256": "2b6b2a3226e42484db407469778f1becd0767876c6272669a8f164bbe0932409"
+    },
+    {
+      "lane": "provider",
+      "name": "OrcaCore.Providers.SqlServer.Tests",
+      "total": 74,
+      "passed": 74,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "provider/OrcaCore.Providers.SqlServer.Tests/Denis_LAPTOP-T689UKVG_2026-10-27_22_08_34_net10.0.trx",
+      "trxSha256": "3de03ac8b518553309cdb6732aa6e82a80448f2561ac161150d3e12fd5efc8b4"
+    },
+    {
+      "lane": "requirements",
+      "name": "acceptance-core",
+      "total": 28,
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/acceptance-core/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_31_net10.0.trx",
+      "trxSha256": "3c53e49be6b6f7d2ac5c7362a1ecac63083ea43391d09653a9a34ea9d93cf05c"
+    },
+    {
+      "lane": "requirements",
+      "name": "acceptance-durable",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/acceptance-durable/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_37_net10.0.trx",
+      "trxSha256": "7921a3c4fc5257762816a325a6ce5824f283189f8941a3ac5ca04187384dd30b"
+    },
+    {
+      "lane": "requirements",
+      "name": "acceptance-ephemeral",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/acceptance-ephemeral/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_34_net10.0.trx",
+      "trxSha256": "7f61660bd4a55aaba9cb00af3aa7ff15bda847127c6ee1c5e32a74b11b8b4968"
+    },
+    {
+      "lane": "requirements",
+      "name": "failure-core",
+      "total": 8,
+      "passed": 8,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/failure-core/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_21_net10.0.trx",
+      "trxSha256": "370e32272b6287b59e59fa7ce2161515a5385b1bbeeb1a342862c6f5f0e7226f"
+    },
+    {
+      "lane": "requirements",
+      "name": "failure-durable",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/failure-durable/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_28_net10.0.trx",
+      "trxSha256": "f8a2b1160f715570251da33d0958f61a3122f70ee8110851d04478558d467831"
+    },
+    {
+      "lane": "requirements",
+      "name": "failure-ephemeral",
+      "total": 1,
+      "passed": 1,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/failure-ephemeral/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_24_net10.0.trx",
+      "trxSha256": "01ee324ac72972eba834d365bf826c1e954f14ab1d83b6ab61bf6cfc06fb4d5f"
+    },
+    {
+      "lane": "requirements",
+      "name": "lifecycle",
+      "total": 20,
+      "passed": 20,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "requirements/lifecycle/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_18_net10.0.trx",
+      "trxSha256": "d365d8311f86dde96e6cac5e951325e14b64e694a84a901e74dcbd5e3ad57432"
+    },
+    {
+      "lane": "infrastructure",
+      "name": ".",
+      "total": 302,
+      "passed": 302,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "infrastructure/Denis_LAPTOP-T689UKVG_2026-10-27_22_03_48_net10.0.trx",
+      "trxSha256": "cfe1384e2fd7c3c959cf21d0ed700df2c83e65f0b337bb676096153af8c61fb2"
+    },
+    {
+      "lane": "stress",
+      "name": "01",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/01/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_18_net10.0.trx",
+      "trxSha256": "6a0344e74c565cc0e858545e4cbf5bf560e27d1d27da28178570bfe9b80dbef0"
+    },
+    {
+      "lane": "stress",
+      "name": "02",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/02/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_18_net10.0.trx",
+      "trxSha256": "0a17c99969eb223e969bef3259215d68eda4963ea9eeec5d1582d3b091ad806e"
+    },
+    {
+      "lane": "stress",
+      "name": "03",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/03/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_21_net10.0.trx",
+      "trxSha256": "77957f501d1fd8bdfb2edcc50b70fbb050fb841266891dd3d3355ccd2f552147"
+    },
+    {
+      "lane": "stress",
+      "name": "04",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/04/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_21_net10.0.trx",
+      "trxSha256": "abdf40b30e929ae0b67444bec9ac8673b25f2771179a4bbea17d5ecbd53a824a"
+    },
+    {
+      "lane": "stress",
+      "name": "05",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/05/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_24_net10.0.trx",
+      "trxSha256": "c72842b91328924a8d110408e969386f5108a03bf6407412a6296ca56dccb70d"
+    },
+    {
+      "lane": "stress",
+      "name": "06",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/06/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_25_net10.0.trx",
+      "trxSha256": "d2c6bb4aa44fbf0bc31b83bc832c624edad972587b92d7383c02612f148a6df0"
+    },
+    {
+      "lane": "stress",
+      "name": "07",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/07/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_28_net10.0.trx",
+      "trxSha256": "e083139f1729eda71229addb0c425ce9341b4b4120659ac6db3843f44a7da22b"
+    },
+    {
+      "lane": "stress",
+      "name": "08",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/08/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_28_net10.0.trx",
+      "trxSha256": "b2840c511bfebe97dd5df21cffa939bdd363ea29360e974c952b47405cd3378d"
+    },
+    {
+      "lane": "stress",
+      "name": "09",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/09/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_31_net10.0.trx",
+      "trxSha256": "eea60cb5d0167061e943be6b2804ed573060454934db0d502bfb4b310baf3d8a"
+    },
+    {
+      "lane": "stress",
+      "name": "10",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/10/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_31_net10.0.trx",
+      "trxSha256": "c25538351ad93af9ec1a84d38ceab065ce09656c06c635ab6c7111365ba4cae0"
+    },
+    {
+      "lane": "stress",
+      "name": "11",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/11/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_34_net10.0.trx",
+      "trxSha256": "00a1df9be89cc144733053a659bfb9fd4a120c8ae70babb0108e09a7cde425fc"
+    },
+    {
+      "lane": "stress",
+      "name": "12",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/12/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_34_net10.0.trx",
+      "trxSha256": "eaf38dfe60ac086f96b70b2a5779bd8bea498c9271e80101c5b287990fd7b7db"
+    },
+    {
+      "lane": "stress",
+      "name": "13",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/13/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_38_net10.0.trx",
+      "trxSha256": "b4ba10bd8b368a8016f558f16bbfbc5f35378624245cfc6b74690e48816ac665"
+    },
+    {
+      "lane": "stress",
+      "name": "14",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/14/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_38_net10.0.trx",
+      "trxSha256": "3ccd7863b7955958593c5d4afe2ee597f3942638430a20d73ad5db1d1cf615c6"
+    },
+    {
+      "lane": "stress",
+      "name": "15",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/15/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_41_net10.0.trx",
+      "trxSha256": "2aa219459def7e0732bbee6b3867a39e007d5f839d652b6bdb8514fc01797060"
+    },
+    {
+      "lane": "stress",
+      "name": "16",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/16/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_41_net10.0.trx",
+      "trxSha256": "3d0e190d08eef3e24d688a6bca23864b1c428d3653f4ec60d30cd360d1fdbcc5"
+    },
+    {
+      "lane": "stress",
+      "name": "17",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/17/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_44_net10.0.trx",
+      "trxSha256": "a908bffb3b5acd33f57585d681745d3f18b11071daff7ac0734dea4eedb4bf40"
+    },
+    {
+      "lane": "stress",
+      "name": "18",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/18/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_44_net10.0.trx",
+      "trxSha256": "be4ff301e18a8311bf372e92ff80a94d75df00635170d23420f6219c4eaec70a"
+    },
+    {
+      "lane": "stress",
+      "name": "19",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/19/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_48_net10.0.trx",
+      "trxSha256": "f1d7d9e8a8ad899d73deb814865a1672b86c366f55ea4fcdd17ba0547dc19b7a"
+    },
+    {
+      "lane": "stress",
+      "name": "20",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/20/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_48_net10.0.trx",
+      "trxSha256": "e074971edac83a43a1a35e030880e243cc0dd6c9ee43f6f9349b6a5c1a75d0fa"
+    },
+    {
+      "lane": "stress",
+      "name": "21",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/21/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_51_net10.0.trx",
+      "trxSha256": "62abf81386f0391593420279d7d8d8bd38114a68a7f10c9cf34191fc59ac76cb"
+    },
+    {
+      "lane": "stress",
+      "name": "22",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/22/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_51_net10.0.trx",
+      "trxSha256": "dc212c4d8f06c7d533e90c321c2da7015208c2a3e2d75c99d333ad8f96b0225e"
+    },
+    {
+      "lane": "stress",
+      "name": "23",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/23/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_54_net10.0.trx",
+      "trxSha256": "92c583c5b741f7f1f87967fa9f04932136d833349f81714d0b7c7586268ef8bf"
+    },
+    {
+      "lane": "stress",
+      "name": "24",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/24/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_54_net10.0.trx",
+      "trxSha256": "c62958f5a99956036c92bbdd51980a89a343b3526d1522d23af7907bb1ee7267"
+    },
+    {
+      "lane": "stress",
+      "name": "25",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/25/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_57_net10.0.trx",
+      "trxSha256": "5f4ea76175bb61191e14e9cf63ddb98058c17326fb46b650262efea0368427ef"
+    },
+    {
+      "lane": "stress",
+      "name": "26",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/26/Denis_LAPTOP-T689UKVG_2026-10-27_22_04_57_net10.0.trx",
+      "trxSha256": "e0d3da82c7d564a4387f7bde174fb25a4337ddfa85857b747bebc0febc55bf0a"
+    },
+    {
+      "lane": "stress",
+      "name": "27",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/27/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_00_net10.0.trx",
+      "trxSha256": "c00ca1676c9fd558c975326eaa85acec61fc2f640c21169fc1122d718ce4d345"
+    },
+    {
+      "lane": "stress",
+      "name": "28",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/28/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_00_net10.0.trx",
+      "trxSha256": "c0807cc40d3e073723d6d0be6da5eaf1496f656a4298829f31ac9681efddb05a"
+    },
+    {
+      "lane": "stress",
+      "name": "29",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/29/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_04_net10.0.trx",
+      "trxSha256": "885c2b2e029037cccdb5ab702d42c06656110689150c9bfc98b527943cfb9b90"
+    },
+    {
+      "lane": "stress",
+      "name": "30",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/30/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_04_net10.0.trx",
+      "trxSha256": "5812c00f371334101fd059ef133220060fffcecaf18980530788e009149ff664"
+    },
+    {
+      "lane": "stress",
+      "name": "31",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/31/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_07_net10.0.trx",
+      "trxSha256": "82472b5fd15db3b0fd0498f5c4b4a73740e930048c1fced9bedcec80b7dcb0e5"
+    },
+    {
+      "lane": "stress",
+      "name": "32",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/32/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_07_net10.0.trx",
+      "trxSha256": "26bb835b82a5917ffbf96809cae2b5947c12982dfa96ef5b8d6bfefc765ba6aa"
+    },
+    {
+      "lane": "stress",
+      "name": "33",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/33/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_10_net10.0.trx",
+      "trxSha256": "ce7a749610df58a232f61b84a82c1745070ad507b189994ef81781a555a050f9"
+    },
+    {
+      "lane": "stress",
+      "name": "34",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/34/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_10_net10.0.trx",
+      "trxSha256": "9c9db4086f2b4064c266ec5be1e9c754c268fa800cbd7008cfde3514ebbc2c5d"
+    },
+    {
+      "lane": "stress",
+      "name": "35",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/35/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_13_net10.0.trx",
+      "trxSha256": "f6edd27a76f90e57a3eed719188a9f92c575703ecb2ce1a82a43aaec81ab97d1"
+    },
+    {
+      "lane": "stress",
+      "name": "36",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/36/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_13_net10.0.trx",
+      "trxSha256": "563edf5873b5a0cea601336cdaaf98afaee148c94889538d3269230849f4ecff"
+    },
+    {
+      "lane": "stress",
+      "name": "37",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/37/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_16_net10.0.trx",
+      "trxSha256": "20daa4826bf0a2913e9e503c2e470cc5f6d997ba60bcbdb8770d604f652de52d"
+    },
+    {
+      "lane": "stress",
+      "name": "38",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/38/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_16_net10.0.trx",
+      "trxSha256": "4f20377e19045fd42cbab403869dd5cd3ec3773b51a73ca2d775ed8503a26681"
+    },
+    {
+      "lane": "stress",
+      "name": "39",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/39/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_19_net10.0.trx",
+      "trxSha256": "743655e83b24e9aa681c7c6771fd70a3589bbf8171faad0bd43e3fbb2b7bb769"
+    },
+    {
+      "lane": "stress",
+      "name": "40",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/40/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_19_net10.0.trx",
+      "trxSha256": "c5bd565bfc91f5f881b5c4b7edb835b96c189ccd7767d716de53522d81f5610f"
+    },
+    {
+      "lane": "stress",
+      "name": "41",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/41/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_22_net10.0.trx",
+      "trxSha256": "d30af853627ae83c590bfb1fd1a9cec32347fc5f2de1b28af21308d26cf8534b"
+    },
+    {
+      "lane": "stress",
+      "name": "42",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/42/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_22_net10.0.trx",
+      "trxSha256": "23ec991da13586a60a45e60ddbe58a42466a5000960fa609812cbae8214e3555"
+    },
+    {
+      "lane": "stress",
+      "name": "43",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/43/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_25_net10.0.trx",
+      "trxSha256": "6b42717255a02996b0b0705126c58786ca8800fddac068775c7792a40848954f"
+    },
+    {
+      "lane": "stress",
+      "name": "44",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/44/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_25_net10.0.trx",
+      "trxSha256": "e93a9a406048b7c27da694733b652996c4c838f1ca565f797ea4cb052fa28974"
+    },
+    {
+      "lane": "stress",
+      "name": "45",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/45/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_28_net10.0.trx",
+      "trxSha256": "e1e0cb5e6d5911d0f2edb7d53c1b14a5c43acbf67fe1588ceccfc35c4caa0f0a"
+    },
+    {
+      "lane": "stress",
+      "name": "46",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/46/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_28_net10.0.trx",
+      "trxSha256": "fe53d51db194b039def4b4bf5879f82cc6ea885dbb63ec7f10bb2bd57c916ba7"
+    },
+    {
+      "lane": "stress",
+      "name": "47",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/47/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_31_net10.0.trx",
+      "trxSha256": "1a3443fdddd31ea94d3acd203e84041749107ec254f81fc109c1979489fe0f85"
+    },
+    {
+      "lane": "stress",
+      "name": "48",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/48/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_31_net10.0.trx",
+      "trxSha256": "74d03572566d3ee26776ec78b80c3f16b0ceacf007665c429effca1cefa01e50"
+    },
+    {
+      "lane": "stress",
+      "name": "49",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/49/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_35_net10.0.trx",
+      "trxSha256": "3baf8cbdb29a23082a3d4e1fa4450216d2d6c85b996dd0daa314b6ef95606b5d"
+    },
+    {
+      "lane": "stress",
+      "name": "50",
+      "total": 352,
+      "passed": 352,
+      "failed": 0,
+      "skipped": 0,
+      "trx": "stress/50/Denis_LAPTOP-T689UKVG_2026-10-27_22_05_35_net10.0.trx",
+      "trxSha256": "63b8cd5e7ee3bc1a296b63913814d82c755d78d2759185db7d8e5f443a85dc8f"
+    }
+  ],
+  "stress": {
+    "runner": "dotnet test unfiltered",
+    "runs": 50,
+    "parallelProcesses": 2,
+    "passedPerRun": 352,
+    "caseExecutions": 17600,
+    "failedRuns": 0,
+    "consecutive": true,
+    "concurrentLoad": "ReSharper, Infrastructure and container suites"
+  },
+  "coverage": {
+    "reportgenerator": "5.5.11",
+    "args": [
+      "artifacts\\task25\\tools\\reportgenerator.exe",
+      "-reports:artifacts/task25/**/coverage.cobertura.xml",
+      "-targetdir:artifacts/task25/CoverageReport",
+      "-reporttypes:Cobertura;MarkdownSummaryGithub",
+      "-assemblyfilters:+OrcaCore.Engine.*"
+    ],
+    "lineRate": 0.7931583134447097,
+    "threshold": 0.75,
+    "linesCovered": 15952,
+    "linesValid": 20112,
+    "packages": [
+      {
+        "name": "OrcaCore.Engine.Durable",
+        "line-rate": "0.8169329398595706",
+        "branch-rate": "0.6738387978142076",
+        "complexity": "3785"
+      },
+      {
+        "name": "OrcaCore.Engine.Ephemeral",
+        "line-rate": "0.7704423918327662",
+        "branch-rate": "0.6552230046948356",
+        "complexity": "4352"
+      }
+    ]
+  },
+  "resharper": {
+    "tool": "JetBrains InspectCode",
+    "version": "2026.2.3.1",
+    "configuration": "Release",
+    "platform": "Any CPU",
+    "framework": "net10.0",
+    "buildEnabled": true,
+    "includedFiles": 52,
+    "errors": 0,
+    "warnings": 583,
+    "notes": 343,
+    "warningsOnAddedOrChangedLines": 75,
+    "retainedLineWarnings": 508,
+    "semanticRulesIndividuallyReviewed": [
+      "AccessToDisposedClosure",
+      "AccessToModifiedClosure",
+      "AssignmentInsteadOfDiscard",
+      "CoVariantArrayConversion",
+      "NotAccessedField.Local",
+      "PossibleMultipleEnumeration",
+      "RedundantAssignment",
+      "UnusedTypeParameter"
+    ],
+    "rawSarifSha256": "e7ecfefff197308a4e28bb96a899e5001e05d794b0518a0685292b3eb3447d69",
+    "triageSha256": "db93aaa87e44ba51fa0adf764487cd5b3a04751122ac832e1e1127a19ba8db30"
+  },
+  "packageChecks": {
+    "count": 12,
+    "consumerResult": 42,
+    "publicationChecks": 8,
+    "version": "0.1.0-preview.issue13.task25",
+    "published": false,
+    "sourceMetadataCommit": "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd",
+    "note": "Local packages contain uncommitted frozen source; commit metadata is the base, not a claim that HEAD contains those bytes."
+  },
+  "native": {
+    "runId": 40629471843,
+    "commit": "609f1045db0f863b43be58843654f03cecb47d56",
+    "tree": "356efdf129675c3a937c179ed54830e1b4a6560c",
+    "totalCases": 356,
+    "groupsPerCell": 12,
+    "mandatorySubcasesPerCell": 13,
+    "diagnosticRecords": 24,
+    "diagnosticIdentities": 20,
+    "unclassified": 0,
+    "rawReverification": {
+      "cells": [
+        {
+          "host": "ubuntu-24.04",
+          "flavor": "aot",
+          "cases": 51,
+          "diagnostics": 8,
+          "source": "609f1045db0f863b43be58843654f03cecb47d56"
+        },
+        {
+          "host": "ubuntu-24.04",
+          "flavor": "jit",
+          "cases": 76,
+          "diagnostics": 0,
+          "source": "609f1045db0f863b43be58843654f03cecb47d56"
+        },
+        {
+          "host": "ubuntu-24.04",
+          "flavor": "trimmed",
+          "cases": 51,
+          "diagnostics": 4,
+          "source": "609f1045db0f863b43be58843654f03cecb47d56"
+        },
+        {
+          "host": "windows-2025",
+          "flavor": "aot",
+          "cases": 51,
+          "diagnostics": 8,
+          "source": "609f1045db0f863b43be58843654f03cecb47d56"
+        },
+        {
+          "host": "windows-2025",
+          "flavor": "jit",
+          "cases": 76,
+          "diagnostics": 0,
+          "source": "609f1045db0f863b43be58843654f03cecb47d56"
+        },
+        {
+          "host": "windows-2025",
+          "flavor": "trimmed",
+          "cases": 51,
+          "diagnostics": 4,
+          "source": "609f1045db0f863b43be58843654f03cecb47d56"
+        }
+      ],
+      "totalCases": 356,
+      "rawLogsAndPackagesVerified": true
+    },
+    "liveEventDeliveryQualified": false,
+    "outgoingPublishingQualified": false,
+    "indexPath": "openspec/changes/support-ephemeral-native-aot/artifacts/native-task-2-4-2026-10-27/index.json",
+    "indexSha256": "4d5ad4ef7480daa14296347ef06ba57922ceed46d9f648ee0fcc60e90f99daeb"
+  },
+  "provenance": {
+    "totalRows": 206,
+    "synchronized": 195,
+    "superseded": 8,
+    "outside": 3,
+    "pending": 0,
+    "masterRowsUntouched": 199,
+    "predecessorsUntouched": 26
+  },
+  "sourceFiles": {
+    "src/OrcaCore.Abstractions/Hosting/StructuredExecutionHostOptions.cs": "c364d94a6fc48382568f5f38986c52ac17cb03af696892c1b3a8d89f81392ede",
+    "src/OrcaCore.Abstractions/Ids/StrongStringValueJsonConverterFactory.cs": "606c4701fdde0cf25b011ede7114d53e4b37c4ec1a7c3a33e3a8f73f418892b5",
+    "src/OrcaCore.Abstractions/Instances/WorkflowDiagnosticCatalog.cs": "7c475a0c299f5061bded8970bc27453f0d22f66317ad82a5e57aa942a0790d8e",
+    "src/OrcaCore.Abstractions/Internal/TypedAuthoringBoundary.cs": "3ce982efb6f1649dec699707261a6b44a0c9d30c031283b5fc834c3453b8e352",
+    "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs": "4ae5c53a74270ce08201e88a8e6be3c3741dadaea3127dd35aef6c2747c77cc7",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowFailureJsonConverters.cs": "062f1c65720b9d708ea54eb20edd5f6bfcd54c18015544f64e407706e9d00fec",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadata.cs": "230a7257c3ca9d61d708444682cbbf577df346203c92236452cf7966d189c81d",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs": "4c4d72f5e1fd2b1b66b6fce36fa73e1ba6bad40802edaf34e0b48a5272bf1242",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonProductContext.cs": "13aa7fad708ee7206be068bba9b126644dd4d34493f7c21cdee2cd761d0e5ed0",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs": "485a67670aa427e613b7ee001c2c91267b5910d4a7241e99c25821b6949a30d6",
+    "src/OrcaCore.Abstractions/Steps/StepResult.cs": "5eefd12da51224a1cb04ed54855e154a70077ea60b75f18448a62ddc6a11c53e",
+    "src/OrcaCore.Core/Building/PublicBranchAuthoring.cs": "8d5c56360d84a5c57a3b3ee2f76ad84038f142c2066fe9627c20908dc3acd1f4",
+    "src/OrcaCore.Core/Building/PublicNestedAuthoring.cs": "e33f9de44b51163e425db31e85f7f7a943b6fabab0f67a164e3e0f81d54734fe",
+    "src/OrcaCore.Core/Building/PublicStagedAuthoring.cs": "ede91e300230e883ab1a54ef3b8c5dcfbd9817e7329cd9047b505ffa1dd32457",
+    "src/OrcaCore.Core/Building/SelectedWorkflowAuthoring.cs": "8cae79efee560fa02c3b4e4ee792965061fd0bcba319a4b4712bdd83c0d333bf",
+    "src/OrcaCore.Core/Building/SelectedWorkflowBuilder.cs": "99be7feffaa1063d146b05db9edbbaf92da52d5b5904cca0cd3fe3ae1db4d61f",
+    "src/OrcaCore.Core/Building/StructuredBranchBuilders.cs": "8e154f8f65c10a62094d0f1b058caaae38212438d9c04be6e9c9a619790d6dbb",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.Fingerprint.cs": "5bd8dc59fb50a4ed29b2742fbba0d66110d076a851803427f2723331092ba882",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.TypeContracts.cs": "ed67cc92271eaa9a6f4cce2d0d0b46f60dcd4da83b5d46e430bb9f63a0616acc",
+    "src/OrcaCore.Core/Compilation/DefinitionCompiler.cs": "e020a4c6cd8fea02cd64f45d2ffab6bbd9badd0c5edfdd690068ea8eb6d1d086",
+    "src/OrcaCore.Core/Compilation/DefinitionCompilerOptions.cs": "627bbb8830e61181de913e4baacbaeba71859336c09ecd6b1be9550a8d3b0a7e",
+    "src/OrcaCore.Core/Definitions/WorkflowDefinition.cs": "160eafd20819322a20695194d389a78fa73a933e4918d8ac5fb41cf8a9f105c3",
+    "src/OrcaCore.Core/Definitions/WorkflowPartitioner.cs": "89f535a3ca7b7d6d46a3a3016a6544f2fdda70123ece82c52f7f06fcf4e20666",
+    "src/OrcaCore.Core/Execution/ClosedForEachBindings.cs": "5eb864899b7106e8c993297a8171cbfb5f2cda8da441b4dd1d2cc3692c8ecebb",
+    "src/OrcaCore.Core/Execution/ClosedResultBindings.cs": "2d2134b744feb357d0487a1a40186e3f80c6bf3a834d54407a622ada2192df29",
+    "src/OrcaCore.Core/Execution/FailureProvenance.cs": "5656a5084aa5cc4d0967126fc55dc3a8b1f9262050dfafebc5b7f9b0aff80a72",
+    "src/OrcaCore.Core/Execution/ForEachSnapshotMaterializer.cs": "0f66c04ccb6bfb9bef9542b3b1cb181ad53ecda814fd448dc7bcdf6d4d44467d",
+    "src/OrcaCore.Core/Execution/ScopeMergeAdapter.cs": "c12e1b2e6b0c19f93c60096fb118f62a9f5bbc24a6d74aa9f3cdd541f526e994",
+    "src/OrcaCore.Core/Execution/StepResultWaitAccessor.cs": "0cc6a1f1b10189dcadb56714b349e2520403f98d6e6ce4b73fb9d8b98a380328",
+    "src/OrcaCore.Core/Execution/StructuredInvocationCache.cs": "c77e66fc89a8d0076e3ba507472743aa75af9a3477db8338cc514a65696e0d70",
+    "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs": "2ba38171be9958acc645ccafcea1789916943088d6a603d242153b1e18789ccb",
+    "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralProjectionModels.cs": "f91b46ecc44c6ff427b7c7fdbe4be797c43c8130fde55c8d1a3989c452eed20c",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Failures.cs": "8556b505b94dd1ae85541b8babfcf5da3de218c18a0561899465e2cfcf988459",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.ForEach.cs": "a10e49f89fd52a5f7c4b0311c37dac1c4ca4536f0efddf25e7db8bd7e3cebe6f",
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs": "060f0d979adb22c7c2c121cb9d40c7a59d2de1aa75dd6a30162c8dbc34d1275b",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowErrorDetails.cs": "189559dd255ae4c2c02849f95b4c9807f0567b41818a23d39d5d277a6e6c4f99",
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs": "80a71fcd51a9acf44f76e9e1c9d0ed504cdbb166ccf05f7cdc906ad1f0ef1e2f",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralDefinitionRuntime.cs": "dd1ae6c40296194263eb657342d9c25740b1c1f78ed4dac96f595d861c9399cf",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowCatalog.cs": "37621f0a6f94390aa7eee06dcddea26628f556fd2a3294d410cc4dcec8ac9f42",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs": "61e4ecd4aeeace79c8242438f0af79cfad2a81807850e26daea1f5e1e3fc21f2",
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowFacade.cs": "ea0b9e94564685acbf7966d792622bc3fe660958fbb59c357b98d93c21332084",
+    "src/OrcaCore.Engine.Ephemeral/Hosting/OrcaCoreEphemeralEngineServiceCollectionExtensions.cs": "17d6ae42d621c6d29e8b3ef3aaafca93fe2ccaa94321b17a9638f5e992af2060"
+  },
+  "unchangedSinceNativeExecution": true,
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null,
+  "artifacts": {
+    "resharper.sarif": {
+      "sha256": "e7ecfefff197308a4e28bb96a899e5001e05d794b0518a0685292b3eb3447d69",
+      "bytes": 1110004
+    },
+    "resharper-triage.tsv": {
+      "sha256": "db93aaa87e44ba51fa0adf764487cd5b3a04751122ac832e1e1127a19ba8db30",
+      "bytes": 320562
+    },
+    "Cobertura.xml": {
+      "sha256": "98dd807e992348572979b205e97a6e26dd2f9ef35aeb48ee7e4b4f7026bfe31a",
+      "bytes": 3333906
+    },
+    "coverage-summary.md": {
+      "sha256": "d9f30f807af1bc64aa512d1d65e2c34439c7cb784b471bbffb931dd8e9026c8c",
+      "bytes": 13639
+    }
+  }
+}

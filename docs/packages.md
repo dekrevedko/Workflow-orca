@@ -134,3 +134,24 @@ The [publishing guide](nuget-publishing.md) covers NuGet.org trusted publishing 
 mirroring an existing prerelease to GitHub Packages without rebuilding it. The
 registries use separate authentication and permissions. Signing, SourceLink, and stable API
 compatibility remain outside this prerelease workflow.
+
+## Issue #13 candidate compatibility boundary (source-qualified; release pending)
+
+User-approved corrected checkpoint `d8c55f3` and review-only child `25fa36c` qualify the selected
+`OrcaCore` / `OrcaCore.Core` / `OrcaCore.Engine.Ephemeral` recipe described in
+[the native support guide](ephemeral-native-support.md). The approved six-cell
+candidate feed uses validation version `0.0.0-phase0`; it is not a published
+package version. Preview.2 lacks `WorkflowJsonMetadata` and remains unsupported
+for the earlier assessed trimmed/AOT profiles.
+
+A future prerelease must use a new, unused version, pass release/registry gates
+and verify its source/profile before installation instructions name it as
+available. No new release version is assigned by this publication-preparation
+target. Local source builds can use a distinct private prerelease label; do not
+substitute preview.2 or mix versions across the selected closure.
+
+The existing product `StrongStringValueJsonConverterFactory` is public for
+ordinary generated strong-value DTOs. Keep product attributes; explicit context
+converter options, including this factory, remain prohibited. The twelve-package
+inventory grants no all-package native badge. Existing NuGet.org/GitHub Packages
+authentication and published-version instructions above are unchanged.

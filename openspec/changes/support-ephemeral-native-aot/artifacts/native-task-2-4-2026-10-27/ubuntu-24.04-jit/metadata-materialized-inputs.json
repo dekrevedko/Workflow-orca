@@ -1,0 +1,11 @@
+{
+  "CodecCases.cs": "febd6e3e23d31cc3a531bbda831870c7e511b0c2cd08c48d9aa25d39935ff421",
+  "DispatchCases.cs": "b539eee03bf3c9ca5493332f375f0fe1e42b6136521dac4ffd68ff5afdfc2c0e",
+  "NativeConsumer.csproj": "67934f48bd81279635d97f3bc2060ce9a7e6f39b20f54e7f056a7f6846fe738d",
+  "NativeExtras.cs": "21a6e69eaaf0587d804a85687cf3f973276a07dcac822d5b394e035f8ffab993",
+  "NuGet.Config": "88f60810b95954872ad2b16bde4c550b0dfb17b4910270eac90cde3347fcc916",
+  "OwnershipCases.cs": "5cdc329b4dcc42c4e534a12ae80f9dc26455b279b5d6dee275adfee5c2954dab",
+  "Program.cs": "746b86ba5e839e9f3da986f27221235f9f7833cd6a3f5ab5f7c418c4268352e0",
+  "StrongValueCases.cs": "af0bde607b7f7e2ce2883e0802e31bf0cd52bc50e39d6cd054cac86ccc2a0171",
+  "SupportClock.cs": "a09ce241cbaa808890d6eb311b2beaedf06310558e213c21a8787a5855d23764"
+}

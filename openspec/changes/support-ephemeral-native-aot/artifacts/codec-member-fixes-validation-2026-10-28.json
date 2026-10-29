@@ -1,0 +1,84 @@
+{
+  "schemaVersion": 1,
+  "stage": "LocalImplementationValidatedNativeRequalificationPending",
+  "base": "1ad2a5946b2874fd709571376a67799f5c7f9cd1",
+  "authorization": "Fix them",
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null,
+  "unitPassed": 969,
+  "infrastructurePassed": 309,
+  "providerIntegrationPassed": 188,
+  "requirementsPassed": 60,
+  "stressRuns": 50,
+  "stressPassed": 17600,
+  "sourceBuildWarnings": 0,
+  "sourceBuildErrors": 0,
+  "openSpecPassed": 25,
+  "exactFeedProvenancePassed": true,
+  "coverage": {
+    "passed": true,
+    "coveredLines": "15956",
+    "lineRate": 0.793357199681782,
+    "requiredRate": 0.75,
+    "validLines": "20112"
+  },
+  "localProfiles": {
+    "jit": {
+      "cases": 82,
+      "passed": 82,
+      "hostQualified": false,
+      "reflection": true,
+      "dynamicCode": true,
+      "diagnostics": 0
+    },
+    "trimmed": {
+      "cases": 55,
+      "passed": 55,
+      "hostQualified": false,
+      "reflection": false,
+      "dynamicCode": true,
+      "diagnostics": 4
+    },
+    "aot": {
+      "cases": 55,
+      "passed": 55,
+      "hostQualified": false,
+      "reflection": false,
+      "dynamicCode": false,
+      "diagnostics": 8
+    }
+  },
+  "nativeHostQualification": "Pending explicit temporary validation-branch authorization under the later no-push instruction",
+  "gateProtocol": 3,
+  "gateNegativeUnitTests": 6,
+  "expectedQualifiedMatrixCases": 384,
+  "resharper": {
+    "version": "2026.2.3.1",
+    "source52": {
+      "warning": 585,
+      "note": 344
+    },
+    "fixtureCompleteContext": {
+      "warning": 1165,
+      "note": 829
+    },
+    "fixtureOnly": {
+      "warning": 34,
+      "note": 45
+    },
+    "guards6": {
+      "note": 63,
+      "warning": 58
+    },
+    "incompleteStandaloneFixtureRun": "443 unresolved-reference/source-generator cascades; corrected four-project solution has zero errors",
+    "emptyFilterAttempt": "No files to inspect, exit 3; not counted as analysis"
+  },
+  "sourceFiles": {
+    "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs": "d12cd231a5bfc6743ee7ca9778bb519897f4878c28e1f7bd469197fd540ba4ff",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs": "7faf1674272992dfab9ab39d74e30b40e9fbb82b8b5b25d66ff3574412652edd",
+    "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs": "4b44b25affd51c8d039304d9d74c063602e02f2c48341fb8425feed946b8c617"
+  },
+  "publicApiAndCanonicalSpecsUnchanged": true,
+  "committed": false,
+  "pushed": false
+}

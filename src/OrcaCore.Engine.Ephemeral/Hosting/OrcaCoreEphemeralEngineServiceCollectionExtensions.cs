@@ -15,6 +15,7 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(services);
         ArgumentNullException.ThrowIfNull(options);
         var copied = EphemeralWorkflowEngineOptions.FromHostOptions(options);
+        global::OrcaCore.Core.Authoring.TypedAuthoringBootstrap.Initialize();
         var fingerprint = ProfileFingerprint(copied);
         if (EngineRoleRegistration.RequireAvailableOrSame(
                 services,

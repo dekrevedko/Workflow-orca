@@ -1,0 +1,322 @@
+{
+  "journey/generated.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "journey/generated.stdout.log": {
+    "sha256": "68b7fd7a0b45d0b061cb78d107bacf41de9874379c9af305933b7817e05fe06c",
+    "text": "ORCA_REPORT {\"schemaVersion\":1,\"jsonReflectionEnabled\":false,\"mode\":\"--all\",\"runtimeSettings\":{\"frameworkDescription\":\".NET 10.0.14\",\"runtimeVersion\":\"10.0.14\",\"dynamicCodeSupported\":true,\"serverGc\":false,\"gcLatencyMode\":\"Interactive\",\"tieredCompilationAppContextOverride\":null,\"tieringObservation\":\"Only explicit AppContext/config/environment settings are observable here; null means no such override, not a measured JIT tier.\"},\"cases\":[{\"id\":\"AOT-01\",\"outcome\":\"Passed\",\"assertions\":7,\"phase\":\"Observe\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-02\",\"outcome\":\"Passed\",\"assertions\":6,\"phase\":\"Observe\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-03\",\"outcome\":\"Passed\",\"assertions\":9,\"phase\":\"Observe\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-04\",\"outcome\":\"Passed\",\"assertions\":7,\"phase\":\"WaitCancellation\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-05\",\"outcome\":\"Passed\",\"assertions\":9,\"phase\":\"WorkflowCancellation\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-06\",\"outcome\":\"Passed\",\"assertions\":8,\"phase\":\"ClosedDrain\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-07\",\"outcome\":\"Passed\",\"assertions\":8,\"phase\":\"Incomplete\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-08\",\"outcome\":\"Passed\",\"assertions\":7,\"phase\":\"Start\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-09\",\"outcome\":\"Passed\",\"assertions\":9,\"phase\":\"Parallel\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-10\",\"outcome\":\"Passed\",\"assertions\":16,\"phase\":\"ForEach\",\"observations\":[\"host bound 3, node bound 2: only items 0 and 1 admitted before clock release\",\"host bound 2, node bound 3: only items 0 and 1 admitted before clock release\"],\"exceptions\":[]},{\"id\":\"AOT-11\",\"outcome\":\"Passed\",\"assertions\":9,\"phase\":\"ForEach\",\"observations\":[\"host bound 3, node bound 2: only items 0 and 1 admitted before clock release\"],\"exceptions\":[]},{\"id\":\"AOT-12\",\"outcome\":\"Passed\",\"assertions\":5,\"phase\":\"UnsupportedDeclaredConverter\",\"observations\":[\"OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for \\u0027Customized\\u0027. (workflow:$)\\r\\n   at OrcaCore.Core.Authoring.\\u003CPublicWorkflowDefinitions\\u003EFA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation\\u00601 validation)\\r\\n   at OrcaCore.Core.Authoring.EphemeralWorkflowCompletionBuilder\\u00601.Build()\\r\\n   at OrcaCore.Core.Authoring.TypedAuthoringOperations.BuildEphemeral[TInput](AuthoringKernelHandle handle)\\r\\n   at OrcaCore.EphemeralWorkflowCompletionBuilder\\u00601.Build()\\r\\n   at Cases.\\u003C\\u003Ec__DisplayClass15_0.\\u003CUnsupportedConverter\\u003Eb__1() in D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\app\\\\Cases.cs:line 239\\r\\n   at Probe.Error(Func\\u00601 action) in D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\app\\\\Program.cs:line 138\"],\"exceptions\":[]},{\"id\":\"AOT-13\",\"outcome\":\"Passed\",\"assertions\":6,\"phase\":\"InputBoundary\",\"observations\":[\"System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\\r\\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet\\u00601 activeReferences, Boolean inspectProperties)\\r\\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object value, Type declaredType, HashSet\\u00601 activeReferences, Boolean inspectProperties)\\r\\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object value, Type declaredType)\\r\\n   at OrcaCore.Core.Internal.CoreWorkflowValueCodec.Serialize(Object value, Type declaredType)\\r\\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T value)\\r\\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartCoreAsync[TInput](DefinitionId definitionId, DefinitionVersion definitionVersion, DefinitionFingerprint definitionFingerprint, Type stateType, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\\r\\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.StartAsync[TInput,TOutput](EphemeralWorkflowDefinition\\u00602 definition, TInput input, StartIdempotencyKey idempotencyKey, CancellationToken cancellationToken)\\r\\n   at Cases.\\u003C\\u003Ec__DisplayClass16_0.\\u003C\\u003CCyclicInput\\u003Eb__2\\u003Ed.MoveNext() in D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\app\\\\Cases.cs:line 259\\r\\n--- End of stack trace from previous location ---\\r\\n   at Probe.Error(Func\\u00601 action) in D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\app\\\\Program.cs:line 138\"],\"exceptions\":[]},{\"id\":\"AOT-14\",\"outcome\":\"Passed\",\"assertions\":8,\"phase\":\"Start\",\"observations\":[\"Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes.\"],\"exceptions\":[]},{\"id\":\"AOT-15\",\"outcome\":\"Passed\",\"assertions\":6,\"phase\":\"Start\",\"observations\":[],\"exceptions\":[]},{\"id\":\"AOT-16\",\"outcome\":\"Passed\",\"assertions\":11,\"phase\":\"Start\",\"observations\":[],\"exceptions\":[]}],\"quiescentCounters\":{\"phase\":\"after individual case cleanup; informational counters, no retained bootstrap owner\",\"cumulativeUserPlusKernelCpuMs\":1546.875,\"peakWorkingSetBytes\":56057856,\"workingSetBytes\":56057856,\"windowsPrivateCommitBytes\":25186304,\"estimatedManagedBytesNoForcedGc\":6304864,\"lastCollectionHeapBytes\":4135192,\"collectionCounts\":[1,1,1]},\"loadedModulePaths\":[\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\NativeConsumer.exe\",\"C:\\\\Windows\\\\SYSTEM32\\\\ntdll.dll\",\"C:\\\\Windows\\\\System32\\\\KERNEL32.DLL\",\"C:\\\\Windows\\\\System32\\\\KERNELBASE.dll\",\"C:\\\\Windows\\\\SYSTEM32\\\\apphelp.dll\",\"C:\\\\Windows\\\\System32\\\\SHELL32.dll\",\"C:\\\\Windows\\\\System32\\\\msvcp_win.dll\",\"C:\\\\Windows\\\\System32\\\\ucrtbase.dll\",\"C:\\\\Windows\\\\System32\\\\USER32.dll\",\"C:\\\\Windows\\\\System32\\\\win32u.dll\",\"C:\\\\Windows\\\\System32\\\\GDI32.dll\",\"C:\\\\Windows\\\\System32\\\\gdi32full.dll\",\"C:\\\\Windows\\\\System32\\\\wintypes.dll\",\"C:\\\\Windows\\\\System32\\\\combase.dll\",\"C:\\\\Windows\\\\System32\\\\RPCRT4.dll\",\"C:\\\\Windows\\\\System32\\\\ADVAPI32.dll\",\"C:\\\\Windows\\\\System32\\\\msvcrt.dll\",\"C:\\\\Windows\\\\System32\\\\sechost.dll\",\"C:\\\\Windows\\\\System32\\\\IMM32.DLL\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\hostfxr.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\hostpolicy.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\coreclr.dll\",\"C:\\\\Windows\\\\System32\\\\ole32.dll\",\"C:\\\\Windows\\\\System32\\\\OLEAUT32.dll\",\"C:\\\\Windows\\\\System32\\\\bcryptPrimitives.dll\",\"C:\\\\Windows\\\\SYSTEM32\\\\kernel.appcore.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Private.CoreLib.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\clrjit.dll\",\"C:\\\\Windows\\\\SYSTEM32\\\\icu.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\NativeConsumer.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Text.Json.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Diagnostics.Process.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.ComponentModel.Primitives.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Console.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\OrcaCore.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Linq.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Collections.NonGeneric.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.DependencyInjection.Abstractions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\OrcaCore.Engine.Ephemeral.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\OrcaCore.Core.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.ComponentModel.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Hosting.Abstractions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Text.Encodings.Web.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Hosting.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Configuration.Abstractions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.DependencyInjection.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Diagnostics.DiagnosticSource.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Configuration.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Primitives.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.FileProviders.Abstractions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.FileProviders.Physical.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Configuration.FileExtensions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Options.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Logging.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Diagnostics.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Logging.Abstractions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Collections.Concurrent.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Threading.Channels.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.Extensions.Diagnostics.Abstractions.dll\",\"C:\\\\Windows\\\\SYSTEM32\\\\BCrypt.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Private.Uri.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Collections.Immutable.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Security.Cryptography.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.IO.Pipelines.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Memory.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Text.RegularExpressions.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\Microsoft.DiaSymReader.Native.amd64.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Diagnostics.StackTrace.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.Reflection.Metadata.dll\",\"D:\\\\a\\\\_temp\\\\issue-13-work\\\\journey\\\\publish\\\\System.IO.MemoryMappedFiles.dll\"]}\r\n"
+  },
+  "metadata/authoring-seals.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/authoring-seals.stdout.log": {
+    "sha256": "c4ce9ae6795e346d520823f93a60730df4f46da6472287190cbf3b0735536642",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS authoring-seals\n"
+  },
+  "metadata/baked-enum-rejected.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/baked-enum-rejected.stdout.log": {
+    "sha256": "a592ca518265dcc9a73da7976b3537c4bf0c720ec9fee67c031ca15f895d8493",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS baked-enum-rejected\n"
+  },
+  "metadata/closed-typed-dispatch.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/closed-typed-dispatch.stdout.log": {
+    "sha256": "cc28d7c457621ce47d065dc2250e3f84c24727ea9efb44b33645ef40efe6758f",
+    "text": "DISPATCH dynamic=True;jsonReflection=False\nORCA_FEATURES reflection=false;dynamic=true\nPASS closed-typed-dispatch\n"
+  },
+  "metadata/closed-typed-ownership.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/closed-typed-ownership.stdout.log": {
+    "sha256": "a68e2fa1a57664306c0280ad17673822aa74a8528fe1fea504f1f97572b41327",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS closed-typed-ownership\n"
+  },
+  "metadata/codec-negative-boundaries.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/codec-negative-boundaries.stdout.log": {
+    "sha256": "6a4ac80afb007c1f08237c832bc6bcc3f70c3a0e75afc7a8a49d159d173762f4",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS codec-negative-boundaries\n"
+  },
+  "metadata/completed-constructor-context.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/completed-constructor-context.stdout.log": {
+    "sha256": "9cb04565037375a52c61fd6bed724770fee9a3c0d1c468a2e144b4c3804114fd",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS completed-constructor-context\n"
+  },
+  "metadata/configuration-failures.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/configuration-failures.stdout.log": {
+    "sha256": "178556ea0a0e6a72cc04bda6d1d4386a85a59e2d6cd8db038a54ca7f634e45a8",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS configuration-failures\n"
+  },
+  "metadata/explicit-empty-converters.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/explicit-empty-converters.stdout.log": {
+    "sha256": "0aeaa075926010e5ca7183a3adfd7dd9ac50d3d985f758237880903fb4371757",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS explicit-empty-converters\n"
+  },
+  "metadata/f1-member-metadata.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/f1-member-metadata.stdout.log": {
+    "sha256": "2c99776acf2eb3527c02dc42235644cd5ba993b7762f6b20c3764e165bbf6929",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS f1-member-metadata\n"
+  },
+  "metadata/f1-positive-generated.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/f1-positive-generated.stdout.log": {
+    "sha256": "12f2fbe2bfd66647e47917b05734c5b0d62035022b086dbafdeec15a6262d39a",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS f1-positive-generated\n"
+  },
+  "metadata/f1-shape-rejection.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/f1-shape-rejection.stdout.log": {
+    "sha256": "c772017c491bbb0a52aa74ef3ac725a8def9bc7d4fdd63393e779147f077fd63",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS f1-shape-rejection\n"
+  },
+  "metadata/failure-and-size-boundaries.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/failure-and-size-boundaries.stdout.log": {
+    "sha256": "dbdedbeb04a4bbe0ea68bcd418d5f37205687a00b23d9a02143410acdebd4df8",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS failure-and-size-boundaries\n"
+  },
+  "metadata/foreach-array-missing.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/foreach-array-missing.stdout.log": {
+    "sha256": "677a20552f73814013f3576c3c95a3e500f4bd76a7f1cd76036d32d6fa97c000",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS foreach-array-missing\n"
+  },
+  "metadata/golden-generated.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/golden-generated.stdout.log": {
+    "sha256": "9a9f0d6c2ecdee3cdb10707ffc52846ebe58d730c409bd33dfcf81aa5c68a9e5",
+    "text": "GOLDEN 745AFCA1B3AE86F3EFE7AF5543140E621180A534B4FF6B1CDADB2D49C016B9C7/09A7D5965EEF7E12C6A97973CCF33FC0900F28FCD1219C3B62B9BDDC2B4C2A1D|BE7FA3CC9B3690332C3BF3791C933D7F12FDDFB42A9BA5500FA20400485EABD1/64C6285A0E3EDE27519409C03EA8753A5E0CBDFC8DFE6D52F9AA14EA5599A578|AA64A11ECCD98342D1877BA28DCB5F4285BA9ECA204B17B6FE3329C1AEB9DE44/7902699BE42C8A8E46FBBB4501726517E86B22C56A189F7625A6DA49081B2451|B5CFDCB448324481D2A7178F325229AE14A964280411F8CB36B1E5BB04CA0A5B/6B86B273FF34FCE19D6B804EFF5A3F5747ADA4EAA22F1D49C01E52DDB7875B4B|AFC0AF013F1A646A9BF43C5EA59CCA76FC38E0603194BE1109F1D44B347BAF2D/AF1A1FC110B6094C48582B0EF83553CB7908D7A4365424EEF28E76EF6C88D630|D8C568FE4FFADBC4208A6516292C76B45EFB21DFFF06D720C7F8A33FC69EAE62/83744FEAC5ED0990322AF80B4AD963704487ECD0625369B31CFDFDA4F9C1366A|5CF129BF580728A8669C04AEDB5F3F66B22C8D9F4B507F8E8E5AB26AB812911A/D9C834271FABD91510E151BF701A677CD48BEA13C7D41A6CEC208CC47E48888D\nORCA_FEATURES reflection=false;dynamic=true\nPASS golden-generated\n"
+  },
+  "metadata/graph-members-generated.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/graph-members-generated.stdout.log": {
+    "sha256": "105b9010af84934170a0762857f53d129936743a79fbd15812649f4b86f1f8a5",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS graph-members-generated\n"
+  },
+  "metadata/handwritten-rejected.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/handwritten-rejected.stdout.log": {
+    "sha256": "c0ba7695372599c21b9573cba537ac90e7e9f61cd1ba1c1dd36da37df12a3ba3",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS handwritten-rejected\n"
+  },
+  "metadata/idempotence-and-provider-ownership.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/idempotence-and-provider-ownership.stdout.log": {
+    "sha256": "1edc44bdc0bd98852ae4b6405255649ab3046a618b441631cd9713d6e2384307",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS idempotence-and-provider-ownership\n"
+  },
+  "metadata/included-members-default.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/included-members-default.stdout.log": {
+    "sha256": "25da260ae3ed478d4ff54d4b04ca315e301e3c8c00be3c9b1d31ed70b2519765",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS included-members-default\n"
+  },
+  "metadata/included-members-generated.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/included-members-generated.stdout.log": {
+    "sha256": "0c0c993eb8aa446fc6840bf8d8dcd6181720500c911793f1a0f823e69441c7a3",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS included-members-generated\n"
+  },
+  "metadata/missing-metadata-seals.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/missing-metadata-seals.stdout.log": {
+    "sha256": "fcd836c807aaa49a87d2c3b9368c737557ca3fa993ff2e884af58df3b6d11a4c",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS missing-metadata-seals\n"
+  },
+  "metadata/native-first-use-race.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/native-first-use-race.stdout.log": {
+    "sha256": "1192f54f3fb80b977446dfa83c7010856ba88e62cbacf9b3dd6ac25d19f762ab",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS native-first-use-race\n"
+  },
+  "metadata/pending-registration-conflict.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/pending-registration-conflict.stdout.log": {
+    "sha256": "f1175606885a6bb62cc2ddaac0cb397a734c14a118a358f29b4644eab8a42bdf",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS pending-registration-conflict\n"
+  },
+  "metadata/product-contracts.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/product-contracts.stdout.log": {
+    "sha256": "f0477a06c3d5a5fb10d8c6cca1259fde2474f4559fa72e3c89be05b8600558c1",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS product-contracts\n"
+  },
+  "metadata/product-converter-options-rejected.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/product-converter-options-rejected.stdout.log": {
+    "sha256": "21e82e782fcf9a063efaa7c2cf12f7743c5119f580d10bebc8256a83f57d1145",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS product-converter-options-rejected\n"
+  },
+  "metadata/public-factory-no-seal.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/public-factory-no-seal.stdout.log": {
+    "sha256": "cfb0d043de2d0e7d0a2ad73359ca5180d74313eeb4ba3f44bf784d352675a9e9",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS public-factory-no-seal\n"
+  },
+  "metadata/reentrant-registration.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/reentrant-registration.stdout.log": {
+    "sha256": "41314482dc81e20e9898b9198a039a2547073672c3db07b911785affcec6f269",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS reentrant-registration\n"
+  },
+  "metadata/registration-parity.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/registration-parity.stdout.log": {
+    "sha256": "64d7e99505024da7626a0529026d6eaffb720faad7f57774585bab72e7668a3e",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS registration-parity\n"
+  },
+  "metadata/retention-pins-key-expiry.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/retention-pins-key-expiry.stdout.log": {
+    "sha256": "f116624b61619f45e2d48d8dc2b29bcfb8e71a2af3475bda10ba43da41243dab",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS retention-pins-key-expiry\n"
+  },
+  "metadata/same-context-race.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/same-context-race.stdout.log": {
+    "sha256": "b4ce44f3acb092a8479bb8f94fd29e9e6a9d3229b0c8b2f830b26e4957f819d2",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS same-context-race\n"
+  },
+  "metadata/static-bootstrap.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/static-bootstrap.stdout.log": {
+    "sha256": "3f4306ef50a97cf1ac3d964f23dd9a10a23fc493bf88c9cf3cdd866d805a5109",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS static-bootstrap\n"
+  },
+  "metadata/strong-default.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/strong-default.stdout.log": {
+    "sha256": "2d56f38c58532f734b93b7ee2efa3b04d8d13a746214297236bad5056707b8fe",
+    "text": "STRONG 4F76B90B0BF652A21A95CDECC3756AB31814FEB0AD931950B53C8368185DBDCE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E3E85C4DB0CF0DF328317276F5B3F0287E8DB39C512BE2F74D3530F9ABC97BAF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|76B63AA738E0D04AB04BB506CA67FA9FD89B8DD3FCCAB35F65A6D4BF2BD40CE5/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|48C78A9B3F070A21203FA760C17E5D752F525AFB2209D6A68A363069A543A2D2/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E33A1B6538D6B9AA3FBBF0E47D37C83346478316C77018F2F5BAF8F78B5E17B0/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|FD356F0BFB176A0DE2DDDF517CF09A350D686CFDB1DFD68B80058420E0AA645B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|88759F198AF37C878B9B9DD8B14B539D97C3D6499427FABFCD26F47CF25201C3/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DB3A6BE430CD5A1BF36D22EEB41C29AC431C9C81132EAB33D94EB59DDD4A7805/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|AAF84FC5A00F5002BDE25797ED8BB21ECB364C84907A4BAAE3BF8201A46C1806/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|92511F57E6C04CB10FB6EA5898E0E86966B90756C1049F85C9615C9146E7827F/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|9356FBBDA8FE3B2C5C81B4BC3405A85AEAE9BD4D240B449FD171F3E2AAF0D0CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|2A0E9345C8359CBB58CB9C8559AC52FBC6F37302E3D25CD3E6FA63AF94A4A346/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|5ECC11F8D47DC4A5B37317C1AA6A3B73F71628999FBF4DFA1C28FD8702AEB5FB/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F703AAC156A7971068F8FABC0250EF97C1D757A48C76FDED8E7DF8515ECA09CE/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|280865ABA36C6A3E746B72A5FEC91E4245BFD3ABBADF84106F600459D28611EE/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|8683B3D7DD98D56AB30082729E8F306DC3636E3E7327686A9CDA3F071C1DE655/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|6AC44B311AF3BF42B02ED17C8C35ED3EB3787A3CEA6784BF2B4DCEC4BF45B329/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|CBA0AC1B7127460EE2B60355700910BF8524136BC22C55BE3F42DBB80C57126B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|00C328C7DD3FB5DA980F287D7466C5811381B5458A5F542F00E4BA6D039F5278/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|444D0210357F5154342049D6FBD602BABB693B5BEDC96D8B5D18615B328979B5/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|DF6DF72B0E4BE8FE69EA495C5446B2CF36409037F186D6739D2A4F887D1ADD17/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|3C3DF5EEF04D9E79F73560C13ABB31EC4FB11528A8954DA9EAE458617692E6D0/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8E1C46855FF850A75BA20470A4EB1E4DB6FB57F34931364E8A84DB31E03BECA1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|622AFC2F623D857BB0633EA4DCFD1BD657C6952EB41C4F23DD2CC12160A39490/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|9D64B82DCEBBD7C991A7F0B3FB06A7747BD1CCC9644AF063A525199B3F8B16FE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F1C1A9903F437AB4AF2B132E9E6BB5ACCB006A2EC772F7D0CA40CF1E8C2BA1F1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|9061C95ED838283A357EAD48E606D69140054552997690DB236D5A57497D688A/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|68B62CEB1A183C388B35B01A36ABB70B820530DDDCC52077237014E983682D40/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8A3698607F817A708497224374C0FE6712F35DEB5409251F126C59E413C5EA24/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|D0D499B550B1669697A605EB1B6CA3EB6335A13DF16C53E4C67817B9B4E41AE0/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|F3A3488D0FF1FAF3F746DD35AF0912FDEFB6C4E2A3FF7CD0E59A494149719B3E/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DDF1C4D70AAF63DBA5163113C62C05A72B3EC4A8A926620EE0BA055A80EC80CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|F690FDDDB75F436B9849757A640778CCFB3CD071D8C0E5A165E193F7A5380F8F/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E\nORCA_FEATURES reflection=false;dynamic=true\nPASS strong-default\n"
+  },
+  "metadata/strong-metadata.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/strong-metadata.stdout.log": {
+    "sha256": "5677a5f522021665d8b15e3d0f96e8b7179e2d8f37c1f9457d05ee15411b2c45",
+    "text": "STRONG 4F76B90B0BF652A21A95CDECC3756AB31814FEB0AD931950B53C8368185DBDCE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E3E85C4DB0CF0DF328317276F5B3F0287E8DB39C512BE2F74D3530F9ABC97BAF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|76B63AA738E0D04AB04BB506CA67FA9FD89B8DD3FCCAB35F65A6D4BF2BD40CE5/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|48C78A9B3F070A21203FA760C17E5D752F525AFB2209D6A68A363069A543A2D2/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|E33A1B6538D6B9AA3FBBF0E47D37C83346478316C77018F2F5BAF8F78B5E17B0/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|FD356F0BFB176A0DE2DDDF517CF09A350D686CFDB1DFD68B80058420E0AA645B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|88759F198AF37C878B9B9DD8B14B539D97C3D6499427FABFCD26F47CF25201C3/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DB3A6BE430CD5A1BF36D22EEB41C29AC431C9C81132EAB33D94EB59DDD4A7805/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|AAF84FC5A00F5002BDE25797ED8BB21ECB364C84907A4BAAE3BF8201A46C1806/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|92511F57E6C04CB10FB6EA5898E0E86966B90756C1049F85C9615C9146E7827F/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|9356FBBDA8FE3B2C5C81B4BC3405A85AEAE9BD4D240B449FD171F3E2AAF0D0CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|2A0E9345C8359CBB58CB9C8559AC52FBC6F37302E3D25CD3E6FA63AF94A4A346/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|5ECC11F8D47DC4A5B37317C1AA6A3B73F71628999FBF4DFA1C28FD8702AEB5FB/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F703AAC156A7971068F8FABC0250EF97C1D757A48C76FDED8E7DF8515ECA09CE/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|280865ABA36C6A3E746B72A5FEC91E4245BFD3ABBADF84106F600459D28611EE/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|8683B3D7DD98D56AB30082729E8F306DC3636E3E7327686A9CDA3F071C1DE655/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|6AC44B311AF3BF42B02ED17C8C35ED3EB3787A3CEA6784BF2B4DCEC4BF45B329/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|CBA0AC1B7127460EE2B60355700910BF8524136BC22C55BE3F42DBB80C57126B/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|00C328C7DD3FB5DA980F287D7466C5811381B5458A5F542F00E4BA6D039F5278/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|444D0210357F5154342049D6FBD602BABB693B5BEDC96D8B5D18615B328979B5/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|DF6DF72B0E4BE8FE69EA495C5446B2CF36409037F186D6739D2A4F887D1ADD17/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|3C3DF5EEF04D9E79F73560C13ABB31EC4FB11528A8954DA9EAE458617692E6D0/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8E1C46855FF850A75BA20470A4EB1E4DB6FB57F34931364E8A84DB31E03BECA1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|622AFC2F623D857BB0633EA4DCFD1BD657C6952EB41C4F23DD2CC12160A39490/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|9D64B82DCEBBD7C991A7F0B3FB06A7747BD1CCC9644AF063A525199B3F8B16FE/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|F1C1A9903F437AB4AF2B132E9E6BB5ACCB006A2EC772F7D0CA40CF1E8C2BA1F1/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|9061C95ED838283A357EAD48E606D69140054552997690DB236D5A57497D688A/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|68B62CEB1A183C388B35B01A36ABB70B820530DDDCC52077237014E983682D40/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|8A3698607F817A708497224374C0FE6712F35DEB5409251F126C59E413C5EA24/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|D0D499B550B1669697A605EB1B6CA3EB6335A13DF16C53E4C67817B9B4E41AE0/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E|F3A3488D0FF1FAF3F746DD35AF0912FDEFB6C4E2A3FF7CD0E59A494149719B3E/5BD2E1A637A5B740D73A86A170967AE8716FBD449BE43211378E5465EE87032B|DDF1C4D70AAF63DBA5163113C62C05A72B3EC4A8A926620EE0BA055A80EC80CF/230E6501678B6A52AE468430E933EDAADED739530C6B74AFCA3C40E1853ED66B|F690FDDDB75F436B9849757A640778CCFB3CD071D8C0E5A165E193F7A5380F8F/E483EF960AF5C2B51EF38279AC50D5718F14FDDC1B1F4A6C22D1A85E1424A46E\nORCA_FEATURES reflection=false;dynamic=true\nPASS strong-metadata\n"
+  },
+  "metadata/throttle-capacity-boundaries.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/throttle-capacity-boundaries.stdout.log": {
+    "sha256": "94f1ff34db4147e514658c46d428b4780fb9de1a4b0eeac724d1adf23a2e0732",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS throttle-capacity-boundaries\n"
+  },
+  "metadata/transient-pool-grant.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/transient-pool-grant.stdout.log": {
+    "sha256": "e5660104bbbc30f65f4035a6f1caf7366039a1332d50655715b626c2dbe826b7",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS transient-pool-grant\n"
+  },
+  "metadata/typed-wait-and-public-values.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/typed-wait-and-public-values.stdout.log": {
+    "sha256": "a8001a3d94ca7551272b4fc076fc1403fd41dd9bb6addd1b1cb63ade2831cdfd",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS typed-wait-and-public-values\n"
+  },
+  "metadata/unsupported-before-missing.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/unsupported-before-missing.stdout.log": {
+    "sha256": "8fe1eebf35258afa77178d96619b9478b4e9bd0c238377074195d8fe63642a56",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS unsupported-before-missing\n"
+  },
+  "metadata/write-only-default.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/write-only-default.stdout.log": {
+    "sha256": "73d559ea28a5ce8bd48e3dffe6628cd5e73ac94e07a972febce95ce462a7a9d1",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS write-only-default\n"
+  },
+  "metadata/write-only-generated.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "metadata/write-only-generated.stdout.log": {
+    "sha256": "897081cd6a3a3f808f9e5dc53efddb812a2763bca1e6070eb370810b128882ae",
+    "text": "ORCA_FEATURES reflection=false;dynamic=true\nPASS write-only-generated\n"
+  },
+  "missing-engine/native-missing-install.stderr.log": {
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "text": ""
+  },
+  "missing-engine/native-missing-install.stdout.log": {
+    "sha256": "8ea13b68ffa2894b7b3c758a3e9842deae70f8f8a7f0969abc35440dbfe6de1f",
+    "text": "PASS native-missing-install\nORCA_FEATURES reflection=false;dynamic=true\n"
+  }
+}

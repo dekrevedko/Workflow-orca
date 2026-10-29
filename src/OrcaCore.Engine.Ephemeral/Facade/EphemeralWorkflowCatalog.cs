@@ -1,5 +1,3 @@
-using System.Reflection;
-using System.Runtime.ExceptionServices;
 
 namespace OrcaCore.Engine.Ephemeral;
 
@@ -67,18 +65,9 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry
         object runtimeDefinition,
         Type stateType)
     {
-        try
-        {
-            return (IReadOnlyList<TransientPoolName>)PreflightRuntimeMethod
-                .MakeGenericMethod(stateType)
-                .Invoke(engine, [runtimeDefinition])!;
-        }
-        catch (TargetInvocationException exception) when (exception.InnerException is not null)
-        {
-            ExceptionDispatchInfo.Capture(exception.InnerException).Throw();
-            throw;
-        }
+        return EphemeralDefinitionRuntime.Bind(engine, runtimeDefinition).MissingTransientPools();
     }
+
 }
 
 internal interface IEphemeralStagedWorkflowDefinition

@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "stage": "CatalogueApprovedImplementationPendingReview",
+  "approvalAuthority": "DirectUserApproval",
+  "approvalText": "Approved. Recheck drift, apply the throttle metadata amendment and finish task 2.3. Run ReSharper and independently review before advancing. Keep task 2 uncommitted and clean up temp/build artifacts.",
+  "approvedTree": "ceef1c99341a39a70c77f13f530ca6ecc3d244f8",
+  "approvedContentSha256": "56d38b00ab738071ee7820cfadc23103ccfd5cbfb75fbee8a6d54658e810d298",
+  "amendmentPath": "openspec/changes/support-ephemeral-native-aot/artifacts/contract-throttle-metadata-catalogue-amendment-2026-10-26.md",
+  "amendmentSha256": "58e303d38d819c65d6510c381f6a990c6e9c4597437d4d32ba1c461b1df5e408",
+  "reviewPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-3-independent-review-verdict-2026-10-26.md",
+  "reviewSha256": "afde751d786b765e6655593a8af22c291c8b2100bd2d8423b669fcebbf93d021",
+  "previousCatalogueBindingPath": "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-catalogue-approval-binding-2026-10-25.json",
+  "previousCatalogueBindingSha256": "efc13e6b51aa50bdeb41997471177a94a23bcdd6e1fe4bdb85be42af5be92181",
+  "currentDeltaSha256": {
+    "developer-facing-surface": "a448d9b9489c2bf0bb952c3ed04670a6eb44712ff6f5d1526b05329f7ce23d03",
+    "structured-fiber-execution": "12e3a971faab7d5368f4f61234f379ef4d5d0f27500fce84631df38081df8970",
+    "quality-and-verification": "bf2e37f53409b22ea1fa2f178112bd8141b3f8a318341bf9a3d5d79b08b2eab0"
+  },
+  "sourceApprovalEvidencePath": null,
+  "nativeQualificationEvidencePath": null
+}

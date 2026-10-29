@@ -193,3 +193,20 @@ all trimmed/AOT defaults and separately labelled JSON-reflection extras remain
 unsupported. The approved report retains individual diagnostics, runtime failures,
 closure and JIT measurements, with no cross-OS or universal faster/smaller claim.
 Product remediation and Core work-lane consolidation remain separate changes.
+
+## Issue #13 native support contract (implementation pending)
+
+Contract checkpoint 6122025 / verdict-only child 10aec46 are approved. The
+canonical contract is synchronized; product implementation and native support
+qualification are pending. Released 0.1.0-preview.2 retains issue #3's measured
+boundary: ordinary JIT passes the assessed journey; trimming/Native AOT remain
+unsupported for that released profile. This amendment does not change that fact.
+
+The selected path adds one metadata-registration type/method while keeping the
+fixed codec, package/friend graph and ownership. Closed typed adapters will
+replace unsupported runtime dispatch through the full ephemeral journey; JSON
+metadata alone cannot establish AOT compatibility. The F1 declared-shape
+restriction is a Generated-mode .NET 10 acceptance policy, not a new wire format.
+Only native package execution and independent source review can establish support.
+The declaration/API baselines move with source, and all broad engine/RID/support
+claims remain excluded. See NF-034 and the R1 consumer protocol.

@@ -1,3 +1,4 @@
+using OrcaCore.Core.Execution;
 using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
@@ -111,6 +112,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
     /// <summary>
     /// Adds a parameterless business step.
     /// </summary>
+    [System.Diagnostics.CodeAnalysis.RequiresUnreferencedCode("Legacy internal parameterless step construction; public authoring uses DI-bound AddNamedStep.")]
     internal TSelf Then<TStep>()
         where TStep : IStep<TState>
     {
@@ -376,7 +378,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
                 outcomeName,
                 OutcomeSelector: null,
                 typeof(TOutput),
-                outputSelector)));
+                StructuredInvocationCache.Bind(outputSelector))));
         return Self;
     }
 
@@ -597,7 +599,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
             "Parallel",
             typeof(TResult),
             scope.Branches,
-            merge));
+            StructuredInvocationCache.Bind(merge)));
     }
 
     private void AuthorParallel<TResult>(
@@ -622,7 +624,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
             "ParallelOutcomes",
             typeof(TResult),
             scope.Branches,
-            merge));
+            StructuredInvocationCache.Bind(merge)));
     }
 
     private void AuthorForEach<TItem, TItemState, TResult>(
@@ -636,6 +638,7 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
         int? maxConcurrency,
         Func<ReadOnlyParentSnapshot<TState>, IReadOnlyList<ForEachItemOutcome<TResult>>, TState>? merge)
     {
+        ClosedForEachBindings.Bind(partitioner);
         var bodyHandle = lifecycle.CreateLexical($"{NextLocation}/foreach:body");
         var itemBody = new BranchBuilder<TItemState, TResult>(bodyHandle);
         try
@@ -651,15 +654,15 @@ internal abstract class WorkflowAuthoringSession<TState, TSelf>
             typeof(TItem),
             typeof(TItemState),
             typeof(TResult),
-            itemSelector,
+            StructuredInvocationCache.Bind(itemSelector)!,
             partitioner,
-            itemStateProjector,
+            StructuredInvocationCache.Bind(itemStateProjector)!,
             itemBody.Instructions,
             joinPolicy,
             failurePolicy,
             maxItems,
             maxConcurrency,
-            merge));
+            StructuredInvocationCache.Bind(merge)));
     }
 
     private WorkflowPolicySet ConsumePendingPolicies()

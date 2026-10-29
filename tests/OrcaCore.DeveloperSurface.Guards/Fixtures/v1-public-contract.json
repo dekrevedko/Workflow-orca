@@ -3,7 +3,7 @@
   "packageFeed": "artifacts/phase0-packages",
   "audienceTiers": ["Application", "Internal", "Engine", "RuntimeProtocol", "ProviderAuthoring", "DurableHosting", "Dag", "DagHosting", "Companion"],
   "companionFixtures": ["kubernetes-companion"],
-  "companionSha256": "41F6472C2774363D2AB922C608922E787EC241333E1D1C0B76B0C6D529AB8EC3",
+  "companionSha256": "327B054C4C0D4CC8F77347C26AC8342F9F355BA83A45D07567111D66190CE4D6",
   "packages": [
     { "id": "OrcaCore", "tier":"Application", "dependencies": [] },
     { "id": "OrcaCore.Core", "tier":"Internal", "dependencies": ["OrcaCore"] },
@@ -33,7 +33,7 @@
     "SFE-AUTH-DECORATOR-001", "SFE-AUTH-DEADLINE-001",
     "SFE-AUTH-LIFECYCLE-001", "SFE-AUTH-LIFECYCLE-002", "SFE-AUTH-LIFECYCLE-003",
     "SFE-AUTH-LIFECYCLE-004", "SFE-AUTH-LIFECYCLE-005", "SFE-AUTH-LOOP-001",
-    "SFE-AUTH-LEASE-001", "SFE-AUTH-LEASE-003", "SFE-TYPE-001", "SFE-TYPE-002",
+    "SFE-AUTH-LEASE-001", "SFE-AUTH-LEASE-003", "SFE-TYPE-001", "SFE-TYPE-002", "SFE-TYPE-003",
     "SFE-LIMIT-001", "SFE-RUN-001", "SFE-RUN-002"
   ],
   "dagDiagnostics": [
@@ -102,6 +102,7 @@
     {"code":"SFE-AUTH-LEASE-003","name":"LeaseBlocksContinueAsNew","meaning":"rollover is reached before a lexical lease scope exits.","severity":"Error"},
     {"code":"SFE-TYPE-001","name":"IncompatibleStateOrResultType","meaning":"a hand-built graph has incompatible state/result/output contracts.","severity":"Error"},
     {"code":"SFE-TYPE-002","name":"CodecUnsupportedShape","meaning":"a required persisted/detached value shape cannot use `orcacore-json-v1`.","severity":"Error"},
+    {"code":"SFE-TYPE-003","name":"CodecMetadataMissing","meaning":"a required declared/transitive value contract is absent from the registered generated metadata context; add the closure and configure before first use.","severity":"Error"},
     {"code":"SFE-LIMIT-001","name":"InvalidForEachLimit","meaning":"a hand-built fan-out bypasses positive item/concurrency bounds.","severity":"Error"},
     {"code":"SFE-RUN-001","name":"NonQuiescentContinueAsNew","meaning":"runtime defense rejects rollover while a descendant or owned obligation remains.","severity":"Error"},
     {"code":"SFE-RUN-002","name":"LeaseAncestryViolation","meaning":"runtime defense terminally fails before queue/pool mutation and suppresses merges/restart loops.","severity":"Error"},

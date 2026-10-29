@@ -253,3 +253,76 @@ replace the private fixed codec. The consumer preserves the Closed/Stopping/
 Completed and DI ownership rules taught here. Reproduction, exact package and
 host identities, individual findings and measurements are recorded in
 [the assessment harness](../tools/ephemeral-native-assessment/README.md).
+
+## Issue #13 native metadata path (source-qualified; release pending)
+
+User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
+this source's bounded public ephemeral recipe. Native run 40762764617 passed
+self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
+and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
+Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
+version is published by this approval. See [the qualified recipe](ephemeral-native-support.md).
+
+The qualified startup order is: register the existing ephemeral role in
+IServiceCollection; call WorkflowJsonMetadata.Register<AppJsonContext>(); author
+definitions; build the provider; use the existing typed registration/start/wait
+APIs. The role statically installs Core before authoring without constructing
+services or steps. This API is implemented in the approved source and absent from preview.2.
+
+Combine every application value root/collection/derived closure into one normal
+System.Text.Json Metadata/Default context with default settings and no app
+converter. Configuration is process-wide, shared by both codec copies, and
+irreversibly sealed by first workflow use. Register it before any authoring or
+event/value materialization. Same-context repeats do not reconstruct it; late or
+different registration fails. Missing metadata after sealing needs a corrected
+context and process restart. No DI/provider/scope is captured or disposed.
+
+The fixed codec is unchanged. On .NET 10 Generated mode excludes an omittable
+synthetic member initializer: AssociatedParameter.IsMemberInitializer=true plus
+a JsonIgnore condition other than Never. The example init Count=42 with
+WhenWritingDefault is rejected by declared shape for both submitted zero and
+seven; use an ordinary setter, a genuine JSON-constructor-bound member, or remove
+the omission policy. A normal positional ValueState without omission stays
+admitted. Known shape errors use SFE-TYPE-002; missing metadata uses SFE-TYPE-003.
+Direct boundaries use NotSupportedException before event consumption/mutation.
+Baked enum conversion and handwritten contexts are rejected even if their options
+look default; neither can replace the codec. Valid metadata does not change
+retention/pins/key expiry, Closed drain, Stopping/Completed or dependency ownership.
+
+All six native public-package cells, the original sixteen journeys, twelve NS
+groups and thirteen mandatory subcases per cell passed. Every diagnostic is
+individually classified; the whole source/evidence target is user-approved.
+No reflection switch, blanket suppression, private root, other-engine/RID promise
+or performance advantage is part of this recipe. See NF-034 and AC-563–574.
+
+For ordinary Metadata/Default DTOs containing EventName or the other ten product strong-string types, the approved catalogue exposes their existing sealed product converter factory and parameterless constructor. No application converter configuration is needed or allowed: explicit Converters entries, including this factory, reject before publication and permit valid retry. Product attributes, quoted-string bytes, validation and fingerprints stay fixed. NS-02d/NS-06g–h cover this boundary; the native evidence includes these supplemental cases.
+
+Issue #13 task 2.3 adds an approved Interfaces metadata annotation to the existing
+`StepExecutionThrottle.For<TStep>`. Concrete calls retain their syntax and runtime
+behavior. A generic helper forwarding `TStep` propagates the same requirement:
+
+```csharp
+using System.Diagnostics.CodeAnalysis;
+using OrcaCore.Hosting;
+
+static StepExecutionThrottle ThrottleFor<
+    [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.Interfaces)] TStep>(int maxConcurrency) =>
+    StepExecutionThrottle.For<TStep>(maxConcurrency);
+```
+
+The qualified native recipe includes this annotation; it grants no package-wide badge.
+
+### Approved 2026-10-27 public-consumer boundary
+
+NS-10 follows the bounded public recipe approved in the adjacent amendment:
+typed inbound value construction/materialization, typed StepResult.WaitForEvent
+parking and physical cancellation/join, timers/retries, transient-pool grants,
+root Parallel and bounded ForEach. The public ephemeral closure exports neither
+live event ingress/resumption nor outgoing Publish. These receive no native
+credit. Existing internal event regressions remain required, without substituting
+for public-package execution. NS-07/08/11 prove public value rejection and
+retained-instance state; they make no public delivery claim. Every original
+AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required.
+A future ingress/publish capability requires its own reviewed public contract.
+This is an explicit qualification-scope adjustment, not the old full event
+requirement passing. Source/public API and the fixed codec are unchanged.

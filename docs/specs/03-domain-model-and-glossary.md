@@ -377,3 +377,23 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Native metadata vocabulary (issue #13; source-qualified, release pending)
+
+Generated mode means the process uses one application source-generated JSON
+metadata context under the engine-owned orcacore-json-v1 options. It is a type
+contract, not a replacement serializer, provider setting or DI-owned disposable.
+Reflection mode is the unchanged unconfigured JIT path. First workflow
+authoring/type/codec use seals the mode, including a failing lookup. Repeating
+the same registered context is a no-op; a late first registration or different
+context is rejected without mutation. No public reset exists.
+
+On .NET 10, an omittable synthetic member initializer is a generated JSON member
+with AssociatedParameter.IsMemberInitializer=true and an actual JsonIgnore
+condition other than Never. Its requested declared closure is unsupported in
+Generated mode, for present and omitted values alike. SFE-TYPE-002 reports this
+admission policy; SFE-TYPE-003 reports missing generated metadata. Legacy
+Reflection behavior and common-admitted-shape bytes/values remain unchanged.
+Root/nested/member names and a remedy accompany the error. [NF-034, AC-563–574]
+
+The 2026-10-25 catalogue amendment makes the existing sealed product strong-string converter factory accessible to ordinary external generated DTOs. Product type attribution is distinct from prohibited application converter settings; it does not add a codec hook or metadata/DI ownership.

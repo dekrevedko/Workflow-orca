@@ -1,4 +1,3 @@
-using System.Reflection;
 using OrcaCore.Core.Compilation;
 
 namespace OrcaCore.Core.Execution;
@@ -93,27 +92,12 @@ internal static class FailureProvenance
         return Location(string.Join('/', canonical));
     }
 
-    public static FailureOccurrence RootOccurrence() =>
-        (FailureOccurrence)typeof(FailureOccurrence.Root)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters().Length == 0)
-            .Invoke([]);
+    public static FailureOccurrence RootOccurrence() => new FailureOccurrence.Root();
 
     public static FailureOccurrence BranchOccurrence(string branchId) =>
-        (FailureOccurrence)typeof(FailureOccurrence.Branch)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters() is
-                [{ ParameterType: var parameterType }] &&
-                parameterType == typeof(AuthoredBranchId))
-            .Invoke([AuthoredBranchId.Create(branchId)]);
+        new FailureOccurrence.Branch(AuthoredBranchId.Create(branchId));
 
-    public static FailureOccurrence ItemOccurrence(int index) =>
-        (FailureOccurrence)typeof(FailureOccurrence.Item)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters() is
-                [{ ParameterType: var parameterType }] &&
-                parameterType == typeof(int))
-            .Invoke([index]);
+    public static FailureOccurrence ItemOccurrence(int index) => new FailureOccurrence.Item(index);
 
     public static AuthoredLocation Clone(AuthoredLocation location) =>
         Location(location.Value);
@@ -127,13 +111,7 @@ internal static class FailureProvenance
             $"Unknown failure occurrence '{occurrence.GetType().FullName}'.")
     };
 
-    public static AuthoredLocation Location(string value) =>
-        (AuthoredLocation)typeof(AuthoredLocation)
-            .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
-            .Single(constructor => constructor.GetParameters() is
-                [{ ParameterType: var parameterType }] &&
-                parameterType == typeof(string))
-            .Invoke([value]);
+    public static AuthoredLocation Location(string value) => new(value);
 
     private static FailureOccurrence OccurrenceForFiber(
         CompiledWorkflowPlan plan,

@@ -12,7 +12,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
-    private const string CanonicalContentRecordSha256 = "bedb73158fbccb6e7642158e95219af31eacf8e5982e336a4261672d4ff071db";
+    private const string CanonicalContentRecordSha256 = "f61d8b49b25095b31989639fb43a8ac6cae6fedc996ddfe1bbf4ec7233b4fae2";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(
@@ -89,9 +89,19 @@ public sealed class DagStreamIdentitySliceGuards
         const string path = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt";
         var before = Normalize(Git(root, "show", $"{BaseCommit}:{path}"));
         Hash(before).Should().Be("ef13f660beecb09c88c0d22b09abae7b69332158d8fcea4b7da69ad5e0a32678");
-        var after = Normalize(File.ReadAllText(Path.Combine(root, path)));
+        var after = Normalize(Git(root, "show", "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd:" + path));
         Hash(after).Should().Be(ApprovedOrcaCoreApiSha256);
-        Hash(PublicApiBaseline.CaptureCurrent()["OrcaCore"]).Should().Be(ApprovedOrcaCoreApiSha256);
+        var current = Normalize(File.ReadAllText(Path.Combine(root, path)));
+        Hash(current).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
+        Hash(PublicApiBaseline.CaptureCurrent()["OrcaCore"]).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
+        // Normalize only the exact separately approved throttle-parameter annotation.
+        // Both complete current/source hashes above remain pinned; the prior metadata API is exact too.
+        var metadataApi = current.Replace("  method public static For<TStep>([System.Private.CoreLib]System.Int32 maxConcurrency) -> [OrcaCore]OrcaCore.Hosting.StepExecutionThrottle! where [TStep : attributes [[System.Private.CoreLib]System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembersAttribute(8192), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]",
+            "  method public static For<TStep>([System.Private.CoreLib]System.Int32 maxConcurrency) -> [OrcaCore]OrcaCore.Hosting.StepExecutionThrottle! where [TStep : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]", StringComparison.Ordinal);
+        Hash(metadataApi).Should().Be("7de9a01886614526379247fe5cbeba8b3d102366e7037c432c542f2b8600c68a");
+        ApiKeys(after).Except(ApiKeys(metadataApi)).Should().BeEmpty();
+        ApiKeys(metadataApi).Except(ApiKeys(after)).Should().HaveCount(6,
+            "only the approved metadata API plus exact product-factory catalogue extend the DAG-era baseline");
         var oldLines = ApiKeys(before);
         var newLines = ApiKeys(after);
         oldLines.Except(newLines).Should().BeEmpty("existing signatures and nullability metadata must stay exact");
@@ -137,51 +147,37 @@ public sealed class DagStreamIdentitySliceGuards
         Git(root, "diff", "--name-only", baseCommit, "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting",
             "openspec/changes/admit-durable-dag-run-progression/specs",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt")
             .Should().BeEmpty("the proposed fingerprint amendment authorizes no DAG implementation or DAG contract edit");
-        // Issues #1 and #2 canonical transitions are separate from DAG source approval.
-        // Permit only its two exact append-only targets; all pre-existing canonical text stays frozen.
-        string[] ephemeralTargets =
-        [
-            "openspec/specs/developer-facing-surface/spec.md",
-            "openspec/specs/management-and-querying/spec.md"
-        ];
+        // Exact independently approved append-only layers; this grants no DAG source or broad canonical exemption.
+        var layers = new Dictionary<string, string[]>(StringComparer.Ordinal)
+        {
+            ["developer-facing-surface"] = ["add-ephemeral-terminal-retention", "add-ephemeral-host-shutdown", "support-ephemeral-native-aot"],
+            ["management-and-querying"] = ["add-ephemeral-terminal-retention", "add-ephemeral-host-shutdown"],
+            ["quality-and-verification"] = ["assess-ephemeral-native-aot", "support-ephemeral-native-aot"],
+            ["structured-fiber-execution"] = ["support-ephemeral-native-aot"],
+            ["workflow-contracts"] = ["support-ephemeral-native-aot"]
+        };
         Git(root, "diff", "--name-only", baseCommit, "--", "openspec/specs")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(
-                ephemeralTargets.Append("openspec/specs/quality-and-verification/spec.md").Order(StringComparer.Ordinal));
-        foreach (var path in ephemeralTargets)
+                layers.Keys.Select(cap => "openspec/specs/" + cap + "/spec.md").Order(StringComparer.Ordinal));
+        foreach (var (capability, changes) in layers)
         {
-            var prior = Normalize(Git(root, "show", $"{baseCommit}:{path}")).TrimEnd('\n');
-            var deltaPath = Path.Combine(OpenSpecCorpusGuards.ResolveChangeRecord(root,
-                "add-ephemeral-terminal-retention"), "specs", path["openspec/specs/".Length..]);
-            var delta = Normalize(File.ReadAllText(Path.Combine(root, deltaPath)));
-            delta.Should().StartWith("## ADDED Requirements\n\n");
-            var additions = delta["## ADDED Requirements\n\n".Length..].TrimEnd('\n');
-            var shutdownPath = Path.Combine(OpenSpecCorpusGuards.ResolveChangeRecord(root,
-                "add-ephemeral-host-shutdown"), "specs", path["openspec/specs/".Length..]);
-            var shutdown = Normalize(File.ReadAllText(shutdownPath));
-            shutdown.Should().StartWith("## ADDED Requirements\n\n");
-            var shutdownAdditions = shutdown["## ADDED Requirements\n\n".Length..].TrimEnd('\n');
-            Normalize(File.ReadAllText(Path.Combine(root, path))).Should().Be(
-                prior + "\n\n" + additions + "\n\n" + shutdownAdditions + "\n",
-                "only the five issue #1 and six issue #2 append-only additions may extend these targets; " +
-                "shutdown transition guards independently pin corrected blocks and contract approval");
+            var path = "openspec/specs/" + capability + "/spec.md";
+            var expected = Normalize(Git(root, "show", $"{baseCommit}:{path}")).TrimEnd('\n') + "\n";
+            foreach (var change in changes)
+            {
+                var delta = Normalize(File.ReadAllText(Path.Combine(
+                    OpenSpecCorpusGuards.ResolveChangeRecord(root, change), "specs", capability, "spec.md")));
+                delta.Should().StartWith("## ADDED Requirements\n\n");
+                expected += "\n" + delta["## ADDED Requirements\n\n".Length..].TrimEnd('\n') + "\n";
+            }
+            Normalize(File.ReadAllText(Path.Combine(root, path))).Should().Be(expected,
+                "only the exact reviewed layers extend this canonical target; native-support guards pin its Git-approved deltas");
         }
-        // Issue #3 adds exactly four reviewed assessment requirements; no earlier line changes.
-        const string quality = "openspec/specs/quality-and-verification/spec.md";
-        var qualityBefore = Normalize(Git(root, "show", $"{baseCommit}:{quality}")).TrimEnd('\n');
-        var qualityDelta = Normalize(File.ReadAllText(Path.Combine(root,
-            OpenSpecCorpusGuards.ResolveChangeRecord(root, "assess-ephemeral-native-aot"),
-            "specs/quality-and-verification/spec.md")));
-        qualityDelta.Should().StartWith("## ADDED Requirements\n\n");
-        Regex.Matches(qualityDelta, @"(?m)^### Requirement: ").Should().HaveCount(4);
-        Normalize(File.ReadAllText(Path.Combine(root, quality))).Should().Be(
-            qualityBefore + "\n\n" + qualityDelta["## ADDED Requirements\n\n".Length..].TrimEnd('\n') + "\n",
-            "only the exact issue #3 assessment additions, including verdict F1, extend quality verification");
         Git(root, "ls-files", "--others", "--exclude-standard", "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs").Should().BeEmpty();
     }

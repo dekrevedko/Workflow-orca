@@ -135,9 +135,9 @@ GitHub release download feed.
 ## Remaining work
 
 - Durable DAG execution is incomplete; package availability does not complete its implementation gates.
-- Trimming and Native AOT are unsupported for the assessed Windows/Ubuntu profiles,
-  including the labelled JSON-reflection-enabled extra runs. Closing issue #3 records
-  the completed assessment; it does not add native support.
+- Released preview.2 retains issue #3's unsupported trimming/AOT profiles. Issue #13
+  qualifies a new source candidate's bounded ephemeral recipe; its release is pending.
+  See [native support and startup requirements](docs/ephemeral-native-support.md).
 - Retention is opt-in and is not a byte/RSS cap or a minimum result-retention guarantee.
   Shutdown requires the actual dependency owner to retain resources after `Incomplete`.
 
@@ -189,6 +189,20 @@ benchmarks, and solution are the active implementation.
 Issue #3's assessment is independently approved at 7639189 / verdict baae5ad.
 The public-package consumer passes all sixteen JIT scenarios on Windows Server 2025
 and Ubuntu 24.04. Trimmed and Native AOT defaults and JSON-reflection-enabled extras
-are unsupported for this exact tested profile. No Native AOT/trimming support is
-promised. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
+are unsupported for the earlier preview.2 profile. That assessment grants no
+native support to those released packages. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
 for the tested packages, toolchain, raw evidence and reproduction instructions.
+
+## Native AOT and trimming (issue #13; source-qualified, release pending)
+
+User-approved corrected source `d8c55f3`, with review-only child `25fa36c`, passes the selected
+public ephemeral recipe on Windows Server 2025 x64 and Ubuntu 24.04 x64 in JIT,
+full-trim and Native AOT profiles. [Native run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617)
+records all six cells, 384 cases total. Preview.2 remains the existing released version and lacks
+`WorkflowJsonMetadata`; no new version or broad compatibility badge is published.
+
+The [qualified recipe](docs/ephemeral-native-support.md) explains packages,
+source-generated metadata, process-wide startup order, the finite type boundary
+and diagnostics. Keep product converter attributes; do not add the public factory
+to context options. Live event delivery/resumption and outgoing publishing remain
+outside native credit. Durable/DAG/providers and other RIDs need separate proof.

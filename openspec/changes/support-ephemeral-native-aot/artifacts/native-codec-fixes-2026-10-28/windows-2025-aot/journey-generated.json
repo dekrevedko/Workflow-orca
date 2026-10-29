@@ -1,0 +1,193 @@
+{
+  "schemaVersion": 1,
+  "jsonReflectionEnabled": false,
+  "mode": "--all",
+  "runtimeSettings": {
+    "frameworkDescription": ".NET 10.0.14",
+    "runtimeVersion": "10.0.14",
+    "dynamicCodeSupported": false,
+    "serverGc": false,
+    "gcLatencyMode": "Interactive",
+    "tieredCompilationAppContextOverride": null,
+    "tieringObservation": "Only explicit AppContext/config/environment settings are observable here; null means no such override, not a measured JIT tier."
+  },
+  "cases": [
+    {
+      "id": "AOT-01",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-02",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-03",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Observe",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-04",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "WaitCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-05",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "WorkflowCancellation",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-06",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "ClosedDrain",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-07",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Incomplete",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-08",
+      "outcome": "Passed",
+      "assertions": 7,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-09",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "Parallel",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-10",
+      "outcome": "Passed",
+      "assertions": 16,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release",
+        "host bound 2, node bound 3: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-11",
+      "outcome": "Passed",
+      "assertions": 9,
+      "phase": "ForEach",
+      "observations": [
+        "host bound 3, node bound 2: only items 0 and 1 admitted before clock release"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-12",
+      "outcome": "Passed",
+      "assertions": 5,
+      "phase": "UnsupportedDeclaredConverter",
+      "observations": [
+        "OrcaCore.WorkflowDefinitionException: SFE-TYPE-002: No serializer schema is registered for 'Customized'. (workflow:$)\r\n   at OrcaCore.Core.Authoring.<PublicWorkflowDefinitions>FA61E7697152655F18A4E5321D6EB9830E6D6954E9A824BF45DB6B5F4F7413EF7__CompletionProjection.BuildOrThrow[T](Validation`1) + 0x55\r\n   at OrcaCore.EphemeralWorkflowCompletionBuilder`1.Build() + 0x3c\r\n   at Cases.<>c__DisplayClass15_0.<UnsupportedConverter>b__1() + 0xd5\r\n   at Probe.<Error>d__5.MoveNext() + 0x60"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-13",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "InputBoundary",
+      "observations": [
+        "System.Text.Json.JsonException: Cyclic payload graph is not supported by orcacore-json-v1.\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object, Type, HashSet`1, Boolean) + 0x5d6\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.ValidateGraph(Object, Type, HashSet`1, Boolean) + 0x2aa\r\n   at OrcaCore.Core.Internal.FixedWorkflowValueCodec.Serialize(Object, Type) + 0x4c\r\n   at OrcaCore.Engine.Ephemeral.FacadeValueFactory.PayloadFingerprint[T](T) + 0x34\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.<StartCoreAsync>d__24`1.MoveNext() + 0x168\r\n--- End of stack trace from previous location ---\r\n   at OrcaCore.Engine.Ephemeral.EphemeralWorkflowDefinitionRegistry.<StartAsync>d__23`2.MoveNext() + 0x1da\r\n--- End of stack trace from previous location ---\r\n   at Cases.<>c__DisplayClass16_0.<<CyclicInput>b__2>d.MoveNext() + 0x9e\r\n--- End of stack trace from previous location ---\r\n   at Probe.<Error>d__5.MoveNext() + 0x4e"
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-14",
+      "outcome": "Passed",
+      "assertions": 8,
+      "phase": "Start",
+      "observations": [
+        "Encoded ForEach item snapshot is 307204 bytes, exceeding the fixed orcacore-json-v1 value limit of 262144 bytes."
+      ],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-15",
+      "outcome": "Passed",
+      "assertions": 6,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    },
+    {
+      "id": "AOT-16",
+      "outcome": "Passed",
+      "assertions": 11,
+      "phase": "Start",
+      "observations": [],
+      "exceptions": []
+    }
+  ],
+  "quiescentCounters": {
+    "phase": "after individual case cleanup; informational counters, no retained bootstrap owner",
+    "cumulativeUserPlusKernelCpuMs": 62.5,
+    "peakWorkingSetBytes": 35880960,
+    "workingSetBytes": 35880960,
+    "windowsPrivateCommitBytes": 24547328,
+    "estimatedManagedBytesNoForcedGc": 7681224,
+    "lastCollectionHeapBytes": 4538328,
+    "collectionCounts": [
+      1,
+      1,
+      1
+    ]
+  },
+  "loadedModulePaths": [
+    "D:\\a\\_temp\\issue-13-work\\journey\\publish\\NativeConsumer.exe",
+    "C:\\Windows\\SYSTEM32\\ntdll.dll",
+    "C:\\Windows\\System32\\KERNEL32.DLL",
+    "C:\\Windows\\System32\\KERNELBASE.dll",
+    "C:\\Windows\\SYSTEM32\\apphelp.dll",
+    "C:\\Windows\\System32\\ADVAPI32.dll",
+    "C:\\Windows\\System32\\msvcrt.dll",
+    "C:\\Windows\\System32\\sechost.dll",
+    "C:\\Windows\\System32\\RPCRT4.dll",
+    "C:\\Windows\\System32\\ole32.dll",
+    "C:\\Windows\\System32\\msvcp_win.dll",
+    "C:\\Windows\\SYSTEM32\\bcrypt.dll",
+    "C:\\Windows\\System32\\ucrtbase.dll",
+    "C:\\Windows\\System32\\GDI32.dll",
+    "C:\\Windows\\System32\\win32u.dll",
+    "C:\\Windows\\System32\\gdi32full.dll",
+    "C:\\Windows\\System32\\USER32.dll",
+    "C:\\Windows\\System32\\combase.dll",
+    "C:\\Windows\\System32\\IMM32.DLL",
+    "C:\\Windows\\SYSTEM32\\kernel.appcore.dll",
+    "C:\\Windows\\System32\\bcryptPrimitives.dll",
+    "C:\\Windows\\SYSTEM32\\icu.dll"
+  ]
+}

@@ -1,0 +1,4 @@
+  Determining projects to restore...
+  Restored /home/runner/work/_temp/issue-13-work/metadata/app/NativeConsumer.csproj (in 350 ms).
+  NativeConsumer -> /home/runner/work/_temp/issue-13-work/metadata/app/bin/Release/net10.0/linux-x64/NativeConsumer.dll
+  NativeConsumer -> /home/runner/work/_temp/issue-13-work/metadata/publish/

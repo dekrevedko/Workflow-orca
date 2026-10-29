@@ -208,11 +208,8 @@ internal static class ScopeMergeAdapter
             var parentSnapshot = StructuredInvocationCache.CreateParentSnapshot(
                 scopePlan.Merge.ParentStateType,
                 parentCopy);
-            var outcomeType = typeof(global::OrcaCore.Core.Building.ForEachItemOutcome<>)
-                .MakeGenericType(scopePlan.ResultType);
-            var outcomeListType = typeof(List<>).MakeGenericType(outcomeType);
-            var typedOutcomes = (IList)(Activator.CreateInstance(outcomeListType) ??
-                throw new InvalidOperationException("Could not create the typed ForEach outcome list."));
+            var bindings = ClosedResultBindings.For(scopePlan.ResultType);
+            var typedOutcomes = bindings.Items();
             var resultSchema = scopePlan.Branches.Single().Result.ResultSchemaIdentity;
             foreach (var outcome in outcomes.OrderBy(outcome => outcome.Index))
             {
@@ -227,14 +224,7 @@ internal static class ScopeMergeAdapter
                                 $"ForEach item '{outcome.Index}' has no committed result payload.")));
                 }
 
-                typedOutcomes.Add(Activator.CreateInstance(
-                    outcomeType,
-                     outcome.Index,
-                     outcome.Status,
-                     result,
-                     outcome.Failure) ??
-                    throw new InvalidOperationException(
-                        $"Could not create outcome for ForEach item '{outcome.Index}'."));
+                typedOutcomes.Add(bindings.Item(outcome.Index, outcome.Status, result, outcome.Failure));
             }
 
             var replacement = StructuredInvocationCache.Invoke(
@@ -278,11 +268,8 @@ internal static class ScopeMergeAdapter
         IReadOnlyList<MaterializedBranchResult> committedResults)
     {
         var byBranch = committedResults.ToDictionary(result => result.BranchPlanId);
-        var resultRecordType = typeof(global::OrcaCore.Core.Building.BranchResult<>)
-            .MakeGenericType(scopePlan.ResultType);
-        var listType = typeof(List<>).MakeGenericType(resultRecordType);
-        var list = (IList)(Activator.CreateInstance(listType) ??
-            throw new InvalidOperationException("Could not create the typed branch-result list."));
+        var bindings = ClosedResultBindings.For(scopePlan.ResultType);
+        var list = bindings.Results();
         foreach (var branch in scopePlan.Branches.OrderBy(branch => branch.Ordinal))
         {
             if (!byBranch.TryGetValue(branch.Id, out var materialized))
@@ -307,13 +294,7 @@ internal static class ScopeMergeAdapter
             }
 
             var value = Deserialize(materialized.Result);
-            var resultRecord = Activator.CreateInstance(
-                resultRecordType,
-                branch.BranchId,
-                branch.Ordinal,
-                value) ?? throw new InvalidOperationException(
-                    $"Could not create the typed result for branch plan '{branch.Id}'.");
-            list.Add(resultRecord);
+            list.Add(bindings.Result(branch.BranchId, branch.Ordinal, value));
         }
 
         if (list.Count != committedResults.Count)
@@ -329,20 +310,8 @@ internal static class ScopeMergeAdapter
         IReadOnlyList<MaterializedBranchOutcome> committedOutcomes)
     {
         var byBranch = committedOutcomes.ToDictionary(outcome => outcome.BranchPlanId);
-        var outcomeType = typeof(global::OrcaCore.BranchOutcome<>).MakeGenericType(scopePlan.ResultType);
-        var listType = typeof(List<>).MakeGenericType(outcomeType);
-        var list = (IList)(Activator.CreateInstance(listType) ??
-            throw new InvalidOperationException("Could not create the typed branch-outcome list."));
-        var succeeded = typeof(global::OrcaCore.Core.Authoring.AuthoringContracts)
-            .GetMethod(
-                nameof(global::OrcaCore.Core.Authoring.AuthoringContracts.BranchSucceeded),
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
-            .MakeGenericMethod(scopePlan.ResultType);
-        var failed = typeof(global::OrcaCore.Core.Authoring.AuthoringContracts)
-            .GetMethod(
-                nameof(global::OrcaCore.Core.Authoring.AuthoringContracts.BranchFailed),
-                BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static)!
-            .MakeGenericMethod(scopePlan.ResultType);
+        var bindings = ClosedResultBindings.For(scopePlan.ResultType);
+        var list = bindings.Outcomes();
 
         foreach (var branch in scopePlan.Branches.OrderBy(branch => branch.Ordinal))
         {
@@ -361,9 +330,7 @@ internal static class ScopeMergeAdapter
                         $"Failed branch plan '{branch.Id}' also supplied a result.");
                 }
 
-                publicOutcome = failed.Invoke(
-                    null,
-                    [global::OrcaCore.AuthoredBranchId.Create(branch.BranchId), failure])!;
+                publicOutcome = bindings.Failed(branch.BranchId, failure);
             }
             else
             {
@@ -380,12 +347,7 @@ internal static class ScopeMergeAdapter
                         $"Committed outcome for branch plan '{branch.Id}' does not match its compiled contract.");
                 }
 
-                publicOutcome = succeeded.Invoke(
-                    null,
-                    [
-                        global::OrcaCore.AuthoredBranchId.Create(branch.BranchId),
-                        Deserialize(result)
-                    ])!;
+                publicOutcome = bindings.Succeeded(branch.BranchId, Deserialize(result));
             }
 
             list.Add(publicOutcome);
