@@ -1,65 +1,49 @@
-OrcaCore `0.1.0-preview.2` for .NET 10. This prerelease includes the independently
-reviewed ephemeral retention and shutdown changes, and the native publishing
-assessment from issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
-[#2](https://github.com/dekrevedko/Workflow-orca/issues/2), and
-[#3](https://github.com/dekrevedko/Workflow-orca/issues/3).
-APIs, provider schemas, and persistence formats may change.
+OrcaCore `0.1.0-preview.3` for .NET 10. This prerelease adds bounded Native AOT
+and trimming support for the ephemeral engine from
+[issue #13](https://github.com/dekrevedko/Workflow-orca/issues/13) and
+[PR #14](https://github.com/dekrevedko/Workflow-orca/pull/14).
+APIs, provider schemas and persistence formats may change.
 
-## Ephemeral terminal retention
+## Ephemeral Native AOT and trimming
 
-- Hosts can opt in through
-  `EphemeralEngineHostOptions.TerminalRetention = EphemeralTerminalRetentionPolicy.Create(...)`.
-  The default remains `null`, retaining the existing host-lifetime behavior.
-- Count and age limits apply only after terminal instances have physically settled.
-  Retirement waits for work and callbacks to settle and for query/output-wait pins to release.
-  Retirement removes the instance and its start binding together.
-- A result can retire between a start returning and the caller beginning observation.
-  Maximum age is not a minimum retention guarantee. After retirement, observation
-  returns the normal not-found result; reusing an expired start key can execute the job again.
+- The selected public-package closure is `OrcaCore`, `OrcaCore.Core` and
+  `OrcaCore.Engine.Ephemeral`. The qualified profiles are self-contained JIT,
+  fully trimmed JIT and Native AOT on Windows Server 2025 / win-x64 and
+  Ubuntu 24.04 / linux-x64. This does not qualify other engines, platforms,
+  runtime identifiers or every API in the twelve-package distribution.
+- Register application source-generated JSON contexts using
+  `WorkflowJsonMetadata.Register<TContext>()` before authoring/registering a
+  definition or starting engine work. Use Metadata or Default generation,
+  the fixed-codec contract's supported declared shapes and strong-value converter
+  catalogue. Install the ephemeral engine before definition registration in
+  trimmed/AOT applications. The registry is process-wide and seals at first use.
+- Trimmed and AOT consumers use disabled JSON reflection without enabling a
+  runtime switch, blanket warning suppression, private rooting or serializer hooks.
+  Typed dispatch replaces selected reflective/dynamic paths. Missing metadata
+  reports `SFE-TYPE-003`; unsupported declared shapes report `SFE-TYPE-002`.
+- Write-only admission and included-member validation match the fixed codec,
+  preserving exact serialized bytes, fingerprints and getter counts. The explicit
+  .NET 10 generated omittable-member initializer restriction still applies.
+- [Native source qualification run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617)
+  passed 384 cases across six native cells with one exact candidate feed. This is
+  source evidence, not proof that a later release package passed publication.
+  Normal publication now also gates the exact release CI package feed on those
+  six cells before uploading release assets or publishing either registry.
+- Live event delivery/resumption and outgoing publishing receive no native credit.
+  The [support guide](https://github.com/dekrevedko/Workflow-orca/blob/master/docs/ephemeral-native-support.md)
+  documents startup order, metadata restrictions, qualification evidence and limits.
+  Preview.2 retains its historical unsupported trimmed/AOT result.
 
-## Cooperative ephemeral shutdown
+## Packages and installation
 
-- `IEphemeralWorkflowHostLifetime.StopAsync(timeout, cancellationToken)` reports
-  `Completed` or `Incomplete` with a reason and pending-work count. Cancellation of
-  the caller's observation does not cancel the shared shutdown operation.
-- Generic Host's `ApplicationStopping` closes admission without cancelling accepted
-  workflows. Initialized pending starts can finish and become accepted during this
-  drain phase. Existing queries, waits, commands, events, timers and retries keep working.
-- The engine's hosted stop or a direct `StopAsync` begins cancellation and joins the
-  remaining physical work. Only `Completed` permits the actual owner to dispose
-  dependencies safely; `Incomplete` is not proof that work has stopped.
-- Hosted stop throws `EphemeralHostShutdownIncompleteException` for an incomplete
-  shutdown, potentially within an aggregate exception. Applications using `Run` or
-  `RunAsync` may now observe a shutdown exception where the old no-op stop returned
-  cleanly. Those helpers still dispose in `finally`: an application that must retain
-  dependencies after an incomplete stop needs an explicitly owned host or provider.
-- The [engine guide](https://github.com/dekrevedko/Workflow-orca/blob/master/docs/ephemeral-engine-developer-guide.md)
-  documents ordered Generic Host drain, an explicitly owned host, and plain-DI
-  submission-gate recipes. Inspect existing stuck-step diagnostics before stopping;
-  the incomplete result reports a count rather than individual stuck instances.
+The release assets contain all twelve `.nupkg` files and `SHA256SUMS`. After
+publication succeeds, install `OrcaCore.Engine.Ephemeral` at `0.1.0-preview.3`
+from NuGet.org or the authenticated GitHub Packages NuGet feed. Use the same
+version throughout the selected closure. GitHub release downloads can also form
+a directory feed; a release URL itself is not a NuGet feed. See
+[installation instructions](https://github.com/dekrevedko/Workflow-orca/blob/master/docs/packages.md).
 
-## Native publishing assessment
-
-- The independently reviewed public-package consumer passed all 16 JIT scenarios on
-  native Windows Server 2025 and Ubuntu 24.04. This is compatibility evidence for the
-  exact tested profile, not a library-wide deployment support promise.
-- Trimmed and Native AOT profiles are **unsupported**, including the separately
-  labelled runs with JSON reflection explicitly enabled. Default builds fail at the
-  first registration with a schema error that hides disabled JSON reflection.
-  Reflection-enabled runs expose further constructor/property metadata failures.
-- Unsupported profiles have unavailable performance/memory measurements, not zeroes.
-  No codec replacement, blanket warning suppression or AOT product remediation is included.
-  The [assessment](https://github.com/dekrevedko/Workflow-orca/tree/master/tools/ephemeral-native-assessment)
-  contains the reproducible harness and links to the native evidence.
-
-## Install and remaining limitations
-
-The assets contain all twelve `.nupkg` packages and `SHA256SUMS`. Install the desired
-engine role at version `0.1.0-preview.2` from NuGet.org after its publication check
-succeeds, or download the complete asset set into a directory feed. Reference
-`OrcaCore.Engine.Ephemeral`, or `OrcaCore.Durable.Hosting` together with the chosen
-provider. The GitHub release URL itself is not a NuGet feed. See the
-[installation guide](https://github.com/dekrevedko/Workflow-orca/blob/master/docs/packages.md).
-
-Durable DAG execution remains incomplete. Closing the three issues and publishing
-these packages does not complete its implementation gates or qualify a stable release.
+The same verified package files go to NuGet.org and GitHub Packages. Fresh-cache
+registry consumers verify restore origin, source metadata and execution after
+publication. Retention and cooperative shutdown from preview.2 are retained.
+Durable DAG execution remains incomplete; this is not a stable release.

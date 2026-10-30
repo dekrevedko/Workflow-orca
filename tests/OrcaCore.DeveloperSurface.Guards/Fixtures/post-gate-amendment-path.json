@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 23,
+  "schemaVersion": 24,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -795,7 +795,7 @@
     "verdictSha256": "d2ea311bdd255dcdf4171b237646eb8a845a9e019173e8407888db01ffe589ae"
   },
   "nativeSupportContractEvidence": {
-    "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
+    "stage": "CanonicalSourceAndNativeApprovedMergedReleasePending",
     "checkpointCommit": "6122025828c7e8e3525ad8f2e24048024cbbb2d5",
     "checkpointParent": "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
     "checkpointTree": "2b981a667a0c08aca7215118e73f0e40b91db8ac",
@@ -855,6 +855,11 @@
         "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/publication-codec-approval-binding-2026-10-28.json",
         "artifactSha256": "bdc5db130b8e4d6f4c45cc5a63f9c3fe07fac56aed0040d78c1ee089359f1963"
       }
+    },
+    "postMergeCompletion": {
+      "artifactPath": "openspec/changes/support-ephemeral-native-aot/artifacts/post-merge-completion-2026-10-28.json",
+      "artifactSha256": "b9d4b0953f8b88c458e89fc22d486b4c476794ffa0e12213ccf9d74d18bba93a",
+      "stage": "MergedIssueClosedReleasePending"
     }
   },
   "nativeSupportPendingAmendments": [
@@ -862,7 +867,7 @@
       "id": "ephemeral-native-support-developer-facing-surface",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "developer-facing-surface",
-      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
+      "stage": "CanonicalSourceAndNativeApprovedMergedReleasePending",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -899,7 +904,7 @@
       "id": "ephemeral-native-support-quality-and-verification",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "quality-and-verification",
-      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
+      "stage": "CanonicalSourceAndNativeApprovedMergedReleasePending",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -936,7 +941,7 @@
       "id": "ephemeral-native-support-structured-fiber-execution",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "structured-fiber-execution",
-      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
+      "stage": "CanonicalSourceAndNativeApprovedMergedReleasePending",
       "declaredRequirementCount": 1,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [
@@ -972,7 +977,7 @@
       "id": "ephemeral-native-support-workflow-contracts",
       "owningChange": "support-ephemeral-native-aot",
       "capability": "workflow-contracts",
-      "stage": "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending",
+      "stage": "CanonicalSourceAndNativeApprovedMergedReleasePending",
       "declaredRequirementCount": 2,
       "pendingCanonicalOperationCount": 0,
       "requirementIdentities": [

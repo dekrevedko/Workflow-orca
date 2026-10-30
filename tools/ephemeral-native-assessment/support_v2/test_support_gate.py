@@ -1,8 +1,46 @@
 import copy
 import unittest
+import tempfile
+from pathlib import Path
+import xml.etree.ElementTree as ET
+from run_support import materialize
 from support_gate import validate_cell, validate_matrix, sample_record
 
 class SupportGateTests(unittest.TestCase):
+    def test_release_package_version_is_bound_to_every_file(self):
+        record = sample_record("ubuntu-24.04", "aot")
+        record["packageVersion"] = "0.1.0-preview.3"
+        record["packageHashes"] = {f"Package{number}.0.1.0-preview.3.nupkg": "fixture" for number in range(12)}
+        validate_cell(record)
+        wrong = copy.deepcopy(record)
+        wrong["packageVersion"] = "0.1.0-preview.2"
+        with self.assertRaises(ValueError): validate_cell(wrong)
+        wrong["packageVersion"] = "../invalid"
+        with self.assertRaises(ValueError): validate_cell(wrong)
+
+    def test_release_matrix_requires_explicit_version_in_every_cell(self):
+        records = [sample_record(os, flavor) for os in ("windows-2025", "ubuntu-24.04") for flavor in ("jit", "trimmed", "aot")]
+        with self.assertRaises(ValueError): validate_matrix(records, expected_package_version="0.1.0-preview.3")
+        for record in records:
+            record["packageVersion"] = "0.1.0-preview.3"
+            record["packageHashes"] = {f"Package{number}.0.1.0-preview.3.nupkg": "fixture" for number in range(12)}
+        validate_matrix(records, expected_package_version="0.1.0-preview.3")
+        with self.assertRaises(ValueError): validate_matrix(records, expected_package_version="0.1.0-preview.2")
+        del records[-1]["packageVersion"]
+        with self.assertRaises(ValueError): validate_matrix(records, expected_package_version="0.1.0-preview.3")
+
+    def test_release_consumers_reference_only_the_requested_candidate_version(self):
+        repository = Path(__file__).resolve().parents[3]
+        with tempfile.TemporaryDirectory(prefix="orcacore-release-version-") as folder:
+            for kind in ("journey", "metadata"):
+                app = Path(folder) / kind
+                materialize(repository, app, kind, "0.1.0-preview.3")
+                references = [row for row in ET.parse(app / "NativeConsumer.csproj").findall(".//PackageReference")
+                              if row.attrib["Include"].startswith("OrcaCore")]
+                self.assertEqual({row.attrib["Include"] for row in references},
+                                 {"OrcaCore", "OrcaCore.Engine.Ephemeral"})
+                self.assertEqual({row.attrib["Version"] for row in references}, {"0.1.0-preview.3"})
+
     def test_complete_native_matrix(self):
         validate_matrix([sample_record(os, flavor) for os in ("windows-2025", "ubuntu-24.04") for flavor in ("jit", "trimmed", "aot")])
 

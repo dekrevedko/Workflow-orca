@@ -44,7 +44,7 @@ def runtime_features(stdout):
     return {key: value == "true" for key, value in (part.split("=", 1) for part in lines[0][len("ORCA_FEATURES "):].split(";"))}
 
 
-def materialize(repo, app, kind):
+def materialize(repo, app, kind, package_version="0.0.0-phase0"):
     app.mkdir(parents=True)
     if kind == "journey":
         for path in (repo / "tools/ephemeral-native-assessment/consumer").glob("*"):
@@ -90,9 +90,15 @@ if (args.Single() != "native-missing-install" &&
         clock = clock[clock.index("public sealed class ManualClock"):].replace("ManualClock", "SupportClock")
         (app / "SupportClock.cs").write_text(clock, encoding="utf-8", newline="\n")
         shutil.copyfile(repo / "tools/ephemeral-native-assessment/consumer/NativeConsumer.csproj", app / "NativeConsumer.csproj")
+    project = app / "NativeConsumer.csproj"
+    original = project.read_text(encoding="utf-8")
+    updated = original.replace('Version="0.0.0-phase0"', 'Version="' + package_version + '"')
+    if updated != original:
+        project.write_text(updated, encoding="utf-8", newline="\n")
 
 
 def run(args):
+    version = args.package_version
     repo, feed, work, output = [p.resolve() for p in (args.repository, args.feed, args.work, args.output)]
     if work.exists() or output.is_relative_to(work) or repo.is_relative_to(work) or work == repo:
         raise ValueError("Use a fresh owned work directory outside source/evidence")
@@ -111,7 +117,7 @@ def run(args):
     source, harness = identities(repo)
     properties = dict(PublishAot=args.flavor == "aot", PublishTrimmed=args.flavor != "jit", TrimMode="full", TrimmerSingleWarn=False,
                       TreatWarningsAsErrors=False, ILLinkTreatWarningsAsErrors=False)
-    report = dict(protocol=3, sourceSha=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+    report = dict(protocol=3, packageVersion=version, sourceSha=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
                   sourceTree=subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True).strip(),
                   sourceDirty=bool(subprocess.check_output(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd=repo)),
                   consumerBuildPropsIsolated=True,
@@ -121,7 +127,7 @@ def run(args):
                   claim="Candidate execution evidence only; pending independent review and whole-target approval")
     archived = {}
     for package in sorted(SELECTED):
-        with zipfile.ZipFile(feed / (package + ".0.0.0-phase0.nupkg")) as archive:
+        with zipfile.ZipFile(feed / (package + "." + version + ".nupkg")) as archive:
             for name in archive.namelist():
                 if name.startswith("lib/net10.0/") and name.endswith(".dll"):
                     archived[Path(name).name] = digest(archive.read(name))
@@ -139,7 +145,7 @@ def run(args):
         published = work / kind / "publish"
         receipt = output / kind
         receipt.mkdir()
-        materialize(repo, app, kind)
+        materialize(repo, app, kind, version)
         config = '<configuration><packageSources><clear/><add key="candidate" value="' + xml.sax.saxutils.escape(str(feed), {'"': '&quot;'}) + '"/><add key="nuget.org" value="https://api.nuget.org/v3/index.json"/></packageSources><packageSourceMapping><packageSource key="candidate"><package pattern="OrcaCore*"/></packageSource><packageSource key="nuget.org"><package pattern="*"/></packageSource></packageSourceMapping></configuration>\n'
         (app / "NuGet.Config").write_text(config, encoding="utf-8", newline="\n")
         save(receipt / "materialized-inputs.json", {p.name: digest(p.read_bytes()) for p in sorted(app.iterdir()) if p.is_file()})
@@ -164,7 +170,7 @@ def run(args):
             if selected != SELECTED:
                 raise ValueError("Unexpected selected package closure")
             report["selectedPackages"] = sorted(selected)
-            cached = {str(p.relative_to(cache)): digest(p.read_bytes()) for p in cache.glob("orcacore*/0.0.0-phase0/lib/net10.0/*.dll")}
+            cached = {str(p.relative_to(cache)): digest(p.read_bytes()) for p in cache.glob("orcacore*/" + version.lower() + "/lib/net10.0/*.dll")}
             save(receipt / "cached-product-dlls.json", cached)
             if {Path(name).name: value for name, value in cached.items()} != archived:
                 raise ValueError("Restored product DLLs differ from the exact candidate archives")
@@ -221,7 +227,7 @@ def run(args):
     receipt = output / "missing-engine"
     receipt.mkdir()
     project = '''<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net10.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable><ManagePackageVersionsCentrally>false</ManagePackageVersionsCentrally></PropertyGroup><ItemGroup><PackageReference Include="OrcaCore" Version="0.0.0-phase0" /></ItemGroup></Project>'''
-    (app / "NativeConsumer.csproj").write_text(project, encoding="utf-8", newline="\n")
+    (app / "NativeConsumer.csproj").write_text(project.replace('Version="0.0.0-phase0"', 'Version="' + version + '"'), encoding="utf-8", newline="\n")
     (app / "NuGet.Config").write_text(config, encoding="utf-8", newline="\n")
     program = '''using OrcaCore;
 using System.Text.Json;
@@ -281,6 +287,8 @@ if __name__ == "__main__":
     for name in ("repository", "feed", "work", "output"):
         parser.add_argument("--" + name, required=True, type=Path)
     parser.add_argument("--flavor", choices=("jit", "trimmed", "aot"), required=True)
+    from support_gate import package_version
+    parser.add_argument("--package-version", type=package_version, default="0.0.0-phase0")
     parser.add_argument("--preflight", action="store_true", help="Local development only; cannot satisfy native host gate")
     arguments = parser.parse_args()
     # Disposable work is removed by the workflow's explicit owned-path cleanup after

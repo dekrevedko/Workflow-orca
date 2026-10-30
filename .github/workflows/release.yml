@@ -62,8 +62,16 @@ jobs:
     with:
       package-version: ${{ needs.validate.outputs.version }}
 
-  publish:
+  native:
     needs: [validate, ci]
+    if: ${{ !inputs.nuget-only && !inputs.github-packages-only }}
+    uses: ./.github/workflows/ephemeral-native-support.yml
+    with:
+      package-version: ${{ needs.validate.outputs.version }}
+      existing-feed-artifact: orcacore-packages
+
+  publish:
+    needs: [validate, ci, native]
     runs-on: ubuntu-latest
     permissions:
       contents: write

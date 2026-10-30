@@ -23,7 +23,7 @@ public sealed class NativeSupportTransitionGuards
     private const string Binding = Prefix + "artifacts/task-2-1-contract-binding-2026-10-24.md";
     private const string BindingSha = "0b7b6fda7ad1c52e0420261bd48b7c3f0b9e6719a7179132829c11fb2873b4d6";
     private const string ApprovedStage = "CanonicalSourceAndNativeApprovedPublicationReviewPending";
-    private const string Stage = "CanonicalSourceAndNativeCorrectionsApprovedPublicationPending";
+    private const string Stage = "CanonicalSourceAndNativeApprovedMergedReleasePending";
     private const string CorrectionApproval = Prefix + "artifacts/publication-codec-approval-binding-2026-10-28.json";
     private const string SourceApproval = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-6-user-approval-verdict-2026-10-27.md";
     private const string CatalogueBinding = "openspec/changes/support-ephemeral-native-aot/artifacts/task-2-2-catalogue-approval-binding-2026-10-25.json";
@@ -90,7 +90,7 @@ public sealed class NativeSupportTransitionGuards
     {
         using var document = Load();
         var root = document.RootElement;
-        root.GetProperty("schemaVersion").GetInt32().Should().Be(23);
+        root.GetProperty("schemaVersion").GetInt32().Should().Be(24);
         var old = JsonNode.Parse(Git("show", VerdictCommit + ":" + Registry));
         var current = JsonNode.Parse(root.GetRawText())!.AsObject();
         current.Remove("nativeSupportContractEvidence");
@@ -132,7 +132,8 @@ public sealed class NativeSupportTransitionGuards
             tasks.Should().Contain("- [x] " + task + " ");
         tasks.Should().Contain("- [x] 2.6 ");
         foreach (var task in new[] { "3.1", "3.2" })
-            tasks.Should().Contain("- [ ] " + task + " ");
+            tasks.Should().Contain("- [x] " + task + " ");
+        ValidatePostMergeCompletion(evidence);
     }
 
     [Fact]
@@ -240,9 +241,9 @@ public sealed class NativeSupportTransitionGuards
                     {
                         var tested = Git("show", "8566986850dc377f5a69e165dd58936be50ad722:" + file.Name);
                         Hash(Encoding.UTF8.GetBytes(tested)).Should().Be(file.Value.GetString());
-                        Read(file.Name).Should().Be(Normalize(tested).Replace(
+                        Normalize(Git("show", "d8c55f32741f43523e528dd45ad49e6a0fbe7837:" + file.Name)).Should().Be(Normalize(tested).Replace(
                             "  push:\n    branches: [codex/issue-13-native-evidence]\n", "", StringComparison.Ordinal),
-                            "publication removes only the temporary trigger; every tested job/harness byte is preserved");
+                            "the historical publication checkpoint removed only the temporary trigger");
                     }
                     else Hash(Encoding.UTF8.GetBytes(Git("show", "8566986850dc377f5a69e165dd58936be50ad722:" + file.Name)))
                         .Should().Be(file.Value.GetString(), "protocol-2 evidence remains bound to its approved historical source");
@@ -313,9 +314,49 @@ public sealed class NativeSupportTransitionGuards
         foreach (var key in new[] { "catalogueAmendment", "throttleMetadataAmendment" })
             S(evidence.GetProperty(key), "stage").Should().Be("CatalogueAndImplementationApproved");
         var workflow = binding.GetProperty("workflowChange");
-        Hash(File.ReadAllBytes(PathOf(S(workflow, "path")))).Should().Be(S(workflow, "preparedSha256"));
+        Hash(Encoding.UTF8.GetBytes(Git("show", "d8c55f32741f43523e528dd45ad49e6a0fbe7837:" + S(workflow, "path")))).Should().Be(S(workflow, "preparedSha256"));
         Read("docs/ephemeral-native-support.md").Should().Contain("source-qualified; release pending")
             .And.Contain("Live event delivery/resumption and outgoing publishing receive no native credit");
+    }
+
+    private static void ValidatePostMergeCompletion(JsonElement evidence)
+    {
+        const string path = Prefix + "artifacts/post-merge-completion-2026-10-28.json";
+        const string sha = "b9d4b0953f8b88c458e89fc22d486b4c476794ffa0e12213ccf9d74d18bba93a";
+        const string merge = "82811cd41aae577d8a1ae13258790d3da0c30d72";
+        const string head = "d1b20194009e7f94b1f7c99da644b69e1bb73948";
+        var binding = evidence.GetProperty("postMergeCompletion");
+        S(binding, "artifactPath").Should().Be(path);
+        S(binding, "artifactSha256").Should().Be(sha);
+        S(binding, "stage").Should().Be("MergedIssueClosedReleasePending");
+        Hash(File.ReadAllBytes(PathOf(path))).Should().Be(sha);
+        using var document = JsonDocument.Parse(Read(path));
+        var record = document.RootElement;
+        S(record, "mergeCommit").Should().Be(merge);
+        var parents = record.GetProperty("mergeParents").EnumerateArray().Select(x => x.GetString()).ToArray();
+        parents.Should().Equal(Parent, head);
+        Git("show", "-s", "--format=%P", merge).Trim().Should().Be(string.Join(" ", parents));
+        Git("show", "-s", "--format=%T", merge).Trim().Should().Be(S(record, "mergeTree"));
+        Git("show", "-s", "--format=%T", head).Trim().Should().Be(S(record, "mergeTree"));
+        _ = Git("merge-base", "--is-ancestor", merge, "HEAD");
+        var pr = record.GetProperty("pr");
+        pr.GetProperty("number").GetInt32().Should().Be(14);
+        S(pr, "state").Should().Be("MERGED");
+        S(pr, "headRefOid").Should().Be(head);
+        S(pr.GetProperty("mergeCommit"), "oid").Should().Be(merge);
+        var issue = record.GetProperty("issue");
+        issue.GetProperty("number").GetInt32().Should().Be(13);
+        S(issue, "state").Should().Be("CLOSED");
+        S(issue, "stateReason").Should().Be("COMPLETED");
+        var ci = record.GetProperty("masterCi");
+        ci.GetProperty("runId").GetInt64().Should().Be(40821352504);
+        S(ci, "headSha").Should().Be(merge);
+        S(ci, "conclusion").Should().Be("success");
+        var jobs = ci.GetProperty("jobs").EnumerateArray().ToArray();
+        jobs.Should().HaveCount(3);
+        jobs.Should().OnlyContain(job => job.GetProperty("conclusion").GetString() == "success");
+        record.GetProperty("publicationAuthorized").GetBoolean().Should().BeFalse();
+        record.GetProperty("published").GetBoolean().Should().BeFalse();
     }
 
     private static void ValidateWholeTargetReview(JsonElement root)

@@ -9,6 +9,12 @@ and the owner-approved 75% coverage gate. Version `0.1.0-preview.2` is available
 [NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2)
 and as [GitHub release downloads](https://github.com/dekrevedko/Workflow-orca/releases).
 
+The next candidate is **`0.1.0-preview.3` (prepared, not published)**. Its bounded
+native-support changes are merged in PR #14. See the
+[release preparation](release-0.1.0-preview.3.md) and
+[draft release notes](prerelease-notes.md). The installation commands below retain
+the currently published preview.2 until preview.3 passes both registry checks.
+
 ## Install in another project
 
 Install the engine role you need directly from NuGet.org:
@@ -124,7 +130,8 @@ git tag v0.1.0-preview.3
 git push origin v0.1.0-preview.3
 ```
 
-The `Publish prerelease` workflow reruns CI and the external package consumer before creating the
+The `Publish prerelease` workflow reruns CI, the external package consumer and the six native
+consumer cells against the exact same twelve-package artifact before creating the
 GitHub prerelease with all twelve packages and checksums. It only grants `contents: write` to the
 final publishing job and needs no additional secrets. After the workflow exists on the default
 branch, it can also be run manually with a prerelease version. Stable versions are rejected.
@@ -146,8 +153,8 @@ for the earlier assessed trimmed/AOT profiles.
 
 A future prerelease must use a new, unused version, pass release/registry gates
 and verify its source/profile before installation instructions name it as
-available. No new release version is assigned by this publication-preparation
-target. Local source builds can use a distinct private prerelease label; do not
+available. This release-preparation target selects `0.1.0-preview.3` as the candidate;
+it remains unavailable until publication succeeds. Local source builds can use a distinct private prerelease label; do not
 substitute preview.2 or mix versions across the selected closure.
 
 The existing product `StrongStringValueJsonConverterFactory` is public for

@@ -80,3 +80,23 @@ publication. New toolchain/package findings still require individual classificat
 classified run must reproduce every identity/count and pass both native records.
 Its bounded conclusions and raw receipt catalogue are in
 [the assessment report](../../openspec/changes/assess-ephemeral-native-aot/artifacts/task-2-assessment-report-2026-10-21.md).
+
+## Release-version native support regression
+
+The historical assessment above remains immutable evidence for preview.2.
+Current selected ephemeral support is documented in
+[the support guide](../../docs/ephemeral-native-support.md).
+`ephemeral-native-support.yml` can now run as a reusable release gate. A normal
+release passes `package-version` and `existing-feed-artifact=orcacore-packages`;
+the gate verifies the original CI feed instead of rebuilding packages. All six
+native reports must bind that version and identical package hashes. Publishing
+release assets and either registry depends on a green gate.
+
+For a validation-only full rehearsal, dispatch `ephemeral-native-support.yml`
+with `package-version=0.1.0-preview.3` and `run-ci=true`. It runs full CI, consumes
+that artifact and runs six native cells; it has no publication permissions.
+The default `run-ci=false`, version `0.0.0-phase0` retains the original standalone
+qualification recipe. `run_support.py --package-version` and
+`support_gate.py --package-version` support explicit release versions. Old
+reports without that field remain readable as historical evidence; a release
+requires it in every cell. New diagnostics still require individual review.

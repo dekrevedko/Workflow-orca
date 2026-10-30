@@ -10,7 +10,7 @@
 - Establish exact process-wide registration/sealing semantics and a static bootstrap recipe: register the ephemeral DI role, register metadata, then author definitions. Preserve existing JIT recipes, DI ownership, shutdown, admission, retention and handles.
 - Replace unsupported reflection/dynamic generic dispatch on the selected paths with statically reachable typed operations. Audit downstream steps, events/waits, retry/composition and failure handling rather than treating the first fixed exception as completion.
 - Add precise missing-metadata diagnostics and qualify public candidate packages on native Windows Server 2025 and Ubuntu 24.04. Preserve issue #3's historical unsupported evidence and qualify any new support claim separately.
-- Use one contract gate, one coherent canonical/docs/source/tests/native-evidence gate, and a publication gate. The R1 contract checkpoint contained no source implementation; task 2 is approved at 8566986 / 1ad2a59; task 3.1 is publication preparation under review.
+- Use one contract gate, one coherent canonical/docs/source/tests/native-evidence gate, and a publication gate. The R1 contract checkpoint contained no source implementation; task 2 is approved at 8566986 / 1ad2a59; tasks 3.1/3.2 are complete under the post-merge status below.
 
 ## Capabilities
 
@@ -79,3 +79,16 @@ child 25fa36c. The publication approval binding records that actual authority an
 Git chain, rather than inheriting the old checkpoint's approval. Publication
 binding/PR preparation remains a reviewed target; the temporary evidence push
 and checkpoint approval authorize no issue-branch push, PR, merge or release.
+
+### Merged and release preparation (2026-10-28)
+
+This status supersedes the earlier publication-pending descriptions above.
+After explicit user authorization, PR #14 was merged with the two-parent commit
+82811cd41aae577d8a1ae13258790d3da0c30d72; issue #13 is closed as completed and
+master is synchronized. Master CI 40821352504 passed. Tasks 3.1 and 3.2 are now
+complete and bound by artifacts/post-merge-completion-2026-10-28.json. Historical
+approval and execution records remain unchanged. Preview.3 is prepared in the
+separate release branch, with a six-cell native gate on the exact release feed;
+no product source, public catalogue, canonical or delta requirement changed.
+Release-preparation review, commit/push and actual publication remain separate.
+See [the release plan](../../../docs/release-0.1.0-preview.3.md).

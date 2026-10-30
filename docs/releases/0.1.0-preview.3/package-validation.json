@@ -1,0 +1,144 @@
+{
+  "schemaVersion": 1,
+  "candidateVersion": "0.1.0-preview.3",
+  "validationSourceCommit": "82811cd41aae577d8a1ae13258790d3da0c30d72",
+  "intendedFinalSource": "Future reviewed master commit; rebuilt and native-gated by release.yml",
+  "validationPackagesOnly": true,
+  "published": false,
+  "packageHashes": {
+    "OrcaCore.0.1.0-preview.3.nupkg": "71e1cd6b3dc120f32644c937e6ac35c411049c8d8320e52685ddb2ff9010e1e1",
+    "OrcaCore.Core.0.1.0-preview.3.nupkg": "2545cc6be9105c660c9af1493867553864717013f150008c0b7fa3db3ec16358",
+    "OrcaCore.Dag.0.1.0-preview.3.nupkg": "d4f60dc4aa5ced11e132eb884d435fb9f8a89795f1cb6f42bb89471119c5f570",
+    "OrcaCore.Dag.Hosting.0.1.0-preview.3.nupkg": "0a2b7601239637235c9812e8c7caa9a2f42c1a4dd39406b02644ef1ef37b6c03",
+    "OrcaCore.Durable.Hosting.0.1.0-preview.3.nupkg": "9ca9c2411420a89bdd69f722ada7a722c0b3adcca6038a3b126ec5ae6e8a7832",
+    "OrcaCore.Engine.Durable.0.1.0-preview.3.nupkg": "c02bc2c71035020159d4ec4ecd0bf21876db796e7ccdc51b1f9250ce3e067ace",
+    "OrcaCore.Engine.Ephemeral.0.1.0-preview.3.nupkg": "7410b22321a9b9b23ba931b27e73f71a609031c14b4c4d75d2f893f0b2d66168",
+    "OrcaCore.Provider.Abstractions.0.1.0-preview.3.nupkg": "154297e3a022ba3f78b516b21c6f24d61e74e2cb8ba826ece6db5a41f0659fd6",
+    "OrcaCore.Providers.InMemory.0.1.0-preview.3.nupkg": "8d3c9d2e220268c24b6844e7cf54c024dc0aeabe51e1e230dcf2bfcbb4caa989",
+    "OrcaCore.Providers.PostgreSql.0.1.0-preview.3.nupkg": "f675e1d51da3cfdb2fe29d5cc5664cf36dd45bfe3995f2805f9f8c3470c31a83",
+    "OrcaCore.Providers.SqlServer.0.1.0-preview.3.nupkg": "8ab40e4b5c74f189204b722961d617fb85f45fff7ce83a3e1507e91e24ba59cc",
+    "OrcaCore.Runtime.Protocol.0.1.0-preview.3.nupkg": "7712288151721f890f850fa5a924c86935f4de42071db78025de1d2c0d791427"
+  },
+  "packageCount": 12,
+  "checksumFileSha256": "2341bc4eb3ab716fa5e250cf841a3dabcd2c7575e5526693c3c8b400274a92bf",
+  "releasePackageValidation": "12/12",
+  "externalConsumer": "12 restored from fresh local-feed cache; typed result 42",
+  "publishingScriptChecks": "8/8",
+  "nugetVersionAvailable": {
+    "candidate": "0.1.0-preview.3",
+    "packages": [
+      {
+        "id": "OrcaCore",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Core",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.core/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Engine.Ephemeral",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.engine.ephemeral/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Runtime.Protocol",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.runtime.protocol/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Provider.Abstractions",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.provider.abstractions/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Engine.Durable",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.engine.durable/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Durable.Hosting",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.durable.hosting/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Providers.InMemory",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.providers.inmemory/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Providers.PostgreSql",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.providers.postgresql/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Providers.SqlServer",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.providers.sqlserver/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Dag",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.dag/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      },
+      {
+        "id": "OrcaCore.Dag.Hosting",
+        "url": "https://api.nuget.org/v3-flatcontainer/orcacore.dag.hosting/index.json",
+        "candidateExists": false,
+        "versions": [
+          "0.1.0-preview.1",
+          "0.1.0-preview.2"
+        ]
+      }
+    ]
+  },
+  "githubPackagesVersionAvailability": "Not verified: local CLI token lacks read:packages; HTTP 403",
+  "hostedReleaseNativeCompositionExecuted": false,
+  "previousNativeSourceRun": 40762764617,
+  "masterCiRun": 40821352504
+}

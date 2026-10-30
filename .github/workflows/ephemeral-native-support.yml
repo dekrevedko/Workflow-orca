@@ -1,7 +1,27 @@
-name: Issue 13 native support qualification
+name: Native package support qualification
 
 on:
   workflow_dispatch:
+    inputs:
+      package-version:
+        description: Prerelease package version to qualify
+        type: string
+        default: 0.0.0-phase0
+      run-ci:
+        description: Qualify the exact twelve-package artifact produced by full CI
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      package-version:
+        type: string
+        default: 0.0.0-phase0
+      run-ci:
+        type: boolean
+        default: false
+      existing-feed-artifact:
+        type: string
+        default: ''
 
 permissions:
   contents: read
@@ -11,9 +31,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  ci:
+    if: ${{ inputs.run-ci == true }}
+    uses: ./.github/workflows/ci.yml
+    with:
+      package-version: ${{ inputs.package-version }}
+
   packages:
     name: One exact candidate feed
+    needs: ci
+    if: ${{ always() && !cancelled() && (needs.ci.result == 'success' || needs.ci.result == 'skipped') }}
     runs-on: windows-2025
+    env:
+      PACKAGE_VERSION: ${{ inputs.package-version }}
+      EXISTING_FEED: ${{ inputs.existing-feed-artifact || (inputs.run-ci && 'orcacore-packages') || '' }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
@@ -22,16 +53,30 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - uses: actions/download-artifact@v4
+        if: env.EXISTING_FEED != ''
+        with:
+          name: ${{ env.EXISTING_FEED }}
+          path: artifacts/native-candidate-feed
+      - name: Verify the exact existing CI feed
+        if: env.EXISTING_FEED != ''
+        shell: pwsh
+        run: ./eng/Test-ReleasePackages.ps1 -Version $env:PACKAGE_VERSION -SourceCommit '${{ github.sha }}' -PackageDirectory artifacts/native-candidate-feed
       - name: Build and pack the exact source once
+        if: env.EXISTING_FEED == ''
         shell: pwsh
         run: |
           dotnet build OrcaCore.slnx -c Release -warnaserror
           if ($LASTEXITCODE -ne 0) { throw 'Candidate source build failed' }
-          ./tests/OrcaCore.DeveloperSurface.Guards/pack-exact-package-feed.ps1 -NoBuild -OutputDirectory "${{ github.workspace }}/artifacts/phase0-packages"
+          if ($env:PACKAGE_VERSION -eq '0.0.0-phase0') {
+            ./tests/OrcaCore.DeveloperSurface.Guards/pack-exact-package-feed.ps1 -NoBuild -OutputDirectory "${{ github.workspace }}/artifacts/native-candidate-feed"
+          } else {
+            ./eng/Pack-Packages.ps1 -NoBuild -Version $env:PACKAGE_VERSION -OutputDirectory artifacts/native-candidate-feed
+          }
       - uses: actions/upload-artifact@v4
         with:
           name: issue-13-candidate-feed
-          path: artifacts/phase0-packages/*.nupkg
+          path: artifacts/native-candidate-feed/*.nupkg
           if-no-files-found: error
 
   native:
@@ -65,7 +110,7 @@ jobs:
       - name: Publish and execute native package consumers
         shell: pwsh
         run: |
-          python -B -X utf8 tools/ephemeral-native-assessment/support_v2/run_support.py --repository "${{ github.workspace }}" --feed "${{ runner.temp }}/issue-13-feed" --work "${{ runner.temp }}/issue-13-work" --output "${{ runner.temp }}/issue-13-evidence" --flavor "${{ matrix.flavor }}"
+          python -B -X utf8 tools/ephemeral-native-assessment/support_v2/run_support.py --repository "${{ github.workspace }}" --feed "${{ runner.temp }}/issue-13-feed" --work "${{ runner.temp }}/issue-13-work" --output "${{ runner.temp }}/issue-13-evidence" --flavor "${{ matrix.flavor }}" --package-version "${{ inputs.package-version }}"
           if ($LASTEXITCODE -ne 0) { throw 'Native support evidence is incomplete, failed or unclassified' }
       - uses: actions/upload-artifact@v4
         if: always()
@@ -97,4 +142,4 @@ jobs:
         with:
           pattern: issue-13-*
           path: evidence
-      - run: python -B -X utf8 tools/ephemeral-native-assessment/support_v2/support_gate.py evidence
+      - run: python -B -X utf8 tools/ephemeral-native-assessment/support_v2/support_gate.py --package-version "${{ inputs.package-version }}" evidence

@@ -1,5 +1,6 @@
 """Fail-closed issue #13 qualification; historical assessment-v1 stays unchanged."""
 import json
+import re
 from pathlib import Path
 
 FLAVORS = ("jit", "trimmed", "aot")
@@ -68,6 +69,12 @@ def require(condition, message):
         raise ValueError(message)
 
 
+def package_version(value):
+    require(re.fullmatch(r"\d+\.\d+\.\d+-[0-9A-Za-z]+(?:[.-][0-9A-Za-z]+)*", value) is not None,
+            "A prerelease package version is required")
+    return value
+
+
 def validate_cell(record, minimum_protocol=3):
     protocol = record.get("protocol")
     require(protocol in (2, 3) and protocol >= minimum_protocol, "Support protocol 3 is required for current qualification")
@@ -80,6 +87,10 @@ def validate_cell(record, minimum_protocol=3):
     require(flavor in FLAVORS, "Unexpected flavor")
     require(len(record["packageHashes"]) == 12 and set(record["selectedPackages"]) == SELECTED,
             "Wrong distribution or selected package closure")
+    if "packageVersion" in record:
+        version = package_version(record["packageVersion"])
+        require(all(name.endswith("." + version + ".nupkg") for name in record["packageHashes"]),
+                "Package version differs from the exact native feed")
     require(record.get("sourceDirty") is False and record.get("packageDllsVerified") is True and len(record.get("archiveDllHashes", {})) == 3,
             "Dirty native source or unbound candidate DLLs")
     require(record.get("consumerBuildPropsIsolated") is True, "Consumer inherited ambient build props")
@@ -134,12 +145,16 @@ def validate_cell(record, minimum_protocol=3):
                 "Legacy/generated parity differs")
 
 
-def validate_matrix(records, minimum_protocol=3):
+def validate_matrix(records, minimum_protocol=3, expected_package_version=None):
     require(len(records) == 6, "Exactly six cells required")
     require({(r["host"]["os"], r["flavor"]) for r in records} ==
             {(os, flavor) for os in HOSTS for flavor in FLAVORS}, "Missing or duplicate host/profile")
     for record in records:
+        if expected_package_version is not None:
+            require(record.get("packageVersion") == package_version(expected_package_version),
+                    "Missing or different release package version")
         validate_cell(record, minimum_protocol)
+        require(record.get("packageVersion") == records[0].get("packageVersion"), "Cross-cell drift: packageVersion")
         for key in ("protocol", "sourceSha", "sourceTree", "sourceFiles", "harnessFiles", "packageHashes", "golden", "strong"):
             require(record[key] == records[0][key], "Cross-cell drift: " + key)
 
@@ -172,8 +187,9 @@ if __name__ == "__main__":
     import argparse
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-historical", action="store_true", help="Read protocol-2 history; never qualifies current fixes")
+    parser.add_argument("--package-version", type=package_version, help="Require the current release version in every cell")
     parser.add_argument("folders", nargs="+")
     args = parser.parse_args()
     records = [json.loads(path.read_text(encoding="utf-8")) for folder in args.folders for path in Path(folder).rglob("support-report.json")]
-    validate_matrix(records, minimum_protocol=2 if args.allow_historical else 3)
+    validate_matrix(records, minimum_protocol=2 if args.allow_historical else 3, expected_package_version=args.package_version)
     print("Six native support cells agree; independent review is still required.")
