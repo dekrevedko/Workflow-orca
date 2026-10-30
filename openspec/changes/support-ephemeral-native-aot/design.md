@@ -184,3 +184,16 @@ is a separate DirectUserApproval binding resolving that Git chain and all native
 identities. The author review is not external approval. Only temporary evidence
 commit 7f1034c on codex/issue-13-native-evidence has been pushed; publication,
 merge, issue closure and release remain separately gated.
+
+### Merged and release preparation (2026-10-28)
+
+This status supersedes the earlier publication-pending descriptions above.
+After explicit user authorization, PR #14 was merged with the two-parent commit
+82811cd41aae577d8a1ae13258790d3da0c30d72; issue #13 is closed as completed and
+master is synchronized. Master CI 40821352504 passed. Tasks 3.1 and 3.2 are now
+complete and bound by artifacts/post-merge-completion-2026-10-28.json. Historical
+approval and execution records remain unchanged. Preview.3 is prepared in the
+separate release branch, with a six-cell native gate on the exact release feed;
+no product source, public catalogue, canonical or delta requirement changed.
+Release-preparation review, commit/push and actual publication remain separate.
+See [the release plan](../../../docs/release-0.1.0-preview.3.md).

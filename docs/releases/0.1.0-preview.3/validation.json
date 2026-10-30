@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "baseCommit": "82811cd41aae577d8a1ae13258790d3da0c30d72",
+  "branch": "codex/release-0.1.0-preview.3",
+  "productSourceChanged": false,
+  "publicApiChanged": false,
+  "canonicalOrDeltaRequirementsChanged": false,
+  "releasePublished": false,
+  "checks": {
+    "openspec": "25/25",
+    "releaseBuild": "0 warnings, 0 errors",
+    "infrastructure": "309/309",
+    "nativeGateTests": "9/9",
+    "actionlint": {
+      "version": "1.7.12",
+      "errors": 0,
+      "workflows": [
+        "release.yml",
+        "ephemeral-native-support.yml"
+      ]
+    },
+    "packagedDistribution": "12/12, exact version/source/checksums",
+    "freshConsumer": "12 restored; typed result 42",
+    "publishingScriptControls": "8/8",
+    "resharper": {
+      "version": "2026.2.3.1",
+      "configuration": "Release",
+      "platform": "Any CPU",
+      "targetFramework": "net10.0",
+      "build": "--no-build after compatible successful build",
+      "scope": [
+        "CodecMemberCorrectionGuards.cs",
+        "NativeSupportTransitionGuards.cs",
+        "EphemeralShutdownTransitionGuards.cs",
+        "OpenSpecCorpusGuards.cs"
+      ],
+      "errors": 0,
+      "warnings": 53,
+      "notes": 46,
+      "newFindingsAgainstReviewedBaseline": 0,
+      "report": "resharper.sarif"
+    }
+  },
+  "unchangedSourceEvidence": {
+    "masterCiRun": 40821352504,
+    "allThreeJobs": "success",
+    "previousSourceNativeRun": 40762764617,
+    "cases": "384/384"
+  },
+  "provenance": {
+    "rows": 206,
+    "pendingCanonicalOperations": 0,
+    "sha256": "63ee51d0001b33218e687a34e16058b5c972f8451de2c3454045facc5a96cd4e",
+    "priorArtifacts": "Unchanged"
+  },
+  "limitations": [
+    "New reusable release-native composition not executed on hosted runners during preparation. It must pass on the approved release source before first publication.",
+    "GitHub package-version availability not independently verified: local token lacks read:packages.",
+    "Local package receipts use merged source 82811cd; actual tag assets must be rebuilt and gated from reviewed release source."
+  ],
+  "resolvedPreparationFailures": [
+    "First Infrastructure run had 4/309 failures caused by a UTF-8 decoding mistake in OpenSpecCorpusGuards string literals. Restored exact UTF-8 source from git and reapplied only schemaVersion edits; reran full lane.",
+    "An initial new consumer-materialization assertion assumed Core was a direct reference; checked the actual public recipe and corrected the test to verify its two OrcaCore direct references. Core remains transitive and all three DLLs remain bound by native validation."
+  ]
+}

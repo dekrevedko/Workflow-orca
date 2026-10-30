@@ -11,6 +11,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class CodecMemberCorrectionGuards
 {
     private const string Base = "8566986850dc377f5a69e165dd58936be50ad722";
+    private const string HarnessCheckpoint = "d8c55f32741f43523e528dd45ad49e6a0fbe7837";
     private const string Prefix = "openspec/changes/support-ephemeral-native-aot/";
     private const string Record = Prefix + "artifacts/codec-member-corrections-2026-10-28.json";
     private const string RecordSha = "e14e591cb641b21fb05fde9bba0369e04f7cd7c507d26fc04aee79b171e8a3d7";
@@ -37,8 +38,11 @@ public sealed class CodecMemberCorrectionGuards
         Git(root, "diff", "--name-only", Base, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
         Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
-        foreach (var file in files.Concat(record.GetProperty("harnessFiles").EnumerateObject()))
+        foreach (var file in files)
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
+        foreach (var file in record.GetProperty("harnessFiles").EnumerateObject())
+            Hash(Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name)))
+                .Should().Be(file.Value.GetString(), "this receipt describes the approved historical harness");
         using var registry = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root,
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json")));
         var binding = registry.RootElement.GetProperty("nativeSupportContractEvidence").GetProperty("codecMemberCorrections");
@@ -83,7 +87,8 @@ public sealed class CodecMemberCorrectionGuards
             foreach (var table in new[] { "sourceFiles", "harnessFiles" })
                 foreach (var file in value.GetProperty(table).EnumerateObject())
                 {
-                    var current = File.ReadAllBytes(Path.Combine(root, file.Name));
+                    var current = table == "sourceFiles" ? File.ReadAllBytes(Path.Combine(root, file.Name)) :
+                        Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name));
                     if (file.Name == ".github/workflows/ephemeral-native-support.yml")
                         current = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(current).Replace(
                             "on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [codex/issue-13-native-evidence]\n  workflow_dispatch:", StringComparison.Ordinal));
@@ -143,7 +148,8 @@ public sealed class CodecMemberCorrectionGuards
         foreach (var table in new[] { "sourceFiles", "harnessFiles" })
             foreach (var file in approval.GetProperty(table).EnumerateObject())
             {
-                Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
+                if (table == "sourceFiles")
+                    Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
                 Hash(Encoding.UTF8.GetBytes(Git(root, "show", checkpoint + ":" + file.Name)))
                     .Should().Be(file.Value.GetString());
             }

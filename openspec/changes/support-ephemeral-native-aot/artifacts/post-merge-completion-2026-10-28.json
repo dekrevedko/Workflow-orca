@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "stage": "MergedIssueClosedReleasePending",
+  "authorizationQuote": "Merge PR #14 with a merge commit, close issue #13, sync master, then prepare the new release for NuGet.org and GitHub Packages. No squash, and clean up temp/build artifacts.",
+  "pr": {
+    "baseRefOid": "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
+    "headRefOid": "d1b20194009e7f94b1f7c99da644b69e1bb73948",
+    "mergeCommit": {
+      "oid": "82811cd41aae577d8a1ae13258790d3da0c30d72"
+    },
+    "mergedAt": "2026-10-29T05:05:14Z",
+    "number": 14,
+    "state": "MERGED",
+    "url": "https://github.com/dekrevedko/Workflow-orca/pull/14"
+  },
+  "issue": {
+    "closedAt": "2026-10-29T05:05:17Z",
+    "number": 13,
+    "state": "CLOSED",
+    "stateReason": "COMPLETED",
+    "url": "https://github.com/dekrevedko/Workflow-orca/issues/13"
+  },
+  "mergeCommit": "82811cd41aae577d8a1ae13258790d3da0c30d72",
+  "mergeParents": [
+    "3b7f98aa0748a4d9c3f54d4604e566ed61f21bad",
+    "d1b20194009e7f94b1f7c99da644b69e1bb73948"
+  ],
+  "mergeTree": "e691be812a62929e5b1d55ac5d1bd66977340878",
+  "masterCi": {
+    "runId": 40821352504,
+    "headSha": "82811cd41aae577d8a1ae13258790d3da0c30d72",
+    "conclusion": "success",
+    "url": "https://github.com/dekrevedko/Workflow-orca/actions/runs/40821352504",
+    "jobs": [
+      {
+        "name": "container + integration tests",
+        "conclusion": "success"
+      },
+      {
+        "name": "build + unit tests",
+        "conclusion": "success"
+      },
+      {
+        "name": "pack + clean consumer",
+        "conclusion": "success"
+      }
+    ]
+  },
+  "candidateVersion": "0.1.0-preview.3",
+  "publicationAuthorized": false,
+  "published": false
+}

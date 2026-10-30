@@ -10,9 +10,10 @@ The corrections preserve write-only admission and validate actual serialized
 member values without extra getter reads. Unsupported runtime values in included
 fields/properties now reject in both modes rather than silently losing data.
 Published `0.1.0-preview.2` does not contain `WorkflowJsonMetadata` and keeps its
-earlier unsupported trimmed/AOT assessment. No new public package version is
-assigned or published here. The next release must use an unused version and pass
-its own publication and registry verification gates.
+earlier unsupported trimmed/AOT assessment. Preview.3 is the next prepared candidate, not a published version. PR #14 merged
+with commit `82811cd41aae577d8a1ae13258790d3da0c30d72` and issue #13 is closed.
+The [release preparation](release-0.1.0-preview.3.md) keeps package publication
+and registry verification as separate gates.
 
 ## Qualified profiles
 
