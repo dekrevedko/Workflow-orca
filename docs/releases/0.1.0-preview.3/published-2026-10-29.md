@@ -67,3 +67,11 @@ delivery/resumption or outgoing publishing credit is implied.
 The same package IDs/version are verified in
 `https://nuget.pkg.github.com/dekrevedko/index.json`; local consumers need the
 authentication/source mapping documented in [the installation guide](../../packages.md).
+
+## Retained exact-asset evidence
+
+The six complete report artifacts and public verification receipts are retained in
+[native-qualification-v0.1.0-preview.3.zip](native-qualification-v0.1.0-preview.3.zip). SHA-256: `2aaea2b142755f20707cf75153a95d6cc4896364c9f81435bea585fac4b39761`. The archive contains evidence, not a package feed. The published
+GitHub release is immutable and rejected an additional evidence asset, so the
+original release files and tag remain unchanged. This repository copy makes the
+proof independent of Actions artifact retention.

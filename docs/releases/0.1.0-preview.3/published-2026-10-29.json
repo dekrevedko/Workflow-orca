@@ -192,5 +192,12 @@
     "Selected ephemeral closure only",
     "Windows Server 2025 win-x64 and Ubuntu 24.04 linux-x64 only",
     "No native credit for live event delivery/resumption or outgoing publishing"
-  ]
+  ],
+  "retainedNativeEvidence": {
+    "path": "native-qualification-v0.1.0-preview.3.zip",
+    "sha256": "2aaea2b142755f20707cf75153a95d6cc4896364c9f81435bea585fac4b39761",
+    "bytes": 645113,
+    "contents": "Six complete native artifact directories, source/asset proof and public CI/registry metadata",
+    "locationReason": "GitHub rejected additional assets because the published release is immutable; original assets and tag remain unchanged"
+  }
 }
