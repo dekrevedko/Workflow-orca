@@ -4,7 +4,7 @@
 
 **Typed workflows. Explicit durability. Your .NET host.**
 
-[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](global.json) [![Prerelease](https://img.shields.io/badge/release-0.1.0--preview.2-0078D4)](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.2) [![Engine coverage gate](https://img.shields.io/badge/engine_coverage_gate-75%25-22863A)](docs/github-publishing-status.md) [![Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-59636E)](LICENSE)
+[![.NET 10](https://img.shields.io/badge/.NET-10.0-512BD4?logo=dotnet&logoColor=white)](global.json) [![Prerelease](https://img.shields.io/badge/release-0.1.0--preview.3-0078D4)](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.3) [![Engine coverage gate](https://img.shields.io/badge/engine_coverage_gate-75%25-22863A)](docs/github-publishing-status.md) [![Apache 2.0](https://img.shields.io/badge/license-Apache_2.0-59636E)](LICENSE)
 
 [Quick start](#use-in-another-project) · [Why OrcaCore](#why-orcacore) · [Comparison](#how-it-compares) · [Status](#current-status) · [Documentation](#documentation)
 
@@ -14,7 +14,7 @@ Build workflow logic in C#, keep execution inside your application, and choose t
 your workload needs: **ephemeral** for process-local coordination, or **durable** with
 PostgreSQL or SQL Server for persisted execution and recovery.
 
-> **Available on NuGet.org:** [v0.1.0-preview.2](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2)
+> **Available on NuGet.org:** [v0.1.0-preview.3](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.3)
 > ships twelve installable packages. This is a pre-production preview; see [current status](#current-status)
 > and [remaining work](#remaining-work) before adoption.
 
@@ -102,28 +102,28 @@ designer, and broader lifecycle management are outside its current shipped surfa
 
 ## Current status
 
-As of **2026-10-22**, [**v0.1.0-preview.2 is published**](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.2)
+As of **2026-10-29**, [**v0.1.0-preview.3 is published**](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.3)
 and available for use in other .NET 10 projects. This is a **pre-production prerelease**;
 APIs, provider schemas, and persistence formats can change.
 
 | Item | Status |
 |---|---|
-| Distribution | Twelve packages on NuGet.org; package files and `SHA256SUMS` also available on the GitHub release |
-| NuGet.org | [All twelve versions and source metadata verified; a fresh NuGet.org-only consumer returned `42`](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249) |
-| Published source | [`af0b29f`](https://github.com/dekrevedko/Workflow-orca/commit/af0b29f573571fa2705aed70cf1d9e0236c58a94) |
-| Release validation | [Build, tests, coverage, provider/integration tests, packaging and clean consumer passed](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249) |
+| Distribution | Twelve packages on NuGet.org and authenticated GitHub Packages; package files and `SHA256SUMS` also available on the GitHub release |
+| NuGet.org | [All twelve versions and source metadata verified; a fresh NuGet.org-only consumer returned `42`](https://github.com/dekrevedko/Workflow-orca/actions/runs/40997094707) |
+| Published source | [`6b4ab95`](https://github.com/dekrevedko/Workflow-orca/commit/6b4ab952376de366a102e236b5e2b5b1ddfade41) |
+| Release validation | [Build, tests, coverage, provider/integration tests, packaging and clean consumer passed](https://github.com/dekrevedko/Workflow-orca/actions/runs/40997094707) |
 | Engine line coverage | Passed the approved **75%** gate |
 | Downloaded packages | Exact twelve-package inventory, SHA-256 checksums and source metadata verified |
-| Included changes | [#7: Retention](https://github.com/dekrevedko/Workflow-orca/pull/7), [#8: Shutdown](https://github.com/dekrevedko/Workflow-orca/pull/8), [#9: Native assessment](https://github.com/dekrevedko/Workflow-orca/pull/9) |
+| Included changes | [#7: Retention](https://github.com/dekrevedko/Workflow-orca/pull/7), [#8: Shutdown](https://github.com/dekrevedko/Workflow-orca/pull/8), [#9: Native assessment](https://github.com/dekrevedko/Workflow-orca/pull/9), [#14: Native support](https://github.com/dekrevedko/Workflow-orca/pull/14) |
 
-See the [publishing record](docs/github-publishing-status.md) for validation details.
+See the [preview.3 verification record](docs/releases/0.1.0-preview.3/published-2026-10-29.md) for registry checks, native results and the corrected native-gate incident.
 
 ## Use in another project
 
 Install directly from NuGet.org in a .NET 10 project:
 
 ```powershell
-dotnet add ./YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
+dotnet add ./YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.3
 ```
 
 Replace `./YourProject.csproj` with your project path. For durable applications, reference
@@ -135,8 +135,8 @@ GitHub release download feed.
 ## Remaining work
 
 - Durable DAG execution is incomplete; package availability does not complete its implementation gates.
-- Released preview.2 retains issue #3's unsupported trimming/AOT profiles. Issue #13
-  qualifies a new source candidate's bounded ephemeral recipe; its release is pending.
+- Released preview.2 retains issue #3's unsupported trimming/AOT profiles. Preview.3
+  qualifies issue #13's bounded ephemeral recipe on the two tested x64 platforms.
   See [native support and startup requirements](docs/ephemeral-native-support.md).
 - Retention is opt-in and is not a byte/RSS cap or a minimum result-retention guarantee.
   Shutdown requires the actual dependency owner to retain resources after `Incomplete`.
@@ -193,13 +193,16 @@ are unsupported for the earlier preview.2 profile. That assessment grants no
 native support to those released packages. See [the assessment harness](tools/ephemeral-native-assessment/README.md)
 for the tested packages, toolchain, raw evidence and reproduction instructions.
 
-## Native AOT and trimming (issue #13; source-qualified, release pending)
+## Native AOT and trimming (issue #13; published in preview.3)
 
 User-approved corrected source `d8c55f3`, with review-only child `25fa36c`, passes the selected
 public ephemeral recipe on Windows Server 2025 x64 and Ubuntu 24.04 x64 in JIT,
 full-trim and Native AOT profiles. [Native run 40762764617](https://github.com/dekrevedko/Workflow-orca/actions/runs/40762764617)
-records all six cells, 384 cases total. Preview.2 remains the existing released version and lacks
-`WorkflowJsonMetadata`; no new version or broad compatibility badge is published.
+records source qualification in six cells, 384 cases total. Preview.3 is now published;
+[exact-asset run 40998543857](https://github.com/dekrevedko/Workflow-orca/actions/runs/40998543857)
+passed 384/384 cases against the released package files. Preview.2 lacks
+`WorkflowJsonMetadata` and retains its earlier unsupported assessment. No broad
+compatibility badge is granted.
 
 The [qualified recipe](docs/ephemeral-native-support.md) explains packages,
 source-generated metadata, process-wide startup order, the finite type boundary

@@ -5,22 +5,21 @@ Durable DAG execution is still incomplete; packaging does not complete the imple
 in the active OpenSpec changes. Start with the ephemeral engine guide or the durable samples.
 
 The [2026-10-16 publishing audit](github-publishing-status.md) records the preparation checks
-and the owner-approved 75% coverage gate. Version `0.1.0-preview.2` is available on
-[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2)
+and the owner-approved 75% coverage gate. Version `0.1.0-preview.3` is available on
+[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.3)
 and as [GitHub release downloads](https://github.com/dekrevedko/Workflow-orca/releases).
 
-The next candidate is **`0.1.0-preview.3` (prepared, not published)**. Its bounded
-native-support changes are merged in PR #14. See the
-[release preparation](release-0.1.0-preview.3.md) and
-[draft release notes](prerelease-notes.md). The installation commands below retain
-the currently published preview.2 until preview.3 passes both registry checks.
+Preview.3 includes issue #13's bounded ephemeral native support. The
+[publication record](releases/0.1.0-preview.3/published-2026-10-29.md) binds the
+release assets, source commit, registry checks and six native cells. The original
+preview.2 assessment remains historical; it does not gain support retroactively.
 
 ## Install in another project
 
 Install the engine role you need directly from NuGet.org:
 
 ```powershell
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.3
 ```
 
 The application contracts package `OrcaCore` and internal kernel are transitive dependencies.
@@ -29,7 +28,7 @@ For durable applications, reference `OrcaCore.Durable.Hosting` and the selected
 `OrcaCore.Providers.PostgreSql` or `OrcaCore.Providers.SqlServer` package at the same version.
 `OrcaCore.Providers.InMemory` is for development and testing.
 
-The [NuGet.org publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249)
+The [NuGet.org publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/40997094707)
 verified all twelve public versions and their source metadata. A fresh external consumer
 restored exclusively from NuGet.org and ran the typed workflow, returning `42`.
 
@@ -69,7 +68,7 @@ and restore the project:
 
 ```powershell
 $env:NuGetPackageSourceCredentials_github = "Username=YOUR_GITHUB_USERNAME;Password=$env:GH_PACKAGES_READ_TOKEN;ValidAuthenticationTypes=Basic"
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2 --no-restore
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.3 --no-restore
 dotnet restore YourProject.csproj --configfile NuGet.Config
 ```
 
@@ -91,7 +90,7 @@ Register the extracted directory as a local NuGet source, then reference the des
 ```powershell
 # Replace the directory and version with those you downloaded.
 dotnet nuget add source C:\packages\OrcaCore --name OrcaCore-local
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.3
 ```
 
 GitHub release downloads work without a package-registry credential. They are a directory feed
@@ -123,11 +122,11 @@ benchmark smoke checks, unit and acceptance suites, infrastructure contract guar
 and SQL Server tests, and integration tests. It also enforces the 75% engine line-coverage gate.
 Only a successful run can upload the installable package artifact.
 
-Create and push a new, unused prerelease tag on the reviewed commit (for example, preview 3):
+Create and push a new, unused prerelease tag on the reviewed commit (for example, the next preview 4):
 
 ```powershell
-git tag v0.1.0-preview.3
-git push origin v0.1.0-preview.3
+git tag v0.1.0-preview.4
+git push origin v0.1.0-preview.4
 ```
 
 The `Publish prerelease` workflow reruns CI, the external package consumer and the six native
@@ -142,7 +141,7 @@ mirroring an existing prerelease to GitHub Packages without rebuilding it. The
 registries use separate authentication and permissions. Signing, SourceLink, and stable API
 compatibility remain outside this prerelease workflow.
 
-## Issue #13 candidate compatibility boundary (source-qualified; release pending)
+## Issue #13 published compatibility boundary (preview.3)
 
 User-approved corrected checkpoint `d8c55f3` and review-only child `25fa36c` qualify the selected
 `OrcaCore` / `OrcaCore.Core` / `OrcaCore.Engine.Ephemeral` recipe described in
@@ -151,11 +150,11 @@ candidate feed uses validation version `0.0.0-phase0`; it is not a published
 package version. Preview.2 lacks `WorkflowJsonMetadata` and remains unsupported
 for the earlier assessed trimmed/AOT profiles.
 
-A future prerelease must use a new, unused version, pass release/registry gates
-and verify its source/profile before installation instructions name it as
-available. This release-preparation target selects `0.1.0-preview.3` as the candidate;
-it remains unavailable until publication succeeds. Local source builds can use a distinct private prerelease label; do not
-substitute preview.2 or mix versions across the selected closure.
+Preview.3 uses source commit `6b4ab95` and is verified on both registries.
+[Native qualification 40998543857](https://github.com/dekrevedko/Workflow-orca/actions/runs/40998543857)
+uses the exact release assets, matching all twelve package hashes. Install version
+`0.1.0-preview.3` consistently across the selected closure. The earlier phase0
+candidate remains source evidence; preview.2 is not a substitute for the metadata API.
 
 The existing product `StrongStringValueJsonConverterFactory` is public for
 ordinary generated strong-value DTOs. Keep product attributes; explicit context

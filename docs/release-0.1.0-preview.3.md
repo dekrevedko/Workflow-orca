@@ -1,5 +1,11 @@
 # Preview.3 release preparation
 
+Completed on 2026-10-29: preview.3 is published on NuGet.org and GitHub Packages.
+See [the publication record](releases/0.1.0-preview.3/published-2026-10-29.md)
+for source, registry verification and the six-cell exact-asset qualification.
+
+## Historical preparation snapshot (2026-10-28)
+
 Status: prepared candidate; not published. Base: master merge
 `82811cd41aae577d8a1ae13258790d3da0c30d72`. PR #14 is merged with two parents;
 issue #13 is closed as completed. Master CI
