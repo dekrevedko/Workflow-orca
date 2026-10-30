@@ -72,9 +72,11 @@ jobs:
 
   publish:
     needs: [validate, ci, native]
+    if: ${{ always() && !cancelled() && needs.ci.result == 'success' && needs.native.result == 'success' && needs.native.outputs.qualified == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
         with:
@@ -85,6 +87,15 @@ jobs:
         with:
           name: orcacore-packages
           path: packages
+
+      - name: Require six actually completed native jobs before publication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          gh api "repos/$GH_REPO/actions/runs/$RUN_ID/jobs?per_page=100" > native-jobs.json
+          python -B -X utf8 tools/ephemeral-native-assessment/support_v2/release_gate.py native-jobs.json
 
       - name: Publish validated packages as a GitHub prerelease
         env:
