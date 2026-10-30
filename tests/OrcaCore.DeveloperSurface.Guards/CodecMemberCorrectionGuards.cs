@@ -35,9 +35,12 @@ public sealed class CodecMemberCorrectionGuards
             "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs");
-        Git(root, "diff", "--name-only", Base, "--", "src")
+        // This correction owns application codec sources, not every subsequent
+        // provider/protocol implementation. The Task 2.1 guard separately pins its
+        // complete source path set; the three actual codec files remain byte-pinned here.
+        Git(root, "diff", "--name-only", Base, "--", "src/OrcaCore.Abstractions")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
+        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src/OrcaCore.Abstractions").Trim().Should().BeEmpty();
         foreach (var file in files)
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
         foreach (var file in record.GetProperty("harnessFiles").EnumerateObject())
@@ -62,6 +65,7 @@ public sealed class CodecMemberCorrectionGuards
             .Should().BeEquivalentTo(new[] { "windows-2025/jit", "windows-2025/trimmed", "windows-2025/aot",
                 "ubuntu-24.04/jit", "ubuntu-24.04/trimmed", "ubuntu-24.04/aot" });
         index.RootElement.GetProperty("totalCases").GetInt32().Should().Be(384);
+        var qualifiedSource = new Dictionary<string, byte[]>(StringComparer.Ordinal);
         foreach (var cell in cells)
         {
             var reportBytes = File.ReadAllBytes(Path.Combine(root, cell.GetProperty("reportPath").GetString()!));
@@ -87,8 +91,22 @@ public sealed class CodecMemberCorrectionGuards
             foreach (var table in new[] { "sourceFiles", "harnessFiles" })
                 foreach (var file in value.GetProperty(table).EnumerateObject())
                 {
+                    if (table == "sourceFiles")
+                    {
+                        if (!qualifiedSource.TryGetValue(file.Name, out var historical))
+                        {
+                            historical = GitBytes(root, "show", index.RootElement.GetProperty("sourceCommit").GetString()! + ":" + file.Name);
+                            qualifiedSource.Add(file.Name, historical);
+                        }
+                        Hash(historical).Should().Be(file.Value.GetString(),
+                            "native qualification is evidence for its exact immutable source commit, never inherited by later DAG code");
+                        if (!file.Name.StartsWith("src/OrcaCore.Abstractions/", StringComparison.Ordinal) &&
+                            !file.Name.StartsWith("src/OrcaCore.Core/", StringComparison.Ordinal) &&
+                            !file.Name.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal))
+                            continue;
+                    }
                     var current = table == "sourceFiles" ? File.ReadAllBytes(Path.Combine(root, file.Name)) :
-                        Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name));
+                        GitBytes(root, "show", HarnessCheckpoint + ":" + file.Name);
                     if (file.Name == ".github/workflows/ephemeral-native-support.yml")
                         current = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(current).Replace(
                             "on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [codex/issue-13-native-evidence]\n  workflow_dispatch:", StringComparison.Ordinal));
@@ -170,6 +188,20 @@ public sealed class CodecMemberCorrectionGuards
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    private static byte[] GitBytes(string root, params string[] arguments)
+    {
+        var info = new ProcessStartInfo("git") { WorkingDirectory = root, RedirectStandardOutput = true,
+            RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+        foreach (var argument in arguments) info.ArgumentList.Add(argument);
+        using var process = Process.Start(info)!;
+        var error = process.StandardError.ReadToEndAsync();
+        using var buffer = new MemoryStream();
+        process.StandardOutput.BaseStream.CopyTo(buffer);
+        process.WaitForExit();
+        process.ExitCode.Should().Be(0, error.GetAwaiter().GetResult());
+        return buffer.ToArray();
+    }
 
     private static string Git(string root, params string[] arguments)
     {

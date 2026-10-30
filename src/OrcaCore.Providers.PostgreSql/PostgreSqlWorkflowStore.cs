@@ -174,7 +174,10 @@ internal sealed partial class PostgreSqlWorkflowStore :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        if (batch.StreamId.AggregateKind == DurableAggregateKind.DagRun && batch.DagRun is not null)
+            return await DagStore.AppendAsync(batch, cancellationToken).ConfigureAwait(false);
         _ = batch.StreamId.InstanceId;
+        if (batch.DagRun is not null) throw new InvalidOperationException("Workflow append cannot contain a DAG append.");
 
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var transaction = await connection
@@ -183,6 +186,19 @@ internal sealed partial class PostgreSqlWorkflowStore :
 
         try
         {
+            await using (var identityLock = new NpgsqlCommand(
+                "select pg_advisory_xact_lock(hashtextextended(@identity,0))", connection, transaction))
+            {
+                identityLock.Parameters.AddWithValue("identity", "orcacore:aggregate:" + batch.StreamId.InstanceId.Value.ToString("D"));
+                await identityLock.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+            }
+            await using (var collision = new NpgsqlCommand("select 1 from dag_runs where run_id=@id", connection, transaction))
+            {
+                collision.Parameters.AddWithValue("id", batch.StreamId.InstanceId.Value);
+                if (await collision.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null)
+                    return global::OrcaCore.Abstractions.Providers.Dag.Internal.DagRunStoreRules.Failure(
+                        "DAG_INTEGRITY_CONFLICT", "DAG run owns this aggregate identity");
+            }
             await LockStartIdempotencyKeysAsync(
                 connection,
                 transaction,
@@ -1846,11 +1862,12 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 from orcacore_outbox
                 where (state in (@pending, @retryable)
                    or (state = @claimed and (claimed_until is null or claimed_until <= @claimed_at))){kindPredicate}
+                  and (kind <> 'dag-run-ready-v1' or recipient_host_id is null or recipient_host_id = @recipient_host_id)
                 order by outbox_record_id
                 for update skip locked
                 limit @max_count
             )
-            returning outbox_record_id, kind, payload, dispatch_attempt;
+            returning outbox_record_id, kind, payload, dispatch_attempt, dag_run_owner, recipient_host_id, dag_run_subscription_id;
             """,
             connection,
             transaction);
@@ -1860,6 +1877,7 @@ internal sealed partial class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("claimed_at", request.ClaimedAt);
         command.Parameters.AddWithValue("claimed_until", request.ClaimedAt.Add(request.LeaseDuration));
         command.Parameters.AddWithValue("max_count", request.MaxCount);
+        command.Parameters.Add(new NpgsqlParameter("recipient_host_id", NpgsqlTypes.NpgsqlDbType.Uuid) { Value = request.RecipientHostId is { } recipient ? recipient : DBNull.Value });
         if (request.KindSelector is { } selector)
         {
             command.Parameters.AddWithValue(
@@ -1876,7 +1894,10 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 reader.GetString(1),
                 reader.GetFieldValue<byte[]>(2))
             {
-                DispatchAttempt = reader.GetInt32(3)
+                DispatchAttempt = reader.GetInt32(3),
+                DagRunOwner = reader.IsDBNull(4) ? null : reader.GetGuid(4),
+                RecipientHostId = reader.IsDBNull(5) ? null : reader.GetGuid(5),
+                DagRunSubscriptionId = reader.IsDBNull(6) ? null : reader.GetGuid(6)
             });
         }
 
@@ -3148,13 +3169,19 @@ internal sealed partial class PostgreSqlWorkflowStore :
                     instance_id,
                     kind,
                     payload,
-                    state)
+                    state,
+                    dag_run_owner,
+                    recipient_host_id,
+                    dag_run_subscription_id)
                 values (
                     @outbox_record_id,
                     @instance_id,
                     @kind,
                     @payload,
-                    @state);
+                    @state,
+                    @dag_run_owner,
+                    @recipient_host_id,
+                    @dag_run_subscription_id);
                 """,
                 connection,
                 transaction);
@@ -3163,6 +3190,12 @@ internal sealed partial class PostgreSqlWorkflowStore :
             command.Parameters.AddWithValue("kind", record.Kind);
             command.Parameters.AddWithValue("payload", record.Payload);
             command.Parameters.AddWithValue("state", OutboxRecordState.Pending.ToString());
+            command.Parameters.Add(new NpgsqlParameter("dag_run_owner", NpgsqlTypes.NpgsqlDbType.Uuid)
+                { Value = record.DagRunOwner is { } owner ? owner : DBNull.Value });
+            command.Parameters.Add(new NpgsqlParameter("recipient_host_id", NpgsqlTypes.NpgsqlDbType.Uuid)
+                { Value = record.RecipientHostId is { } recipient ? recipient : DBNull.Value });
+            command.Parameters.Add(new NpgsqlParameter("dag_run_subscription_id", NpgsqlTypes.NpgsqlDbType.Uuid)
+                { Value = record.DagRunSubscriptionId is { } subscription ? subscription : DBNull.Value });
 
             await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }

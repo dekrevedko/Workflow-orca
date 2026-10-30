@@ -305,7 +305,7 @@ Every doc is NORMATIVE, BINDING, GUIDE, RECORD, or HISTORICAL — see the source
 <!-- dag-run-contract-proposal:start -->
 #### Approved durable DAG run contract; source pending (2026-10-05)
 
-Current nine friends/codec boundaries stay unchanged. The complete DAG run contract is approved at e6802a3 / evidence 578593e; source pending and this atomic 1.3/1.4 target still requires independent review/checkpoint. Activation edits only its named checkbox/state, never documentation.
+Current nine friends/codec boundaries stay unchanged. The complete DAG run contract is approved at e6802a3 / evidence 578593e; source pending; the atomic 1.3/1.4 transition was independently approved and checkpointed at 1770b2b, with evidence 18bf865 and activation 89e3b18. Activation edits only its named checkbox/state, never documentation.
 
 Full exact independently approved contract: [Task 1.1 RC-3](openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md), with its exact API catalog. Earlier contract links below are rejected history. Approved RC-3 checkpoint e6802a3 / evidence 578593e; source pending. The four-block canonical transition is independently approved and checkpointed at 1770b2b, evidence 18bf865, activation 89e3b18. Source/provider slices remain independently reviewed and incomplete.
 

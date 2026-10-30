@@ -26,13 +26,13 @@ internal sealed partial class PostgreSqlWorkflowStore
                 as continuation_claimed,
             (select count(*) from orcacore_outbox where kind = @continue_kind and state = @poisoned)
                 as continuation_poisoned,
-            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @pending)
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and kind not in ('dag-child-start-v1','dag-child-join-v1','dag-child-cancel-v1','dag-run-ready-v1') and state = @pending)
                 as external_pending,
-            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @retryable)
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and kind not in ('dag-child-start-v1','dag-child-join-v1','dag-child-cancel-v1','dag-run-ready-v1') and state = @retryable)
                 as external_retryable,
-            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @claimed)
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and kind not in ('dag-child-start-v1','dag-child-join-v1','dag-child-cancel-v1','dag-run-ready-v1') and state = @claimed)
                 as external_claimed,
-            (select count(*) from orcacore_outbox where kind <> @continue_kind and state = @poisoned)
+            (select count(*) from orcacore_outbox where kind <> @continue_kind and kind not in ('dag-child-start-v1','dag-child-join-v1','dag-child-cancel-v1','dag-run-ready-v1') and state = @poisoned)
                 as external_poisoned
         from (
             select
@@ -58,6 +58,7 @@ internal sealed partial class PostgreSqlWorkflowStore
 
         await MarkStuckInstancesAsync(connection, transaction, request, cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
+        await DagStore.RefreshStuckAsync(request, cancellationToken).ConfigureAwait(false);
     }
 
     public async Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(CancellationToken cancellationToken)
@@ -177,6 +178,7 @@ internal sealed partial class PostgreSqlWorkflowStore
             ExternalOutboxPoisonedCount = pressureReader.GetInt64(13)
         };
         await pressureReader.DisposeAsync().ConfigureAwait(false);
+        pressure = await DagStore.ReadPressureAsync(connection, transaction, pressure, cancellationToken).ConfigureAwait(false);
         await transaction.CommitAsync(cancellationToken).ConfigureAwait(false);
         return new WorkflowOperatorStatistics
         {

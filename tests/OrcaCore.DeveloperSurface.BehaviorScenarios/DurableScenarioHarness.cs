@@ -1,3 +1,5 @@
+using OrcaCore.Abstractions.Durable.Dag;
+using OrcaCore.Abstractions.Providers.Dag;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -26,6 +28,50 @@ internal sealed class DurableScenarioProvider :
     IDurableResourceGovernanceStore,
     IDisposable
 {
+    public Task<Option<DagRunCheckpointV1>> LoadDagRunCheckpointAsync(
+        WorkflowStreamId streamId, CancellationToken cancellationToken) =>
+        eventStore.LoadDagRunCheckpointAsync(streamId, cancellationToken);
+
+    public Task<Option<DagRunDiscoveryV1>> GetDagRunByStartKeyAsync(
+        DagRunStartKeyV1 startKey, CancellationToken cancellationToken) =>
+        eventStore.GetDagRunByStartKeyAsync(startKey, cancellationToken);
+
+    public Task<IReadOnlyList<DagRunRecordV1>> LoadDagRunTailAsync(
+        WorkflowStreamId streamId, StreamVersion afterVersion, CancellationToken cancellationToken) =>
+        eventStore.LoadDagRunTailAsync(streamId, afterVersion, cancellationToken);
+
+    public Task<DagRunLeaseResultV1> AcquireDagRunLeaseAsync(
+        DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+        eventStore.AcquireDagRunLeaseAsync(request, cancellationToken);
+
+    public Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(
+        DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+        eventStore.RenewDagRunLeaseAsync(request, cancellationToken);
+
+    public Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(
+        DagRunFenceV1 fence, CancellationToken cancellationToken) =>
+        eventStore.ReleaseDagRunLeaseAsync(fence, cancellationToken);
+
+    public Task CancelDagRunLeaseRequestAsync(
+        Guid runId, Guid ownerId, Guid requestId, CancellationToken cancellationToken) =>
+        eventStore.CancelDagRunLeaseRequestAsync(runId, ownerId, requestId, cancellationToken);
+
+    public Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(
+        DagRunDiscoveryRequestV1 request, CancellationToken cancellationToken) =>
+        eventStore.ListRecoverableDagRunsAsync(request, cancellationToken);
+
+    public Task<DagRunSubscribeResultV1> SubscribeDagRunAsync(
+        DagRunSubscriptionV1 subscription, CancellationToken cancellationToken) =>
+        eventStore.SubscribeDagRunAsync(subscription, cancellationToken);
+
+    public Task UnsubscribeDagRunAsync(Guid subscriptionId, Guid recipientHostId,
+        CancellationToken cancellationToken) =>
+        eventStore.UnsubscribeDagRunAsync(subscriptionId, recipientHostId, cancellationToken);
+
+    public Task<int> PruneExpiredDagRunObserversAsync(
+        int maxCount, CancellationToken cancellationToken) =>
+        eventStore.PruneExpiredDagRunObserversAsync(maxCount, cancellationToken);
+
     private readonly ServiceProvider services;
     private readonly IWorkflowEventStore eventStore;
     private readonly IWorkflowInboxStore inboxStore;

@@ -1,0 +1,95 @@
+ M CLAUDE.md
+ M openspec/changes/admit-durable-dag-run-progression/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/production-deletion-ledger.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Durable.Hosting/Services/OrcaCoreOutboxPumpHostedService.cs
+ M src/OrcaCore.Engine.Durable/Diagnostics/OrcaCoreDurableDiagnostics.cs
+ M src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs
+ M src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj
+ M src/OrcaCore.Provider.Abstractions/ProviderCommitContracts.cs
+ M src/OrcaCore.Provider.Abstractions/ProviderPorts.cs
+ M src/OrcaCore.Provider.Abstractions/WorkflowOperationalModels.cs
+ M src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs
+ M src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj
+ M src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql
+ M src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Operational.cs
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs
+ M src/OrcaCore.Providers.SqlServer/Internal/SqlServerStateDocumentStore.cs
+ M src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStateEngine.cs
+ M src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStore.cs
+ M src/OrcaCore.Providers.SqlServer/Migrations/001_initial.sql
+ M src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj
+ M tests/OrcaCore.DeveloperSurface.BehaviorScenarios/DurableScenarioHarness.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/CodecMemberCorrectionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/production-deletion-ledger.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/StateAndCodecContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Diagnostics/DurableOperationalTelemetryTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Events/DurablePublishTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Execution/DurableStartServiceContractTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Outbox/DurableOutboxTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/R4DurableEngineFindingsTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Recovery/DurableRecoveryTests.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Support/DurableTestProvider.cs
+ M tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/InMemoryProviderPorts.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlServiceCollectionTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs
+ M tests/OrcaCore.TestSupport/Providers/FakeWorkflowEventStore.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-dirty-manifest-2026-10-29.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-request-2026-10-29.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-api-candidate-2026-10-29.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-errata-2026-10-29.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-implementation-2026-10-29.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-signatures-2026-10-29.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunAppendV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunDiscoveryRequestV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunDiscoveryV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunFenceV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunLeaseOutcomeV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunLeasePurposeV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunLeaseRequestV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunLeaseResultV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunSubscribeOutcomeV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunSubscribeResultV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/DagRunSubscriptionV1.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/Internal/DagRunSqlStore.cs
+?? src/OrcaCore.Provider.Abstractions/Dag/Internal/DagRunStoreRules.cs
+?? src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.Dag.cs
+?? src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.Dag.cs
+?? src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStore.Dag.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagNodeStateV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunBindingV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunCheckpointV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunGraphV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunNodeChangeV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunNodeStateV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunNodeV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunRecordKindV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunRecordV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunSnapshotV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunStartKeyV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunStateReducer.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunStateV1.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunValidation.cs
+?? src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunValueV1.cs
+?? src/OrcaCore.Runtime.Protocol/Serialization/DagRunRecordCodecV1.cs
+?? tests/OrcaCore.Core.Tests/Serialization/DagRunRecordCodecTests.cs
+?? tests/OrcaCore.ProviderCertification/DagRunCertification.cs

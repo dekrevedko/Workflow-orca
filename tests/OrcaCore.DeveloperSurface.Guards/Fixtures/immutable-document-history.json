@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-dirty-manifest-2026-10-14.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-dirty-manifest-2026-10-29.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2519,6 +2519,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-successor-process-independent-review-verdict-2026-10-04.md",
       "bytes": 12342,
       "sha256": "f54a6ba50a1ea1ce0d18d2f904a388a1ab91145d7ea59f65da1fb89acc70370c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-dirty-manifest-2026-10-29.txt",
+      "bytes": 7059,
+      "sha256": "1934b1604357b5a5084ffffd701be38e131e2177bec5a0df696c80cd3aa29bf2"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-request-2026-10-29.md",
+      "bytes": 12529,
+      "sha256": "ae2bb9a543fed6fa6f899edaa016d697808a211d3fd068898a374495043fcf45"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
