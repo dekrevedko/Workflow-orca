@@ -11,7 +11,15 @@ on:
         description: Qualify the exact twelve-package artifact produced by full CI
         type: boolean
         default: false
+      existing-release:
+        description: Qualify existing immutable release assets without rebuilding packages
+        type: boolean
+        default: false
   workflow_call:
+    outputs:
+      qualified:
+        description: True only after all six native records pass
+        value: ${{ jobs.records.outputs.qualified }}
     inputs:
       package-version:
         type: string
@@ -45,6 +53,7 @@ jobs:
     env:
       PACKAGE_VERSION: ${{ inputs.package-version }}
       EXISTING_FEED: ${{ inputs.existing-feed-artifact || (inputs.run-ci && 'orcacore-packages') || '' }}
+      EXISTING_RELEASE: ${{ inputs.existing-release || false }}
     steps:
       - run: git config --global core.autocrlf false
       - uses: actions/checkout@v4
@@ -53,6 +62,24 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
+      - name: Download and verify existing immutable release assets
+        if: env.EXISTING_RELEASE == 'true'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          if ($env:EXISTING_FEED) { throw 'Existing-release qualification cannot also build or consume a CI feed' }
+          $tag = "v$env:PACKAGE_VERSION"
+          $release = & gh release view $tag --json tagName,isDraft,isPrerelease | ConvertFrom-Json
+          if ($LASTEXITCODE -ne 0 -or $release.tagName -cne $tag -or $release.isDraft -or -not $release.isPrerelease) { throw 'Expected an existing published prerelease' }
+          & gh release download $tag --dir artifacts/native-candidate-feed --pattern '*.nupkg' --pattern SHA256SUMS
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot download release assets' }
+          $sourceCommit = & git rev-parse "$tag^{commit}"
+          if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve release source' }
+          & git diff --exit-code $sourceCommit HEAD -- src global.json Directory.Build.props Directory.Build.targets Directory.Packages.props NuGet.Config
+          if ($LASTEXITCODE -ne 0) { throw 'Qualification source/build inputs differ from the release' }
+          ./eng/Test-ReleasePackages.ps1 -Version $env:PACKAGE_VERSION -SourceCommit $sourceCommit -PackageDirectory artifacts/native-candidate-feed
       - uses: actions/download-artifact@v4
         if: env.EXISTING_FEED != ''
         with:
@@ -63,7 +90,7 @@ jobs:
         shell: pwsh
         run: ./eng/Test-ReleasePackages.ps1 -Version $env:PACKAGE_VERSION -SourceCommit '${{ github.sha }}' -PackageDirectory artifacts/native-candidate-feed
       - name: Build and pack the exact source once
-        if: env.EXISTING_FEED == ''
+        if: env.EXISTING_FEED == '' && env.EXISTING_RELEASE != 'true'
         shell: pwsh
         run: |
           dotnet build OrcaCore.slnx -c Release -warnaserror
@@ -82,6 +109,7 @@ jobs:
   native:
     name: Native ${{ matrix.os }} ${{ matrix.flavor }}
     needs: packages
+    if: ${{ always() && !cancelled() && needs.packages.result == 'success' }}
     strategy:
       fail-fast: false
       matrix:
@@ -106,7 +134,7 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y clang zlib1g-dev
       - name: Negative gate controls
-        run: python -B -X utf8 -m unittest discover -s tools/ephemeral-native-assessment/support_v2 -p test_support_gate.py
+        run: python -B -X utf8 -m unittest discover -s tools/ephemeral-native-assessment/support_v2 -p 'test_*gate.py'
       - name: Publish and execute native package consumers
         shell: pwsh
         run: |
@@ -135,11 +163,17 @@ jobs:
   records:
     name: Six native cells bind the same source and packages
     needs: native
+    if: ${{ always() && !cancelled() && needs.native.result == 'success' }}
     runs-on: ubuntu-24.04
+    outputs:
+      qualified: ${{ steps.gate.outputs.qualified }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
           pattern: issue-13-*
           path: evidence
-      - run: python -B -X utf8 tools/ephemeral-native-assessment/support_v2/support_gate.py --package-version "${{ inputs.package-version }}" evidence
+      - id: gate
+        run: |
+          python -B -X utf8 tools/ephemeral-native-assessment/support_v2/support_gate.py --package-version "${{ inputs.package-version }}" evidence
+          echo 'qualified=true' >> "$GITHUB_OUTPUT"

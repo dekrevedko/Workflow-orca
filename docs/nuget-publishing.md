@@ -1,8 +1,8 @@
 # NuGet.org trusted publishing
 
-Status: GUIDE. Updated 2026-10-22. All twelve `0.1.0-preview.2` packages are available on
-[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.2).
-The [publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/39905678249)
+Status: GUIDE. Updated 2026-10-29. All twelve `0.1.0-preview.3` packages are available on
+[NuGet.org](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.3).
+The [publishing run](https://github.com/dekrevedko/Workflow-orca/actions/runs/40997094707)
 verified public version indexes and source metadata, then restored and ran a fresh consumer
 using only NuGet.org. The packages also remain available as GitHub release downloads.
 
@@ -53,7 +53,7 @@ signature can change the package file hash.
 To resume or reverify publication of the existing preview:
 
 ```powershell
-gh workflow run release.yml --ref master -f version=0.1.0-preview.2 -F nuget-only=true
+gh workflow run release.yml --ref master -f version=0.1.0-preview.3 -F nuget-only=true
 ```
 
 This mode downloads the already published GitHub release files. It verifies the exact
@@ -81,7 +81,7 @@ it resumes publication and verification without rebuilding or replacing release 
 Install a verified version with:
 
 ```powershell
-dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.2
+dotnet add YourProject.csproj package OrcaCore.Engine.Ephemeral --version 0.1.0-preview.3
 ```
 
 The [GitHub download installation instructions](packages.md#install-from-github-release-downloads)
@@ -100,7 +100,7 @@ Normal releases run both registry jobs after CI and GitHub release creation succ
 To mirror an existing release without rebuilding it or repeating NuGet.org publication:
 
 ```powershell
-gh workflow run release.yml --ref master -f version=0.1.0-preview.2 -F github-packages-only=true
+gh workflow run release.yml --ref master -f version=0.1.0-preview.3 -F github-packages-only=true
 ```
 
 The existing-release modes are mutually exclusive and require `master`. The mirror
@@ -119,16 +119,22 @@ repository link. Consumers still need authentication for a public GitHub NuGet f
 See [GitHub's visibility documentation](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility)
 and the [installation configuration](packages.md#install-from-github-packages).
 
-## Issue #13 release claim boundary (implementation pending)
+## Issue #13 published native boundary
 
-The approved contract/canonical transition publishes no packages and changes no credentials, registries or release workflow. A later qualified version must retain its own source/package/native evidence and use an unused version through the existing gates. The metadata API is absent from released preview.2; old unsupported assessment facts cannot be relabeled as support.
+Preview.3 is published and verified on both registries. Its metadata API is
+qualified only for the [selected ephemeral recipe](ephemeral-native-support.md).
+The metadata API is absent from preview.2, whose unsupported assessment remains
+historical. Publishing twelve packages grants no twelve-package native badge.
 
-## Publish a source-qualified native candidate
+[Publication run 40997094707](https://github.com/dekrevedko/Workflow-orca/actions/runs/40997094707)
+verified all versions and fresh consumers on both registries. Its initial native
+matrix was skipped by an orchestration bug; [follow-up 40998543857](https://github.com/dekrevedko/Workflow-orca/actions/runs/40998543857)
+qualified the exact immutable assets, all six cells and 384 cases. The correction
+requires actual completed native jobs plus the aggregate's explicit success output
+before future initial publication. The [publication record](releases/0.1.0-preview.3/published-2026-10-29.md)
+records both the incident and the verification without relabeling the original run.
 
-Issue #13 user-approved corrected checkpoint `d8c55f3`, with review-only child `25fa36c`, qualifies only the
-[selected ephemeral recipe](ephemeral-native-support.md). It does not publish a
-new version or change preview.2's unsupported assessment. Choose a new unused
-version only at an authorized release gate, bind its source/profile, and retain
-the normal CI, clean consumer and registry verification steps. Publishing all
-twelve packages grants no twelve-package AOT/trimming badge. This preparation
-authorizes no tag, workflow dispatch, registry push or release.
+Future releases require an unused version, approved source and green CI/native
+qualification before publication. Existing-release retry modes consume existing
+assets and do not rebuild them. Keep repository credentials confined to their
+original publishing jobs.

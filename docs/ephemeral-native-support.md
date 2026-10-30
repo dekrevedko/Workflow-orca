@@ -1,6 +1,12 @@
 # Ephemeral Native AOT and trimming support
 
-Status: **source-qualified; release pending**. This guide requires the corrected
+Status: **published in 0.1.0-preview.3**. All twelve distribution packages are
+verified on NuGet.org and GitHub Packages. The selected ephemeral recipe passed
+all six cells, 384/384 cases, in [exact-asset qualification 40998543857](https://github.com/dekrevedko/Workflow-orca/actions/runs/40998543857).
+See [the publication record](releases/0.1.0-preview.3/published-2026-10-29.md).
+
+The 2026-10-28 preparation status was **source-qualified; release pending**.
+Its historical source qualification requires the corrected
 issue #13 source at checkpoint `d8c55f32741f43523e528dd45ad49e6a0fbe7837`,
 followed by review-only child `25fa36c2ab79153e93c68f0d598779198c50cdbb`.
 The user approved checkpointing after review; the author review is not external
@@ -10,10 +16,10 @@ The corrections preserve write-only admission and validate actual serialized
 member values without extra getter reads. Unsupported runtime values in included
 fields/properties now reject in both modes rather than silently losing data.
 Published `0.1.0-preview.2` does not contain `WorkflowJsonMetadata` and keeps its
-earlier unsupported trimmed/AOT assessment. Preview.3 is the next prepared candidate, not a published version. PR #14 merged
-with commit `82811cd41aae577d8a1ae13258790d3da0c30d72` and issue #13 is closed.
-The [release preparation](release-0.1.0-preview.3.md) keeps package publication
-and registry verification as separate gates.
+earlier unsupported trimmed/AOT assessment. Preview.3 is published from commit `6b4ab952376de366a102e236b5e2b5b1ddfade41` after PR #15's merge;
+issue #13 remains closed. Its release package hashes match all six native reports,
+and all 360 product/build inputs match the released source. The
+[release preparation](release-0.1.0-preview.3.md) remains a dated planning record.
 
 ## Qualified profiles
 

@@ -1,0 +1,203 @@
+{
+  "version": "0.1.0-preview.3",
+  "tag": "v0.1.0-preview.3",
+  "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+  "sourceTree": "7d2d61bea9eaa548774316f0a5f9da2099982ae2",
+  "releaseUrl": "https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.3",
+  "releasePr": 15,
+  "publicationRun": 40997094707,
+  "nativeQualificationRun": 40998543857,
+  "nativeHarnessCommit": "ce882e8c2caa346ed12174819c73bf1c2c316bce",
+  "nativeSourceFileCount": 360,
+  "nativeSourceInputsExactlyMatchRelease": true,
+  "nativePackageHashesExactlyMatchPublishedAssets": true,
+  "cells": [
+    {
+      "host": "ubuntu-24.04",
+      "flavor": "aot",
+      "cases": 55,
+      "protocol": 3,
+      "diagnosticRecords": 8,
+      "packageVersion": "0.1.0-preview.3"
+    },
+    {
+      "host": "ubuntu-24.04",
+      "flavor": "jit",
+      "cases": 82,
+      "protocol": 3,
+      "diagnosticRecords": 0,
+      "packageVersion": "0.1.0-preview.3"
+    },
+    {
+      "host": "ubuntu-24.04",
+      "flavor": "trimmed",
+      "cases": 55,
+      "protocol": 3,
+      "diagnosticRecords": 4,
+      "packageVersion": "0.1.0-preview.3"
+    },
+    {
+      "host": "windows-2025",
+      "flavor": "aot",
+      "cases": 55,
+      "protocol": 3,
+      "diagnosticRecords": 8,
+      "packageVersion": "0.1.0-preview.3"
+    },
+    {
+      "host": "windows-2025",
+      "flavor": "jit",
+      "cases": 82,
+      "protocol": 3,
+      "diagnosticRecords": 0,
+      "packageVersion": "0.1.0-preview.3"
+    },
+    {
+      "host": "windows-2025",
+      "flavor": "trimmed",
+      "cases": 55,
+      "protocol": 3,
+      "diagnosticRecords": 4,
+      "packageVersion": "0.1.0-preview.3"
+    }
+  ],
+  "totalCases": 384,
+  "githubAssetSha256": {
+    "OrcaCore.0.1.0-preview.3.nupkg": "758891b71386555a2fa2bceb854b9369a8db8eccf1a8107a422da6035f3a9bfd",
+    "OrcaCore.Core.0.1.0-preview.3.nupkg": "95b2ea415ea077bce32beaa7599dc70078adc8c1a455987c34e07092f8a58c03",
+    "OrcaCore.Dag.0.1.0-preview.3.nupkg": "03a65601f0bfc96ca7b13a6ab694f5fbeb9f90e0a15c9d8bee4607c17af42ec1",
+    "OrcaCore.Dag.Hosting.0.1.0-preview.3.nupkg": "5331bc7ef7ae3726667a7860748180b26b0152c8d7c654431a4089a9ad065cae",
+    "OrcaCore.Durable.Hosting.0.1.0-preview.3.nupkg": "3be0985de455eae1ca5420c049c41bafd70fc366e739359b51ca5f1906ae5d30",
+    "OrcaCore.Engine.Durable.0.1.0-preview.3.nupkg": "7906cc1ef433bc7b24f5385395ed1fc27b283be08ca103afdbb9295d5c0540d0",
+    "OrcaCore.Engine.Ephemeral.0.1.0-preview.3.nupkg": "73e341bd56a828004e63c776972de6f0ada9b81f7c0f8f8938fc663cddc73bf4",
+    "OrcaCore.Provider.Abstractions.0.1.0-preview.3.nupkg": "324ee13b4c779c3b299aafd99e74f6b6a0a1fd3832eded69773213fd851c16ed",
+    "OrcaCore.Providers.InMemory.0.1.0-preview.3.nupkg": "fa2357be57a749919ed4f7f2e9e51f88878de424e251b0622ab51c7c9952a6cd",
+    "OrcaCore.Providers.PostgreSql.0.1.0-preview.3.nupkg": "3a9b4a4fb7974661b7cbd623b41dc1861eaf87563fe253afa9346f2e8c6d2d11",
+    "OrcaCore.Providers.SqlServer.0.1.0-preview.3.nupkg": "1aa6be30cac63ab19ed9293bce638591f2eb2af8db74ceaf2b6018e4268006bb",
+    "OrcaCore.Runtime.Protocol.0.1.0-preview.3.nupkg": "cce306e5613a29d4b03cc4050b63fce403f02957464b83894018bde2437e13de"
+  },
+  "nugetVerification": [
+    {
+      "id": "OrcaCore",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Core",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Core/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Engine.Ephemeral",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Runtime.Protocol",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Runtime.Protocol/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Provider.Abstractions",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Provider.Abstractions/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Engine.Durable",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Engine.Durable/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Durable.Hosting",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Durable.Hosting/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Providers.InMemory",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Providers.InMemory/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Providers.PostgreSql",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Providers.PostgreSql/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Providers.SqlServer",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Providers.SqlServer/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Dag",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Dag/0.1.0-preview.3"
+    },
+    {
+      "id": "OrcaCore.Dag.Hosting",
+      "version": "0.1.0-preview.3",
+      "listed": true,
+      "sourceCommit": "6b4ab952376de366a102e236b5e2b5b1ddfade41",
+      "repositoryUrl": "https://github.com/dekrevedko/Workflow-orca",
+      "url": "https://www.nuget.org/packages/OrcaCore.Dag.Hosting/0.1.0-preview.3"
+    }
+  ],
+  "registries": {
+    "nuget.org": {
+      "packages": 12,
+      "freshConsumer": "Passed, result 42",
+      "publicSourceMetadata": "12/12 match release commit"
+    },
+    "githubPackages": {
+      "packages": 12,
+      "freshSourceMappedConsumer": "Passed, result 42",
+      "originAndAssetHashComparison": "12/12 match release assets"
+    }
+  },
+  "originalNativeGateOutcome": "Initial run skipped native jobs; exact-asset follow-up qualification completed successfully. No package rebuild, replacement or tag movement.",
+  "newGateOutcome": "Explicit skip overrides and fail-closed qualification output plus actual-job inventory check",
+  "remainingNativeLimits": [
+    "Selected ephemeral closure only",
+    "Windows Server 2025 win-x64 and Ubuntu 24.04 linux-x64 only",
+    "No native credit for live event delivery/resumption or outgoing publishing"
+  ],
+  "retainedNativeEvidence": {
+    "path": "native-qualification-v0.1.0-preview.3.zip",
+    "sha256": "2aaea2b142755f20707cf75153a95d6cc4896364c9f81435bea585fac4b39761",
+    "bytes": 645113,
+    "contents": "Six complete native artifact directories, source/asset proof and public CI/registry metadata",
+    "locationReason": "GitHub rejected additional assets because the published release is immutable; original assets and tag remain unchanged"
+  }
+}
