@@ -10,8 +10,9 @@ existing output wait, DAG wait, timeout or cancellation contract. Ephemeral outp
 waits SHALL expose an eligible original step exception only through the existing
 wrapper's InnerException; WorkflowFailure.ExceptionType SHALL remain detached text.
 Only the two exact members in this change's approved catalogue SHALL be added.
-Public API/compile/package/declaration baselines SHALL change with actual source,
-never during this contract-only target.
+The normative declaration companion SHALL change in the reviewed canonical and
+numbered-document transition. Executable public-API/compile/package baselines
+SHALL change with actual source, never during a contract or canonical-only target.
 
 #### Scenario: Completion races wait subscription
 - **WHEN** output or DAG terminal state commits immediately before, during, or after wait subscription

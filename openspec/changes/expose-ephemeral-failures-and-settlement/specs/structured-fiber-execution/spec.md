@@ -11,8 +11,12 @@ committed failure or attach an unrelated exception. A single propagated step
 failure SHALL preserve that association. A true aggregate SHALL expose only
 ordered detached causes and no invented live AggregateException. WhenAllOutcomes
 SHALL continue to supply detached data, and a successful recovery SHALL not retain
-obsolete original exception references as a terminal failure. Core/fiber/provider
-records MAY carry detached type text but SHALL never carry live Exception objects.
+obsolete original exception references as a terminal failure. Ephemeral fiber records MAY carry detached type text but SHALL never carry live
+Exception objects. Durable engine-produced fiber, checkpoint, outbox, projection
+and provider failure records SHALL NOT capture ExceptionType; their persisted
+failure bytes SHALL remain byte-identical to base 0a8e375. This does not prohibit
+supported typed application payloads from using the shared failure-value codec;
+it does not add live exceptions or type capture to durable failure production.
 Existing sibling completion, join ordering and no-automatic-sibling-cancellation
 semantics SHALL remain unchanged.
 

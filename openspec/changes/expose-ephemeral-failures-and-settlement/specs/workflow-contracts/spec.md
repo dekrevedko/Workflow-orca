@@ -98,6 +98,8 @@ null. A join's synthetic parent SHALL use null; its causes SHALL preserve their
 individual captured strings. Causes SHALL contain actual failures, never a
 synthetic exception-type metadata entry. No Type resolution or Exception
 construction/deserialization SHALL be performed from that string.
+ExceptionType SHALL be diagnostic text only, never protocol identity or a matching
+key; Code SHALL remain the stable failure identity.
 
 The fixed codec's existing five-property failure object SHALL remain the canonical
 legacy form, with byte-identical encoding when ExceptionType is null. A non-null

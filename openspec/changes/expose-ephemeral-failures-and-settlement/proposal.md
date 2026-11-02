@@ -62,11 +62,16 @@ Base: GitHub-synced master `0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580`.
 Branch: `codex/issue-16-ephemeral-failure-settlement`. Preview.3 is now published;
 the issue's earlier “not yet published” source note is a dated observation.
 
-This is an uncommitted contract target. No product source, canonical/numbered
-specification, declaration companion or executable baseline changes here. The
-provenance pin refresh and exact nine-row proposed-owner registration are explicit
-process prerequisites for green CI; neither grants canonical or source approval.
-Independent review and direct owner approval precede canonical transition; source
-implementation needs the separately approved canonical checkpoint. Every major
-step gets a separate adversarial self-review and required green validation.
-The scope/routing/API/scenario artifacts define the future targets precisely.
+The original 26-path contract target changed no product source, canonical/numbered
+specification, declaration companion or executable baseline. It was independently
+approved and checkpointed at 0cae922 (tree cf054886), with external verdict-only
+child 7697c79. Its provenance pins and exact proposed-owner registration were
+process prerequisites, not canonical or source approval.
+
+Task 2.1 now prepares the canonical/numbered/declaration/guide transition, including
+external F1's durable stored-byte boundary and the P3 clarifications. Its exact
+Git-bound registry keeps canonical/source approval unset. This new target remains
+uncommitted for independent review. No product source or executable API/compile/
+package baseline changes here. Source implementation needs the separately approved
+canonical checkpoint. Every major step retains adversarial review and green
+validation; the routing/API/scenario artifacts define the later targets precisely.

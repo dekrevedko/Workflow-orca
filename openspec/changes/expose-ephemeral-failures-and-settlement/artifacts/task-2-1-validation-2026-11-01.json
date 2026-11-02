@@ -1,0 +1,140 @@
+{
+  "schemaVersion": 1,
+  "stage": "ContractApprovedCanonicalPreparedAwaitingIndependentApproval",
+  "baseCommit": "7697c7981c02d03408cbccf9a2e0b9bade33ca14",
+  "contractCheckpoint": "0cae922a1d68f4c55f9bfc19b50060bfcdbaaa83",
+  "contractTree": "cf054886e39c20d9294b3baac55e58fa19c6bbdf",
+  "contractVerdictCommit": "7697c7981c02d03408cbccf9a2e0b9bade33ca14",
+  "contractVerdictPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-external-independent-review-verdict-2026-10-29.md",
+  "contractVerdictSha256": "3e7fc94ef23e6c0130e23aecc349a71248b5da3f6c5992d178d2da78a6f12fd8",
+  "productSourceChanged": false,
+  "executableApiCompilePackageBaselinesChanged": false,
+  "canonicalApproval": null,
+  "sourceApproval": null,
+  "checks": {
+    "openSpecStrict": "26/26",
+    "releaseBuild": {
+      "warnings": 0,
+      "errors": 0
+    },
+    "infrastructure": {
+      "passed": 311,
+      "total": 311,
+      "skipped": 0,
+      "trxSha256": "56fc6aefc42405c2ae524107fd54ae0819990eaa088535edce8a0b130f7feb9e"
+    },
+    "mutationProbes": {
+      "probes": [
+        {
+          "probe": "unowned-canonical",
+          "caught": true,
+          "signal": "unowned text, order and preambles",
+          "outerHashRepinned": true
+        },
+        {
+          "probe": "fake-source-approval",
+          "caught": true,
+          "signal": "JsonValueKind.Null",
+          "outerHashRepinned": true
+        },
+        {
+          "probe": "third-owner",
+          "caught": true,
+          "signal": "only the named predecessor and prepared successor",
+          "outerHashRepinned": false
+        },
+        {
+          "probe": "early-source-task",
+          "caught": true,
+          "signal": "one open turns-green task '3.1'",
+          "outerHashRepinned": false
+        },
+        {
+          "probe": "changed-verdict",
+          "caught": true,
+          "signal": "Sha256(verdict)",
+          "outerHashRepinned": false
+        },
+        {
+          "probe": "missing-document-pin",
+          "caught": true,
+          "signal": "contain 16 item(s)",
+          "outerHashRepinned": true
+        }
+      ],
+      "restoredControl": "2/2",
+      "exactRestoration": true
+    },
+    "occurrenceReplay": {
+      "baseHits": 298,
+      "currentHits": 492,
+      "accountedRows": 502,
+      "ownerDecisions": 107,
+      "unclassified": 0,
+      "independentRipgrepCurrentHits": 492,
+      "negativeControls": "3/3: removed row, false Retain, altered line hash"
+    },
+    "resharper": {
+      "version": "2026.2.3.1",
+      "configuration": "Release",
+      "platform": "Any CPU",
+      "targetFramework": "net10.0",
+      "noBuild": "after a compatible Release build",
+      "scope": [
+        "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+        "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs"
+      ],
+      "errors": 0,
+      "warnings": 58,
+      "notes": 62,
+      "introducedWarnings": 0,
+      "newHelperNotes": 1,
+      "reportPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-2-1-resharper-2026-11-01.sarif"
+    }
+  },
+  "provenance": {
+    "rows": 218,
+    "bytes": 58043,
+    "sha256": "f6e5ed0ad28a597fbbea17a62a10c9cfd6e05f580e0051f62f51d558d7a24783",
+    "synchronized": 198,
+    "superseded": 17,
+    "outsideCanonical": 3,
+    "pending": 0,
+    "predecessors": 28,
+    "canonicalFilesExactlyTransformed": 14,
+    "synchronizedBlocks": 12,
+    "documentationPins": 16
+  },
+  "sourceInventory": {
+    "physicalFiles": 369,
+    "physicalDeclarations": 1514,
+    "activeFiles": 214,
+    "activeDeclarations": 826,
+    "retiredDeclarations": 866,
+    "retiredDispositionsUnchanged": true
+  },
+  "validatedGuardSourceSha256": {
+    "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs": "72ea0fe6fc1fc5edd912116efb88776a5ca79faf2a8af2dbe8e5836a16e0452b",
+    "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs": "211a2f7e2a68c3c40a346448f9a1a9b33a48f6be80dafa73f96f0b3d49770332",
+    "tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs": "51130a0922d7d2396f974e347a39980a036af6cc1af4d46fb0bb687ebbe58d60",
+    "tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs": "5d5f18a100f3b9a080e9965e4c767c8418e99b42ae9bac5cff0734585b85c5bb",
+    "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs": "57b02f3061f50affd2f302be61e36d664567716beb500a107dda1dabd9176713",
+    "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs": "b55efa90d2a3fec7a2efb98eae22de82ae53caf0b9adf94813a4ddd8cef074f7"
+  },
+  "notRun": [
+    "Runtime unit, provider, integration, stress, coverage, new public-package consumer and six-cell native execution: no product implementation exists in this transition. These remain task 3 gates."
+  ],
+  "resolvedPreparationIssues": [
+    "The initial declaration excerpt referenced five support types absent from the existing normative fixture. It now contains only the two self-contained member fragments; executable compile fixtures were not changed.",
+    "Prior canonical/document guards required their historical frozen layers. The new adapter verifies exact twelve-operation current transforms before exposing the preserved prior layer. Prior approval artifacts/global registry stay exact.",
+    "Two process tests require one source-inventory row, two declarations and the current derived task-7.20 count maintenance; all 866 retired dispositions remain unchanged.",
+    "Initial temporary output was under an unignored scratch prefix and raced the raw-status self-check. Helpers/output now use the existing ignored publishing-validation prefix; no Git ignore rule was relaxed.",
+    "A probe reporter expected an old open-task error phrase. The guard was correctly red; the reporter now checks the actual error. No product or guard behavior was weakened."
+  ],
+  "cleanupReceipt": ".artifacts/publishing-validation/issue-16-transition-2026-11-01/cleanup.json",
+  "approvalBoundary": "Green validation and author review do not authorize the canonical checkpoint, source implementation, push, issue changes, merge or release."
+}

@@ -274,7 +274,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "9e654e3efc789b0b08cd6a00a7914cf12cfb487ab89381fa1149a302b443f28f";
+        "af5312085b60e8e78207044909e3a794f73c96ce1da6de8dc3a9e3bbd62a5af5";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -318,10 +318,10 @@ public sealed class OpenSpecCorpusGuards
     private const string SemanticAppendixSourceSha256 =
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
-        "327b054c4c0d4cc8f77347c26ac8342f9f355ba83a45d07567111d66190ce4d6";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 27;
+        "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 28;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "84c6fcef23746282e628a10fe964f58826e9855170ac40610cc6359ab4ebb0e5";
+        "8c936afa9d013abda87bb1c43b692520ef8748ff8bd5f604f0d507e77dbc72c5";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -389,7 +389,9 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/support-ephemeral-native-aot/artifacts/task-2-3-r1-openspec-provenance-2026-10-26.md",
                 "17a708272839f1319d0cdcf2aeee6438d98d0855f6202038f5217275a0428c05"),
             ("openspec/changes/support-ephemeral-native-aot/artifacts/task-2-4-boundary-openspec-provenance-2026-10-27.md",
-                "a6c69937b197e814462d918f42735f02757c08579715d9619a80f3f9dd985ace")
+                "a6c69937b197e814462d918f42735f02757c08579715d9619a80f3f9dd985ace"),
+            ("openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-openspec-provenance-2026-10-29.md",
+                "9e654e3efc789b0b08cd6a00a7914cf12cfb487ab89381fa1149a302b443f28f")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -1749,9 +1751,9 @@ public sealed class OpenSpecCorpusGuards
                 item.Capability == successor.Capability && item.Requirement == successor.Requirement);
             Sha256(predecessor.Block).Should().Be(approved.HistoricalCanonicalBlockSha256);
             Sha256(amendment.Block).Should().Be(approved.CanonicalBlockSha256);
-            ClassifyPostGateProvenance(canonicalRequirements, predecessor, checkpoint).State.Should().Be(
+            ClassifyPostGateProvenance(root, canonicalRequirements, predecessor, checkpoint).State.Should().Be(
                 ProvenanceState.SupersededByApprovedSuccessor);
-            ClassifyPostGateProvenance(canonicalRequirements, amendment, checkpoint).State.Should().Be(
+            ClassifyPostGateProvenance(root, canonicalRequirements, amendment, checkpoint).State.Should().Be(
                 ProvenanceState.SupersededByApprovedSuccessor);
 
             var task = ValidateTaskReference(
@@ -1767,30 +1769,80 @@ public sealed class OpenSpecCorpusGuards
         return keys;
     }
 
+    private const string EphemeralFailureSettlementRegistry =
+        "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-2-1-amendment-registry-2026-11-01.json";
+    private const string EphemeralFailureSettlementRegistrySha256 = "37330c37abfb606af69fef227172dd1bc7a76220ca22173ca6d576080c2836aa";
+
+    private static JsonDocument ReadEphemeralFailureSettlementRegistry(string root)
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(root, EphemeralFailureSettlementRegistry));
+        Sha256(bytes).Should().Be(EphemeralFailureSettlementRegistrySha256,
+            "only this exact contract-approved, canonical-prepared registration is admitted");
+        return JsonDocument.Parse(bytes);
+    }
+
     private static HashSet<string> ValidateProposedEphemeralFailureSettlementSuccessors(
         string root,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         IReadOnlyCollection<DeltaRequirement> activeRequirements)
     {
         const string change = "expose-ephemeral-failures-and-settlement";
-        const string path = "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-proposed-successors-2026-10-29.json";
-        const string expectedSha = "1f6941bdacd8cf0b4cfaba6a7cb8d5b76d5346a92119fa554bcae9c6e3fccbed";
-        var bytes = File.ReadAllBytes(Path.Combine(root, path));
-        Sha256(bytes).Should().Be(expectedSha, "only this exact proposed ownership registration is admitted");
-        using var document = JsonDocument.Parse(bytes);
+        using var document = ReadEphemeralFailureSettlementRegistry(root);
         var record = document.RootElement;
-        record.GetProperty("schemaVersion").GetInt32().Should().Be(1);
-        record.GetProperty("stage").GetString().Should().Be("ProposedContractPending");
+        record.GetProperty("schemaVersion").GetInt32().Should().Be(2);
+        record.GetProperty("stage").GetString().Should().Be("ContractApprovedCanonicalPreparedSourcePending");
         record.GetProperty("owningChange").GetString().Should().Be(change);
         record.GetProperty("baseCommit").GetString().Should().Be("0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580");
         record.GetProperty("successorOperation").GetString().Should().Be("MODIFIED");
         record.GetProperty("canonicalSyncTask").GetString().Should().Be("2.1");
-        record.GetProperty("semanticApprovalEligible").GetBoolean().Should().BeFalse();
+        record.GetProperty("canonicalReviewPending").GetBoolean().Should().BeTrue();
+        record.GetProperty("sourceImplementationAuthorized").GetBoolean().Should().BeFalse();
+        record.GetProperty("semanticApprovalEligible").GetBoolean().Should().BeTrue("zero pending text operations is eligibility, not review approval");
         foreach (var field in new[] { "canonicalApprovalEvidencePath", "sourceApprovalEvidencePath" })
             record.GetProperty(field).ValueKind.Should().Be(JsonValueKind.Null);
+        const string checkpoint = "0cae922a1d68f4c55f9bfc19b50060bfcdbaaa83";
+        const string verdictCommit = "7697c7981c02d03408cbccf9a2e0b9bade33ca14";
+        const string verdictPath = "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-external-independent-review-verdict-2026-10-29.md";
+        record.GetProperty("checkpointCommit").GetString().Should().Be(checkpoint);
+        record.GetProperty("checkpointParent").GetString().Should().Be("0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580");
+        record.GetProperty("checkpointTree").GetString().Should().Be("cf054886e39c20d9294b3baac55e58fa19c6bbdf");
+        record.GetProperty("approvalEvidenceCommit").GetString().Should().Be(verdictCommit);
+        record.GetProperty("verdictPath").GetString().Should().Be(verdictPath);
+        record.GetProperty("verdictSha256").GetString().Should().Be("3e7fc94ef23e6c0130e23aecc349a71248b5da3f6c5992d178d2da78a6f12fd8");
+        foreach (var lookup in new[]
+        {
+            (Revision: checkpoint + "^", Expected: "0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580"),
+            (Revision: checkpoint + "^{tree}", Expected: "cf054886e39c20d9294b3baac55e58fa19c6bbdf"),
+            (Revision: verdictCommit + "^", Expected: checkpoint)
+        })
+        {
+            var result = RunGit(root, "rev-parse", lookup.Revision);
+            result.ExitCode.Should().Be(0, "failed Git lookups cannot become approval");
+            result.StandardOutput.Trim().Should().Be(lookup.Expected);
+        }
+        var paths = RunGit(root, "diff-tree", "--no-commit-id", "--name-only", "-r", verdictCommit);
+        paths.ExitCode.Should().Be(0);
+        paths.StandardOutput.Trim().Should().Be(verdictPath);
+        var verdict = File.ReadAllBytes(Path.Combine(root, verdictPath));
+        Sha256(verdict).Should().Be("3e7fc94ef23e6c0130e23aecc349a71248b5da3f6c5992d178d2da78a6f12fd8");
+        ReadGitBlob(root, verdictCommit, verdictPath).Should().Equal(verdict);
+        var proposedPath = "openspec/changes/" + change + "/artifacts/contract-proposed-successors-2026-10-29.json";
+        ReadGitBlob(root, checkpoint, proposedPath).Should().Equal(File.ReadAllBytes(Path.Combine(root, proposedPath)),
+            "the approved proposed-stage artifact remains immutable history");
+        var documentation = record.GetProperty("normativeDocumentationSuccessors").EnumerateArray().ToArray();
+        documentation.Should().HaveCount(16);
+        documentation.Select(row => row.GetProperty("path").GetString()).Should().OnlyHaveUniqueItems();
+        foreach (var row in documentation)
+        {
+            var path = row.GetProperty("path").GetString()!;
+            Sha256(NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, verdictCommit, path))))
+                .Should().Be(row.GetProperty("beforeSha256").GetString());
+            Sha256(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))))
+                .Should().Be(row.GetProperty("afterSha256").GetString());
+        }
         var ledger = File.ReadAllText(Path.Combine(root, "openspec/changes/" + change + "/tasks.md"));
-        _ = ReadOpenTaskBlock(ledger, "2.1");
-        foreach (var task in new[] { "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
+        Regex.Matches(ledger, @"(?m)^- \[x\] 1\.4\b").Should().ContainSingle();
+        foreach (var task in new[] { "2.1", "2.2", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
             _ = ReadOpenTaskBlock(ledger, task);
         var rows = record.GetProperty("proposedSuccessors").EnumerateArray().ToArray();
         rows.Should().HaveCount(9);
@@ -1801,19 +1853,62 @@ public sealed class OpenSpecCorpusGuards
             var requirement = row.GetProperty("requirement").GetString()!;
             keys.Add(capability + "\0" + requirement).Should().BeTrue();
             var owners = activeRequirements.Where(item => item.Capability == capability && item.Requirement == requirement).ToArray();
-            owners.Should().HaveCount(2, "only the named predecessor and proposed successor may share this heading");
+            owners.Should().HaveCount(2, "only the named predecessor and prepared successor may share this heading");
             var predecessor = owners.Single(item => item.Change == row.GetProperty("predecessorChange").GetString());
             var successor = owners.Single(item => item.Change == change);
             predecessor.Operation.ToString().ToUpperInvariant().Should().Be(row.GetProperty("predecessorOperation").GetString());
             successor.Operation.Should().Be(RequirementOperation.Modified);
             successor.CapabilityKind.Should().Be(CapabilityKind.Modified);
             Sha256(predecessor.Block).Should().Be(row.GetProperty("predecessorBlockSha256").GetString());
+            var historical = row.GetProperty("historicalCanonicalBlock").GetString()!;
+            historical.Should().Be(predecessor.Block);
+            Sha256(historical).Should().Be(row.GetProperty("historicalCanonicalBlockSha256").GetString());
+            var prior = Encoding.UTF8.GetString(ReadGitBlob(root, checkpoint, "openspec/specs/" + capability + "/spec.md"));
+            ReadRequirementBlocks(NormalizeLineEndings(prior).Split('\n'), "approved prior canonical", false)
+                .Single(item => item.Requirement == requirement).Block.Should().Be(historical);
             Sha256(canonicalRequirements[capability][requirement].Block).Should().Be(row.GetProperty("canonicalBlockSha256").GetString());
             Sha256(successor.Block).Should().Be(row.GetProperty("successorBlockSha256").GetString());
-            ClassifyProvenance(canonicalRequirements, predecessor).State.Should().Be(ProvenanceState.Synchronized);
-            ClassifyProvenance(canonicalRequirements, successor).State.Should().Be(ProvenanceState.PendingModification);
+            ClassifyProvenance(canonicalRequirements, successor).State.Should().Be(ProvenanceState.Synchronized);
+        }
+        var operations = record.GetProperty("synchronizedOperations").EnumerateArray().ToArray();
+        operations.Should().HaveCount(12);
+        operations.Select(row => row.GetProperty("capability").GetString() + "\0" + row.GetProperty("requirement").GetString())
+            .Should().OnlyHaveUniqueItems();
+        var canonicalFiles = record.GetProperty("canonicalFiles").EnumerateArray().ToArray();
+        canonicalFiles.Select(file => file.GetProperty("path").GetString()).Should().Equal(
+            canonicalRequirements.Keys.Order(StringComparer.Ordinal).Select(capability => "openspec/specs/" + capability + "/spec.md"));
+        foreach (var file in canonicalFiles)
+            _ = EphemeralFailureSettlementReviewHistory.CanonicalBefore(root, file.GetProperty("path").GetString()!);
+        foreach (var row in operations)
+        {
+            var capability = row.GetProperty("capability").GetString()!;
+            var requirement = row.GetProperty("requirement").GetString()!;
+            var successor = activeRequirements.Single(item => item.Change == change && item.Capability == capability && item.Requirement == requirement);
+            successor.Operation.ToString().ToUpperInvariant().Should().Be(row.GetProperty("operation").GetString());
+            Sha256(successor.Block).Should().Be(row.GetProperty("blockSha256").GetString());
+            canonicalRequirements[capability][requirement].Block.Should().Be(successor.Block);
         }
         return keys;
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>>
+        PriorApprovedEphemeralFailureSettlementBlocks(
+            string root, IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonical)
+    {
+        using var document = ReadEphemeralFailureSettlementRegistry(root);
+        var result = canonical.ToDictionary(item => item.Key,
+            item => (IReadOnlyDictionary<string, CanonicalRequirement>)new Dictionary<string, CanonicalRequirement>(item.Value), StringComparer.Ordinal);
+        foreach (var row in document.RootElement.GetProperty("proposedSuccessors").EnumerateArray())
+        {
+            var capability = row.GetProperty("capability").GetString()!;
+            var requirement = row.GetProperty("requirement").GetString()!;
+            var historical = row.GetProperty("historicalCanonicalBlock").GetString()!;
+            Sha256(historical).Should().Be(row.GetProperty("historicalCanonicalBlockSha256").GetString());
+            var copy = new Dictionary<string, CanonicalRequirement>(result[capability], StringComparer.Ordinal)
+            { [requirement] = new(requirement, historical) };
+            result[capability] = copy;
+        }
+        return result;
     }
 
     private static HashSet<string> ValidateProposedDagRunSuccessors(
@@ -1882,7 +1977,7 @@ public sealed class OpenSpecCorpusGuards
                 "the only delta refinement since RC-3 is mandatory lower-ordinal discard");
             var canonical = canonicalRequirements[successor.Capability][successor.Requirement];
             canonical.Block.Should().Be(proposed.Block, "atomic synchronization must reproduce the delta exactly");
-            ClassifyPostGateProvenance(canonicalRequirements, predecessor, checkpoint).State.Should().Be(
+            ClassifyPostGateProvenance(root, canonicalRequirements, predecessor, checkpoint).State.Should().Be(
                 ProvenanceState.SupersededByApprovedSuccessor);
             var actualOwners = activeRequirements
                 .Where(item => item.Capability == successor.Capability && item.Requirement == successor.Requirement)
@@ -2512,7 +2607,7 @@ public sealed class OpenSpecCorpusGuards
         var sectionEnd = nextHeading < 0 ? numbered.Length : nextHeading;
         var numberedBlock = numbered[heading.Index..sectionEnd];
         Sha256(Encoding.UTF8.GetBytes(numberedBlock)).Should().Be(
-            "27f38ec13f066af5b2715172b11d2d0db7ad342d0649418e25fc6143a03f25d3",
+            "3ad768ef333579bb79654ec632936b83e686aaf7972e07d10aa7621873bef9d0",
             "the complete CR-014a block is immutable reviewed text, so appended contradictions or " +
             "unreviewed clause movement must fail rather than coexist with required fragments");
         numberedClauses.Should().OnlyContain(clause =>
@@ -2965,7 +3060,7 @@ public sealed class OpenSpecCorpusGuards
             "the mutable contract fixture must reproduce the source-owned reviewed companion pin");
         Sha256(companionBytes).Should().Be(
             PublicAuthoringCompanionSha256,
-            "Task 6.5 deliberately preserves the already-reviewed compile-shaped public companion");
+            "the source-pinned current normative declaration companion includes only the reviewed transition");
 
         var companion = NormalizeLineEndings(Encoding.UTF8.GetString(companionBytes));
         companion.Should().NotContainAny(
@@ -3604,7 +3699,7 @@ public sealed class OpenSpecCorpusGuards
         foreach (var row in artifactRows)
         {
             Sha256(documents[row.Path]).Should().Be(
-                row.Sha256,
+                EphemeralFailureSettlementReviewHistory.CurrentDocumentationHash(root, row.Path, row.Sha256),
                 $"Task 7.3 source '{row.Path}' must remain byte-equivalent after LF normalization");
         }
 
@@ -4673,7 +4768,7 @@ public sealed class OpenSpecCorpusGuards
         var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
         var rows = activeDeltaRequirements
-            .Select(requirement => ClassifyPostGateProvenance(
+            .Select(requirement => ClassifyPostGateProvenance(root,
                 canonicalRequirements,
                 requirement,
                 postGateCheckpoint))
@@ -4885,7 +4980,7 @@ public sealed class OpenSpecCorpusGuards
             .Select(item => $"{item.OwningChange}\0{item.Capability}")
             .Should().OnlyHaveUniqueItems();
 
-        ValidateCompletedEphemeralRetention(root, canonicalRequirements, checkpoint);
+        ValidateCompletedEphemeralRetention(root, PriorApprovedEphemeralFailureSettlementBlocks(root, canonicalRequirements), checkpoint);
 
         foreach (var amendment in checkpoint.Amendments)
         {
@@ -4919,7 +5014,7 @@ public sealed class OpenSpecCorpusGuards
                 "the permanent post-gate record must bind the exact requirement identities " +
                 "from either the active or dated archived owning change");
             var amendmentRows = amendmentRequirements
-                .Select(requirement => ClassifyPostGateProvenance(
+                .Select(requirement => ClassifyPostGateProvenance(root,
                     canonicalRequirements,
                     requirement,
                     checkpoint))
@@ -6832,10 +6927,23 @@ public sealed class OpenSpecCorpusGuards
     }
 
     private static ProvenanceRow ClassifyPostGateProvenance(
+        string root,
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         DeltaRequirement requirement,
         PostGateAmendmentCheckpoint checkpoint)
     {
+        using var issue16 = ReadEphemeralFailureSettlementRegistry(root);
+        foreach (var row in issue16.RootElement.GetProperty("proposedSuccessors").EnumerateArray())
+        {
+            if (requirement.Change != row.GetProperty("predecessorChange").GetString() ||
+                requirement.Capability != row.GetProperty("capability").GetString() ||
+                requirement.Requirement != row.GetProperty("requirement").GetString()) continue;
+            Sha256(requirement.Block).Should().Be(row.GetProperty("predecessorBlockSha256").GetString(),
+                "a prepared successor cannot rewrite its approved predecessor");
+            var current = canonicalRequirements[requirement.Capability][requirement.Requirement].Block;
+            Sha256(current).Should().Be(row.GetProperty("canonicalBlockSha256").GetString());
+            return CreateProvenanceRow(requirement, ProvenanceState.SupersededByApprovedSuccessor, current);
+        }
         var predecessor = checkpoint.SupersededRuntimeViewPredecessors
             .Concat(checkpoint.SupersededDagRunPredecessors).SingleOrDefault(item =>
             item.Change == requirement.Change && item.Capability == requirement.Capability &&

@@ -503,7 +503,9 @@ public sealed class NativeSupportTransitionGuards
     private static JsonDocument Load() => JsonDocument.Parse(Read(Registry));
     private static string S(JsonElement value, string property) => value.GetProperty(property).GetString()!;
     private static string PathOf(string relative) => Path.Combine(FixtureDefinitions.RepositoryRoot(), relative);
-    private static string Read(string relative) => Normalize(File.ReadAllText(PathOf(relative)));
+    private static string Read(string relative) => relative.StartsWith("openspec/specs/", StringComparison.Ordinal)
+        ? EphemeralFailureSettlementReviewHistory.CanonicalBefore(FixtureDefinitions.RepositoryRoot(), relative)
+        : Normalize(File.ReadAllText(PathOf(relative)));
     private static string Normalize(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal);
     private static string[] Blocks(string text) => Regex.Matches(Normalize(text), @"(?ms)^### Requirement: .*?(?=^### Requirement: |^## |\z)")
         .Select(x => x.Value.TrimEnd('\n')).ToArray();

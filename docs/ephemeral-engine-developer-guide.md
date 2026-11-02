@@ -227,6 +227,12 @@ operations still finish normally and are joined. After Completed there is no new
 engine work, DI/user code, timer, diagnostic or commit: only passive registered
 identity, previously detached values and cached Completed remain available.
 
+The pending issue #16 contract adds one passive exception on an already-issued
+handle: settlement observation in Closed/Stopping and its completed local receipt
+after Completed/correct owner disposal. It adds no DI, payload pin or host join
+obligation and does not reopen ordinary output/query waits. This API is absent
+from preview.3; see the implementation-pending resource recipe below.
+
 Incomplete has Reason/PendingWorkCount, not stuck-instance identities. **Before
 calling stop**, inspect existing snapshots/state and stuck-step/lifecycle diagnostics
 to identify and record suspect instances. Once Stopping rejects live queries use
@@ -326,3 +332,53 @@ AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required
 A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
+
+## Issue #16 resource-release recipe (contract approved; implementation pending)
+
+The approved additions are not in preview.3 or current product source. This is the
+planned recipe for the separately reviewed implementation, not a runnable promise
+for installed packages. Keep application resources that a step uses until its
+accepted handle's WaitForSettlementAsync succeeds. Output success/unavailability,
+logical timeout and local output-wait cancellation do not prove physical return.
+
+Capture the accepted handle, await output in a try, and in the owner's finally await
+settlement with an owner-controlled cleanup token before disposing that job's
+resources. If cleanup observation is cancelled or does not complete, retain them.
+Observe from outside the still-owned step/callback; a step cannot await its own
+return. Steps must await their process/I/O/read-copy tasks before returning;
+unjoined FFmpeg or fire-and-forget work is outside engine proof.
+
+A start that fails/cancels before Accepted supplies no handle or receipt, including
+an abort when host Stopping wins after Init. Retain resources through step-owned
+cleanup, your own physical-work owner or a completed host-wide StopAsync. Do not
+infer return from the start error. Shared/root DI disposal always needs host-wide
+Completed and other hosted-service obligations, even after one receipt succeeds.
+
+An elected single business-step failure is exposed as the exact original object in
+WorkflowOutputUnavailableException.InnerException. Failure is still authoritative
+detached data; ExceptionType is only diagnostic text. Do not deserialize/resolve
+that name or use it for matching. Code remains identity. Both direct and start-result
+output waits use the same rule, subject to ordinary admission/retirement races.
+Retried steps expose the final elected object; true join aggregates have ordered
+detached causes and no invented live aggregate. Durable waits keep no live original.
+
+Multiple observers may receive the same object. To rethrow it, use
+`ExceptionDispatchInfo.Capture(error.InnerException).Throw()` after checking it is
+non-null, or wrap it as an inner cause. Do not use `throw inner;`, which resets the
+shared object's stack. The engine itself does not rethrow or reset it. A caller-held
+exception may retain arbitrary application objects even after the engine retires
+the instance; drop caller references when finished.
+
+Settlement observers add no payload pin or host obligation. Old issued receipts
+succeed after count/age retirement and never address a replacement ID under the
+same key. Ordinary stale output/query/command calls still return original-ID
+not-found; that never proves the job did not run or permits effect-safe replay.
+Closed/Stopping allow passive settlement only; ordinary operations keep their
+existing lifecycle rules. A completed receipt remains readable after Completed and
+correct owner disposal with no DI/codec/user/engine work. A pre-cancelled token
+still cancels locally; durable calls otherwise reject without I/O.
+
+Typed failure values use the explicitly amended seven-field version-2 subformat;
+old binaries reject them. Use a matched new package closure. Unchanged all-null-type
+failure graphs retain five-field legacy bytes. Preview.3 native qualification is
+unchanged; the new source needs fresh six-cell type-name/codec/settlement evidence.

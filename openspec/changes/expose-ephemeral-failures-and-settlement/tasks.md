@@ -3,7 +3,7 @@
 - [x] 1.1 Read the complete live issue #16 and owner direction, verify master 0a8e375 against GitHub, create codex/issue-16-ephemeral-failure-settlement in the reusable isolated checkout, inspect actual source and normative/crosswalk owners, and preserve the unrelated primary DAG checkout.
 - [x] 1.2 Draft the exact two-member API, original-exception identity/type/code/ownership rules, closed legacy/v2 failure subformat, monotonic passive settlement, lifecycle/retirement/durable behavior, resource recipe and all negative/race/native scenarios without product or canonical implementation.
 - [x] 1.3 Recompute provenance from all 206 master rows and retain every predecessor, canonical content and old approval. Include mechanical provenance pins and the exact nine-row proposed-owner validator; preserve every prior approval and reject all other duplicate-owner changes. Run strict OpenSpec, Release warnings-as-errors, full Infrastructure and scoped ReSharper; adversarially self-review, resolve findings and freeze the exact uncommitted green manifest/tree with compact evidence.
-- [ ] 1.4 Obtain independent contract review and explicit owner approval of the exact target, including the two-member API and closed failure-subformat amendment. Recheck drift, checkpoint exactly the manifest and add only the immutable verdict in a sole direct child. Approval is not canonical/source/push authority.
+- [x] 1.4 Obtain independent contract review and explicit owner approval of the exact target, including the two-member API and closed failure-subformat amendment. Recheck drift, checkpoint exactly the manifest and add only the immutable verdict in a sole direct child. Approval is not canonical/source/push authority.
 
 ## 2. One canonical and numbered-owner transition
 
@@ -23,3 +23,29 @@
 
 - [ ] 4.1 Prepare truthful PR/version/profile support docs and references to #16; complete approved binding/checkboxes only. Push/open a PR only when authorized and require CI green. A future release is separate from issue implementation.
 - [ ] 4.2 Merge only when authorized, with a merge commit, never squash/rebase; close #16 only when its acceptance criteria are met. Synchronize master, preserve the review chain and remove owned disposable output. Do not archive unrelated changes or alter the separate DAG checkout.
+
+## Task 2.1 preparation record (2026-11-01; awaiting independent approval)
+
+Contract checkpoint 0cae922a1d68f4c55f9bfc19b50060bfcdbaaa83 has parent
+0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580 and exact approved tree
+cf054886e39c20d9294b3baac55e58fa19c6bbdf. Its sole verdict-only child is
+7697c7981c02d03408cbccf9a2e0b9bade33ca14, containing only
+`artifacts/contract-external-independent-review-verdict-2026-10-29.md` at SHA-256
+3e7fc94ef23e6c0130e23aecc349a71248b5da3f6c5992d178d2da78a6f12fd8.
+The two earlier Codex reports are retained unchanged as transparency evidence.
+
+The transition narrows external F1's durable failure-record rule and requires a
+stored-byte witness; carries diagnostic-only identity, safe shared-original
+rethrow guidance and native type-name parity; and resolves P3 declaration timing.
+Canonical/numbered/declaration text is prepared, not source implemented. Tasks
+2.1/2.2 remain open until transition approval and checkpoint; 3.1–3.6 stay open.
+The declaration companion changes now, while executable API/compile/package
+baselines remain unchanged. Current owner routing: `docs/specs/03-domain-model-and-glossary.md`,
+`docs/specs/04-requirements-core-runtime.md`, `docs/specs/08-requirements-composition.md`,
+`docs/specs/09-requirements-management-operations.md`, `docs/specs/10-provider-model-and-extensibility.md`,
+`docs/specs/11-non-functional-requirements.md`, `docs/specs/12-acceptance-criteria.md`,
+`docs/specs/13-phasing-and-open-questions.md`, `docs/specs/15-requirements-observability-otel.md`,
+`docs/specs/17-selected-mode-capability-matrix.md`, `docs/specs/17-public-authoring-contract.cs`,
+`docs/normative-source-map.md`, `docs/ephemeral-engine-developer-guide.md`,
+`docs/ephemeral-native-support.md`, `README.md` and `docs/packages.md`.
+No archive, product/API implementation, push, issue change or new release is authorized.

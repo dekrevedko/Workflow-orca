@@ -239,6 +239,19 @@ leased body exposes no loop/fanout operator.
 Unsupported nesting is absent from the staged builder and is a build-time diagnostic for
 manually constructed graphs.
 
+### CP-033 Ephemeral failure and settlement ownership
+
+Single branch/item step failure propagation preserves the elected original object
+outside detached execution records; true aggregates retain authored/index-ordered
+typed detached causes and no invented live AggregateException. WhenAllOutcomes
+continues to consume detached data and successful recovery releases obsolete live
+associations. Ephemeral fiber records may capture diagnostic ExceptionType text;
+durable engine-produced fiber/checkpoint/outbox/projection/provider failures stay
+null-type with base 0a8e375 stored failure bytes. No record carries a live exception.
+Final physical branch/item work and all handoffs keep ownership after logical
+terminality. A passive settlement observer adds no path slot, payload pin or host
+join obligation and cannot delay retirement. [CR-014, MG-070/071]
+
 ## 8.5 Explicitly deferred composition
 
 The following remain design-visible future work but have no v1 public member, alias, obsolete

@@ -209,3 +209,13 @@ source-generated metadata, process-wide startup order, the finite type boundary
 and diagnostics. Keep product converter attributes; do not add the public factory
 to context options. Live event delivery/resumption and outgoing publishing remain
 outside native credit. Durable/DAG/providers and other RIDs need separate proof.
+
+## Issue #16 pending application contract
+
+The approved contract proposes WorkflowFailure.ExceptionType and per-instance
+WaitForSettlementAsync, with original ephemeral errors in the existing wrapper's
+InnerException. **Implementation pending:** these additions are absent from
+preview.3. The [resource-owner recipe](docs/ephemeral-engine-developer-guide.md#issue-16-resource-release-recipe-contract-approved-implementation-pending)
+describes the planned behavior and no-handle/host ownership boundaries. A new
+source/package/native review and later release are required; published preview.3
+claims and packages are unchanged.

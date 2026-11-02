@@ -161,3 +161,13 @@ ordinary generated strong-value DTOs. Keep product attributes; explicit context
 converter options, including this factory, remain prohibited. The twelve-package
 inventory grants no all-package native badge. Existing NuGet.org/GitHub Packages
 authentication and published-version instructions above are unchanged.
+
+## Issue #16 pending application contract
+
+The approved contract proposes WorkflowFailure.ExceptionType and per-instance
+WaitForSettlementAsync, with original ephemeral errors in the existing wrapper's
+InnerException. **Implementation pending:** these additions are absent from
+preview.3. The [resource-owner recipe](ephemeral-engine-developer-guide.md#issue-16-resource-release-recipe-contract-approved-implementation-pending)
+describes the planned behavior and no-handle/host ownership boundaries. A new
+source/package/native review and later release are required; published preview.3
+claims and packages are unchanged.

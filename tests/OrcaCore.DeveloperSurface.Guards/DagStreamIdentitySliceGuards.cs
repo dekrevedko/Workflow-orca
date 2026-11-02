@@ -12,7 +12,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
-    private const string CanonicalContentRecordSha256 = "f61d8b49b25095b31989639fb43a8ac6cae6fedc996ddfe1bbf4ec7233b4fae2";
+    private const string CanonicalContentRecordSha256 = "205ac1af86b2024521028603cf15fd361f84861b4d244054fd6472e907214335";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(
@@ -175,7 +175,7 @@ public sealed class DagStreamIdentitySliceGuards
                 delta.Should().StartWith("## ADDED Requirements\n\n");
                 expected += "\n" + delta["## ADDED Requirements\n\n".Length..].TrimEnd('\n') + "\n";
             }
-            Normalize(File.ReadAllText(Path.Combine(root, path))).Should().Be(expected,
+            EphemeralFailureSettlementReviewHistory.CanonicalBefore(root, path).Should().Be(expected,
                 "only the exact reviewed layers extend this canonical target; native-support guards pin its Git-approved deltas");
         }
         Git(root, "ls-files", "--others", "--exclude-standard", "--",

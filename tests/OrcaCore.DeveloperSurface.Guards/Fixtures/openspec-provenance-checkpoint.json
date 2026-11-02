@@ -2,41 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 218,
-  "recordBytes": 57773,
-  "recordSha256": "881aa5392e6deee881abde5620fcd50e05ebab38222008f79ff4b86e1a3cee58",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [
-    {
-      "capability": "developer-facing-surface",
-      "count": 2,
-      "turnsGreenChange": "expose-ephemeral-failures-and-settlement",
-      "turnsGreenTask": "2.1"
-    },
-    {
-      "capability": "management-and-querying",
-      "count": 6,
-      "turnsGreenChange": "expose-ephemeral-failures-and-settlement",
-      "turnsGreenTask": "2.1"
-    },
-    {
-      "capability": "quality-and-verification",
-      "count": 1,
-      "turnsGreenChange": "expose-ephemeral-failures-and-settlement",
-      "turnsGreenTask": "2.1"
-    },
-    {
-      "capability": "structured-fiber-execution",
-      "count": 1,
-      "turnsGreenChange": "expose-ephemeral-failures-and-settlement",
-      "turnsGreenTask": "2.1"
-    },
-    {
-      "capability": "workflow-contracts",
-      "count": 2,
-      "turnsGreenChange": "expose-ephemeral-failures-and-settlement",
-      "turnsGreenTask": "2.1"
-    }
-  ],
+  "recordBytes": 58043,
+  "recordSha256": "f6e5ed0ad28a597fbbea17a62a10c9cfd6e05f580e0051f62f51d558d7a24783",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -206,13 +175,13 @@
   "capabilityDirectoryCount": 36,
   "capabilityDirectoryBytes": 2954,
   "capabilityDirectorySha256": "b03677cb7dd3dce316f7e36963e74170000f3989a292e5361296353adcdcb632",
-  "artifactPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-openspec-provenance-2026-10-29.md",
-  "artifactNormalizedSha256": "9e654e3efc789b0b08cd6a00a7914cf12cfb487ab89381fa1149a302b443f28f",
+  "artifactPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-2-1-openspec-provenance-2026-11-01.md",
+  "artifactNormalizedSha256": "af5312085b60e8e78207044909e3a794f73c96ce1da6de8dc3a9e3bbd62a5af5",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
-      "bytes": 61944,
-      "sha256": "9ee055f6bb9520c992d86aa1b6fbe58e5e12798cd940c1f909dfab3e3b44937b"
+      "bytes": 64882,
+      "sha256": "acb2d03660e081cd9b8e20982cf1074ebeaa88b3f067da41d6e009c07d6127a1"
     },
     {
       "path": "openspec/specs/durable-persistence-and-outbox/spec.md",
@@ -236,13 +205,13 @@
     },
     {
       "path": "openspec/specs/management-and-querying/spec.md",
-      "bytes": 50707,
-      "sha256": "0351617a08772d9f296a7a179cd29dc789ed797aa92765f1de033860f55243b3"
+      "bytes": 59197,
+      "sha256": "244031ed3ee641d57ed467bcb0a3d2741e5300e705b4b8356dcde2967a9ec4f7"
     },
     {
       "path": "openspec/specs/quality-and-verification/spec.md",
-      "bytes": 62040,
-      "sha256": "31bc4812deb86f8195d12f12e32bcc351e1cfc860d93abdacf72938ad89c1abd"
+      "bytes": 65104,
+      "sha256": "e1cfb8e47607e6e216628ebb0eeecdc633ff5af0add7442c75a3ab2a565fa610"
     },
     {
       "path": "openspec/specs/repository-foundation/spec.md",
@@ -266,8 +235,8 @@
     },
     {
       "path": "openspec/specs/structured-fiber-execution/spec.md",
-      "bytes": 17962,
-      "sha256": "72878548bdf48e93712de842a8f7deb144a84404958df3769b4666d4dc965579"
+      "bytes": 19855,
+      "sha256": "5061343198e9f29c0595199b01ef5ca430cccc194b6a82d54a5759c44689a687"
     },
     {
       "path": "openspec/specs/workflow-authoring/spec.md",
@@ -276,12 +245,12 @@
     },
     {
       "path": "openspec/specs/workflow-contracts/spec.md",
-      "bytes": 46659,
-      "sha256": "4933c487e13ba0d03f47d94e175e7ca2529a6d6792b273e41eb0877e5d6ae5d2"
+      "bytes": 52712,
+      "sha256": "f63220026e9edb3f8fa4e86279f2c9def3cfc8b07519b0e677c08539416d50a9"
     }
   ],
   "canonicalContentRecordFormat": "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF",
   "canonicalContentCount": 14,
   "canonicalContentBytes": 1635,
-  "canonicalContentSha256": "f61d8b49b25095b31989639fb43a8ac6cae6fedc996ddfe1bbf4ec7233b4fae2"
+  "canonicalContentSha256": "205ac1af86b2024521028603cf15fd361f84861b4d244054fd6472e907214335"
 }

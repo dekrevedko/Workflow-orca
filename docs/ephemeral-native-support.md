@@ -212,3 +212,16 @@ and [immutable native records](../openspec/changes/support-ephemeral-native-aot/
 identify exact source, package, harness, host and diagnostic facts. Future package
 publication must bind its new version/source to those qualified operations; this
 guide does not make preview.2 pass or grant an unexecuted profile support.
+
+## Issue #16 pending extension (2026-11-01)
+
+The original-exception, detached ExceptionType and passive settlement contract is
+approved, but its source is not implemented or qualified. Existing preview.3 and
+issue #13 native evidence remains valid for those exact sources/packages only.
+Task 3 must retain every AOT-01–16 journey and NS group/subcase, add failure/legacy/
+v2/original/settlement witnesses in all six cells, and assert captured ExceptionType
+text equals JIT for the same errors under trimming/AOT. JSON reflection remains
+disabled in trimmed/AOT jobs. No new API or broader package/profile support may be
+inferred from this documentation transition. Durable error production remains
+null-type and stored-byte compatible; the shared new failure reader is not a
+durable native-support claim. See the pending resource recipe in the engine guide.

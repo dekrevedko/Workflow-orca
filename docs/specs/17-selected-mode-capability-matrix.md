@@ -735,9 +735,14 @@ public sealed class WorkflowFailure
     internal WorkflowFailure(
         string code,
         string message,
+        AuthoredLocation authoredLocation,
+        FailureOccurrence occurrence,
         IReadOnlyList<WorkflowFailure> causes);
     public string Code { get; }
     public string Message { get; }
+    public AuthoredLocation AuthoredLocation { get; }
+    public FailureOccurrence Occurrence { get; }
+    public string? ExceptionType { get; }
     public IReadOnlyList<WorkflowFailure> Causes { get; }
 }
 
@@ -2722,6 +2727,8 @@ public class WorkflowInstanceHandle
         CancellationToken cancellationToken = default);
     public ValueTask<WorkflowTerminationStatus> TerminateAsync(
         CancellationToken cancellationToken = default);
+    public ValueTask WaitForSettlementAsync(
+        CancellationToken cancellationToken = default);
 }
 
 public sealed class WorkflowInstanceHandle<TOutput> : WorkflowInstanceHandle
@@ -2953,9 +2960,11 @@ such an application API.
 Ephemeral accepted-instance queries and starts obey the explicit retained lifetime in MG-054–058.
 Host-lifetime retention is the default; a configured policy retires a physically settled terminal
 unit, facade/key bindings and all owned payload/router/timer/notification data atomically.
-Every runtime operation on a retired handle or `GetInstanceAsync` for that ID throws existing
+Every ordinary runtime operation on a retired handle or `GetInstanceAsync` for that ID throws existing
 `WorkflowInstanceNotFoundException` (`WF-INSTANCE-NOT-FOUND`); old handles never address a
 replacement. Already detached values and admitted output-wait results survive retirement.
+The issue #16 passive settlement receipt is the sole exception: an already-issued
+handle returns its completed proof without lookup, resurrection or a payload pin.
 An accepted start/returned handle is not a wait subscription. Under count pressure a completed
 job may retire before direct/helper wait admission; not-found then does not mean it never ran,
 and replaying the expired key creates a fresh ID (`WasExisting = false`) that may repeat effects.
@@ -3053,12 +3062,14 @@ key is expired by closure, and host-stopping never proves the first step had no 
 | Initialized/accepted timers/retries/grants | Ordinary progression | No new business admission | Producers must seal before stable zero |
 | Passive registered-definition identity lookup | Passive lookup | Passive lookup only | No codec/user/DI/work/commit allowed |
 | Detached caller-owned values | Readable | Readable | No engine operation occurs |
+| Existing-handle settlement (issue #16; implementation pending) | Passive observation | Passive observation; completed local proof after Completed/correct disposal | No runtime lookup, payload pin, DI or host obligation |
 | StopAsync | Enters Stopping | Same operation/cached detached Completed | No new work or TimeProvider use after Completed |
 
 Argument/token and metadata-only original-ID not-found/definition/state mismatch
 precedence remain. Already-admitted operations keep normal outcomes and join
 obligations across Stopping. After Completed only pure checks, passive registered
-identity and detached/cached data remain; no DI/user work, timers, diagnostics,
+identity, detached/cached data and an issued handle's completed settlement receipt
+remain; no DI/user work, timers, diagnostics,
 notifications or commits. Incomplete reports an obligation count, not identities;
 inspect existing stuck-step/state diagnostics before calling stop. The typed stopping
 and incomplete exceptions add the two stable codes above with internal constructors.
@@ -3184,3 +3195,49 @@ AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required
 A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
+
+## Issue #16 exact application amendment (contract approved; implementation pending)
+
+The new getter in §17.2.4 and nonvirtual base method in §17.7 are normative
+declarations, **not implemented or released APIs** in preview.3. The resultful
+handle inherits settlement unchanged. Both belong to PackageId/assembly and
+namespace OrcaCore; no public constructor/setter, helper, overload, option,
+exception class, package, provider port, dependency or friend is added.
+The declaration companion changes in this canonical transition; executable
+assembly API/compile/package baselines remain unchanged until source task 3.
+
+CR-014/014a/016, MG-070/071, CP-033, PR-042, NF-035 and AC-619–638 specify the
+full behavior. Both ephemeral output waits expose an elected single business-step
+original through inherited InnerException, without changing the wrapper's public
+shape. Failure remains detached/authoritative with nullable diagnostic ExceptionType;
+Code remains identity. Runtime-created failure provenance is not removed by the
+constructor summary above. Retry identity, user-thrown invocation wrappers,
+aggregate/no-live-inner, recovery, late losers and retirement ownership are exact.
+Multiple observers can share the original; use ExceptionDispatchInfo or wrapping,
+not `throw inner;` that resets its stack. Durable originals/type production stay
+unchanged; actual stored failure bytes must match base 0a8e375.
+
+The fixed codec retains five-field null-type nodes and exact seven-field typed
+version-2 nodes (version, code, message, authoredLocation, occurrence, exceptionType,
+causes). New readers accept mixed graphs; malformed/duplicate/version/type/provenance
+input rejects. All-null-type graphs keep exact old bytes. Occurrence remains v1
+and codec ID remains orcacore-json-v1 by the approved subformat amendment. Old
+binaries reject typed data; use a matched new package closure. No type resolution,
+live exception serialization or converter hook is permitted.
+
+| Existing handle settlement call | Required outcome |
+|---|---|
+| Pre-cancelled token, either mode | Local OperationCanceledException before mode/proof checks |
+| Durable, valid token | NotSupportedException without DI/provider I/O |
+| Ephemeral nonterminal or physical work pending | Passive subscribe/recheck wait, no polling/pin/host lease |
+| Closed or Stopping | Same passive observer; ordinary new live operations retain their rejection rules |
+| Retired old ID / expired key | Original completed receipt; no lookup/resurrection/tombstone or replacement access |
+| Completed and correct owner disposal | Cached local proof only; no DI/codec/user/timer/diagnostic/commit work |
+
+Settlement requires terminality plus final physical handoffs and sealed admission,
+not a replaceable WhenSettled epoch, query-pin release or retirement-cleanup success.
+Local cancellation affects only one observer. No-handle provisional aborts have
+no public receipt; external/step ownership or completed host join remains necessary.
+Per-instance success does not authorize root DI disposal or join fire-and-forget
+child processes. The new source must retain every issue #13 native journey and
+prove type-name parity in all six cells before claiming new qualification.

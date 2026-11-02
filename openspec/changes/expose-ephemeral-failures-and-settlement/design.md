@@ -93,7 +93,9 @@ cancellation. Local output/settlement-wait cancellation never becomes workflow d
 ### 4. Small live reference ownership, not serialization
 
 Live exceptions live only in the ephemeral instance/attempt ownership domain.
-Core/provider/fiber records may carry detached type strings but never Exception,
+Ephemeral fiber records may carry detached type strings. Durable engine-produced
+fiber/checkpoint/outbox/projection/provider failure records stay null-type and
+byte-identical to 0a8e375. No Core/provider/fiber record may carry Exception,
 ExceptionDispatchInfo, Data graphs or delegate state. Snapshot/branch/item failure
 models and state/output values remain fixed-codec-detached. The narrow live
 InnerException exception to the detached-inspection rule is explicit: user
@@ -195,16 +197,19 @@ await their external process/I/O/read-copy tasks before returning; settlement do
 not discover fire-and-forget FFmpeg processes. The consumer experiment must prove
 that distinction without requiring an FFmpeg installation.
 
-### 9. Exact proposed ownership without modifying old approvals
+### 9. Contract-phase proposed ownership without modifying old approvals
 
 Nine MODIFIED operations share headings with current active predecessors. The
-contract includes a separate nine-row proposed-owner registration, with exact
+contract included a separate nine-row proposed-owner registration, with exact
 predecessor/canonical/successor block hashes and null approval fields. The existing
 sole-owner guard accepts only those source-pinned pairs, validates both owners,
 keeps canonical/source tasks open and still classifies every successor as pending.
 No blanket duplicate waiver, global registry/schema rewrite or old approval edit
 is permitted. Three ADDED operations retain ordinary sole ownership. Canonical
-transition task 2.1 must update this staged process record under real approval.
+transition task 2.1 now prepares a separate Git-bound successor registry using the
+real approved contract checkpoint/verdict. Its nine historical blocks and twelve
+current synchronized blocks are pinned; canonical/source approval stays unset.
+The original proposed-stage record and every prior global approval remain unchanged.
 
 ## Risks / Trade-offs
 
@@ -236,3 +241,22 @@ transition task 2.1 must update this staged process record under real approval.
 No API design choice is deferred to implementation. Owner approval of this contract,
 including the explicit failure-subformat amendment, remains required. No runtime,
 canonical, source-support or publication approval is inferred from green validation.
+
+## Task 2.1 transition refinements (2026-11-01)
+
+The approved contract is checkpointed at 0cae922, tree cf054886, with the external
+verdict-only child 7697c79. External F1 narrows detached type capture to ephemeral
+runtime failure production: durable engine-produced fiber/checkpoint/outbox/
+projection/provider failures remain null-type and byte-identical to 0a8e375.
+Supported application payloads may still contain typed detached WorkflowFailure
+values using the shared reader, as the approved wire amendment already permits.
+The source target must retain an actual stored-byte witness in InMemory and
+provider certification; projecting away a new field is not a passing witness.
+
+The normative declaration companion changes with this canonical transition;
+executable assembly API/compile/package baselines wait for task 3 source. The
+ExceptionType string is diagnostic only, never a matching key. Multiple observers
+can hold the same original object: guides recommend ExceptionDispatchInfo or an
+outer wrapper instead of resetting its stack with `throw inner;`. Every native
+cell must prove type-name parity with JIT. None of these refinements implements
+the two members or grants canonical/source review approval.
