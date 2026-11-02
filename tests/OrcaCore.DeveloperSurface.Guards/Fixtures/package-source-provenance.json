@@ -25,12 +25,12 @@
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "d2ef042a3d90460d22d19d53a24e938611c1ae44abb453108d7ff6eac45a2ea9"
+      "sourceSha256": "4d0a246822f4a344d4744fa15dd9db395867c3309450c6de703316b42e9132da"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "dc606bd0c11ca42ea91db5c5c70863e94a0e7de08c0f8329b7748e337c5b28e0"
+      "sourceSha256": "e7c52f3662bd4054eda183deebb1539e50f4036187f16f82aeba9537f515f5f5"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
@@ -40,27 +40,27 @@
     {
       "id": "OrcaCore.Provider.Abstractions",
       "project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj",
-      "sourceSha256": "1cfdd1ecbcd8ba7f25e913394a6d7ff793aaf1a4b864111006b0e67f5491026e"
+      "sourceSha256": "836ac4bc81538332fa80cedec704cda44b98ed4048b649cce535b7710be06415"
     },
     {
       "id": "OrcaCore.Providers.InMemory",
       "project": "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj",
-      "sourceSha256": "241b18f1d0c10dd77ce441d433ae3939704c803108c4dcaebcfb90967e8b24a8"
+      "sourceSha256": "4333d4aea39415d54c42b7b80a06fe3cf97cd718c28f8685fd136fe1c15b28b4"
     },
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "1227fe4cf636ced825624491d3b3b3b8c54f1545d8f56167aedd2ceb2744c84d"
+      "sourceSha256": "e24a5b6ac6ee21039b4aac1b0aa1bbb5d2b9e903b46d7cebc63764e47635ce3d"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",
       "project": "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj",
-      "sourceSha256": "ab3a64388a76d9274cd3dacd3800dfb3aba1c2fd6fac9bfaaeb31e3ba553b9ff"
+      "sourceSha256": "4521b22e712d7a3e8bb297e7141fef4a60f9eab38d292553d0e665978acf7fb3"
     },
     {
       "id": "OrcaCore.Runtime.Protocol",
       "project": "src/OrcaCore.Runtime.Protocol/OrcaCore.Runtime.Protocol.csproj",
-      "sourceSha256": "e60830f54517b2dc0583673929a3c4d2865e3cb9ffe1085dd9126bea5dc4c2f2"
+      "sourceSha256": "b112f43436c7a5bc44225d1b361bcda17d09485afd99d611e4cbf2faeeca75cc"
     }
   ]
 }

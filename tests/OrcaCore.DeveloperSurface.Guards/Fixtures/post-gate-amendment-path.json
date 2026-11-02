@@ -507,7 +507,7 @@
     "verdictSha256": "e89e7066308bc906e6b94b073828471f8481a11b919ea711df1e89f55018cca6"
   },
   "dagRunFingerprintContractAmendment": {
-    "stage": "Proposed",
+    "stage": "Approved",
     "change": "admit-durable-dag-run-progression",
     "baseCommit": "e634737420a490acceffae56c338ac9a20051b48",
     "amendedContract": {
@@ -545,7 +545,13 @@
       193,
       165
     ],
-    "approval": null
+    "approval": {
+      "checkpointCommit": "a6f02fa5be9c31db232e3582d2f77d35acf86639",
+      "checkpointTree": "dcf4337daffef0630f917f57d563011e43d330ec",
+      "evidenceCommit": "3c2cd9606db6e4380b148c5f8dd3503e367f255f",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-independent-review-verdict-2026-10-15.md",
+      "verdictSha256": "f8c0082e190d5656211caf5e76c318f5044b370524caad053287097aecfda3c2"
+    }
   },
   "ephemeralRetentionContractEvidence": {
     "checkpointCommit": "5501cade3b9fdede14ac61421d26b8f4b0b6e0ec",
@@ -1010,5 +1016,30 @@
       ],
       "authoringCompanionDisposition": "MetadataConverterAndTypedDispatchSourceAndNativeApproved"
     }
-  ]
+  ],
+  "dagRunProtocolProviderErrataCandidate": {
+    "stage": "ProposedCombinedSourceReview",
+    "owningChange": "admit-durable-dag-run-progression",
+    "sourceTask": "2.1",
+    "scope": "Released = 6 only; no canonical, friend, business-codec, pump or Hosting bridge amendment",
+    "artifacts": [
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-errata-2026-10-29.md",
+        "sha256": "3a54776a91cd4a6ca5ef04dcd94f3e04af80ee25e4400485fcac009091739d98"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-api-candidate-2026-10-29.md",
+        "sha256": "cbe6395a2fc19dcd43a40c365c1e7425aada685a6a6dd8a377ea2137d4694581"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-signatures-2026-10-29.cs",
+        "sha256": "17576395ef39391c315c451d3ac80b3ead3ccac3d40639f6202e5a41bf7644df"
+      },
+      {
+        "path": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-protocol-provider-implementation-2026-10-29.md",
+        "sha256": "6abef26faf792487e2f418692cf4a427c378e7e7b51c5f030d47a26c036eb76f"
+      }
+    ],
+    "approval": null
+  }
 }

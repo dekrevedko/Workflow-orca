@@ -1,3 +1,5 @@
+using OrcaCore.Abstractions.Durable.Dag;
+using OrcaCore.Abstractions.Providers.Dag;
 using System.Collections.Concurrent;
 using System.Diagnostics.Metrics;
 using AwesomeAssertions;
@@ -22,6 +24,13 @@ public sealed class DurableOperationalTelemetryTests
 {
     private static readonly string[] RequiredLongGauges =
     [
+        "orca.dag.internal.pending.count",
+        "orca.dag.observer.pending.count",
+        "orca.dag.observer.subscription.count",
+        "orca.dag.runs.count",
+        "orca.dag.stream.events.count",
+        "orca.dag.checkpoints.count",
+        "orca.dag.checkpoint.lag",
         OrcaCoreMetrics.InstancesActive,
         OrcaCoreMetrics.InstancesStuck,
         OrcaCoreMetrics.WaitsActive,
@@ -329,6 +338,50 @@ public sealed class DurableOperationalTelemetryTests
 
     private sealed class RecordingEventStore : IWorkflowEventStore
     {
+        public Task<Option<DagRunCheckpointV1>> LoadDagRunCheckpointAsync(
+            WorkflowStreamId streamId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<Option<DagRunDiscoveryV1>> GetDagRunByStartKeyAsync(
+            DagRunStartKeyV1 startKey, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<IReadOnlyList<DagRunRecordV1>> LoadDagRunTailAsync(
+            WorkflowStreamId streamId, StreamVersion afterVersion, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<DagRunLeaseResultV1> AcquireDagRunLeaseAsync(
+            DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(
+            DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(
+            DagRunFenceV1 fence, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task CancelDagRunLeaseRequestAsync(
+            Guid runId, Guid ownerId, Guid requestId, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(
+            DagRunDiscoveryRequestV1 request, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<DagRunSubscribeResultV1> SubscribeDagRunAsync(
+            DagRunSubscriptionV1 subscription, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task UnsubscribeDagRunAsync(Guid subscriptionId, Guid recipientHostId,
+            CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
+        public Task<int> PruneExpiredDagRunObserversAsync(
+            int maxCount, CancellationToken cancellationToken) =>
+            throw new NotSupportedException("This workflow-only test double does not implement DAG persistence.");
+
         internal required IReadOnlyList<DurableWorkflowEvent> Tail { get; init; }
 
         public Task<Option<CheckpointWrite>> LoadCheckpointAsync(

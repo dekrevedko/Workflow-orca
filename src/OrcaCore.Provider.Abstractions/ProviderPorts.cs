@@ -1,3 +1,5 @@
+using OrcaCore.Abstractions.Durable.Dag;
+using OrcaCore.Abstractions.Providers.Dag;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
@@ -33,6 +35,31 @@ public interface IWorkflowEventStore
         WorkflowStreamId streamId,
         StreamVersion afterVersion,
         CancellationToken cancellationToken);
+
+    // Advanced DAG persistence uses this same event-store boundary, not a separate transport.
+    Task<Option<DagRunCheckpointV1>> LoadDagRunCheckpointAsync(
+        WorkflowStreamId streamId, CancellationToken cancellationToken);
+    Task<Option<DagRunDiscoveryV1>> GetDagRunByStartKeyAsync(
+        DagRunStartKeyV1 startKey, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DagRunRecordV1>> LoadDagRunTailAsync(
+        WorkflowStreamId streamId, StreamVersion afterVersion, CancellationToken cancellationToken);
+    Task<DagRunLeaseResultV1> AcquireDagRunLeaseAsync(
+        DagRunLeaseRequestV1 request, CancellationToken cancellationToken);
+    Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(
+        DagRunLeaseRequestV1 request, CancellationToken cancellationToken);
+    Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(
+        DagRunFenceV1 fence, CancellationToken cancellationToken);
+    Task CancelDagRunLeaseRequestAsync(
+        Guid runId, Guid ownerId, Guid requestId, CancellationToken cancellationToken);
+    Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(
+        DagRunDiscoveryRequestV1 request, CancellationToken cancellationToken);
+    Task<DagRunSubscribeResultV1> SubscribeDagRunAsync(
+        DagRunSubscriptionV1 subscription, CancellationToken cancellationToken);
+    Task UnsubscribeDagRunAsync(Guid subscriptionId, Guid recipientHostId,
+        CancellationToken cancellationToken);
+    Task<int> PruneExpiredDagRunObserversAsync(
+        int maxCount, CancellationToken cancellationToken);
+
 }
 
 /// <summary>
@@ -641,6 +668,8 @@ public sealed record OutboxClaimRequest(
     DateTimeOffset ClaimedAt,
     TimeSpan LeaseDuration)
 {
+    public Guid? RecipientHostId { get; init; }
+
     /// <summary>
     /// Gets the kind selector. Null claims any kind; an include set claims only listed kinds;
     /// an exclude set claims any kind except the listed ones.
