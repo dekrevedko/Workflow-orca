@@ -2531,6 +2531,11 @@
       "sha256": "ae2bb9a543fed6fa6f899edaa016d697808a211d3fd068898a374495043fcf45"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-verdict-2026-10-29.md",
+      "bytes": 8809,
+      "sha256": "c971876e87d871f5fce5b48bc685a918f7d2e1dd8b6dd81869068c4bf9d5584b"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
       "bytes": 3003,
       "sha256": "268d3728fddf4225e266af65fe3bd09d1aeaa93f5dd5cd14cd27a5239dc17a49"
