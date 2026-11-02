@@ -12,7 +12,8 @@ internal sealed class DurableOutboxPump(
     IWorkflowOutboxStore outboxStore,
     IMessageDispatcher dispatcher,
     IOutboxPumpObserver? observer = null,
-    TimeProvider? timeProvider = null)
+    TimeProvider? timeProvider = null,
+    bool workflowEventLane = false)
 {
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
     private readonly TimeProvider timeProvider = timeProvider ?? TimeProvider.System;
@@ -33,20 +34,17 @@ internal sealed class DurableOutboxPump(
     /// A caller-supplied selector is honored, but continuation records remain unconditionally
     /// internal and any provider record outside the selected lane is released rather than dispatched.
     /// </summary>
-    private static OutboxClaimRequest SelectDispatchLane(OutboxClaimRequest request)
+    private OutboxClaimRequest SelectDispatchLane(OutboxClaimRequest request)
     {
-        return request.KindSelector is null
-            ? request with
-            {
-                KindSelector = OutboxKindSelector.Excluding(
-                    OutboxKinds.Continue,
-                    OutboxKinds.WorkflowEvent,
-                    "dag-child-start-v1",
-                    "dag-child-join-v1",
-                    "dag-child-cancel-v1",
-                    "dag-run-ready-v1")
-            }
-            : request;
+        if (workflowEventLane)
+            return request with { KindSelector = request.KindSelector?.Matches(OutboxKinds.WorkflowEvent) == false
+                ? OutboxKindSelector.Including() : OutboxKindSelector.Including(OutboxKinds.WorkflowEvent) };
+        string[] reserved = [OutboxKinds.Continue, OutboxKinds.WorkflowEvent,
+            "dag-child-start-v1", "dag-child-join-v1", "dag-child-cancel-v1", "dag-run-ready-v1"];
+        return request with { KindSelector = request.KindSelector?.Include is { } included
+            ? OutboxKindSelector.Including(included.Except(reserved, StringComparer.Ordinal).ToArray())
+            : OutboxKindSelector.Excluding((request.KindSelector?.Exclude ?? new HashSet<string>())
+                .Concat(reserved).Distinct(StringComparer.Ordinal).ToArray()) };
     }
 
     /// <summary>
@@ -84,6 +82,7 @@ internal sealed class DurableOutboxPump(
         foreach (var record in records)
         {
             if (string.Equals(record.Kind, OutboxKinds.Continue, StringComparison.Ordinal) ||
+                (!workflowEventLane && record.Kind == OutboxKinds.WorkflowEvent) ||
                 record.Kind is "dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1" ||
                 dispatchRequest.KindSelector is { } selector && !selector.Matches(record.Kind))
             {

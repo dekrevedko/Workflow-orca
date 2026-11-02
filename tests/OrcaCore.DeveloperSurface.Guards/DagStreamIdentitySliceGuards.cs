@@ -138,9 +138,8 @@ public sealed class DagStreamIdentitySliceGuards
 
     private static void ValidateTask21SourceScope(string root)
     {
-        var changed = Git(root,"diff","--name-only","82811cd41aae577d8a1ae13258790d3da0c30d72","--","src")
+        var changed = Git(root,"diff","--name-only","82811cd41aae577d8a1ae13258790d3da0c30d72","f62b0aafd8beeb69aa28efaba0f25413c4970b3b","--","src")
             .Split('\n',StringSplitOptions.RemoveEmptyEntries)
-            .Concat(Git(root,"ls-files","--others","--exclude-standard","src").Split('\n',StringSplitOptions.RemoveEmptyEntries))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal);
         changed.Should().Equal(new[]
         {
@@ -194,7 +193,7 @@ public sealed class DagStreamIdentitySliceGuards
             "src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunValidation.cs",
             "src/OrcaCore.Runtime.Protocol/Durable/Dag/DagRunValueV1.cs",
             "src/OrcaCore.Runtime.Protocol/Serialization/DagRunRecordCodecV1.cs",
-        }, "this exact data-plane and external-lane safety target adds no new runtime pump, Hosting bridge or unrelated native/authoring source edit");
+        }, "the approved Task 2.1 checkpoint, not subsequent work, is exactly the no-new-pump data-plane target");
     }
 
     internal static void ProjectTask21RegistryExtension(JsonObject previous, JsonObject current)
@@ -204,10 +203,29 @@ public sealed class DagStreamIdentitySliceGuards
         // other registry value; they must not mistake this reviewed extension for drift
         // in their own historical approval records.
         current.Remove("dagRunProtocolProviderErrataCandidate");
+        current.Remove("dagRunTask21Approval");
+        current.Remove("dagRunTask22Candidate");
         var old = previous["dagRunFingerprintContractAmendment"]!.AsObject();
         var actual = current["dagRunFingerprintContractAmendment"]!.AsObject();
         actual["stage"] = old["stage"]?.DeepClone();
         actual["approval"] = old["approval"]?.DeepClone();
+    }
+
+    internal static void ValidateProtocolProviderApproval(string root, JsonElement record)
+    {
+        record.EnumerateObject().Select(p => p.Name).Should().Equal("stage", "sourceTask", "approval");
+        record.GetProperty("stage").GetString().Should().Be("Approved");
+        record.GetProperty("sourceTask").GetString().Should().Be("2.1");
+        var evidence = record.GetProperty("approval").Deserialize<TransitionEvidence>(JsonOptions)!;
+        evidence.Should().Be(new TransitionEvidence(
+            "f62b0aafd8beeb69aa28efaba0f25413c4970b3b",
+            "0e5300632b9804f096ac45d119a602b5b9f5b9c7",
+            "602844547539e0e5908d250c2a0d9560fc4b25dc",
+            "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-verdict-2026-10-29.md",
+            "c971876e87d871f5fce5b48bc685a918f7d2e1dd8b6dd81869068c4bf9d5584b"));
+        Git(root, "rev-list", "--parents", "-n", "1", evidence.CheckpointCommit).Trim().Should()
+            .Be(evidence.CheckpointCommit + " 0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580");
+        ValidateReviewEvidence(root, evidence);
     }
 
     private static void ValidateReviewEvidence(string root, TransitionEvidence evidence)

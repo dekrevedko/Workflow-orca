@@ -17,6 +17,27 @@ public sealed class DurableOutboxTests
     [InlineData("dag-child-join-v1")]
     [InlineData("dag-child-cancel-v1")]
     [InlineData("dag-run-ready-v1")]
+    [InlineData("workflow-event")]
+    [InlineData("application")]
+    public async Task ContinuationPump_ReleasesEveryForeignKindBeforePayloadMaterialization(string kind)
+    {
+        using var provider = new OrcaCore.Engine.Durable.Tests.Support.DurableTestStore();
+        var processor = new OrcaCore.Engine.Durable.Execution.DurableCommandProcessor(provider);
+        var runtime = new OrcaCore.Engine.Durable.Execution.DurableWorkflowRuntime(processor,
+            new OrcaCore.Engine.Durable.Definitions.DurableDefinitionRegistry(), TimeProvider.System);
+        var write = new OutboxWrite(OutboxRecordId.New(), kind, "malformed"u8.ToArray());
+        var outbox = new SelectorIgnoringOutboxStore(write);
+        var pump = new OrcaCore.Engine.Durable.Driver.DurableContinuationPump(outbox, runtime, processor);
+        (await pump.PumpOnceAsync(new(1, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5)), TestContext.Current.CancellationToken)).Should().Be(0);
+        outbox.Released.Should().ContainSingle().Which.Should().Be(write.OutboxRecordId);
+        outbox.MarkedStates.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("dag-child-start-v1")]
+    [InlineData("dag-child-join-v1")]
+    [InlineData("dag-child-cancel-v1")]
+    [InlineData("dag-run-ready-v1")]
     public async Task ExternalOutboxPump_RejectsDagKindsEvenIfTheProviderOrCallerSelectsThem(string kind)
     {
         foreach (var explicitSelector in new[] { false, true })
@@ -31,7 +52,7 @@ public sealed class DurableOutboxTests
             (await new DurableOutboxPump(store,dispatcher).PumpOnceAsync(request,TestContext.Current.CancellationToken)).Should().Be(0);
             store.Released.Should().ContainSingle().Which.Should().Be(record.OutboxRecordId);
             dispatcher.Dispatched.Should().BeEmpty();
-            if (!explicitSelector) store.CapturedRequest!.KindSelector!.Exclude.Should().Contain(kind);
+            store.CapturedRequest!.KindSelector!.Matches(kind).Should().BeFalse("a caller cannot widen the runtime partition even at claim time");
         }
     }
 

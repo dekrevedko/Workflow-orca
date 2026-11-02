@@ -25,12 +25,12 @@
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "4d0a246822f4a344d4744fa15dd9db395867c3309450c6de703316b42e9132da"
+      "sourceSha256": "8534d35e6f55bd81a2ebf6f96ba06f67163894bb1d1f29bb5855ae1af528a86b"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "e7c52f3662bd4054eda183deebb1539e50f4036187f16f82aeba9537f515f5f5"
+      "sourceSha256": "910d417db7afae429d143d337e3b8e9e7dc6413a651288c3addfedc606de743c"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
