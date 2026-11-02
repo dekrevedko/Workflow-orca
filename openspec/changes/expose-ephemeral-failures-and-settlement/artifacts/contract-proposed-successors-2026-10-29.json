@@ -1,0 +1,94 @@
+{
+  "schemaVersion": 1,
+  "stage": "ProposedContractPending",
+  "owningChange": "expose-ephemeral-failures-and-settlement",
+  "baseCommit": "0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580",
+  "successorOperation": "MODIFIED",
+  "canonicalSyncTask": "2.1",
+  "canonicalApprovalEvidencePath": null,
+  "sourceApprovalEvidencePath": null,
+  "semanticApprovalEligible": false,
+  "proposedSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Completion waits are notification-driven and race-free",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "df231a9e8e8794cbc8da86c63a58fdfdf2b7c598745c84e8beedcdbc5d035914",
+      "canonicalBlockSha256": "df231a9e8e8794cbc8da86c63a58fdfdf2b7c598745c84e8beedcdbc5d035914",
+      "successorBlockSha256": "0f7df86d10484114b3914223e21476e3b015cc6dc526d585a8d9cc7b6c24efc2"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Completed ephemeral host shutdown proves host-wide quiescence",
+      "predecessorChange": "add-ephemeral-host-shutdown",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "1cbcd063c33b69eb7c578338954b5f4cb6cddbb67bf0d84a6d802a745653fc21",
+      "canonicalBlockSha256": "1cbcd063c33b69eb7c578338954b5f4cb6cddbb67bf0d84a6d802a745653fc21",
+      "successorBlockSha256": "c501a0d41ff62fdd463c3ca8761e26edc727a3110e9d1f47ad49e3a61193815c"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Ephemeral host shutdown closes admission atomically",
+      "predecessorChange": "add-ephemeral-host-shutdown",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "009db0deff82740ebecb0d5b92027d576b3686316d8a861493142d3eb8409fc9",
+      "canonicalBlockSha256": "009db0deff82740ebecb0d5b92027d576b3686316d8a861493142d3eb8409fc9",
+      "successorBlockSha256": "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Management API is scope-oriented and fluent",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "predecessorBlockSha256": "a4d3e7049758e4dd0565ee893b33d4061f841ed7b73d1d71a7690a1e8ebef988",
+      "canonicalBlockSha256": "a4d3e7049758e4dd0565ee893b33d4061f841ed7b73d1d71a7690a1e8ebef988",
+      "successorBlockSha256": "da1b5b276450abfd7cb8da95e2e8d377f34db6911c01f052c71496455e4872ca"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Retired ephemeral handles have deterministic outcomes",
+      "predecessorChange": "add-ephemeral-terminal-retention",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "6d1054c92bdd79769b207ac292e319ebd3f3038c0a3447bf7e57e2a1f5b67937",
+      "canonicalBlockSha256": "6d1054c92bdd79769b207ac292e319ebd3f3038c0a3447bf7e57e2a1f5b67937",
+      "successorBlockSha256": "0e78f5fe9acd951aed476bb066c4097b49b0c2828a0b6ce7fb6d12da8d0cc810"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Typed committed root state and output are queryable",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "dacc721bac2e381fac462a15e1f53fd993b878b096ca64decb572985f550a025",
+      "canonicalBlockSha256": "dacc721bac2e381fac462a15e1f53fd993b878b096ca64decb572985f550a025",
+      "successorBlockSha256": "903b32810c655cfa6622c16e04e5277c3c39236adc1c46ddc6b11b9cd9b7460c"
+    },
+    {
+      "capability": "structured-fiber-execution",
+      "requirement": "Join policies define one scope outcome",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "predecessorBlockSha256": "761c281ae01ace0adb13e4ee4cf4cb6d7910b6379d2c502f79e0a20d49cb5b53",
+      "canonicalBlockSha256": "761c281ae01ace0adb13e4ee4cf4cb6d7910b6379d2c502f79e0a20d49cb5b53",
+      "successorBlockSha256": "5ef8a11b1ef765d6429bc2bf6828fa587178c87c2d7fefb807c48d6adcc11589"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow failures carry authored and occurrence provenance",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "f4e682a20efd4aa3a70996053dd07b79beb0b3f15911da2564d85e33813e0c31",
+      "canonicalBlockSha256": "f4e682a20efd4aa3a70996053dd07b79beb0b3f15911da2564d85e33813e0c31",
+      "successorBlockSha256": "35f827142f3e3daeac3efa29e39b6e4bd16fdffbb481e7b6a0a5af3bf11b15be"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow success projections and output waits are typed",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "4a7aeb679b4d019e48d0052bd40ed26677bbb023cb91eaed08617ffc9c6454d7",
+      "canonicalBlockSha256": "4a7aeb679b4d019e48d0052bd40ed26677bbb023cb91eaed08617ffc9c6454d7",
+      "successorBlockSha256": "aa35a7e882a3a3d62ba6840a90ea021148ce0fbec909d9f21f50e6b6bcad2174"
+    }
+  ]
+}
