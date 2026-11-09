@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using System.Text;
+using System.Text.Json;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
@@ -19,6 +21,40 @@ namespace OrcaCore.ProviderCertification;
 public abstract class EventStoreCertificationTests
 {
     protected abstract IProviderCertificationFixture CreateFixture();
+
+    [Fact]
+    [Trait("AC", "AC-626")]
+    public async Task ThrownDurableStep_PreservesTheActualStoredFailureBytesFromPreview3()
+    {
+        var fixture = CreateFixture();
+        var definition = Workflow.Durable<GoldenFailureState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new GoldenFailureState(value)).Then<GoldenFailureStep>().End().Build();
+        var runtime = new DurableWorkflowRuntime(new DurableCommandProcessor(fixture.EventStore),
+            new DurableDefinitionRegistry(new GoldenFailureServices()), TimeProvider.System, projectionStore: fixture.ProjectionStore);
+        runtime.RegisterDefinition(definition);
+        var failed = await runtime.StartOrGetAsync<string, GoldenFailureState>("failure-bytes-" + Guid.NewGuid().ToString("N"),
+            definition.DefinitionId, definition.DefinitionVersion, "input", TestContext.Current.CancellationToken);
+        var checkpoint = await fixture.EventStore.LoadCheckpointAsync(failed.InstanceId, TestContext.Current.CancellationToken);
+        checkpoint.HasValue.Should().BeTrue();
+        using var document = JsonDocument.Parse(checkpoint.Value.Payload);
+        var root = document.RootElement;
+        var fibers = root.GetProperty("fibers");
+        var failure = fibers.EnumerateArray().Single().GetProperty("failure").GetRawText();
+        failure.Should().Contain("durable business witness").And.NotContain("requires a host service provider");
+        // Compare the stored JSON slice, without projecting through the new reader or dropping a field.
+        Encoding.UTF8.GetBytes(failure).Should().Equal(Encoding.UTF8.GetBytes("""{"code":"WF-LEGACY-LIFECYCLE","message":"InvalidOperationException: durable business witness","authoredLocation":"workflow:$/n:00000001","occurrenceKind":"root","branchId":null,"itemIndex":null,"causes":[]}"""));
+    }
+
+    private sealed record GoldenFailureState(string Value);
+    private sealed class GoldenFailureServices : IServiceProvider
+    {
+        public object? GetService(Type serviceType) => serviceType == typeof(GoldenFailureStep) ? new GoldenFailureStep() : null;
+    }
+    private sealed class GoldenFailureStep : IStep<GoldenFailureState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(StepContext<GoldenFailureState> context, CancellationToken cancellationToken) =>
+            throw new InvalidOperationException("durable business witness");
+    }
 
     [Fact]
     public async Task WorkflowAppend_RejectsDagAndDefaultStreamsWithoutEffects()

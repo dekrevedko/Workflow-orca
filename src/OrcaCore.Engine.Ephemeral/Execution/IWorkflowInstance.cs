@@ -8,6 +8,8 @@ internal interface IWorkflowInstance
 
     EphemeralInstanceLifetime Lifetime { get; }
 
+    Exception? OriginalFailure { get; }
+
     Type StateType { get; }
 
     object StateObject { get; }

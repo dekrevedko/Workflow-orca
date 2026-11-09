@@ -7,8 +7,8 @@
 
 ## 2. One canonical and numbered-owner transition
 
-- [ ] 2.1 After contract approval, bind its actual checkpoint/verdict and synchronize exactly `developer-facing-surface` (2), `management-and-querying` (6), `quality-and-verification` (1), `structured-fiber-execution` (1), and `workflow-contracts` (2). Reconcile every contract-owner-routing row, CR-014/014a/016, MG-055–058 and shutdown rules, exact new acceptance IDs, doc 17 and declaration companion, guides, frozen-vs-current status and type/codec compatibility. Classify each actual occurrence individually. Keep source and runtime API/compile/package baselines unchanged.
-- [ ] 2.2 Run green OpenSpec/build/Infrastructure and independently review the canonical transition, including exact source scope/executable guards and all old record preservation. Freeze it uncommitted; after explicit approval checkpoint it and add its verdict-only child. No source implementation before this gate.
+- [x] 2.1 After contract approval, bind its actual checkpoint/verdict and synchronize exactly `developer-facing-surface` (2), `management-and-querying` (6), `quality-and-verification` (1), `structured-fiber-execution` (1), and `workflow-contracts` (2). Reconcile every contract-owner-routing row, CR-014/014a/016, MG-055–058 and shutdown rules, exact new acceptance IDs, doc 17 and declaration companion, guides, frozen-vs-current status and type/codec compatibility. Classify each actual occurrence individually. Keep source and runtime API/compile/package baselines unchanged.
+- [x] 2.2 Run green OpenSpec/build/Infrastructure and independently review the canonical transition, including exact source scope/executable guards and all old record preservation. Freeze it uncommitted; after explicit approval checkpoint it and add its verdict-only child. No source implementation before this gate.
 
 ## 3. One coherent behavior-first source, codec and native target
 
@@ -49,3 +49,11 @@ baselines remain unchanged. Current owner routing: `docs/specs/03-domain-model-a
 `docs/normative-source-map.md`, `docs/ephemeral-engine-developer-guide.md`,
 `docs/ephemeral-native-support.md`, `README.md` and `docs/packages.md`.
 No archive, product/API implementation, push, issue change or new release is authorized.
+
+## Task 3 source preparation (2026-11-02)
+
+The owner approved the exact 54-path transition and authorized task 3 without pushes.
+Canonical checkpoint ecd188a (tree ae97c26e) and verdict-only child 5960f0b bind that approval.
+Tasks 2.1/2.2 are complete; all task 3 checkboxes remain open while source and native evidence are in progress.
+The prior task 2.1 preparation record above remains a dated description of its reviewed state.
+The source authorization record does not confer source or native approval.

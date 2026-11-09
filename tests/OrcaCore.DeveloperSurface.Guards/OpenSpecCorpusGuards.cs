@@ -1842,7 +1842,7 @@ public sealed class OpenSpecCorpusGuards
         }
         var ledger = File.ReadAllText(Path.Combine(root, "openspec/changes/" + change + "/tasks.md"));
         Regex.Matches(ledger, @"(?m)^- \[x\] 1\.4\b").Should().ContainSingle();
-        foreach (var task in new[] { "2.1", "2.2", "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
+        foreach (var task in new[] { "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
             _ = ReadOpenTaskBlock(ledger, task);
         var rows = record.GetProperty("proposedSuccessors").EnumerateArray().ToArray();
         rows.Should().HaveCount(9);

@@ -16,22 +16,14 @@ public sealed class EphemeralFailureSettlementTransitionGuards
     [Fact]
     public void CanonicalPreparation_DoesNotExposeOrImplementThePendingMembers()
     {
-        typeof(WorkflowFailure).GetProperty("ExceptionType").Should().BeNull();
-        typeof(WorkflowInstanceHandle).GetMethod("WaitForSettlementAsync").Should().BeNull();
         var root = FixtureDefinitions.RepositoryRoot();
-        var paths = new[]
-        {
-            "src", "Directory.Build.props", "Directory.Build.targets", "Directory.Packages.props", "global.json",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi",
-            "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures",
-            "tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json"
-        };
-        Git(root, ["diff", "--name-only", ContractVerdictCommit, "--", .. paths]).Trim()
-            .Should().BeEmpty("canonical preparation changes declarations, not product source, executable baselines or prior approvals");
-        Git(root, ["ls-files", "--others", "--exclude-standard", "--", .. paths]).Trim().Should().BeEmpty();
+        _ = EphemeralFailureSettlementSourceReview.AuthorizedPaths(root);
+        typeof(WorkflowFailure).GetProperty("ExceptionType")!.PropertyType.Should().Be(typeof(string));
+        typeof(WorkflowFailure).GetProperty("ExceptionType")!.SetMethod.Should().BeNull();
+        typeof(WorkflowInstanceHandle).GetMethod("WaitForSettlementAsync")!.IsVirtual.Should().BeFalse();
+        Git(root, ["diff", "--name-only", ContractVerdictCommit, "--",
+            "Directory.Build.props", "Directory.Packages.props", "global.json",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json"]).Trim().Should().BeEmpty();
     }
 
     [Fact]

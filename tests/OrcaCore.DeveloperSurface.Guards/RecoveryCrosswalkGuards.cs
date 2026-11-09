@@ -426,11 +426,11 @@ public sealed partial class RecoveryCrosswalkInfrastructureGuards
             accounting.GetProperty(pair.Key).GetInt32().Should().Be(pair.Value, pair.Key);
         }
 
-        expected["activeFiles"].Should().Be(214);
-        expected["activeDeclarations"].Should().Be(826);
+        expected["activeFiles"].Should().Be(218);
+        expected["activeDeclarations"].Should().Be(847);
         expected["compileExcludedFiles"].Should().Be(131);
         expected["compileExcludedDeclarations"].Should().Be(688);
-        expected["outOfBandFixtureFiles"].Should().Be(24);
+        expected["outOfBandFixtureFiles"].Should().Be(25);
         expected["outOfBandFixtureDeclarations"].Should().Be(0);
         expected["inactiveProjectFiles"].Should().Be(0);
         expected["inactiveProjectDeclarations"].Should().Be(0);

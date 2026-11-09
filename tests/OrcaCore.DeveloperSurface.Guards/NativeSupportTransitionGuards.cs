@@ -449,7 +449,8 @@ public sealed class NativeSupportTransitionGuards
     [Fact]
     public void TypedDispatchSlice_SourceEditsStayWithinTheExplicitlyReviewedFileScope()
     {
-        var changed = Git("diff", "--name-only", VerdictCommit, "--", "src")
+        _ = EphemeralFailureSettlementSourceReview.AuthorizedPaths(FixtureDefinitions.RepositoryRoot());
+        var changed = Git("diff", "--name-only", VerdictCommit, EphemeralFailureSettlementSourceReview.Base, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Concat(Git("ls-files", "--others", "--exclude-standard", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Order(StringComparer.Ordinal).ToArray();

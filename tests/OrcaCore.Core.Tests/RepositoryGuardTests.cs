@@ -59,6 +59,8 @@ public sealed partial class RepositoryGuardTests
         ["AC-572"] = "NS-10 events/waits/retry/timer/resource/Parallel/ForEach require the complete task 2.3 dispatch slice and every native cell; trait presence cannot substitute.",
         ["AC-573"] = "NS-11 retention/drain/shutdown invariants require generated-metadata native execution in tasks 2.3-2.5; no lifecycle acceptance credit is inferred.",
         ["AC-574"] = "NS-12 exact source/API compile controls exist, but public-package bootstrap and all six successful native cells are still pending tasks 2.4-2.5.",
+        ["AC-637"] = "FS-19 requires the fresh external public-package resource-owner experiment in issue #16 task 3.4; local unit traits confer no package-consumer credit.",
+        ["AC-638"] = "FS-20 requires six actual native host/profile jobs plus their aggregate in issue #16 task 3.4; pushes are not authorized and no native credit is inferred from local lanes.",
         ["AC-617"] = "Compiled ordered DAG snapshot evidence is pending reshape-developer-facing-interfaces tasks 8.6 and 8.10.",
         ["AC-618"] = "Compiled reactive DAG terminal-wait evidence is pending reshape-developer-facing-interfaces tasks 8.6 and 8.10.",
         ["DR-AC-007"] = "DR-P3 saga driving is still open.",

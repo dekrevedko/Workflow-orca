@@ -31,6 +31,7 @@ public sealed class ContinuationOwnershipTests
 
     [Theory]
     [MemberData(nameof(CallbackCases))]
+    [Trait("AC", "AC-629")]
     public async Task TerminalUnit_WaitsForRetryGrantOrTimerCompletion_ThenCannotBeResurrected(
         bool bounded, string kind, bool bulk)
     {
@@ -99,12 +100,16 @@ public sealed class ContinuationOwnershipTests
             (bulk ? host.Engine.EvictTerminalInstances() : host.Engine.EvictInstance(instance.InstanceId) ? 1 : 0)
                 .Should().Be(0, "the real continuation/dispatch still owns its completion callback");
 
+            var receipt = instance.WaitForSettlementAsync(TestContext.Current.CancellationToken).AsTask();
+            receipt.IsCompleted.Should().BeFalse("the public receipt includes this actual retry/resource/timer handoff");
             completion.Release.TrySetResult();
+            await receipt.WaitAsync(Guard, TestContext.Current.CancellationToken);
             await runtime.Lifetime.WhenSettled.WaitAsync(Guard, TestContext.Current.CancellationToken);
             (bulk ? host.Engine.EvictTerminalInstances() : host.Engine.EvictInstance(instance.InstanceId) ? 1 : 0)
                 .Should().Be(1);
             host.Router.AcceptedEntryCount(instance.InstanceId).Should().Be(0);
             host.Registry.TryGetInstance(instance.InstanceId, out _).Should().BeFalse();
+            await instance.WaitForSettlementAsync(TestContext.Current.CancellationToken);
 
             // A stale owner cannot reinsert the released runtime, even through the actual storage seam.
             var immutable = runtime.ToSnapshot();
