@@ -1838,9 +1838,10 @@ public sealed class OpenSpecCorpusGuards
             Sha256(NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, verdictCommit, path))))
                 .Should().Be(row.GetProperty("beforeSha256").GetString());
             Sha256(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))))
-                .Should().Be(row.GetProperty("afterSha256").GetString());
+                .Should().Be(EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
+                    root, path, row.GetProperty("afterSha256").GetString()!));
         }
-        var ledger = File.ReadAllText(Path.Combine(root, "openspec/changes/" + change + "/tasks.md"));
+        var ledger = EphemeralFailureSettlementSourceReview.CheckpointTaskLedger(root);
         Regex.Matches(ledger, @"(?m)^- \[x\] 1\.4\b").Should().ContainSingle();
         foreach (var task in new[] { "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
             _ = ReadOpenTaskBlock(ledger, task);

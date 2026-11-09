@@ -12,12 +12,12 @@
 
 ## 3. One coherent behavior-first source, codec and native target
 
-- [ ] 3.1 Bind the approved canonical checkpoint and verdict and complete only authorized registry/checkbox activation within this source target. Use behavior-first controls for every FS row; retain original ownership/shutdown/retention assertions. Red assertions must fail for missing behavior, never build/setup/timeouts. Do not checkpoint a red CI state.
-- [ ] 3.2 Implement the existing wrapper's original step InnerException association, WF-STEP-UNHANDLED normalization, nullable detached ExceptionType and exact legacy/v2 codec amendment. Cover retries/equal failures/returned errors/user invocation wrappers/joins/recovery/late work/message fallback and durable unchanged controls. Live exceptions never enter Core/provider/codec records. Update real API/compile/package/diagnostic/metadata baselines with the source; null-type golden bytes remain exact and any newly typed corpus bytes are individually reviewed.
-- [ ] 3.3 Implement the monotonic identity-bound settlement receipt, terminal/final-handoff admission seal, subscriber/recheck and observer-local cancellation; no payload pin or host obligation. Cover idle zero counts, all physical/callback/retry/resource/timer/commit handoffs, count/age retirement, old key/new ID, root/branch/item timeouts, Stopping/Completed/disposal, no-handle provisional abort and durable no-I/O rejection in both retention modes.
-- [ ] 3.4 Run the fresh public-package resource-owner experiment and exact six-cell native matrix for Windows Server 2025/win-x64 and Ubuntu 24.04/linux-x64, preserving every original issue #13 journey/group/subcase and diagnostic classification and adding FS witnesses. Verify actual completed native jobs/aggregate, exact source/package hashes, disabled trimmed/AOT JSON reflection and every type/codec assertion. Hosted-validation pushes remain separately authorized.
-- [ ] 3.5 Run all required source/build/unit/Infrastructure/provider/integration/coverage/stress lanes, scoped ReSharper and independent adversarial whole-target review. Keep this coherent target uncommitted for approval; retain compact evidence and remove owned validation worktrees/build/cache output after preserving deliverables.
-- [ ] 3.6 After explicit approval, recheck and checkpoint the exact green source/consumer/native manifest and add a verdict-only child. Bind real approvals through Git; no semantic approval is inferred from self-review or execution alone.
+- [x] 3.1 Bind the approved canonical checkpoint and verdict and complete only authorized registry/checkbox activation within this source target. Use behavior-first controls for every FS row; retain original ownership/shutdown/retention assertions. Red assertions must fail for missing behavior, never build/setup/timeouts. Do not checkpoint a red CI state.
+- [x] 3.2 Implement the existing wrapper's original step InnerException association, WF-STEP-UNHANDLED normalization, nullable detached ExceptionType and exact legacy/v2 codec amendment. Cover retries/equal failures/returned errors/user invocation wrappers/joins/recovery/late work/message fallback and durable unchanged controls. Live exceptions never enter Core/provider/codec records. Update real API/compile/package/diagnostic/metadata baselines with the source; null-type golden bytes remain exact and any newly typed corpus bytes are individually reviewed.
+- [x] 3.3 Implement the monotonic identity-bound settlement receipt, terminal/final-handoff admission seal, subscriber/recheck and observer-local cancellation; no payload pin or host obligation. Cover idle zero counts, all physical/callback/retry/resource/timer/commit handoffs, count/age retirement, old key/new ID, root/branch/item timeouts, Stopping/Completed/disposal, no-handle provisional abort and durable no-I/O rejection in both retention modes.
+- [x] 3.4 Run the fresh public-package resource-owner experiment and exact six-cell native matrix for Windows Server 2025/win-x64 and Ubuntu 24.04/linux-x64, preserving every original issue #13 journey/group/subcase and diagnostic classification and adding FS witnesses. Verify actual completed native jobs/aggregate, exact source/package hashes, disabled trimmed/AOT JSON reflection and every type/codec assertion. Hosted-validation pushes remain separately authorized.
+- [x] 3.5 Run all required source/build/unit/Infrastructure/provider/integration/coverage/stress lanes, scoped ReSharper and independent adversarial whole-target review. Keep this coherent target uncommitted for approval; retain compact evidence and remove owned validation worktrees/build/cache output after preserving deliverables.
+- [x] 3.6 After explicit approval, recheck and checkpoint the exact green source/consumer/native manifest and add a verdict-only child. Bind real approvals through Git; no semantic approval is inferred from self-review or execution alone.
 
 ## 4. Publication and merge
 
@@ -57,3 +57,11 @@ Canonical checkpoint ecd188a (tree ae97c26e) and verdict-only child 5960f0b bind
 Tasks 2.1/2.2 are complete; all task 3 checkboxes remain open while source and native evidence are in progress.
 The prior task 2.1 preparation record above remains a dated description of its reviewed state.
 The source authorization record does not confer source or native approval.
+
+## Task 4.1 publication preparation (2026-11-08)
+
+The owner approved the 69-path Task 3 target at tree `ed06e48`. Checkpoint
+`5a91477` records those exact bytes and `8667ea5` records only the review verdict.
+The six native cells and aggregate passed in run 42554435708. This preparation
+records the checkpoint and marks 3.1–3.6 complete. Tasks 4.1 and 4.2 remain open
+for review, publication and merge. A future package version is a separate decision.

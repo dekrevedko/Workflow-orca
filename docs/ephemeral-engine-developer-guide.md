@@ -227,11 +227,10 @@ operations still finish normally and are joined. After Completed there is no new
 engine work, DI/user code, timer, diagnostic or commit: only passive registered
 identity, previously detached values and cached Completed remain available.
 
-The pending issue #16 contract adds one passive exception on an already-issued
-handle: settlement observation in Closed/Stopping and its completed local receipt
-after Completed/correct owner disposal. It adds no DI, payload pin or host join
-obligation and does not reopen ordinary output/query waits. This API is absent
-from preview.3; see the implementation-pending resource recipe below.
+The issue #16 source checkpoint adds passive settlement observation on an
+already-issued handle in Closed and Stopping. The completed receipt remains
+readable after Completed and correct owner disposal. Preview.3 predates this
+API. See the [resource-release recipe](#issue-16-resource-release-recipe).
 
 Incomplete has Reason/PendingWorkCount, not stuck-instance identities. **Before
 calling stop**, inspect existing snapshots/state and stuck-step/lifecycle diagnostics
@@ -260,14 +259,17 @@ Completed and DI ownership rules taught here. Reproduction, exact package and
 host identities, individual findings and measurements are recorded in
 [the assessment harness](../tools/ephemeral-native-assessment/README.md).
 
-## Issue #13 native metadata path (source-qualified; release pending)
+## Issue #13 native metadata path
 
 User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
 this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
-and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
-Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
-version is published by this approval. See [the qualified recipe](ephemeral-native-support.md).
+and Ubuntu 24.04 linux-x64. The 2026-10-28 preparation recorded the status
+as “source-qualified; release pending.” Published `0.1.0-preview.3` passed all
+384 cases in the same six profiles using its exact release assets. Published
+`0.1.0-preview.2` retains its unsupported trimming and AOT assessment. See
+[the qualified recipe](ephemeral-native-support.md) and the
+[preview.3 publication and exact-asset results](releases/0.1.0-preview.3/published-2026-10-29.md).
 
 The qualified startup order is: register the existing ephemeral role in
 IServiceCollection; call WorkflowJsonMetadata.Register<AppJsonContext>(); author
@@ -333,13 +335,13 @@ A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
 
-## Issue #16 resource-release recipe (contract approved; implementation pending)
+## Issue #16 resource-release recipe
 
-The approved additions are not in preview.3 or current product source. This is the
-planned recipe for the separately reviewed implementation, not a runnable promise
-for installed packages. Keep application resources that a step uses until its
-accepted handle's WaitForSettlementAsync succeeds. Output success/unavailability,
-logical timeout and local output-wait cancellation do not prove physical return.
+The issue #16 checkpoint implements this recipe. Preview.3 predates the
+settlement API, so use the checkpointed source when trying the example. Keep
+application resources that a step uses until its accepted handle's
+`WaitForSettlementAsync` succeeds. Output success or failure, logical timeout
+and local output-wait cancellation can precede physical return.
 
 Capture the accepted handle, await output in a try, and in the owner's finally await
 settlement with an owner-controlled cleanup token before disposing that job's
@@ -373,12 +375,15 @@ Settlement observers add no payload pin or host obligation. Old issued receipts
 succeed after count/age retirement and never address a replacement ID under the
 same key. Ordinary stale output/query/command calls still return original-ID
 not-found; that never proves the job did not run or permits effect-safe replay.
-Closed/Stopping allow passive settlement only; ordinary operations keep their
-existing lifecycle rules. A completed receipt remains readable after Completed and
+In Closed, accepted workflows keep their ordinary operations and can drain.
+In Stopping, new live operations are rejected, subject to the existing identity
+and not-found checks. Settlement observation stays passive on an already-issued
+handle in both phases. A completed receipt remains readable after Completed and
 correct owner disposal with no DI/codec/user/engine work. A pre-cancelled token
 still cancels locally; durable calls otherwise reject without I/O.
 
-Typed failure values use the explicitly amended seven-field version-2 subformat;
-old binaries reject them. Use a matched new package closure. Unchanged all-null-type
-failure graphs retain five-field legacy bytes. Preview.3 native qualification is
-unchanged; the new source needs fresh six-cell type-name/codec/settlement evidence.
+Typed failure values use the seven-field version-2 subformat. Older readers
+reject those values. Use a matched package closure when rolling out the new
+format. All-null-type failure graphs retain five-field legacy bytes. The new
+source passed the type-name, codec and settlement cases in all six hosted
+profiles. [Native run 42554435708](https://github.com/dekrevedko/Workflow-orca/actions/runs/42554435708)

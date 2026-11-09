@@ -48,7 +48,7 @@ public sealed class EphemeralFailureSettlementTransitionGuards
         companion.Should().Contain("public string? ExceptionType => throw new NotSupportedException();");
         companion.Should().Contain("public ValueTask WaitForSettlementAsync(\n        CancellationToken cancellationToken = default) => throw new NotSupportedException();");
         var guide = Read("docs/ephemeral-engine-developer-guide.md");
-        guide.Should().Contain("contract approved; implementation pending");
+        guide.Should().Contain("## Issue #16 resource-release recipe").And.Contain("The issue #16 checkpoint implements this recipe.");
         guide.Should().Contain("ExceptionDispatchInfo.Capture(error.InnerException).Throw()");
         guide.Should().Contain("A start that fails/cancels before Accepted supplies no handle or receipt");
         Read(Prefix + "tasks.md").Should().Contain("2.1/2.2 remain open until transition approval and checkpoint");
@@ -137,7 +137,8 @@ internal static class EphemeralFailureSettlementReviewHistory
         var before = Normalize(Git(root, "show", BeforeCommit + ":" + path));
         Hash(before).Should().Be(historicalHash, "the original documentation approval pin remains intact");
         historicalHash.Should().Be(row.GetProperty("beforeSha256").GetString());
-        return row.GetProperty("afterSha256").GetString()!;
+        return EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
+            root, path, row.GetProperty("afterSha256").GetString()!);
     }
 
     private static string Block(string text, string title)

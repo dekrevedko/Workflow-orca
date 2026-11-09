@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "stage": "Task3ApprovedPublicationReviewPending",
+  "owningIssue": 16,
+  "approvalAuthority": "DirectUserApproval",
+  "approvalQuote": "Approved. Recheck drift, commit the exact 69-path Task 3 target at tree ed06e48, and add the verdict-only child.",
+  "checkpointCommit": "5a9147721a0b8a0e7ffecacd07572a6ddebcd0ef",
+  "checkpointParent": "5960f0b5e920e2a53b34e38290d20c6e545fbf2a",
+  "checkpointTree": "ed06e4888769fc4fceae8cf08122f25c722d0586",
+  "approvedPathCount": 69,
+  "approvedContentSha256": "5fa4b3776ab2fbcbd25a52b98a9212f78724c017a85a14b0ccad3804244454af",
+  "verdictCommit": "8667ea5e7894e7e64859070d7556594e559a4fe6",
+  "verdictPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-3-independent-review-verdict-2026-11-08.md",
+  "verdictSha256": "23628657252377a065d0e7fcc1c2ee77f4913602fd1b1913c38ad2f837264dc5",
+  "nativeQualification": {
+    "runId": 42554435708,
+    "runUrl": "https://github.com/dekrevedko/Workflow-orca/actions/runs/42554435708",
+    "aggregateJobId": 128958102389,
+    "sourceCommit": "d859a9515f47ff8b786679166b9c584e38b6ecc5",
+    "sourceTree": "5ca0cd451c92065e9de64d4202fe1fc1db425852",
+    "protocol": 4,
+    "packageVersion": "0.0.0-phase0",
+    "cells": 6,
+    "totalCases": 392,
+    "diagnosticPins": 24,
+    "evidencePath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-3-native-pin-rerun-evidence-2026-11-08.zip",
+    "evidenceSha256": "e5a3b20eeb3638c7bf7f87f2071e639e3c19057f4234de25c2f30ae74adbaec2"
+  },
+  "documentationFiles": {
+    "README.md": {
+      "beforeSha256": "ae0dd0d6c7dd06c9dce1d889407d7db45baf43b8cc027f740d48729123551b61",
+      "afterSha256": "832aa4fc8d993fcd0943c721813e080754069828f32e1187277d9a89c494d5e8"
+    },
+    "docs/ephemeral-engine-developer-guide.md": {
+      "beforeSha256": "0bb2f9493df043172f446d61294ff963df367a007d00e49455c5352a95996d9c",
+      "afterSha256": "091ac6a1fe608e65433c3f7355d4b327f0a2ed049b9ef7b09781da1fa8c78786"
+    },
+    "docs/ephemeral-native-support.md": {
+      "beforeSha256": "c9e4f52a20129489a5256f4d266c0d56d06b92c68a8980e21fcf1dfe9dc86899",
+      "afterSha256": "9e5a9506ae93cdd2d752385e8b929d601f7436c895e578936c0dd1346a3ddb1e"
+    },
+    "docs/packages.md": {
+      "beforeSha256": "a6557cc353876915f3bd599253bc02f24f71312f67b5ca060ec6bc41577a265b",
+      "afterSha256": "473ef855cd9197e2b5752f92591f24bcacc15ab7c98c36065843ded8f012de88"
+    }
+  },
+  "pullRequest": {
+    "baseBranch": "master",
+    "headBranch": "codex/issue-16-ephemeral-failure-settlement",
+    "title": "Expose ephemeral step failures and physical settlement",
+    "bodyPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-4-1-publication-pr-body-2026-11-08.md",
+    "bodySha256": "3a5fe80153db0c66b8336bc8a621a54e6e359f2079f4d8ce6d37058ef28c328e"
+  },
+  "sourceApproved": true,
+  "nativeQualificationComplete": true,
+  "publicationReviewPending": true,
+  "pushAuthorized": false,
+  "pullRequestAuthorized": false,
+  "mergeAuthorized": false,
+  "issueClosureAuthorized": false,
+  "releaseAuthorized": false,
+  "futureReleaseVersion": null
+}
