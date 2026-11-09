@@ -21,8 +21,8 @@
 
 ## 4. Publication and merge
 
-- [ ] 4.1 Prepare truthful PR/version/profile support docs and references to #16; complete approved binding/checkboxes only. Push/open a PR only when authorized and require CI green. A future release is separate from issue implementation.
-- [ ] 4.2 Merge only when authorized, with a merge commit, never squash/rebase; close #16 only when its acceptance criteria are met. Synchronize master, preserve the review chain and remove owned disposable output. Do not archive unrelated changes or alter the separate DAG checkout.
+- [x] 4.1 Prepare truthful PR/version/profile support docs and references to #16; complete approved binding/checkboxes only. Push/open a PR only when authorized and require CI green. A future release is separate from issue implementation.
+- [x] 4.2 Merge only when authorized, with a merge commit, never squash/rebase; close #16 only when its acceptance criteria are met. Synchronize master, preserve the review chain and remove owned disposable output. Do not archive unrelated changes or alter the separate DAG checkout.
 
 ## Task 2.1 preparation record (2026-11-01; awaiting independent approval)
 

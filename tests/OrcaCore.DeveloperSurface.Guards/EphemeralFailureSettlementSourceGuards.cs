@@ -11,17 +11,19 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class EphemeralFailureSettlementSourceGuards
 {
     [Fact]
-    public void SourcePreparation_BindsTheActualApprovedCanonicalChainWithoutSourceApproval()
+    public void PublicationCompletion_BindsTheApprovedChainAndMerge()
     {
         var root = FixtureDefinitions.RepositoryRoot();
         _ = EphemeralFailureSettlementSourceReview.AuthorizedPaths(root);
         EphemeralFailureSettlementSourceReview.ValidatePublicationBinding(root);
+        EphemeralFailureSettlementSourceReview.ValidateMergeCompletion(root);
     }
 }
 
 internal static class EphemeralFailureSettlementSourceReview
 {
     private const string Prefix = "openspec/changes/expose-ephemeral-failures-and-settlement/";
+    private const string TaskLedgerPath = Prefix + "tasks.md";
     internal const string Base = "5960f0b5e920e2a53b34e38290d20c6e545fbf2a";
     private const string RegistryHash = "d62cd0d28712b18550216f5b487a42a85b557726a7fe06eccb7d1c7a53e2e282";
     private const string SourceCheckpoint = "5a9147721a0b8a0e7ffecacd07572a6ddebcd0ef";
@@ -67,7 +69,7 @@ internal static class EphemeralFailureSettlementSourceReview
         }
         Git(root, "diff", "--name-only", Base, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
         Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Should().BeEmpty();
-        var tasks = File.ReadAllText(Path.Combine(root, Prefix + "tasks.md"));
+        var tasks = File.ReadAllText(Path.Combine(root, TaskLedgerPath));
         foreach (var task in new[] { "2.1", "2.2" }) tasks.Should().Contain("- [x] " + task + " ");
         var checkpointTasks = CheckpointTaskLedger(root);
         foreach (var task in new[] { "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
@@ -76,12 +78,11 @@ internal static class EphemeralFailureSettlementSourceReview
             tasks.Should().Contain("- [x] " + task + " ");
         }
 
-        foreach (var task in new[] { "4.1", "4.2" }) tasks.Should().Contain("- [ ] " + task + " ");
         return files.Select(file => file.Name).ToArray();
     }
 
     internal static string CheckpointTaskLedger(string root) =>
-        Git(root, "show", SourceCheckpoint + ":" + Prefix + "tasks.md");
+        Git(root, "show", SourceCheckpoint + ":" + TaskLedgerPath);
 
     internal static string PublicationDocumentationHash(string root, string path, string priorHash)
     {
@@ -146,6 +147,72 @@ internal static class EphemeralFailureSettlementSourceReview
         Encoding.UTF8.GetString(body).Should().Contain("Closes #16");
 
         ValidateNativeEvidence(root, binding.GetProperty("nativeQualification"));
+    }
+
+    internal static void ValidateMergeCompletion(string root)
+    {
+        const string receiptPath = Prefix + "artifacts/task-4-2-merge-completion-2026-11-08.json";
+        const string receiptHash = "87d42417487aab18a34a8a33db4c805dc0c8223cc297bcc50e03558f595fba56";
+        const string checkpoint = "884a753cb24848ca1de1f4156e488f4f3ee5dc45";
+        const string verdict = "184ce3e940f5c0f033a2ab173256e4758141d81b";
+        const string merge = "893ca34e205e182c97e08cfda353c6765ab6208d";
+        var bytes = File.ReadAllBytes(Path.Combine(root, receiptPath));
+        Hash(bytes).Should().Be(receiptHash);
+        using var document = JsonDocument.Parse(bytes);
+        var record = document.RootElement;
+        record.GetProperty("schemaVersion").GetInt32().Should().Be(1);
+        record.GetProperty("stage").GetString().Should().Be("MergedIssueClosed");
+        record.GetProperty("releaseAuthorized").GetBoolean().Should().BeFalse();
+        record.GetProperty("syncedMaster").GetString().Should().Be(merge);
+
+        var pr = record.GetProperty("pr");
+        pr.GetProperty("number").GetInt32().Should().Be(18);
+        pr.GetProperty("state").GetString().Should().Be("MERGED");
+        pr.GetProperty("headRefOid").GetString().Should().Be(verdict);
+        pr.GetProperty("mergeCommit").GetProperty("oid").GetString().Should().Be(merge);
+        var issue = record.GetProperty("issue");
+        issue.GetProperty("number").GetInt32().Should().Be(16);
+        issue.GetProperty("state").GetString().Should().Be("CLOSED");
+        issue.GetProperty("stateReason").GetString().Should().Be("COMPLETED");
+        var ci = record.GetProperty("prCi");
+        ci.GetProperty("headSha").GetString().Should().Be(verdict);
+        ci.GetProperty("conclusion").GetString().Should().Be("success");
+        ci.GetProperty("jobs").EnumerateArray().Should().HaveCount(3).And
+            .OnlyContain(job => job.GetProperty("conclusion").GetString() == "success");
+
+        record.GetProperty("publicationCheckpoint").GetString().Should().Be(checkpoint);
+        record.GetProperty("publicationCheckpointParent").GetString().Should().Be(SourceVerdict);
+        Git(root, "show", "-s", "--format=%P %T", checkpoint).Trim().Should().Be(
+            SourceVerdict + " " + record.GetProperty("publicationCheckpointTree").GetString());
+        Hash(Encoding.UTF8.GetBytes(Git(root, "show", checkpoint + ":" + PublicationPath))).Should().Be(PublicationHash);
+
+        record.GetProperty("publicationVerdictCommit").GetString().Should().Be(verdict);
+        Git(root, "show", "-s", "--format=%P", verdict).Trim().Should().Be(checkpoint);
+        var verdictPath = record.GetProperty("publicationVerdictPath").GetString()!;
+        Git(root, "diff", "--name-status", checkpoint, verdict).TrimEnd('\r', '\n').Should().Be("A\t" + verdictPath);
+        var verdictBytes = File.ReadAllBytes(Path.Combine(root, verdictPath));
+        Hash(verdictBytes).Should().Be(record.GetProperty("publicationVerdictSha256").GetString());
+        Encoding.UTF8.GetBytes(Git(root, "show", verdict + ":" + verdictPath)).Should().Equal(verdictBytes);
+
+        record.GetProperty("mergeCommit").GetString().Should().Be(merge);
+        var parents = record.GetProperty("mergeParents").EnumerateArray().Select(parent => parent.GetString()).ToArray();
+        parents.Should().Equal("0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580", verdict);
+        Git(root, "show", "-s", "--format=%P", merge).Trim().Should().Be(string.Join(" ", parents));
+        var mergeTree = record.GetProperty("mergeTree").GetString();
+        Git(root, "rev-parse", merge + "^{tree}").Trim().Should().Be(mergeTree);
+        Git(root, "rev-parse", verdict + "^{tree}").Trim().Should().Be(mergeTree);
+        _ = Git(root, "merge-base", "--is-ancestor", merge, "HEAD");
+
+        var ledger = Git(root, "show", checkpoint + ":" + TaskLedgerPath);
+        foreach (var task in new[] { "4.1", "4.2" })
+        {
+            var open = "- [ ] " + task + " ";
+            ledger.Split(open).Should().HaveCount(2);
+            ledger = ledger.Replace(open, "- [x] " + task + " ", StringComparison.Ordinal);
+        }
+
+        File.ReadAllText(Path.Combine(root, TaskLedgerPath)).Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Should().Be(ledger, "completion only ticks the two publication checkboxes");
     }
 
     private static void ValidateNativeEvidence(string root, JsonElement qualification)
