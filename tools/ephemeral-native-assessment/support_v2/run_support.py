@@ -117,7 +117,7 @@ def run(args):
     source, harness = identities(repo)
     properties = dict(PublishAot=args.flavor == "aot", PublishTrimmed=args.flavor != "jit", TrimMode="full", TrimmerSingleWarn=False,
                       TreatWarningsAsErrors=False, ILLinkTreatWarningsAsErrors=False)
-    report = dict(protocol=3, packageVersion=version, sourceSha=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
+    report = dict(protocol=4, packageVersion=version, sourceSha=subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=repo, text=True).strip(),
                   sourceTree=subprocess.check_output(["git", "rev-parse", "HEAD^{tree}"], cwd=repo, text=True).strip(),
                   sourceDirty=bool(subprocess.check_output(["git", "status", "--porcelain=v1", "--untracked-files=all"], cwd=repo)),
                   consumerBuildPropsIsolated=True,
@@ -211,7 +211,8 @@ def run(args):
                 report["cases"].append(dict(id=name, exitCode=code, passMarker=marker if marker in stdout.splitlines() else None,
                                             outcome="Passed" if code == 0 and marker in stdout.splitlines() else "FailedBehavior", runtimeFeatures=runtime_features(stdout)))
                 for tag, field in (("GOLDEN ", "legacyGolden" if name == "golden-legacy" else "golden"),
-                                   ("STRONG ", "legacyStrong" if name == "strong-legacy" else "strong")):
+                                   ("STRONG ", "legacyStrong" if name == "strong-legacy" else "strong"),
+                                   ("FS16 TYPES ", "legacyFailureTypes" if name == "failure-settlement-legacy" else "failureTypes")):
                     for line in stdout.splitlines():
                         if line.startswith(tag):
                             value = line[len(tag):]

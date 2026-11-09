@@ -16,6 +16,7 @@ public sealed class PhysicalOwnershipTests
     [InlineData(true)]
     [Trait("Disposition", "Implemented")]
     [Trait("Slice", "Issue1Task3.1")]
+    [Trait("AC", "AC-635")]
     public async Task CancelledStartAfterInit_FencesTheRunningOrphan_AndReleasesIt(bool bounded)
     {
         var step = new Body(cooperative: true);
@@ -32,6 +33,7 @@ public sealed class PhysicalOwnershipTests
             var error = await Record.ExceptionAsync(async () => await start.WaitAsync(Guard, TestContext.Current.CancellationToken));
             error.Should().BeAssignableTo<OperationCanceledException>().Which.CancellationToken.Should().Be(cancellation.Token);
             host.Registry.ListInstances().Should().BeEmpty("an aborted start cannot publish a facade binding");
+            runtime.Lifetime.FinalSettlement.IsCompleted.Should().BeFalse("unaccepted aborts never issue accepted settlement proof");
             var missing = await Record.ExceptionAsync(async () => await handle.GetInstanceAsync(runtime.InstanceId, TestContext.Current.CancellationToken));
             missing.Should().BeOfType<WorkflowInstanceNotFoundException>();
             step.Release.TrySetResult();
@@ -61,6 +63,7 @@ public sealed class PhysicalOwnershipTests
     [InlineData(true, true)]
     [Trait("Disposition", "Implemented")]
     [Trait("Slice", "Issue1Task3.1")]
+    [Trait("AC", "AC-635")]
     public async Task ExceptionAfterInit_PreservesOriginalErrorAndPriorTerminal_AndReleasesUnpublishedUnit(bool bounded, bool terminal)
     {
         var body = new Body(synchronous: true);
@@ -131,13 +134,17 @@ public sealed class PhysicalOwnershipTests
             var removed = bulk ? host.Engine.EvictTerminalInstances() : host.Engine.EvictInstance(instance.InstanceId) ? 1 : 0;
             removed.Should().Be(0, "terminal status is not proof of physical settlement, even without a configured capacity slot");
             host.Engine.TryGetFacadeInstance(instance.InstanceId, out _).Should().BeTrue();
+            var receipt = instance.WaitForSettlementAsync(TestContext.Current.CancellationToken).AsTask();
+            receipt.IsCompleted.Should().BeFalse("the public receipt cannot confuse logical timeout with physical return");
             body.Release.TrySetResult();
             await body.PhysicalTask.WaitAsync(Guard, TestContext.Current.CancellationToken);
             await host.Initialized!.Lifetime.WhenSettled.WaitAsync(Guard, TestContext.Current.CancellationToken);
+            await receipt.WaitAsync(Guard, TestContext.Current.CancellationToken);
             var after = await instance.GetSnapshotAsync(TestContext.Current.CancellationToken);
             after.Status.Should().Be(terminal.Status, "late completion cannot overwrite the terminal fence");
             (bulk ? host.Engine.EvictTerminalInstances() : host.Engine.EvictInstance(instance.InstanceId) ? 1 : 0)
                 .Should().Be(1, "physical return makes the otherwise unpinned terminal unit eligible");
+            await instance.WaitForSettlementAsync(TestContext.Current.CancellationToken);
         }
         finally
         {

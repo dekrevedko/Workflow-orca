@@ -237,13 +237,15 @@ public class WorkflowInstanceHandle
     private readonly Func<Type, CancellationToken, ValueTask<object?>> getState;
     private readonly Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation;
     private readonly Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate;
+    private readonly Task? settlement;
 
     internal WorkflowInstanceHandle(
         InstanceId instanceId,
         Func<CancellationToken, ValueTask<WorkflowInstanceSnapshot>> getSnapshot,
         Func<Type, CancellationToken, ValueTask<object?>> getState,
         Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation,
-        Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate)
+        Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate,
+        Task? settlement = null)
     {
         ArgumentNullException.ThrowIfNull(instanceId);
         ArgumentNullException.ThrowIfNull(getSnapshot);
@@ -255,9 +257,18 @@ public class WorkflowInstanceHandle
         this.getState = getState;
         this.requestCancellation = requestCancellation;
         this.terminate = terminate;
+        this.settlement = settlement;
     }
 
     public InstanceId InstanceId { get; }
+
+    /// <summary>Observes final physical settlement of this accepted ephemeral instance.</summary>
+    public ValueTask WaitForSettlementAsync(CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        if (settlement is null) return ValueTask.FromException(new NotSupportedException("Physical settlement is only supported for ephemeral handles."));
+        return settlement.IsCompletedSuccessfully ? ValueTask.CompletedTask : new ValueTask(settlement.WaitAsync(cancellationToken));
+    }
 
     public ValueTask<WorkflowInstanceSnapshot> GetSnapshotAsync(
         CancellationToken cancellationToken = default) =>
@@ -297,8 +308,9 @@ public sealed class WorkflowInstanceHandle<TOutput> : WorkflowInstanceHandle
         Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation,
         Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate,
         Func<CancellationToken, ValueTask<WorkflowOutputResult<TOutput>>> getOutput,
-        Func<CancellationToken, ValueTask<TOutput>> waitForOutput)
-        : base(instanceId, getSnapshot, getState, requestCancellation, terminate)
+        Func<CancellationToken, ValueTask<TOutput>> waitForOutput,
+        Task? settlement = null)
+        : base(instanceId, getSnapshot, getState, requestCancellation, terminate, settlement)
     {
         ArgumentNullException.ThrowIfNull(getOutput);
         ArgumentNullException.ThrowIfNull(waitForOutput);
@@ -457,8 +469,9 @@ public sealed class WorkflowOutputUnavailableException : OrcaCoreException
 {
     internal WorkflowOutputUnavailableException(
         WorkflowInstanceStatus status,
-        WorkflowFailure? failure)
-        : base("WF-OUTPUT-UNAVAILABLE", $"Workflow terminal status '{status}' has no successful output.")
+        WorkflowFailure? failure,
+        Exception? originalException = null)
+        : base("WF-OUTPUT-UNAVAILABLE", $"Workflow terminal status '{status}' has no successful output.", originalException)
     {
         Status = status;
         Failure = failure;

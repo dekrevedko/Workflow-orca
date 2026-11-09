@@ -91,9 +91,9 @@ public sealed class DagStreamIdentitySliceGuards
         Hash(before).Should().Be("ef13f660beecb09c88c0d22b09abae7b69332158d8fcea4b7da69ad5e0a32678");
         var after = Normalize(Git(root, "show", "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd:" + path));
         Hash(after).Should().Be(ApprovedOrcaCoreApiSha256);
-        var current = Normalize(File.ReadAllText(Path.Combine(root, path)));
+        var current = EphemeralFailureSettlementSourceReview.PriorApi(Normalize(File.ReadAllText(Path.Combine(root, path))));
         Hash(current).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
-        Hash(PublicApiBaseline.CaptureCurrent()["OrcaCore"]).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
+        Hash(EphemeralFailureSettlementSourceReview.PriorApi(PublicApiBaseline.CaptureCurrent()["OrcaCore"])).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
         // Normalize only the exact separately approved throttle-parameter annotation.
         // Both complete current/source hashes above remain pinned; the prior metadata API is exact too.
         var metadataApi = current.Replace("  method public static For<TStep>([System.Private.CoreLib]System.Int32 maxConcurrency) -> [OrcaCore]OrcaCore.Hosting.StepExecutionThrottle! where [TStep : attributes [[System.Private.CoreLib]System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembersAttribute(8192), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]",

@@ -79,6 +79,7 @@ public sealed class DurableFailureProvenanceTests
             "failing:failure:WF-LEGACY-LIFECYCLE",
             "succeeding:success:succeeding");
         observedFailure.Should().NotBeNull();
+        observedFailure!.ExceptionType.Should().BeNull("durable failure production keeps its legacy detached shape");
         observedFailure!.AuthoredLocation.Value.Should().Be(
             "workflow:$/n:00000001/parallel:00000000/n:00000000");
         observedFailure.Occurrence.Should().BeOfType<FailureOccurrence.Branch>()

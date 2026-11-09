@@ -1,0 +1,92 @@
+{
+  "schemaVersion": 1,
+  "stage": "CanonicalApprovedSourceInProgress",
+  "owningChange": "expose-ephemeral-failures-and-settlement",
+  "canonicalCheckpoint": "ecd188a4b4ee4d45ecdaddc7112523e20f0cc1b1",
+  "canonicalParent": "7697c7981c02d03408cbccf9a2e0b9bade33ca14",
+  "canonicalTree": "ae97c26e5c088c3c5430d9fd6644379984d30922",
+  "canonicalVerdictCommit": "5960f0b5e920e2a53b34e38290d20c6e545fbf2a",
+  "canonicalVerdictPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-2-1-independent-review-verdict-2026-11-01.md",
+  "canonicalVerdictSha256": "96ce82184702d169620da0810dff1c093970375148c4cc531c4daf5259ce0f22",
+  "approvalAuthority": "DirectUserApproval",
+  "authorizationQuote": "Approved. Recheck drift, commit the 54-path transition and verdict-only child, then start task 3. Run mutation tests, ReSharper and independent review. Keep the new target uncommitted, don't push, and clean temp/build artifacts.",
+  "sourceImplementationAuthorized": true,
+  "sourceApprovalEvidencePath": null,
+  "sourceReviewPending": true,
+  "nativeQualificationComplete": false,
+  "pushAuthorized": false,
+  "sourceFiles": {
+    "src/OrcaCore.Abstractions/Facades/WorkflowFacadeContracts.cs": {
+      "beforeSha256": "fed746a7a356770ecf8cfa84b6a321a893a2811587fdbde4600ef6cb3b5be627",
+      "afterSha256": "e3ce19150f2997f56cfaa00a673b92e0f2efe26d04e555f184108a8d158081aa"
+    },
+    "src/OrcaCore.Abstractions/Instances/AuthoringValues.cs": {
+      "beforeSha256": "5e02a0fb824d4086ba8815d88ac7aef0adc7b0da75539170805545092dee4649",
+      "afterSha256": "38a8a717cc2a296203c5933362ec58710b22e9f076153fcedaeac13e4a904318"
+    },
+    "src/OrcaCore.Abstractions/Serialization/WorkflowFailureJsonConverters.cs": {
+      "beforeSha256": "062f1c65720b9d708ea54eb20edd5f6bfcd54c18015544f64e407706e9d00fec",
+      "afterSha256": "3de66fb7d98e19306333b01dded24b59dc8fffe8e7314272ba7d581b13a2c49e"
+    },
+    "src/OrcaCore.Core/Building/PublicStagedAuthoring.cs": {
+      "beforeSha256": "ede91e300230e883ab1a54ef3b8c5dcfbd9817e7329cd9047b505ffa1dd32457",
+      "afterSha256": "1a8377ccffdefef600a9766a9d8ea63467555844d0b8e68ada73171ec7a86d34"
+    },
+    "src/OrcaCore.Core/Execution/FailureProvenance.cs": {
+      "beforeSha256": "5656a5084aa5cc4d0967126fc55dc3a8b1f9262050dfafebc5b7f9b0aff80a72",
+      "afterSha256": "c6904d2299c7a4a7f5cc70fbafd75d86e89502b53de4eac385b183d237ee0c5b"
+    },
+    "src/OrcaCore.Core/Execution/FiberModel.cs": {
+      "beforeSha256": "ed73a85c613207708686d38707e3de0c2327c066175db49a89cf0a4cdd88c045",
+      "afterSha256": "131b796808351c21047b6d886429c2bd600f2772942599b3a15d663438fde9f0"
+    },
+    "src/OrcaCore.Core/Execution/StructuredInvocationCache.cs": {
+      "beforeSha256": "c77e66fc89a8d0076e3ba507472743aa75af9a3477db8338cc514a65696e0d70",
+      "afterSha256": "091f2502a1f3ed48ab7fc09adf110b5724be1a3859a00f7f4425f69519415104"
+    },
+    "src/OrcaCore.Engine.Ephemeral/EphemeralContractAdapter.cs": {
+      "beforeSha256": "f4813521b4b61b4f93feea891b8958b99a64d40d854afad8afa26ce49bebe831",
+      "afterSha256": "6e9ab354bfdc8ffc13fa898975793d23dbcf2961beaf4a57f833cc51fde07ce7"
+    },
+    "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs": {
+      "beforeSha256": "2ba38171be9958acc645ccafcea1789916943088d6a603d242153b1e18789ccb",
+      "afterSha256": "d8fc4e54c9f45ab1b6d88b1d7abd0a3f931493c61ae3f6c1dcd7d4a7d5f4350c"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralInstanceLifetime.cs": {
+      "beforeSha256": "74890a6e7c17ef85804e82fbdae430860a5e5186adb52c06d430606faf4e0cb4",
+      "afterSha256": "bf8686623b51d3b89039e7827dbce00b9fe3642676d235e4a54bd271986ef9df"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Execution/IWorkflowInstance.cs": {
+      "beforeSha256": "e8584d5603fdd3e26d6e5e7ab2e4d5884a3220868b0579e7dfa644a554f04362",
+      "afterSha256": "a69b81e69d9144e309726263b1aa1c108376e7c042d3d3e9d51aeb942cfe4a39"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Failures.cs": {
+      "beforeSha256": "8556b505b94dd1ae85541b8babfcf5da3de218c18a0561899465e2cfcf988459",
+      "afterSha256": "111887b31835dd7d2ea3335bdf5cb0120676a1f06919b0d0719141ddd0ef3d53"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Merge.cs": {
+      "beforeSha256": "3026b8546ea86e1be99c419532cbd9f86f432d579dd2c42df008d4c86dd0e50c",
+      "afterSha256": "f2fd4b2017d207f02c2ad46897f3719f37733c2289eb296dfbc72ab80d8dfb96"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs": {
+      "beforeSha256": "060f0d979adb22c7c2c121cb9d40c7a59d2de1aa75dd6a30162c8dbc34d1275b",
+      "afterSha256": "1a2bd20d135740182861bbec971d6b609b4da46f8aa3d3e406d7459f56234d74"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs": {
+      "beforeSha256": "80a71fcd51a9acf44f76e9e1c9d0ed504cdbb166ccf05f7cdc906ad1f0ef1e2f",
+      "afterSha256": "120dba0a2796b2ce8641781ba5f0811dda2042c9a52fd719613f9e54ccadc713"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs": {
+      "beforeSha256": "61e4ecd4aeeace79c8242438f0af79cfad2a81807850e26daea1f5e1e3fc21f2",
+      "afterSha256": "4541cd29baefe1351b170e406e7edd47910fbbf8e29fb360ebecd94fce833176"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowFacade.cs": {
+      "beforeSha256": "ea0b9e94564685acbf7966d792622bc3fe660958fbb59c357b98d93c21332084",
+      "afterSha256": "ed9af9f09257fbee48d75389bd1689125fe80250755a8a68ab4189161c2363d2"
+    },
+    "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowQueries.cs": {
+      "beforeSha256": "d254837be1cbf2a3f339deb40ac3a1aeb23d14f0bc2a5b38e699b2903b96aa87",
+      "afterSha256": "24439a4e78371b21854c16d3e556443c0f51c00c99b7fb883246f4a79dd4cafe"
+    }
+  }
+}

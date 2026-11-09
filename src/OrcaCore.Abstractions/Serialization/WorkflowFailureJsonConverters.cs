@@ -123,7 +123,7 @@ internal sealed class FailureOccurrenceJsonConverter : JsonConverter<FailureOccu
     private static bool HasOnly(JsonElement element, params string[] names)
     {
         var allowed = names.ToHashSet(StringComparer.Ordinal);
-        return element.EnumerateObject().All(property => allowed.Contains(property.Name)) &&
+        return element.EnumerateObject().Select(property => property.Name).ToHashSet(StringComparer.Ordinal).SetEquals(allowed) &&
                element.EnumerateObject().Count() == allowed.Count;
     }
 
@@ -161,11 +161,21 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
     {
         using var document = JsonDocument.ParseValue(ref reader);
         var root = document.RootElement;
-        if (root.ValueKind != JsonValueKind.Object ||
-            root.EnumerateObject().Count() != 5)
+        if (root.ValueKind != JsonValueKind.Object)
         {
-            throw new JsonException("A workflow failure must be the exact v1 object shape.");
+            throw new JsonException("A workflow failure must be an object.");
         }
+
+        var typed = root.TryGetProperty("version", out var version);
+        string[] names = typed
+            ? ["version", "code", "message", "authoredLocation", "occurrence", "exceptionType", "causes"]
+            : ["code", "message", "authoredLocation", "occurrence", "causes"];
+        var properties = root.EnumerateObject().Select(property => property.Name).ToArray();
+        if (properties.Length != names.Length || !properties.ToHashSet(StringComparer.Ordinal).SetEquals(names))
+            throw new JsonException("A workflow failure must have the exact legacy or version-2 shape.");
+        if (typed && (version.ValueKind != JsonValueKind.Number || !version.TryGetInt32(out var format) || format != 2))
+            throw new JsonException("Unsupported workflow failure version.");
+        var exceptionType = typed ? RequiredString(root, "exceptionType") : null;
 
         var code = RequiredString(root, "code");
         var message = RequiredString(root, "message");
@@ -191,7 +201,7 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
             throw new JsonException("Workflow failure provenance is required.");
         }
 
-        return Create(code, message, location, occurrence, causes);
+        return Create(code, message, location, occurrence, causes, exceptionType);
     }
 
     public override void Write(
@@ -200,12 +210,14 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
         JsonSerializerOptions options)
     {
         writer.WriteStartObject();
+        if (value.ExceptionType is not null) writer.WriteNumber("version", 2);
         writer.WriteString("code", value.Code);
         writer.WriteString("message", value.Message);
         writer.WritePropertyName("authoredLocation");
         JsonSerializer.Serialize(writer, value.AuthoredLocation, options.GetTypeInfo(typeof(AuthoredLocation)));
         writer.WritePropertyName("occurrence");
         JsonSerializer.Serialize(writer, value.Occurrence, options.GetTypeInfo(typeof(FailureOccurrence)));
+        if (value.ExceptionType is not null) writer.WriteString("exceptionType", value.ExceptionType);
         writer.WritePropertyName("causes");
         writer.WriteStartArray();
         foreach (var cause in value.Causes)
@@ -222,8 +234,9 @@ internal sealed class WorkflowFailureJsonConverter : JsonConverter<WorkflowFailu
         string message,
         AuthoredLocation location,
         FailureOccurrence occurrence,
-        IReadOnlyList<WorkflowFailure> causes) =>
-        new WorkflowFailure(code, message, location, occurrence, causes);
+        IReadOnlyList<WorkflowFailure> causes,
+        string? exceptionType) =>
+        new WorkflowFailure(code, message, location, occurrence, causes, exceptionType);
 
     private static string RequiredString(JsonElement element, string name)
     {

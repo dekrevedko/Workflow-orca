@@ -36,7 +36,9 @@ public sealed class CodecMemberCorrectionGuards
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs");
         Git(root, "diff", "--name-only", Base, "--", "src")
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Except(EphemeralFailureSettlementSourceReview.AuthorizedPaths(root), StringComparer.Ordinal)
+            .Should().Equal(files.Select(file => file.Name));
         Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
         foreach (var file in files)
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
@@ -87,7 +89,7 @@ public sealed class CodecMemberCorrectionGuards
             foreach (var table in new[] { "sourceFiles", "harnessFiles" })
                 foreach (var file in value.GetProperty(table).EnumerateObject())
                 {
-                    var current = table == "sourceFiles" ? File.ReadAllBytes(Path.Combine(root, file.Name)) :
+                    var current = table == "sourceFiles" ? EphemeralFailureSettlementSourceReview.HistoricalBytes(root, file.Name) :
                         Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name));
                     if (file.Name == ".github/workflows/ephemeral-native-support.yml")
                         current = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(current).Replace(

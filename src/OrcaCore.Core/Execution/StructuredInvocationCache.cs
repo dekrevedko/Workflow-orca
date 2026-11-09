@@ -16,7 +16,8 @@ internal static class StructuredInvocationCache
         TimeProvider timeProvider,
         ForEachItemContext? forEachItem,
         ResourceLeaseExecutionContext? resourceLease,
-        CancellationToken cancellationToken);
+        CancellationToken cancellationToken,
+        Func<Exception, Exception>? stepFailure);
 
     private static readonly ConditionalWeakTable<Delegate, BoundInvocation> BoundInvocations = new();
     private static readonly ConcurrentDictionary<Delegate, Func<object?[], object?>> DelegateInvokers = [];
@@ -94,7 +95,9 @@ internal static class StructuredInvocationCache
         TimeProvider timeProvider,
         ForEachItemContext? forEachItem,
         ResourceLeaseExecutionContext? resourceLease,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool wrapExceptions = true,
+        Func<Exception, Exception>? stepFailure = null)
     {
         ArgumentNullException.ThrowIfNull(stateType);
         try
@@ -107,13 +110,13 @@ internal static class StructuredInvocationCache
                 invoker = StepInvokers.GetOrAdd(stateType, BuildStepInvoker);
             }
             return await invoker(step, state, execution, resumedEvent, timeProvider,
-                forEachItem, resourceLease, cancellationToken).ConfigureAwait(false);
+                forEachItem, resourceLease, cancellationToken, stepFailure).ConfigureAwait(false);
         }
-        catch (TargetInvocationException)
+        catch (TargetInvocationException) when (wrapExceptions)
         {
             throw;
         }
-        catch (Exception exception)
+        catch (Exception exception) when (wrapExceptions)
         {
             throw new TargetInvocationException(exception);
         }
@@ -178,7 +181,8 @@ internal static class StructuredInvocationCache
         TimeProvider timeProvider,
         ForEachItemContext? forEachItem,
         ResourceLeaseExecutionContext? resourceLease,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<Exception, Exception>? stepFailure)
     {
         if (step is not IStep<TState> typedStep || state is not TState typedState)
         {
@@ -188,7 +192,13 @@ internal static class StructuredInvocationCache
 
         var context = new StepContext<TState>(
             typedState, execution, resumedEvent, timeProvider, forEachItem, resourceLease);
-        var result = await typedStep.ExecuteAsync(context, cancellationToken).ConfigureAwait(false);
+        StepResult result;
+        try { result = await typedStep.ExecuteAsync(context, cancellationToken).ConfigureAwait(false); }
+        catch (Exception error) when (stepFailure is not null &&
+            (error is not OperationCanceledException cancelled || !cancellationToken.IsCancellationRequested || cancelled.CancellationToken != cancellationToken))
+        {
+            throw stepFailure(error);
+        }
         return new StructuredStepInvocationResult(result, context.State!);
     }
 
