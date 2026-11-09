@@ -96,18 +96,21 @@ public sealed class WorkflowFailure
         string message,
         AuthoredLocation authoredLocation,
         FailureOccurrence occurrence,
-        IReadOnlyList<WorkflowFailure> causes)
+        IReadOnlyList<WorkflowFailure> causes,
+        string? exceptionType = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
         ArgumentNullException.ThrowIfNull(authoredLocation);
         ArgumentNullException.ThrowIfNull(occurrence);
         ArgumentNullException.ThrowIfNull(causes);
+        if (exceptionType is not null) ArgumentException.ThrowIfNullOrWhiteSpace(exceptionType);
         Code = code;
         Message = message;
         AuthoredLocation = authoredLocation;
         Occurrence = occurrence;
         Causes = Array.AsReadOnly(causes.ToArray());
+        ExceptionType = exceptionType;
     }
 
     /// <summary>Gets the stable machine-readable failure code.</summary>
@@ -115,6 +118,9 @@ public sealed class WorkflowFailure
 
     /// <summary>Gets the detached diagnostic message.</summary>
     public string Message { get; }
+
+    /// <summary>Gets the captured exception type name as diagnostic text, when available.</summary>
+    public string? ExceptionType { get; }
 
     /// <summary>Gets the canonical authored location that produced this failure.</summary>
     public AuthoredLocation AuthoredLocation { get; }

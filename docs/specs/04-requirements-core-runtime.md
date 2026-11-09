@@ -175,6 +175,23 @@ to the merge. Neither join automatically cancels a sibling. Error details (type,
 operation/attempt identity, timestamp) SHALL be captured in runtime state and be inspectable
 through the management surface.
 
+For ephemeral business-step failures, preserve the actual elected exception by
+failure/attempt identity. Non-OrcaCore exceptions use existing WF-STEP-UNHANDLED;
+OrcaCore errors retain their own code. Nonblank messages are copied verbatim; blank
+messages use exactly `The step failed without an exception message.` in detached
+data. Capture nullable ExceptionType as GetType().FullName with Name fallback.
+Only the exhausted final retry and a sole propagated branch/item failure expose
+that exact original through the ordinary output-unavailable wrapper's InnerException.
+Do not rethrow/reset, reconstruct or expose a normalization wrapper. Preserve a
+user-thrown TargetInvocationException; unwrap only a known engine invocation
+wrapper at its boundary. A true SFE-JOIN-FAILED has ordered detached typed causes,
+no live aggregate; recovered or timeout/cancel/terminate losers cannot replace the
+terminal winner. Capture excludes DI construction, Init, merge/selector, codec
+and lifecycle boundaries. Retirement releases engine references; delivered
+exceptions remain caller-owned. Snapshots and Core/provider records never carry
+the live slot. Durable runtime failure production stays null-type and its stored
+failure bytes remain identical to base 0a8e375. [MG-071, OB-082]
+
 ### CR-014a Workflow failures retain authored and runtime occurrence provenance
 Every `WorkflowFailure` SHALL carry exactly one immutable `AuthoredLocation` for the compiled
 authored-graph position that produced it and exactly one runtime-created `FailureOccurrence`.
@@ -193,6 +210,18 @@ or non-negative item index. Unknown discriminator kinds or versions, missing var
 otherwise malformed occurrence payloads SHALL be rejected rather than coerced.
 
 Acceptance criterion: `AC-029`.
+
+The fixed failure codec keeps legacy five-property nodes for null types and uses
+the exact seven-property version-2 form for captured types: version=2, code,
+message, authoredLocation, occurrence, exceptionType, causes, in that order.
+New readers accept both forms recursively; duplicate/unknown/missing fields,
+wrong versions, blank/null/wrong-type exceptionType and malformed provenance
+reject. Unchanged all-null-type graphs retain exact legacy bytes; a mixed graph
+retains legacy node shapes while typed descendants use version 2. Occurrence stays
+version 1 and codec ID stays orcacore-json-v1 under the approved subformat amendment.
+Old binaries reject typed nodes; matched new package versions are required.
+ExceptionType is diagnostic only; Code remains identity. No type resolution,
+exception serialization or serializer hook is permitted.
 
 ### CR-015 Execution position as structured fibers and scopes
 The runtime SHALL track execution through a compiled plan containing stable instruction,
@@ -220,6 +249,16 @@ instance before a later direct/helper wait is admitted; then existing not-found 
 though the job ran. Already admitted waiters capture a detached terminal result before releasing
 their pin. Start-token cancellation before acceptance follows the provisional abort fence in
 MG-055; local output-wait cancellation remains separate from workflow cancellation.
+
+The approved issue #16 base-handle WaitForSettlementAsync(CancellationToken)
+separately observes terminal final physical quiescence, for resultless and inherited
+resultful ephemeral handles. It never changes output waiting into a physical join.
+Its token is observer-local, and it creates no payload pin or host obligation.
+Retired issued handles keep their completed receipt. Closed/Stopping permit passive
+observation; after Completed/correct owner disposal the cached receipt needs no
+DI, codec or user work. Pre-cancelled tokens cancel locally before mode/proof checks;
+durable noncancelled calls throw NotSupportedException with no I/O. No settlement
+helper is added to start results. Unaccepted starts have no handle/proof. [MG-070]
 
 ### CR-017 Runtime-owned execution quantum
 Fiber turns, checkpoint cadence, and fair rescheduling are runtime decisions. Reaching the

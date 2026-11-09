@@ -1,4 +1,10 @@
-# Issue #13 support protocol v3
+# Issue #16 support protocol v4
+
+The current candidate retains every protocol-3 journey and adds original-exception,
+detached-type, settlement and resource-owner cases. Its local JIT preflight passes
+84/84 but is not native qualification. Hosted pushes are not authorized. Protocols
+2 and 3 remain historical evidence for their approved source, not for issue #16.
+
 
 Protocol 3 adds the post-review codec member controls. Requalification of the
 corrected source is pending. Protocol 2's six cells passed in run 40629471843
@@ -65,7 +71,7 @@ python -B -X utf8 -m unittest discover -s tools/ephemeral-native-assessment/supp
 The scoped workflow is `.github/workflows/ephemeral-native-support.yml`.
 It is manual-only after task 3.1 removes the temporary evidence-branch push
 trigger. The qualified run/validation commits remain immutable history; its jobs
-are unchanged. Protocol 3 extends the harness and requires a new exact-source run.
+are unchanged. Protocol 4 extends the harness and requires a new exact-source run.
 Dispatching or pushing later validation
 still needs the relevant authority. No PR or issue edit is part of this tooling.
 
@@ -79,7 +85,16 @@ Both native JIT cells pass 76/76; each full-trim/AOT cell passes 51/51. The
 24 exact non-product counterexample warning records are independently reviewed
 and count-pinned; no product-path warning or live-event capability is credited.
 
-Protocol 3 requires 82 JIT cases and 55 full-trim/AOT cases per host (384 total).
+Protocol 4 requires 84 JIT cases and 56 full-trim/AOT cases per host (392 total).
 The 13 original mandatory subcases and all 16 original journeys remain. The
-current gate refuses protocol-2 evidence; use `--allow-historical` only to inspect
+current gate refuses protocol-2/3 evidence; use `--allow-historical` only to inspect
 those immutable old records. Warning decisions are included in harness hashes.
+
+FS-16 requires the generated failure/settlement case in every cell and the legacy
+control in JIT. The gate verifies both captured type names against JIT and checks
+all original groups/subcases. The resource recipe retains a resource through a
+logical timeout and cancelled observation, joins the receipt, and releases once.
+An unjoined simulated child remains application-owned after receipt completion.
+No runtime feature switch, warning suppression, private rooting or serializer hook
+was added. A real six-job Windows Server 2025/Ubuntu 24.04 run and its aggregate
+remain required before whole-target approval.

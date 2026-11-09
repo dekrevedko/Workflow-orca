@@ -159,6 +159,9 @@ public sealed class HostShutdownTests
     public async Task Stopping_PreHandleAttempts_AreAbortedAndJoinedPhysically(bool bounded, bool cooperative, string shape, string capacity, bool stepTimeout)
     {
         using var host = new Host(bounded, cooperative, capacity);
+        // Cooperative cancellation may otherwise finish before the zero-budget observation.
+        // Hold physical cancellation cleanup so Incomplete has a deterministic prerequisite.
+        host.Body.CancellationExit = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var handle = host.Register(host.Definition(shape, capacity, timeout: stepTimeout));
         var pending = host.Start(handle);
         await host.Body.Entered.Task.WaitAsync(Guard, TestToken);
@@ -166,8 +169,10 @@ public sealed class HostShutdownTests
         var observation = await host.Lifetime.StopAsync(TimeSpan.Zero, TestToken);
         observation.Should().BeOfType<EphemeralHostShutdownResult.Incomplete>().Which.PendingWorkCount.Should().BeGreaterThan(0);
         await host.Body.CancellationObserved.Task.WaitAsync(Guard, TestToken);
+        if (cooperative) pending.IsCompleted.Should().BeFalse("cooperative cancellation cleanup is still physically held");
         if (!cooperative) pending.IsCompleted.Should().BeFalse("a noncooperative body still owns the start's lane and physical attempt");
         host.Body.Release.TrySetResult();
+        host.Body.CancellationExit.TrySetResult();
         var error = await Record.ExceptionAsync(async () => await pending.WaitAsync(Guard, TestToken));
         error.Should().BeOfType<EphemeralHostStoppingException>();
         (await host.Lifetime.StopAsync(Timeout.InfiniteTimeSpan, TestToken).AsTask().WaitAsync(Guard, TestToken)).Should().BeOfType<EphemeralHostShutdownResult.Completed>();
@@ -283,7 +288,7 @@ public sealed class HostShutdownTests
             return rootStep.End().Build();
         }
 
-        public void Dispose() { Body.Release.TrySetResult(); Services.Dispose(); Application.Dispose(); }
+        public void Dispose() { Body.Release.TrySetResult(); Body.CancellationExit?.TrySetResult(); Services.Dispose(); Application.Dispose(); }
     }
 
     internal sealed record State(string Value);
@@ -293,6 +298,7 @@ public sealed class HostShutdownTests
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource CancellationObserved { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource? CancellationExit { get; set; }
         public async ValueTask<StepResult> ExecuteAsync(StepContext<State> context, CancellationToken cancellationToken)
         {
             using var registration = cancellationToken.Register(() => CancellationObserved.TrySetResult());
@@ -305,6 +311,7 @@ public sealed class HostShutdownTests
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 CancellationObserved.TrySetResult();
+                if (CancellationExit is { } cleanup) await cleanup.Task;
                 throw;
             }
             return new StepResult.Completed();

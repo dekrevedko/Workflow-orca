@@ -242,7 +242,9 @@ public sealed class EphemeralShutdownTransitionGuards
     }
 
     private static string PathOf(string path) => Path.Combine(FixtureDefinitions.RepositoryRoot(), path);
-    private static string Read(string path) => File.ReadAllText(PathOf(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
+    private static string Read(string path) => path.StartsWith("openspec/specs/", StringComparison.Ordinal)
+        ? EphemeralFailureSettlementReviewHistory.CanonicalBefore(FixtureDefinitions.RepositoryRoot(), path)
+        : File.ReadAllText(PathOf(path)).Replace("\r\n", "\n", StringComparison.Ordinal);
     private static JsonDocument Load() => JsonDocument.Parse(Read(Registry));
     private static string S(JsonElement e, string key) => e.GetProperty(key).GetString()!;
     private static string Hash(byte[] value) => Convert.ToHexString(SHA256.HashData(value)).ToLowerInvariant();

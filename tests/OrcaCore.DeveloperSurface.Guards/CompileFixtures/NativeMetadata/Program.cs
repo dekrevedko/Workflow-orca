@@ -266,6 +266,8 @@ try
             WorkflowJsonMetadata.Register<EmptyConvertersContext>();
             Check(Materialize(new Payload { Value = 7 }).Value == 7, "an explicitly empty converter list is still ordinary default metadata");
             break;
+        case "failure-settlement-generated": await FailureSettlementCases.Run(generated: true); break;
+        case "failure-settlement-legacy": await FailureSettlementCases.Run(generated: false); break;
         default: throw new InvalidOperationException("Unknown scenario");
     }
     Console.WriteLine("PASS " + args.Single());

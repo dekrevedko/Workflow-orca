@@ -37,6 +37,8 @@ public sealed class ShutdownDrainTests
         var accepted = await registered.StartOrGetAsync("output", StartIdempotencyKey.Create("drain"), Token);
         var instance = accepted.GetHandleOrThrow();
         host.Application.StopApplication();
+        var settlement = instance.WaitForSettlementAsync(Token).AsTask();
+        settlement.IsCompleted.Should().BeFalse();
         using var cancelledWait = new CancellationTokenSource();
         var local = instance.WaitForOutputAsync(cancelledWait.Token).AsTask();
         cancelledWait.Cancel();
@@ -53,6 +55,7 @@ public sealed class ShutdownDrainTests
         host.Body.Release.TrySetResult();
         if (delivery is not null) await delivery.WaitAsync(Guard, Token);
         (await output.WaitAsync(Guard, Token)).Should().Be("output");
+        await settlement.WaitAsync(Guard, Token);
         (await host.Lifetime.StopAsync(Timeout.InfiniteTimeSpan, Token).AsTask().WaitAsync(Guard, Token))
             .Should().BeOfType<EphemeralHostShutdownResult.Completed>();
     }

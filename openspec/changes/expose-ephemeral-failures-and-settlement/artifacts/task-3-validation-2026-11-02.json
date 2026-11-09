@@ -1,0 +1,598 @@
+{
+  "stage": "LocalValidatedAwaitingNativeQualificationAndIndependentApproval",
+  "base": "5960f0b5e920e2a53b34e38290d20c6e545fbf2a",
+  "sourceApproval": null,
+  "canonicalCheckpoint": "ecd188a4b4ee4d45ecdaddc7112523e20f0cc1b1",
+  "canonicalVerdictCommit": "5960f0b5e920e2a53b34e38290d20c6e545fbf2a",
+  "productPaths": 18,
+  "publicAdditions": [
+    "WorkflowFailure.ExceptionType",
+    "WorkflowInstanceHandle.WaitForSettlementAsync(CancellationToken = default)"
+  ],
+  "lanes": [
+    {
+      "name": "build",
+      "command": [
+        "dotnet",
+        "build",
+        "OrcaCore.slnx",
+        "-c",
+        "Release",
+        "--no-restore",
+        "-warnaserror"
+      ],
+      "exitCode": 0,
+      "seconds": 2.35
+    },
+    {
+      "name": "OrcaCore.Core.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--collect:XPlat Code Coverage",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Core.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 4.57,
+      "counters": {
+        "total": "372",
+        "executed": "372",
+        "passed": "372",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.Engine.Durable.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--collect:XPlat Code Coverage",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Engine.Durable.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 5.96,
+      "counters": {
+        "total": "103",
+        "executed": "103",
+        "passed": "103",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.Acceptance.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Acceptance.Tests/OrcaCore.Acceptance.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--collect:XPlat Code Coverage",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Acceptance.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 6.33,
+      "counters": {
+        "total": "37",
+        "executed": "37",
+        "passed": "37",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.Hosting.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--collect:XPlat Code Coverage",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Hosting.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 7.79,
+      "counters": {
+        "total": "24",
+        "executed": "24",
+        "passed": "24",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.ProviderCertification",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--collect:XPlat Code Coverage",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.ProviderCertification"
+      ],
+      "exitCode": 0,
+      "seconds": 6.13,
+      "counters": {
+        "total": "102",
+        "executed": "102",
+        "passed": "102",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.Providers.SqlServer.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Providers.SqlServer.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 31.46,
+      "counters": {
+        "total": "75",
+        "executed": "75",
+        "passed": "75",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.Providers.PostgreSql.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Providers.PostgreSql.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 362.9,
+      "counters": {
+        "total": "104",
+        "executed": "104",
+        "passed": "104",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "OrcaCore.Integration.Tests",
+      "command": [
+        "dotnet",
+        "test",
+        "tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--logger",
+        "trx",
+        "--results-directory",
+        "E:\\oc16s\\.artifacts\\publishing-validation\\final-validation\\OrcaCore.Integration.Tests"
+      ],
+      "exitCode": 0,
+      "seconds": 10.43,
+      "counters": {
+        "total": "11",
+        "executed": "11",
+        "passed": "11",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "name": "benchmark-smoke",
+      "command": [
+        "dotnet",
+        "run",
+        "--project",
+        "benchmarks/OrcaCore.Benchmarks/OrcaCore.Benchmarks.csproj",
+        "-c",
+        "Release",
+        "--no-build",
+        "--no-restore",
+        "--",
+        "--smoke"
+      ],
+      "exitCode": 0,
+      "seconds": 1.49
+    },
+    {
+      "name": "openspec",
+      "command": [
+        "cmd",
+        "/c",
+        "openspec",
+        "validate",
+        "--all",
+        "--strict"
+      ],
+      "exitCode": 0,
+      "seconds": 1.67
+    },
+    {
+      "name": "native-gate-negatives",
+      "command": [
+        "python",
+        "-B",
+        "-m",
+        "unittest",
+        "discover",
+        "-s",
+        "tools/ephemeral-native-assessment/support_v2",
+        "-p",
+        "test_*.py"
+      ],
+      "exitCode": 0,
+      "seconds": 0.4
+    },
+    {
+      "name": "OrcaCore.Engine.Ephemeral.Tests",
+      "exitCode": 0,
+      "counters": {
+        "total": "405",
+        "executed": "405",
+        "passed": "405",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "evidence": "frozen-ephemeral-coverage"
+    },
+    {
+      "name": "Infrastructure",
+      "exitCode": 0,
+      "counters": {
+        "total": "314",
+        "executed": "314",
+        "passed": "314",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "evidence": "frozen-infrastructure"
+    }
+  ],
+  "unitTotal": 1043,
+  "coverage": {
+    "line-rate": "0.7920039486673248",
+    "branch-rate": "0.6656850588964662",
+    "lines-covered": "16046",
+    "lines-valid": "20260",
+    "branches-covered": "4295",
+    "branches-valid": "6452",
+    "complexity": "8265",
+    "version": "0",
+    "timestamp": "1793612459"
+  },
+  "stress": {
+    "runs": 20,
+    "concurrency": 2,
+    "testsPerRun": 405,
+    "path": "dotnet test",
+    "allGreen": true
+  },
+  "mutations": {
+    "scope": "22 targeted product-source semantic mutations; not exhaustive Stryker coverage",
+    "counts": {
+      "Killed": 22
+    },
+    "exactRestoration": true,
+    "finalProductionHashesStillMatch": true,
+    "testOnlyAdditionsAfterCampaign": "Four extra root/recovery cases strengthen the same tests; no assertion was weakened."
+  },
+  "resharper": [
+    {
+      "path": "source-reviewed.sarif",
+      "version": "2026.2.3.1",
+      "configuration": "Release",
+      "platform": "Any CPU",
+      "targetFramework": "net10.0",
+      "noBuild": true,
+      "counts": {
+        "warning": 492,
+        "note": 200
+      },
+      "sha256": "7d7f65c85ec4d6fc50327e2590bb8c03933b478cde4df90a462c6042e691ec8f"
+    },
+    {
+      "path": "last-controls-consumers.sarif",
+      "version": "2026.2.3.1",
+      "configuration": "Release",
+      "platform": "Any CPU",
+      "targetFramework": "net10.0",
+      "noBuild": true,
+      "counts": {
+        "warning": 25,
+        "note": 45
+      },
+      "sha256": "d36a36e37c1e03e4cc965ce87260d562150ce2acccd4488042a97402cf2bb2b4"
+    }
+  ],
+  "provenance": {
+    "rows": 218,
+    "pending": 0,
+    "sha256": "f6e5ed0ad28a597fbbea17a62a10c9cfd6e05f580e0051f62f51d558d7a24783",
+    "predecessors": 28,
+    "unchanged": true
+  },
+  "testInventory": {
+    "physicalFiles": 374,
+    "physicalDeclarations": 1535,
+    "activeFiles": 218,
+    "activeDeclarations": 847,
+    "unchangedRetiredRows": 866
+  },
+  "publicPackagePreflight": {
+    "cases": 84,
+    "passed": 84,
+    "protocol": 4,
+    "host": {
+      "architecture": "x64",
+      "platform": "Windows-11-10.0.26300-SP0",
+      "python": "3.14.6",
+      "qualified": false,
+      "cpuCount": 32,
+      "container": false,
+      "os": "unqualified",
+      "clockResolutionSeconds": 1e-07,
+      "allocationNote": "Observed native host/VM allocation; no exclusive hardware or cold-file-cache control",
+      "runnerImage": {
+        "ImageOS": null,
+        "ImageVersion": null,
+        "RUNNER_OS": null,
+        "RUNNER_ARCH": null
+      },
+      "caption": "Microsoft Windows 11 Pro",
+      "memoryBytes": 66198159360
+    },
+    "packageDllsVerified": true,
+    "sourceAndHarnessHashesMatch": true,
+    "generatedFailureTypes": "System.IO.IOException|FailureConsumerError",
+    "legacyFailureTypes": "System.IO.IOException|FailureConsumerError",
+    "expectedQualificationError": "Unqualified native host",
+    "nativeQualification": false
+  },
+  "durableConsumer": {
+    "outcome": "Passed",
+    "directReferences": [
+      "OrcaCore",
+      "OrcaCore.Durable.Hosting",
+      "OrcaCore.Providers.InMemory"
+    ],
+    "productPackages": {
+      "OrcaCore": {
+        "version": "0.0.0-phase0",
+        "sha512": "NsNekdHsv0IV9FqjTDzFJphzbj6ThD88Du0j32adxPooX3z5e+XJquKDcHtD7x0gXYVJQkYhQvDanDkBwDEdvQ==",
+        "sha256": "0d09c001b5f280e61e2ba6da6f7d856d47cd6af798f0a2692fd1d6b05b7b6c3f"
+      },
+      "OrcaCore.Core": {
+        "version": "0.0.0-phase0",
+        "sha512": "UMJ3FvZxRHDFaenNnm4fsmbAYe7bbzxAXYzIcw7A8rI6N4eT0L7Vj/Y7+ZvQUD1MZKsyp+Q1yI/A+ZXbZfZDkg==",
+        "sha256": "ab84e01739170bcf1c7ea9ff604f735fe6ad8f82d7b612ab7f16bea43091a53d"
+      },
+      "OrcaCore.Durable.Hosting": {
+        "version": "0.0.0-phase0",
+        "sha512": "dL+ek6qbdSSB74D0359/6udUT9l5wgf7gjlSrjsvJ1haHX23+zuIUHkSc9/her8wkJ0RS1CyHFCZMBDkAEax4w==",
+        "sha256": "23c36cc9636d0c0917f71427ec054673385dfc1857bc5467cf85a6d2c75a169d"
+      },
+      "OrcaCore.Engine.Durable": {
+        "version": "0.0.0-phase0",
+        "sha512": "ZTS7Fl3JLaoFCyoLE27pXOCS3YDNhTeThdhGRo5y2PhrlZAcOyn0PD/++j6V33DdP9imq7kAMQdnzVXx+vu/ww==",
+        "sha256": "6a7045373aef41976b75b45afbabd71fb52feeb939bc1135b0217e2f7498f4b2"
+      },
+      "OrcaCore.Provider.Abstractions": {
+        "version": "0.0.0-phase0",
+        "sha512": "KoaohK3paM5pQZF0UpIVwiefeEQ5eL8EDkuHp6H+geeox/A3yqJ19srF0YvgM8PT0TXr0hkQJpCiMF1Pm+CU4w==",
+        "sha256": "cb10b594ec88b40c9b561dbea91ce02a278284b2a9e9e5350adfdf27aeb07a2d"
+      },
+      "OrcaCore.Providers.InMemory": {
+        "version": "0.0.0-phase0",
+        "sha512": "KceQ4nqApBsmLY84uRSOfdrKutcSImrsUDqnK1iJQy/VlS5t3fdxpe49/ELfpQ1c2KpUoseMKhG8xpkop6Q8GA==",
+        "sha256": "babdd9a873091f2763bc8fd23ca4cd853430d383300ce7558371ded5ca33bd9c"
+      },
+      "OrcaCore.Runtime.Protocol": {
+        "version": "0.0.0-phase0",
+        "sha512": "kmJhEftbmOYN6stIU1lh5PnIxhBZ6HHewUcT7m61JCo3YVP9bwI2K4doPQNYff34FWYFFb51j6D4NL9Fur+7lA==",
+        "sha256": "db134964ba83e027c6232c6835f97f33fc55df7a1908f88c4ef8e2219c64474f"
+      }
+    },
+    "commands": [
+      [
+        "dotnet",
+        "restore",
+        "Consumer.csproj",
+        "--configfile",
+        "NuGet.Config",
+        "--packages",
+        "E:\\oc16durable\\packages",
+        "-p:RestoreFallbackFolders="
+      ],
+      [
+        "dotnet",
+        "run",
+        "--project",
+        "Consumer.csproj",
+        "-c",
+        "Release",
+        "--no-restore"
+      ]
+    ],
+    "freshRestore": true,
+    "fallbackFoldersDisabled": true,
+    "projectReferences": false,
+    "nativeQualification": false,
+    "sourceSha256": "9c04b0903105d219e08e56acefc7117795d1a3a447fed9eeac8da47791f7d67a"
+  },
+  "nativeSixCells": {
+    "completed": 0,
+    "required": 6,
+    "expectedCases": 392,
+    "approval": null,
+    "pushAuthorized": false
+  },
+  "previousFailures": [
+    "Initial mutation harness locked DLLs; excluded outcomes retained. Final 22-mutation campaign has zero other outcomes.",
+    "Stress 19/20 exposed the existing cooperative-shutdown test race, fixed by physical-exit barrier. Final expanded suite is 20/20.",
+    "Speculative nested-branch composition and direct Core-internal probes did not compile; neither is behavior-red evidence.",
+    "Rebuild/provider overlap was a file-lock setup error; serialized final build passes. Empty eng test discovery was replaced by real 15-test combined gate."
+  ],
+  "authority": "No source checkpoint, push, PR, issue change, merge, archive or release; all task 3 checkboxes remain open."
+}

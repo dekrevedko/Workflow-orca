@@ -3,7 +3,7 @@
   "packageFeed": "artifacts/phase0-packages",
   "audienceTiers": ["Application", "Internal", "Engine", "RuntimeProtocol", "ProviderAuthoring", "DurableHosting", "Dag", "DagHosting", "Companion"],
   "companionFixtures": ["kubernetes-companion"],
-  "companionSha256": "327B054C4C0D4CC8F77347C26AC8342F9F355BA83A45D07567111D66190CE4D6",
+  "companionSha256": "6F5F5BC5B3D31FBAC2918C0AB090AAAA3320A203C24324C4F636E334038D3536",
   "packages": [
     { "id": "OrcaCore", "tier":"Application", "dependencies": [] },
     { "id": "OrcaCore.Core", "tier":"Internal", "dependencies": ["OrcaCore"] },

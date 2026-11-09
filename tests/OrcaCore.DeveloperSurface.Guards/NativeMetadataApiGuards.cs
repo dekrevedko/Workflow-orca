@@ -47,6 +47,8 @@ public sealed class NativeMetadataApiGuards
     [InlineData("completed-constructor-context")]
     [InlineData("failure-and-size-boundaries")]
     [InlineData("failure-and-size-legacy")]
+    [InlineData("failure-settlement-generated")]
+    [InlineData("failure-settlement-legacy")]
     [InlineData("explicit-empty-converters")]
     [InlineData("product-converter-options-rejected")]
     [InlineData("public-factory-no-seal")]

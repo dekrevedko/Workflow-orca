@@ -847,7 +847,7 @@ internal static class AuthoringContracts
             failure.Message,
             global::OrcaCore.Core.Execution.FailureProvenance.Clone(failure.AuthoredLocation),
             global::OrcaCore.Core.Execution.FailureProvenance.Clone(failure.Occurrence),
-            failure.Causes.Select(Failure).ToArray());
+            failure.Causes.Select(Failure).ToArray(), failure.ExceptionType);
 
     private static Validation<T> CreateValidation<T>(T? value, IReadOnlyList<WorkflowDiagnostic> diagnostics)
     {
