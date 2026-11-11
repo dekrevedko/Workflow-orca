@@ -497,11 +497,19 @@ public static class ApplicationJourneyScenarioHost
             .Select(service => service.StopAsync(CancellationToken.None)));
         var completed = await context.ObserveAsync(
             _ => reopened.GetSnapshotAsync(CancellationToken.None));
+        const string handoffAssertion = "Competing replacement owners did not progress the committed handoff exactly once.";
         Phase0Assert.Satisfies(
             completed,
-            snapshot => snapshot.Status == WorkflowInstanceStatus.Completed &&
-                        executionCount.Value == 1,
-            "Competing replacement owners did not progress the committed handoff exactly once.");
+            snapshot =>
+            {
+                var invocationCount = executionCount.Value;
+                return snapshot.Status == WorkflowInstanceStatus.Completed && invocationCount == 1
+                    ? true
+                    : throw new InvalidOperationException(
+                        $"{handoffAssertion} Status={snapshot.Status}, invocations={invocationCount}, " +
+                        $"failure code={snapshot.Failure?.Code ?? "<none>"}.");
+            },
+            handoffAssertion);
     }
 
     private static ServiceCollection EphemeralServices()
