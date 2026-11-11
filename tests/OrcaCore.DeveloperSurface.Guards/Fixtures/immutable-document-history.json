@@ -2791,6 +2791,11 @@
       "sha256": "93018ad9560b51199b4acca68596475e28fee6b6cbf6156aefe0c0d7072ca62d"
     },
     {
+      "path": "docs/review/issue-20-durable-handoff-diagnostic-review-verdict-2026-11-10.md",
+      "bytes": 1928,
+      "sha256": "54d4813eddef12bed00f43df2b4920f773e8deab5c6a317a6e056bd3d044e857"
+    },
+    {
       "path": "docs/review/sqlserver-pkcs-advisory-remediation-dirty-manifest-2026-10-14.txt",
       "bytes": 449,
       "sha256": "42fc54a5fa4c5117f50783179e99ceeb97a9032122c92e34cc28030db8ff897a"
