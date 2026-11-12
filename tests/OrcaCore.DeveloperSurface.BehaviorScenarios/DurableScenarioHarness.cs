@@ -39,6 +39,7 @@ internal sealed class DurableScenarioProvider :
     private readonly IDurableResourceGovernanceStore governanceStore;
 
     internal Action<ProviderCommitBatch>? AfterSuccessfulAppend { get; set; }
+    internal Action? AfterContinuationClaim { get; set; }
 
     internal DurableScenarioProvider(TimeProvider? timeProvider = null)
     {
@@ -179,10 +180,19 @@ internal sealed class DurableScenarioProvider :
         CancellationToken cancellationToken) =>
         outboxStore.ClaimAsync(maxCount, cancellationToken);
 
-    public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
+    public async Task<IReadOnlyList<OutboxWrite>> ClaimAsync(
         OutboxClaimRequest request,
-        CancellationToken cancellationToken) =>
-        outboxStore.ClaimAsync(request, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        var records = await outboxStore.ClaimAsync(request, cancellationToken).ConfigureAwait(false);
+        if (AfterContinuationClaim is { } onClaim &&
+            records.Any(record => string.Equals(record.Kind, OutboxKinds.Continue, StringComparison.Ordinal)))
+        {
+            onClaim();
+        }
+
+        return records;
+    }
 
     public Task<Option<OutboxRecordState>> GetStateAsync(
         OutboxRecordId outboxRecordId,

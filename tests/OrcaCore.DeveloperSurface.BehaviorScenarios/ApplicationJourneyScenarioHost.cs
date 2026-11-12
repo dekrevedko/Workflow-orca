@@ -3,6 +3,8 @@ using Microsoft.Extensions.Hosting;
 using OrcaCore.DeveloperSurface.BehaviorContracts;
 using OrcaCore.Durable.Hosting;
 using OrcaCore.Hosting;
+using StreamVersion = OrcaCore.Abstractions.Ids.StreamVersion;
+using WorkflowStreamId = OrcaCore.Abstractions.Ids.WorkflowStreamId;
 
 namespace OrcaCore.DeveloperSurface.BehaviorScenarios;
 
@@ -385,7 +387,7 @@ public static class ApplicationJourneyScenarioHost
     }
 
     [Phase0Scenario("definitionless-continuation-handoff", "3.8")]
-    public static async Task DefinitionlessIngressHandsOffToExactlyOneDefinitionOwner(
+    public static async Task DefinitionlessIngressCommitsOneStepCompletionWithCompetingOwners(
         Phase0ScenarioContext context)
     {
         var eventName = EventName.Create("handoff");
@@ -486,28 +488,52 @@ public static class ApplicationJourneyScenarioHost
         };
         var firstHosted = firstOwner.GetServices<IHostedService>().ToArray();
         var secondHosted = secondOwner.GetServices<IHostedService>().ToArray();
-        await Task.WhenAll(firstHosted.Concat(secondHosted)
-            .Select(service => service.StartAsync(CancellationToken.None)));
-        await context.WaitUntilBarrierReachedAsync("handoff");
-        context.ReleaseBarrier("handoff");
+        var secondOwnerClaimed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var handoffTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+        var handoffCancellation = handoffTimeout.Token;
+        try
+        {
+            try
+            {
+                await Task.WhenAll(firstHosted.Select(service => service.StartAsync(handoffCancellation)));
+                await context.WaitUntilBarrierReachedAsync("handoff", handoffCancellation);
 
-        await terminalCommitted.Task;
-        sharedProvider.AfterSuccessfulAppend = null;
-        await Task.WhenAll(secondHosted.Reverse().Concat(firstHosted.Reverse())
-            .Select(service => service.StopAsync(CancellationToken.None)));
+                // The first pump still holds its claim and cannot claim again until the step returns.
+                sharedProvider.AfterContinuationClaim = () => secondOwnerClaimed.TrySetResult();
+                await Task.WhenAll(secondHosted.Select(service => service.StartAsync(handoffCancellation)));
+                await secondOwnerClaimed.Task.WaitAsync(handoffCancellation);
+            }
+            finally
+            {
+                context.ReleaseBarrier("handoff");
+            }
+
+            await terminalCommitted.Task.WaitAsync(handoffCancellation);
+        }
+        finally
+        {
+            await Task.WhenAll(secondHosted.Reverse().Concat(firstHosted.Reverse())
+                .Select(service => service.StopAsync(CancellationToken.None)));
+        }
+
+        var committedEvents = await sharedProvider.LoadTailAsync(
+            new WorkflowStreamId(instanceId),
+            StreamVersion.Empty,
+            CancellationToken.None);
+        var stepCompletions = committedEvents.OfType<OrcaCore.Abstractions.Durable.WorkflowStepCompletedEvent>().Count();
         var completed = await context.ObserveAsync(
             _ => reopened.GetSnapshotAsync(CancellationToken.None));
-        const string handoffAssertion = "Competing replacement owners did not progress the committed handoff exactly once.";
+        const string handoffAssertion = "Competing replacement owners must reach Completed with one committed step completion.";
         Phase0Assert.Satisfies(
             completed,
             snapshot =>
             {
                 var invocationCount = executionCount.Value;
-                return snapshot.Status == WorkflowInstanceStatus.Completed && invocationCount == 1
+                return snapshot.Status == WorkflowInstanceStatus.Completed && stepCompletions == 1 && invocationCount > 0
                     ? true
                     : throw new InvalidOperationException(
                         $"{handoffAssertion} Status={snapshot.Status}, invocations={invocationCount}, " +
-                        $"failure code={snapshot.Failure?.Code ?? "<none>"}.");
+                        $"committed step completions={stepCompletions}, failure code={snapshot.Failure?.Code ?? "<none>"}.");
             },
             handoffAssertion);
     }
