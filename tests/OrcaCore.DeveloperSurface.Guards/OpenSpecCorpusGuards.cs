@@ -130,7 +130,7 @@ public sealed class OpenSpecCorpusGuards
     [
         ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "05dda5f320537e249bc471793f41d31034cd61463ecf2bf9bfaf9761754d52ea"),
         ("openspec/changes/admit-durable-dag-run-progression/design.md", "445254e332f4c1d01f4c46011362c18aee76af1d65846fe83cca27b314960f9c"),
-        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "06edc1e0211219e25ede6fda14b621027bc2b97a5d0b02df4b3fef194df5654c"),
+        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "a74a10277c69404f6e2a7d487474082d6c21768c4844706b957fff3ee86b9877"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md", "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md", "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),
@@ -140,7 +140,7 @@ public sealed class OpenSpecCorpusGuards
     ];
     private static readonly (string Path, string Sha256)[] DagRunProposedDocumentPins =
     [
-        ("CLAUDE.md", "aab317d53fff71ead2fe0bb276428720cdef8b915c1f5d306cb6863f0f5caeed"),
+        ("CLAUDE.md", "3ac2a5d6091afb42b040493a6de9ff3c1cbd9d5d75a3bf2198fa2a8d7f5f2254"),
         ("docs/specs/03-domain-model-and-glossary.md", "45cb3a43f1a755118c3e18b55ee1d7e8ed519d5cf166d2cca24dc76cb3879adb"),
         ("docs/specs/04-requirements-core-runtime.md", "ef4f53846c69a29ad60d7f51ee7bb04ebec92c33af1d0be51151d2c05d8ef0bc"),
         ("docs/specs/05-requirements-events-waits-timers.md", "dcf96b2aaf06f1950fdd51b82b97fbd46e5ed20983b7c9da7036006e80b2d974"),
@@ -507,7 +507,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "0106754fd139eecb0a7ee5d509dd61666443a2b38762010c254c9ef3767a27eb";
+        "0774d3b31b914f59a7496ea2c4449f87a488d93b2c56b2274827f0b0045c42e6";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1793,7 +1793,8 @@ public sealed class OpenSpecCorpusGuards
         ValidateApprovedDagRunTransition(root, checkpoint);
         ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "1.2", CompleteTaskState));
         ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "1.3", CompleteTaskState));
-        // Only 1.4 activation is unpinned; source and final gates stay open.
+        ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "1.4", CompleteTaskState));
+        // The activation already landed; reopening 1.4 is no longer permitted.
         foreach (var task in new[] { "2.1", "2.2", "2.3", "2.4", "3.1", "3.2" })
             ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, task, OpenTaskState));
         foreach (var task in new[] { "8.4", "8.5" })
@@ -1913,13 +1914,7 @@ public sealed class OpenSpecCorpusGuards
         foreach (var (path, hash) in DagRunContractPlanningPins)
         {
             var text = NormalizeLineEndings(File.ReadAllText(RequireNonEmptyFile(root, path, "DAG run contract planning")));
-            if (path.EndsWith("/tasks.md", StringComparison.Ordinal))
-            {
-                Regex.Matches(text, @"(?m)^- \[[ xX]\] 1\.4 .+$").Should().ContainSingle(
-                    "only one parseable transition approval checkbox may activate");
-                text = Regex.Replace(text, @"(?m)^(- \[)[ xX](\] 1\.4 )", "$1?$2");
-            }
-            Sha256(text).Should().Be(hash, $"whole planning decision {path} must remain review-bound; only 1.4 checkbox activation is exempt");
+            Sha256(text).Should().Be(hash, $"whole planning decision {path}, including activated task 1.4, must remain review-bound");
         }
         DagRunProposedDocumentPins.Should().HaveCount(16);
         foreach (var (path, hash) in DagRunProposedDocumentPins)

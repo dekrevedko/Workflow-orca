@@ -13,7 +13,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
+| 1 | `CLAUDE.md` | `71d7c6d27f721acb74464f27cd1f43b2385e48f48d8c61e9ee0da0f2d069b4ed` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0` |

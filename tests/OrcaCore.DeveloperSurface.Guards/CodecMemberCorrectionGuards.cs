@@ -34,9 +34,12 @@ public sealed class CodecMemberCorrectionGuards
             "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs");
-        Git(root, "diff", "--name-only", Base, "--", "src")
+        // This correction owns application codec sources, not every subsequent
+        // provider/protocol implementation. The Task 2.1 guard separately pins its
+        // complete source path set; the three actual codec files remain byte-pinned here.
+        Git(root, "diff", "--name-only", Base, "--", "src/OrcaCore.Abstractions")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
+        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src/OrcaCore.Abstractions").Trim().Should().BeEmpty();
         foreach (var file in files.Concat(record.GetProperty("harnessFiles").EnumerateObject()))
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
         using var registry = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(root,

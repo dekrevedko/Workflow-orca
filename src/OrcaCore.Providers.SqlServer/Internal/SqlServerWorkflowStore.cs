@@ -7,7 +7,7 @@ using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent
 
 namespace OrcaCore.Providers.SqlServer.Internal;
 
-internal sealed class SqlServerWorkflowStore(SqlServerStateDocumentStore documents, TimeProvider timeProvider) :
+internal sealed partial class SqlServerWorkflowStore(SqlServerStateDocumentStore documents, TimeProvider timeProvider) :
     IWorkflowEventStore,
     IWorkflowInboxStore,
     IWorkflowStartIdempotencyStore,
@@ -27,8 +27,11 @@ internal sealed class SqlServerWorkflowStore(SqlServerStateDocumentStore documen
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        if (batch.StreamId.AggregateKind == DurableAggregateKind.DagRun && batch.DagRun is not null)
+            return DagStore.AppendAsync(batch, cancellationToken);
         _ = batch.StreamId.InstanceId;
-        return ExecuteAsync(engine => engine.AppendAsync(batch, cancellationToken), cancellationToken);
+        if (batch.DagRun is not null) throw new InvalidOperationException("Workflow append cannot contain a DAG append.");
+        return AppendWorkflowAsync(batch, cancellationToken);
     }
 
     public Task<IReadOnlyList<DurableWorkflowEvent>> LoadTailAsync(
@@ -258,13 +261,16 @@ internal sealed class SqlServerWorkflowStore(SqlServerStateDocumentStore documen
     public Task ReleaseAsync(TimerId timerId, CancellationToken cancellationToken) =>
         ExecuteAsync(engine => engine.ReleaseAsync(timerId, cancellationToken), cancellationToken);
 
-    public Task RefreshStuckStateAsync(
+    public async Task RefreshStuckStateAsync(
         WorkflowOperatorStatisticsRequest request,
-        CancellationToken cancellationToken) =>
-        ExecuteAsync(engine => engine.RefreshStuckStateAsync(request, cancellationToken), cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        await ExecuteAsync(engine => engine.RefreshStuckStateAsync(request, cancellationToken), cancellationToken).ConfigureAwait(false);
+        await DagStore.RefreshStuckAsync(request, cancellationToken).ConfigureAwait(false);
+    }
 
     public Task<WorkflowOperatorStatistics> GetOperatorStatisticsAsync(CancellationToken cancellationToken) =>
-        ReadAsync(engine => engine.GetOperatorStatisticsAsync(cancellationToken), cancellationToken);
+        ReadDagAndWorkflowStatisticsAsync(cancellationToken);
 
     public Task<WorkflowProviderMaintenanceInspection> InspectForMaintenanceAsync(
         InstanceId instanceId,
