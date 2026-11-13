@@ -32,6 +32,10 @@ public sealed class OpenSpecCorpusGuards
     private const string OwnerAuthorizedReviewState = "OwnerAuthorized";
     private const string IndependentReviewAuthority = "IndependentReview";
     private const string OwnerAuthorizationAuthority = "OwnerAuthorization";
+    private const string RetroactiveOwnerAuthorizationTask = "5.3";
+    private const string ApprovalHistoryDecision =
+        "When a later remediation round is also approved, every immutable approval remains registered and the " +
+        "newest approval verdict governs the transition.";
     private const string SyntheticGitObjectId = "0123456789012345678901234567890123456789";
     private const string RetiredMaxActiveFibersName = "MaxActiveFibers";
     private const string DeliberatelyExcludedClaimsHeading = "## Deliberately excluded claims";
@@ -158,7 +162,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "397ce4cc784480ae226c8df14d48d495d4cc51a4a7a3ee43dc85e98282e69e44";
+        "7fff479c3dfca40ef81c7363e5998ac41df212561f4bc26ea81fe0a1ed264d04";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -199,6 +203,19 @@ public sealed class OpenSpecCorpusGuards
         "docs/specs/14-driving-scenario-eks-job-scheduler.md",
         "docs/specs/16-requirements-durable-driver.md"
     ];
+    private const string Task74ActiveBoundaryPath = "docs/orleans-engine/README.md";
+    private const string Task74ActiveBoundarySha256 =
+        "e4bf37e2b53b6c66d29a1028276a73237b16f0f665c353c21fb877a808270d8e";
+    private const string Task74ArchiveRelativeRoot = "plans/orleans-engine-pre-v1/";
+    private const int Task74ArchiveFileCount = 25;
+    private const int Task74ArchiveRecordBytes = 2_497;
+    private const string Task74ArchiveRecordSha256 =
+        "c8a39515f7c8a8af49674e3d03f6733804b1455d2dc7f7dddee950b9b4a18da2";
+    private const string Task74DocumentationArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-4-orleans-boundary-reconciliation-2026-09-21.md";
+    private const string Task74DocumentationArtifactSha256 =
+        "59c91ea851391e5da5503698747a131b095a5aa80fa97bb905bea92016cc91a7";
 
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
@@ -1981,10 +1998,12 @@ public sealed class OpenSpecCorpusGuards
             "tests",
             "OrcaCore.DeveloperSurface.Guards",
             "OpenSpecCorpusGuards.cs")));
-        var acceptanceTraitToken = "[Trait(" + "\"AC\"";
-        corpusGuardSource.Should().NotContain(
-            acceptanceTraitToken,
-            "the Markdown corpus guard must not satisfy product acceptance coverage with AC traits");
+        Regex.Matches(
+                corpusGuardSource,
+                @"Trait\(""AC"",\s*""(?:AC|JS-AC|DR-AC)-\d{3}""\)",
+                RegexOptions.CultureInvariant)
+            .Should().BeEmpty(
+                "the Markdown corpus guard must not satisfy product acceptance coverage with AC traits");
         var staleClaims = new[]
         {
             "IWorkflowEventClient",
@@ -2013,6 +2032,7 @@ public sealed class OpenSpecCorpusGuards
             "### EV-010 Four self-routing durable routes",
             "### EV-030 Durable pre-wait acceptance is retained",
             "### EV-031 Global identity before routing, per-target fanout ownership",
+            "leaves the wait `Active` and the accepted record re-matchable",
             "### EV-045 Static and dynamic wait authoring",
             "### EV-060 Publish uses the transactional outbox",
             "IWorkflowEventDispatcher.DispatchAsync(WorkflowOutboundEvent, CancellationToken)");
@@ -2051,7 +2071,10 @@ public sealed class OpenSpecCorpusGuards
             " ");
         providerModel.Should().ContainAll(
             "`OrcaCore.Engine.Ephemeral` owns `OrcaCore.Hosting.OrcaCoreEphemeralEngineServiceCollectionExtensions`",
-            "`OrcaCore.Durable.Hosting` owns `OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions`",
+            "`OrcaCore.Durable.Hosting` owns `OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions`, " +
+            "the durable builder, `IWorkflowEventIngress`, and `IWorkflowEventDispatcher`",
+            "Provider and DAG extensions remain in their owning package-specific classes; " +
+            "no public extension class is split across assemblies.",
             "the application registers its implementation, and the durable engine consumes it");
         Regex.Replace(documents["docs/specs/16-requirements-durable-driver.md"], @"\s+", " ").Should().Contain(
             "the application registers its implementation and the engine consumes it");
@@ -2109,6 +2132,131 @@ public sealed class OpenSpecCorpusGuards
             root,
             HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
         Regex.Replace(design, @"\s+", " ").Should().Contain(Task73PinRefreshDecision);
+        Regex.Replace(design, @"\s+", " ").Should().Contain(ApprovalHistoryDecision);
+    }
+
+    [Fact]
+    public void Task74_OrleansFutureBoundaryIsSingularCurrentAndArchivePinned()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var activeRoot = Path.Combine(root, "docs", "orleans-engine");
+        var activePaths = Directory
+            .EnumerateFiles(activeRoot, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(root, path).Replace('\\', '/'))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        activePaths.Should().Equal(
+            [Task74ActiveBoundaryPath],
+            "the repository keeps one active Orleans future-hosting boundary note");
+
+        var activeBoundary = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task74ActiveBoundaryPath.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(activeBoundary).Should().Be(Task74ActiveBoundarySha256);
+        Regex.Replace(activeBoundary, @"\s+", " ").Should().ContainAll(
+            "new OpenSpec change and independent approval",
+            "single ordinary `Wait` remains cold-capable",
+            "caller-created globally unique `EventId` values",
+            "direct, correlation, definition-fanout, and start-or-deliver routes",
+            "retained pre-wait acceptance",
+            "source acknowledgement only after `Accepted` or `Duplicate`",
+            "authored `Publish` commits a workflow-event outbox record atomically",
+            "application-registered `IWorkflowEventDispatcher`",
+            "continuation records remain runtime-internal",
+            "fixed `orcacore-json-v1` codec",
+            "`OrcaCore.Engine.Durable` retains interpreter/runtime ownership",
+            "`OrcaCore.Durable.Hosting` retains durable hosting, ingress, and dispatcher-port ownership",
+            "each durable provider package retains its own storage registration",
+            "mutually exclusive with another engine owner",
+            "future-capability registry",
+            "../archive/plans/orleans-engine-pre-v1/README.md");
+        activeBoundary.Should().NotContain(
+            "NoActiveWait",
+            "the active Orleans note must not revive the superseded non-buffering delivery claim");
+        activeBoundary.Should().NotContain(
+            "exactly the instance and correlation routes",
+            "the active Orleans note must retain the complete four-route ingress union");
+
+        var immutableFixture = FixtureDefinitions.Read<ImmutableDocumentHistoryFixture>(
+            ImmutableDocumentHistoryFixturePath);
+        var archivePrefix = ImmutableDocumentationPrefixes[0] + Task74ArchiveRelativeRoot;
+        var archiveRows = immutableFixture.Records
+            .Where(entry => entry.Path.StartsWith(archivePrefix, StringComparison.Ordinal))
+            .Select(entry => new
+            {
+                Path = entry.Path[archivePrefix.Length..],
+                entry.Bytes,
+                Sha256 = entry.Sha256.ToLowerInvariant()
+            })
+            .OrderBy(row => row.Path, StringComparer.Ordinal)
+            .ToArray();
+        archiveRows.Should().HaveCount(Task74ArchiveFileCount);
+        var archiveRecord = string.Join(
+            '\n',
+            archiveRows.Select(row => $"{row.Path}\t{row.Bytes}\t{row.Sha256}")) + "\n";
+        Encoding.UTF8.GetByteCount(archiveRecord).Should().Be(Task74ArchiveRecordBytes);
+        Sha256(archiveRecord).Should().Be(
+            Task74ArchiveRecordSha256,
+            "the immutable-history baseline must retain the complete superseded Orleans plan");
+
+        var artifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task74DocumentationArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(artifact).Should().Be(
+            Task74DocumentationArtifactSha256,
+            "Task 7.4's reconciliation evidence must remain immutable");
+        var artifactRows = Regex.Matches(
+                artifact,
+                @"(?m)^\| `([^`]+)` \| ([0-9,]+) \| `([0-9a-f]{64})` \|$",
+                RegexOptions.CultureInvariant)
+            .Select(match => new
+            {
+                Path = match.Groups[1].Value,
+                Bytes = int.Parse(
+                    match.Groups[2].Value.Replace(",", string.Empty, StringComparison.Ordinal),
+                    CultureInfo.InvariantCulture),
+                Sha256 = match.Groups[3].Value
+            })
+            .ToArray();
+        artifactRows.Should().HaveCount(Task74ArchiveFileCount);
+        artifactRows
+            .Select(row => $"{row.Path}\t{row.Bytes}\t{row.Sha256}")
+            .Should()
+            .Equal(archiveRows.Select(row => $"{row.Path}\t{row.Bytes}\t{row.Sha256}"));
+        artifact.Should().Contain(Task74ActiveBoundarySha256);
+        artifact.Should().Contain(Task74ArchiveRecordSha256);
+
+        var sweep = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task73SourceSweepArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        sweep.Should().Contain(
+            $"`{Task74ActiveBoundaryPath}`",
+            "Task 7.4 must close the Orleans finding recorded by Task 3.1");
+
+        var ledger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            ledger,
+            @"(?ms)^- \[x\] 7\.4 .*?(?=^- \[[ xX]\] 7\.5 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 7.4 must retain its completed disposition");
+        task.Value.Should().Contain($"`{Task74DocumentationArtifact}`");
+        Regex.Replace(task.Value, @"\s+", " ").Should().ContainAll(
+            "single active future-hosting boundary note",
+            "25-file superseded plan remains byte-unchanged",
+            "new independently approved OpenSpec change");
+
+        var design = Regex.Replace(
+            NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root,
+                HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar)))),
+            @"\s+",
+            " ");
+        design.Should().ContainAll(
+            "Task 7.4 retains one active Orleans future-hosting boundary",
+            "25-file superseded plan remains immutable",
+            "new independently approved OpenSpec change");
     }
 
     private static string[] ReadHistoricalDocumentPaths(string root, string commit)
@@ -4077,6 +4225,7 @@ public sealed class OpenSpecCorpusGuards
                     requireReviewedTargetAsDirectParent: true);
                 break;
             case OwnerAuthorizationAwaitingEvidenceCommitReviewState:
+                RequireRetroactiveOwnerAuthorizationTask(entry.Task);
                 approvals.Should().Be(1);
                 entry.ApprovalEvidenceCommit.Should().BeNull();
                 entry.CheckpointCommit.Should().NotBeNullOrWhiteSpace();
@@ -4086,6 +4235,7 @@ public sealed class OpenSpecCorpusGuards
                 RequireOwnerAuthorizationAuthority(entry.Task, stateEvidence.Path);
                 break;
             case OwnerAuthorizedReviewState:
+                RequireRetroactiveOwnerAuthorizationTask(entry.Task);
                 approvals.Should().Be(1);
                 entry.CheckpointCommit.Should().NotBeNullOrWhiteSpace();
                 entry.CheckpointTree.Should().NotBeNullOrWhiteSpace();
@@ -4141,13 +4291,15 @@ public sealed class OpenSpecCorpusGuards
             .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
         commitAndParents.Should().HaveCount(
             2,
-            "approval evidence must be one distinct non-merge commit directly after the reviewed target");
-        commitAndParents[0].Should().Be(entry.ApprovalEvidenceCommit);
+            $"Task {entry.Task} approval evidence must be one distinct non-merge commit directly after the reviewed target");
+        commitAndParents[0].Should().Be(
+            entry.ApprovalEvidenceCommit,
+            $"Task {entry.Task} approval evidence must resolve to its registered commit");
         if (requireReviewedTargetAsDirectParent)
         {
             commitAndParents[1].Should().Be(
                 entry.ReviewedTargetCommit,
-                "an independent approval-evidence commit parent must be the exact reviewed target");
+                $"Task {entry.Task} independent approval-evidence commit parent must be the exact reviewed target");
         }
         else
         {
@@ -4159,7 +4311,7 @@ public sealed class OpenSpecCorpusGuards
                 entry.ApprovalEvidenceCommit!);
             targetAncestry.ExitCode.Should().Be(
                 0,
-                "a retroactively recorded owner authorization must still descend from its exact reviewed target");
+                $"Task {entry.Task} retroactively recorded owner authorization must still descend from its exact reviewed target");
         }
 
         var ancestry = RunGit(
@@ -4222,12 +4374,22 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
+    private static void RequireRetroactiveOwnerAuthorizationTask(string task)
+    {
+        if (!string.Equals(task, RetroactiveOwnerAuthorizationTask, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Only historical Task {RetroactiveOwnerAuthorizationTask} may use the retroactive owner-authorization lineage rule, found Task {task}.");
+        }
+    }
+
     private static void ValidateReviewAuthoritySemantics()
     {
         RequireIndependentReviewAuthority("synthetic-independent", "docs/review/independent-review-verdict.md");
         RequireOwnerAuthorizationAuthority(
-            "synthetic-owner",
+            RetroactiveOwnerAuthorizationTask,
             "docs/review/synthetic-owner-approval-verdict-2026-08-31.md");
+        RequireRetroactiveOwnerAuthorizationTask(RetroactiveOwnerAuthorizationTask);
 
         Action ownerEvidenceAsIndependent = () => RequireIndependentReviewAuthority(
             "synthetic-independent",
@@ -4240,6 +4402,10 @@ public sealed class OpenSpecCorpusGuards
             "docs/review/independent-review-verdict.md");
         independentEvidenceAsOwner.Should().Throw<InvalidDataException>()
             .WithMessage("*Owner-authorized state*owner-approval verdict*");
+
+        Action unrelatedOwnerAuthorization = () => RequireRetroactiveOwnerAuthorizationTask("7.4");
+        unrelatedOwnerAuthorization.Should().Throw<InvalidDataException>()
+            .WithMessage("*Only historical Task 5.3*found Task 7.4*");
     }
 
     private static void ValidateMissingApprovalStateSemantics()

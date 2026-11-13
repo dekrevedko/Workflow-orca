@@ -388,10 +388,22 @@
       a row only in the same frozen target that intentionally edits the source and updates the
       artifact row, guard-source artifact digest, and review evidence; neither may perform a
       mechanical follow-up refresh for an earlier unreviewed edit.
-- [ ] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
+- [x] 7.4 Preserve the superseded Orleans plan under the archive and maintain only one active future
       hosting boundary note using ordinary cold-capable `Wait`, the current event/outbox contract,
       role-specific hosting, exact tier ownership, and a new-change prerequisite. Correct the
       `docs/orleans-engine/README.md` finding recorded by the task 3.1 sweep.
+      **Completed:** `docs/orleans-engine/README.md` is the single active future-hosting boundary
+      note and now carries ordinary cold-capable `Wait`, the current four-route retained-ingress
+      and transactional outbox contract, application-owned dispatch, fixed codec, and exact
+      package-tier ownership. The 25-file superseded plan remains byte-unchanged under
+      `docs/archive/plans/orleans-engine-pre-v1/`. Any Orleans source, package, migration, or task
+      still requires a new independently approved OpenSpec change. The must-green Task 7.4 guard
+      pins both records through
+      `openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-4-orleans-boundary-reconciliation-2026-09-21.md`.
+      **Review carry-forward:** the Task 7.3 semantic guard now rejects every AC-trait spelling,
+      pins the complete PR-040 ownership clauses, and requires EV-032 to retain the `Active` wait
+      state. Review-provenance diagnostics name their task, and the relaxed retroactive lineage
+      rule is restricted to Task 5.3. The approval-history design sentence is complete and pinned.
 - [ ] 7.5 Add an active-tree documentation check, excluding `docs/archive/` and immutable review
       records, that rejects positive removed/deferred APIs and stale negative claims about approved
       Section 7B behavior. Use the task 3.1 classifications as the initial complete fixture and

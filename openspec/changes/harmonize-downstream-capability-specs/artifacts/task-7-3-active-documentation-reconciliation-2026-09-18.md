@@ -27,7 +27,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 12 | `docs/project-technical-overview.md` | `62075350bba4adb0ad7f1698d8e7d271eb8f0e00df7071ab0adcb81355b8dc40` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
 | 14 | `docs/specs/03-domain-model-and-glossary.md` | `d6a7b30d3e5285dd9c7c3c5e3bc1ec1de4ebe6befe14ed10aec31f728e98b5f9` |
-| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `e83dd2494d283ddfbcd3229032fc9772fa8686c4f5f7b37dc47c6b2e0b2e8c2b` |
+| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `a2ed8dd5f8e1fb0893a0a1f8cea412508584c39d1066e5488d8d87f99cc03769` |
 | 16 | `docs/specs/06-requirements-durable-execution.md` | `3cbf348da81093464d23835943e39f707ce36705bc0d9739e365018bb5db0294` |
 | 17 | `docs/specs/09-requirements-management-operations.md` | `b564eb6713e446ba846141ee4561a3f5ec49fa596e580f44625a231da5d6aa2b` |
 | 18 | `docs/specs/10-provider-model-and-extensibility.md` | `ef401ba322643c8bd185792b7414cdf72fc9efaae4eadc126208a10c12c6e75e` |

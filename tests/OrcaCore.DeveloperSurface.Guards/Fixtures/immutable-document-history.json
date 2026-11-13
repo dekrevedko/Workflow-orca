@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": null,
+  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-orleans-boundary-dirty-manifest-2026-09-21.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2274,6 +2274,16 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-yy-1-zz-1-hardening-independent-review-verdict-2026-09-18.md",
       "bytes": 11033,
       "sha256": "02d13bd291d878296be0ace19314bf5fce36f7ac7f937e840f86729770ddc866"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-orleans-boundary-dirty-manifest-2026-09-21.txt",
+      "bytes": 1223,
+      "sha256": "98b3221026095aa0d7e3a55fba262322b3d2725ed06bcfe9e96e67a7baa38a68"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-orleans-boundary-independent-review-request-2026-09-21.md",
+      "bytes": 5203,
+      "sha256": "8a396422d966370cffd34b530c28245ad016f12b219abca6113768fcb48bfd55"
     }
   ]
 }

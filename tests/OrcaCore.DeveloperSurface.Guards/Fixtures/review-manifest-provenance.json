@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "7.4",
+    "requestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-orleans-boundary-independent-review-request-2026-09-21.md",
+    "manifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-orleans-boundary-dirty-manifest-2026-09-21.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "7b1bf74ee83c97a19f2c8b08ddcd30d54d443658",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 2131,
+    "contentRecordSha256": "61a0ed134025cf0118447882db6bdf650dbb409b73d64fa559052a66b9acf3e4"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
@@ -1609,7 +1620,6 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "docs/orleans-engine/README.md",
         "docs/specs/README.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/developer-facing-surface/spec.md",
         "openspec/changes/reshape-developer-facing-interfaces/specs/saga-orchestration/spec.md",

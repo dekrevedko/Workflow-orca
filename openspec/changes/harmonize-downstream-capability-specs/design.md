@@ -80,7 +80,8 @@ authorization is explicitly retroactive: its evidence commit must introduce the 
 from the reviewed target, but cannot truthfully claim that target as its direct parent.
 A first-pass `APPROVE` is valid without any preceding `REJECT`; the awaiting-evidence state
 therefore requires approval evidence but deliberately does not require rejection history. When a
-later remediation round is also approved, every immutable approval remains registered and
+later remediation round is also approved, every immutable approval remains registered and the
+newest approval verdict governs the transition.
 After an active freeze is checkpointed, its request, raw manifest, base, checkpoint, tree, and
 scoped content record move into the permanent `archivedFreezes` registry before another active
 freeze replaces it. Every archived freeze records `IndependentReview` or `OwnerAuthorization` plus
@@ -378,6 +379,21 @@ Only the owner of a reviewed change that intentionally edits one of these 22 sou
 recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that
 intentionally edits the source and updates the artifact row, guard-source artifact digest, and
 review evidence; neither may perform a mechanical follow-up refresh for an earlier unreviewed edit.
+
+### 9. Task 7.4 keeps Orleans future hosting separate from superseded implementation plans
+
+Task 7.4 retains one active Orleans future-hosting boundary at
+`docs/orleans-engine/README.md`. It is a non-authorizing note aligned with the selected durable
+contract: one ordinary cold-capable `Wait`, caller-created inbound identity, the four-route ingress
+union with retained pre-wait ownership, transactional workflow-event outbox dispatch through the
+application-registered dispatcher, fixed-codec payloads, and exact application/runtime/hosting/
+provider ownership.
+
+The 25-file superseded plan remains immutable under
+`docs/archive/plans/orleans-engine-pre-v1/`; the active note links to it but does not promote its
+provisional tasks or surface into current work. A dated Task 7.4 artifact pins every archived file
+and the single active note. Any Orleans implementation still requires a new independently approved
+OpenSpec change before projects, packages, migrations, or implementation tasks are added.
 
 ## Risks / Trade-offs
 
