@@ -88,10 +88,19 @@ internal sealed class DurableDefinitionRegistry
         ArgumentNullException.ThrowIfNull(definition);
 
         var key = new DurableDefinitionKey(definition.DefinitionId, definition.DefinitionVersion);
+        var initializers = definition.RootSequence.Children.OfType<InitNode<TState>>().Take(2).ToArray();
+        var endings = definition.CompiledPlan.Instructions.Where(instruction => instruction.Kind == CompiledInstructionKind.End).Take(2).ToArray();
+        var fingerprint = ((CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition)).Fingerprint;
+        // DAG eligibility must not change registration/defense semantics for other
+        // workflows (including adversarial runtime-shape certification fixtures).
+        var dagBinding = initializers.Length == 1 && endings.Length == 1
+            ? new DurableDagDefinitionBinding(fingerprint, initializers[0].InputType, endings[0].OutputType)
+            : null;
         var registered = new RegisteredDefinition(
             definition,
             typeof(TState),
-            ((CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition)).Fingerprint,
+            fingerprint,
+            dagBinding,
             DurableDriverCatalog.CreateExecutor(
                 definition,
                 serviceProvider,
@@ -179,6 +188,11 @@ internal sealed class DurableDefinitionRegistry
     internal bool OwnsDefinition(DefinitionId definitionId) =>
         definitions.Keys.Any(key => key.DefinitionId.Equals(definitionId));
 
+    internal DurableDagDefinitionBinding? ResolveDagBinding(DefinitionId id, DefinitionVersion version) =>
+        definitions.TryGetValue(new(id, version), out var definition)
+            ? definition.DagBinding
+            : null;
+
     internal DurableRegisteredDefinitionBinding? ResolveBinding(
         DefinitionId definitionId,
         DefinitionVersion definitionVersion)
@@ -208,6 +222,7 @@ internal sealed class DurableDefinitionRegistry
         object Definition,
         Type StateType,
         string Fingerprint,
+        DurableDagDefinitionBinding? DagBinding,
         IDurableDriverExecutor Executor);
 }
 
@@ -230,3 +245,5 @@ internal sealed record DurableRegisteredDefinitionBinding(
     DefinitionId DefinitionId,
     DefinitionVersion DefinitionVersion,
     string Fingerprint);
+
+internal sealed record DurableDagDefinitionBinding(string Fingerprint, Type InputType, Type? OutputType);

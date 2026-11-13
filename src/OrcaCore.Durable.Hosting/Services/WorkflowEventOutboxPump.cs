@@ -21,7 +21,8 @@ internal sealed class WorkflowEventOutboxPump
             outboxStore,
             new WorkflowEventMessageDispatcher(dispatcher),
             observer,
-            timeProvider);
+            timeProvider,
+            workflowEventLane: true);
     }
 
     internal Task<int> PumpOnceAsync(OutboxClaimRequest request, CancellationToken cancellationToken) =>
