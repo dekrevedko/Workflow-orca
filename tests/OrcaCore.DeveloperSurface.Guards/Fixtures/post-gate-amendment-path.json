@@ -1041,5 +1041,55 @@
       }
     ],
     "approval": null
+  },
+  "dagRunTask21Approval": {
+    "stage": "Approved",
+    "sourceTask": "2.1",
+    "approval": {
+      "checkpointCommit": "f62b0aafd8beeb69aa28efaba0f25413c4970b3b",
+      "checkpointTree": "0e5300632b9804f096ac45d119a602b5b9f5b9c7",
+      "evidenceCommit": "602844547539e0e5908d250c2a0d9560fc4b25dc",
+      "verdictPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-verdict-2026-10-29.md",
+      "verdictSha256": "c971876e87d871f5fce5b48bc685a918f7d2e1dd8b6dd81869068c4bf9d5584b"
+    }
+  },
+  "dagRunTask22Candidate": {
+    "stage": "PreparedForIndependentReview",
+    "sourceTask": "2.2",
+    "baseCommit": "602844547539e0e5908d250c2a0d9560fc4b25dc",
+    "artifactPath": "openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-2-dedicated-pumps-and-certification-2026-11-01.md",
+    "scope": "DedicatedChildPumpsAndCapableSinkOnlyReadyClaims",
+    "deferredTask": "2.3",
+    "sourcePaths": [
+      "src/OrcaCore.Durable.Hosting/Dag/DurableDagChildCoordinator.cs",
+      "src/OrcaCore.Durable.Hosting/Dag/DurableDagChildPump.cs",
+      "src/OrcaCore.Durable.Hosting/Dag/DurableDagPumpHostedService.cs",
+      "src/OrcaCore.Durable.Hosting/Dag/DurableDagPumpTelemetry.cs",
+      "src/OrcaCore.Durable.Hosting/Dag/DurableDagReadyPump.cs",
+      "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunTurns.cs",
+      "src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs",
+      "src/OrcaCore.Durable.Hosting/Services/WorkflowEventOutboxPump.cs",
+      "src/OrcaCore.Engine.Durable/Dag/DurableDagChildEngine.cs",
+      "src/OrcaCore.Engine.Durable/Dag/DurableDagTerminalNotice.cs",
+      "src/OrcaCore.Engine.Durable/Dag/DurableDagWire.cs",
+      "src/OrcaCore.Engine.Durable/Definitions/DurableDefinitionRegistry.cs",
+      "src/OrcaCore.Engine.Durable/Driver/DurableContinuationPump.cs",
+      "src/OrcaCore.Engine.Durable/Execution/DurableCommitPipeline.cs",
+      "src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs"
+    ],
+    "unchangedPublicApiPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Core.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Durable.Hosting.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Engine.Durable.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Engine.Ephemeral.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Providers.InMemory.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Providers.PostgreSql.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Providers.SqlServer.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt"
+    ]
   }
 }

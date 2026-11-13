@@ -130,7 +130,7 @@ public sealed class OpenSpecCorpusGuards
     [
         ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "05dda5f320537e249bc471793f41d31034cd61463ecf2bf9bfaf9761754d52ea"),
         ("openspec/changes/admit-durable-dag-run-progression/design.md", "445254e332f4c1d01f4c46011362c18aee76af1d65846fe83cca27b314960f9c"),
-        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "a74a10277c69404f6e2a7d487474082d6c21768c4844706b957fff3ee86b9877"),
+        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "8122687d2f30e8d2d23e05d98adb6e8f3a1bda3f2467aefc68f4a5963d03c768"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md", "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md", "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),
@@ -140,7 +140,7 @@ public sealed class OpenSpecCorpusGuards
     ];
     private static readonly (string Path, string Sha256)[] DagRunProposedDocumentPins =
     [
-        ("CLAUDE.md", "3ac2a5d6091afb42b040493a6de9ff3c1cbd9d5d75a3bf2198fa2a8d7f5f2254"),
+        ("CLAUDE.md", "8a5e8c89dde37a393546e78328924468392e428d3beb0b0a28142e8c6c0b9168"),
         ("docs/specs/03-domain-model-and-glossary.md", "45cb3a43f1a755118c3e18b55ee1d7e8ed519d5cf166d2cca24dc76cb3879adb"),
         ("docs/specs/04-requirements-core-runtime.md", "ef4f53846c69a29ad60d7f51ee7bb04ebec92c33af1d0be51151d2c05d8ef0bc"),
         ("docs/specs/05-requirements-events-waits-timers.md", "dcf96b2aaf06f1950fdd51b82b97fbd46e5ed20983b7c9da7036006e80b2d974"),
@@ -507,7 +507,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "0774d3b31b914f59a7496ea2c4449f87a488d93b2c56b2274827f0b0045c42e6";
+        "b3c8e103e1c85c077aa619d4fada849babd29e222b198ecdc78f7dbb28ba0c55";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +

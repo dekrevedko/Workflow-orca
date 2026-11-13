@@ -21,6 +21,7 @@ public sealed class SampleHostSmokeTests
             .Select(service => service.GetType().Name)
             .Should()
             .Equal(
+                "DurableDagPumpHostedService",
                 "OrcaCoreDurableWorkflowCatalogReadinessHostedService",
                 "OrcaCoreContinuationPumpHostedService",
                 "OrcaCoreTimerHostedService",

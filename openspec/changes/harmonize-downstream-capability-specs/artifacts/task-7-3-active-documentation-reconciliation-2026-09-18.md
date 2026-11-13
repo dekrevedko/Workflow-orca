@@ -13,7 +13,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `71d7c6d27f721acb74464f27cd1f43b2385e48f48d8c61e9ee0da0f2d069b4ed` |
+| 1 | `CLAUDE.md` | `8e81a531e4370811f7479bd1d7ec6ea4e2340c7e31ecc7920de1fee9b6f02ea7` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0` |
@@ -187,3 +187,10 @@ source/candidate-package target. They describe implemented candidate behavior an
 all three owner/drain recipes, while explicitly retaining independent source review
 and publication gates. Historical verdicts and canonical approval evidence are
 unchanged. No released-package shutdown capability is inferred from source status.
+
+## DAG Task 2.2 pump source candidate (2026-11-01)
+
+Only row 1 changes: CLAUDE.md now records the independently checkpointed Task 2.1
+protocol/provider data plane and this pending Task 2.2 pump target. Mapping, the
+capable Dag.Hosting ready sink/scheduler and full run bridge remain Task 2.3.
+All other source rows and historical review records remain unchanged.
