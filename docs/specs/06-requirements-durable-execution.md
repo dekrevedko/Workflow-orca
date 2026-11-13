@@ -196,7 +196,7 @@ start-by-raw-identity overload, so start cannot register a definition as a side 
 Every accepted event delivery SHALL atomically record deduplication, the delivery outcome, and
 an at-least-once continuation handoff. A definition-owning host MAY progress inline; a
 definition-less callback host records the accepted delivery and leaves progression to a
-definition-owning pump. The application receives the exact `EventDeliveryResult` status from
+definition-owning pump. The application receives the exact `WorkflowEventAcceptanceResult` from
 EV-012; it does not depend on or observe whether progression happened inline.
 
 ### DU-056 Stable identity for bounded external API calls
