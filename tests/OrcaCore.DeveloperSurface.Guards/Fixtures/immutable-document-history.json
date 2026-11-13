@@ -2561,6 +2561,11 @@
       "sha256": "79f39693b5e81625ae4ee60c6f15ba20c8536e5ab5613a7732db42bce7fd8767"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-independent-review-verdict-2026-11-01.md",
+      "bytes": 8396,
+      "sha256": "0107b814d79c36450fe1f2c6b866069114bd59adb7099763269d51a477889b7b"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
       "bytes": 1446,
       "sha256": "e6330a42bb0e1303e2676d6b72e4ce034f5a0e35d3921b4eabdc664f98923734"
