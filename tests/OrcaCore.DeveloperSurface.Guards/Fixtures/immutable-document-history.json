@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-dirty-manifest-2026-09-22.txt",
+  "activeFreezeManifestPath": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-ppp-1-qqq-1-remediation-dirty-manifest-2026-09-23.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2299,6 +2299,31 @@
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-4-and-7-5-lll-1-mmm-1-remediation-independent-review-verdict-2026-09-22.md",
       "bytes": 11098,
       "sha256": "d8e45af7ef405428cd6562f4ba3b7f3fc2f5e465a924a3cafef728e7fc52e7b0"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-dirty-manifest-2026-09-22.txt",
+      "bytes": 1195,
+      "sha256": "ed1c3952812568f34ee46c0599157dc96a5169277c79bb316fd73a46537cd47a"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-independent-review-request-2026-09-22.md",
+      "bytes": 6322,
+      "sha256": "d2e49cadde41288b4f31b4572043f76bf36a0e10e521ec2726bac7eb776e1425"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-independent-review-verdict-2026-09-23.md",
+      "bytes": 11429,
+      "sha256": "c2a5fa0e8f63ba1d1da1c4dbe2ddf043013fa135edb4560821505c24eec24df5"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-ppp-1-qqq-1-remediation-dirty-manifest-2026-09-23.txt",
+      "bytes": 1792,
+      "sha256": "2e9794a7669201911a7b16d44aaea3f84f6f13819214a632203d8f90b1254a6d"
+    },
+    {
+      "path": "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-ppp-1-qqq-1-remediation-independent-review-request-2026-09-23.md",
+      "bytes": 5189,
+      "sha256": "3e5872b8ca1fd5c6c53a24d1cfbdc7b7c642c53e37e4031a32dde752deaf80c2"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-tasks-7-4-and-7-5-combined-independent-review-request-2026-09-21.md",

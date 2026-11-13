@@ -239,6 +239,15 @@ public sealed class OpenSpecCorpusGuards
         "task-7-5-active-tree-documentation-guard-2026-09-21.md";
     private const string Task75DocumentationArtifactSha256 =
         "c65a670e52804739ea5b2413b2883be38d457fdafd4c63298cd2304f1c0c17d8";
+    private const string Task75ClassifierCatalogSha256 =
+        "fa5cb2d5828f453a54311be5c8b77934bc7ca5fbf68c06de6571e334fea55c03";
+    private const string Task75NaturalLanguageRegressionCatalogSha256 =
+        "df9180ed2858bbe28e3d3e71326efd7ecfb86fb6b9157558922fe1b0c2218549";
+    private const string Task75PostReviewHardeningArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-5-post-review-hardening-2026-09-22.md";
+    private const string Task75PostReviewHardeningArtifactSha256 =
+        "1d07e76675cc6fea5e95c4d27e1f40c326fe8216c849f3231b8cee45ede5177f";
     private const string Task7475ReviewRemediationArtifact =
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-4-and-7-5-review-remediation-2026-09-22.md";
@@ -267,6 +276,17 @@ public sealed class OpenSpecCorpusGuards
         "pre-wait phrase coverage. The artifact's 86-source value remains evidence of the reviewed snapshot, " +
         "not a live equality: benign additions and normal archival are accepted when the re-enumerated corpus " +
         "contains no positive removed/deferred call or stale Section 7B claim.";
+    private const string Task75PostReviewHardeningDecision =
+        "**Post-review hardening:** all eight OOO-1 natural-language regressions are executable probes, " +
+        "and guard-source SHA-256 values pin both the complete classifier name/expression catalog and the " +
+        "exact phrase/expected-classifier catalog so removing a tuple or probe cannot pass as a routine " +
+        "refresh.";
+    private const string Task75DesignPostReviewHardeningDecision =
+        "Task 7.5 post-review hardening adds the eight OOO-1 natural-language forms as synthetic regressions\n" +
+        "and pins both the ordered classifier name/expression catalog and the exact phrase/expected-classifier\n" +
+        "catalog in guard source. Removing a classifier or synthetic regression and coherently refreshing its\n" +
+        "historical rows and mutable artifact digest therefore remains red unless the same reviewed edit\n" +
+        "explicitly changes the corresponding guard-owned digest.";
     private static readonly string[] Task75InitialStaleNegativePaths =
     [
         "CLAUDE.md",
@@ -303,11 +323,15 @@ public sealed class OpenSpecCorpusGuards
             @"(?i)(?:non-consuming|non-buffering)[^\n]{0,80}`?NoActiveWait`?|" +
             @"(?<!never\s)(?:returns?|yields?)\b[^\n]{0,120}`?NoActiveWait`?|" +
             @"`?NoActiveWait`?[^\n]{0,160}(?:writes?\s+no|does\s+not\s+consume|no\s+(?:pending|mailbox|inbox))|" +
-            @"v1[ \t]+(?:does[ \t]+not|doesn't)[ \t]+buffer[ \t]+events|no[ \t]+pre-wait[ \t]+mailbox"),
+            @"v1[ \t]+(?:does[ \t]+not|doesn't)[ \t]+buffer[ \t]+events|no[ \t]+pre-wait[ \t]+mailbox|" +
+            @"(?:events?[^\n]{0,80}(?:arrive|arriving)[^\n]{0,80}before[^\n]{0,40}(?:a[ \t]+)?wait[^\n]{0,80}" +
+            @"(?:drop|discard|redeliver)|does[ \t]+not[ \t]+buffer[ \t]+events?[ \t]+before[ \t]+a[ \t]+wait[ \t]+exists)"),
         (
             "deferred definition fanout",
-            @"(?i)definition(?:-targeted)?(?:[ \t]+event)?[ \t]+fanout[^.\n]{0,100}" +
-            @"(?:(?:is|remains)[ \t]+(?:deferred|absent)|not[ \t]+(?:a[ \t]+)?(?:v1|delivery[ \t]+route))"),
+            @"(?i)(?:definition(?:-targeted)?(?:[ \t]+event)?[ \t]+fanout|" +
+            @"fanout[^.\n]{0,80}(?:instances?[^.\n]{0,40})?definition)[^.\n]{0,100}" +
+            @"(?:(?:is|remains)[ \t]+(?:deferred|absent)|not[ \t]+(?:a[ \t]+)?" +
+            @"(?:v1|delivery[ \t]+route|supported|available))"),
         (
             "superseded deferred list",
             @"(?i)(?:workflow-authored\s+`Publish`/`Cancel`|authored\s+`Publish`/`Cancel`|" +
@@ -317,13 +341,17 @@ public sealed class OpenSpecCorpusGuards
             "deferred durable publish",
             @"(?i)does[ \t]+not[ \t]+approve[ \t]+workflow-authored[ \t]+`?Publish`?|" +
             @"(?:(?:workflow-authored|durable|authored)[ \t]+)?`?Publish`?[ \t]+(?:is|remains|stays)[ \t]+" +
-            @"(?:deferred|absent|not[ \t]+(?:a[ \t]+)?v1)"),
+            @"(?:deferred|absent|not[ \t]+(?:a[ \t]+)?(?:v1|supported|available))|" +
+            @"publishing[ \t]+events?[ \t]+from[ \t]+a[ \t]+workflow[ \t]+is[ \t]+not[ \t]+" +
+            @"(?:supported|available)(?:[ \t]+in[ \t]+v1)?"),
         (
             "two-route ingress",
             @"(?i)(?:exactly[ \t]+)?two(?:[ \t]+first-release)?(?:[ \t]+event|[ \t]+delivery)?" +
             @"[ \t]+routes?|two-route(?:/redelivery)?[ \t]+contract|" +
             @"(?:only|limited[ \t]+to)[^\n]{0,60}(?:instance|direct)[^\n]{0,60}" +
-            @"(?:and|or)[^\n]{0,40}correlation[^\n]{0,40}rout(?:e|es|ing)"),
+            @"(?:and|or)[^\n]{0,40}correlation[^\n]{0,40}rout(?:e|es|ing)|" +
+            @"supports?[^\n]{0,60}instance[^\n]{0,60}(?:and|or)[^\n]{0,40}correlation[^\n]{0,40}" +
+            @"(?:delivery|routing)[ \t]+only"),
         (
             "superseded delivery status",
             @"(?i)EventDeliveryStatus|EventDeliveryResult|" +
@@ -331,7 +359,9 @@ public sealed class OpenSpecCorpusGuards
         (
             "unapproved Section 7B",
             @"(?i)(?:pending[ \t]+Section[ \t]+7B|Section[ \t]+7B[ \t]+(?:is|remains)[ \t]+" +
-            @"(?:a[ \t]+)?(?:proposal|pending|unapproved))")
+            @"(?:a[ \t]+)?(?:proposal|pending|unapproved)|Section[ \t]+7B[ \t]+(?:is[ \t]+)?" +
+            @"(?:not[ \t]+yet|never)[ \t]+approved|Section[ \t]+7B[ \t]+has[ \t]+not[ \t]+been[ \t]+" +
+            @"approved[ \t]+yet)")
     ];
     private static readonly string[] Task75HistoricalContextExpressions =
     [
@@ -2528,6 +2558,12 @@ public sealed class OpenSpecCorpusGuards
         recordedHistoricalFindings.Should().Equal(
             historicalFindings.Order(StringComparer.Ordinal),
             "the Task 3.1 replay must pin every historical path, line, and classifier rather than one finding per file");
+        var classifierCatalog = string.Join(
+            '\n',
+            StaleSection7BClaimPatterns.Select(pattern => $"{pattern.Name}\t{pattern.Expression}")) + "\n";
+        Sha256(classifierCatalog).Should().Be(
+            Task75ClassifierCatalogSha256,
+            "retiring a stale-claim classifier requires an explicit guard-source catalog decision");
         recordedHistoricalFindings
             .Select(finding => finding[(finding.LastIndexOf(':') + 1)..])
             .Distinct(StringComparer.Ordinal)
@@ -2536,6 +2572,32 @@ public sealed class OpenSpecCorpusGuards
             .Equal(StaleSection7BClaimPatterns
                 .Select(pattern => pattern.Name)
                 .Order(StringComparer.Ordinal));
+        var naturalLanguageRegressions = new Dictionary<string, string>(StringComparer.Ordinal)
+        {
+            ["Fanout to every instance of a definition is not supported in v1."] = "deferred definition fanout",
+            ["Definition fanout is not supported."] = "deferred definition fanout",
+            ["Section 7B is not yet approved."] = "unapproved Section 7B",
+            ["Section 7B has not been approved yet."] = "unapproved Section 7B",
+            ["Events that arrive before a wait exists are dropped and must be redelivered."] =
+                "non-buffering pre-wait delivery",
+            ["The durable engine does not buffer events before a wait exists."] =
+                "non-buffering pre-wait delivery",
+            ["Publishing events from a workflow is not available in v1."] = "deferred durable publish",
+            ["The engine supports instance and correlation delivery only."] = "two-route ingress"
+        };
+        var naturalLanguageRegressionCatalog = string.Join(
+            '\n',
+            naturalLanguageRegressions
+                .OrderBy(regression => regression.Key, StringComparer.Ordinal)
+                .Select(regression => $"{regression.Key}\t{regression.Value}")) + "\n";
+        Sha256(naturalLanguageRegressionCatalog).Should().Be(
+            Task75NaturalLanguageRegressionCatalogSha256,
+            "all eight reviewed natural-language regressions and their expected classifiers must remain exact");
+        foreach (var regression in naturalLanguageRegressions)
+        {
+            FindTask75StaleNegativeClaims("synthetic.md", regression.Key)
+                .Should().ContainSingle(finding => finding.EndsWith($":{regression.Value}", StringComparison.Ordinal));
+        }
         artifact.Should().ContainAll(
             $"`{Task73SourceSweepArtifact}`",
             $"`{Task75InitialFixtureCommit}`",
@@ -2553,6 +2615,15 @@ public sealed class OpenSpecCorpusGuards
             "MMM-1 — current event vocabulary",
             "NNN-1 — review observations",
             "does not authorize a checkpoint");
+        var postReviewHardeningArtifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task75PostReviewHardeningArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(postReviewHardeningArtifact).Should().Be(Task75PostReviewHardeningArtifactSha256);
+        postReviewHardeningArtifact.Should().ContainAll(
+            "OOO-1",
+            Task75ClassifierCatalogSha256,
+            Task75NaturalLanguageRegressionCatalogSha256,
+            "all eight reviewed forms");
 
         var ledger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root,
@@ -2564,8 +2635,10 @@ public sealed class OpenSpecCorpusGuards
         task.Success.Should().BeTrue("Task 7.5 must retain its completed recurring-gate disposition");
         Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task75CompletionDecision);
         Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task75ReviewRemediationDecision);
+        Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task75PostReviewHardeningDecision);
         task.Value.Should().Contain($"`{Task75DocumentationArtifact}`");
         task.Value.Should().Contain($"`{Task7475ReviewRemediationArtifact}`");
+        task.Value.Should().Contain($"`{Task75PostReviewHardeningArtifact}`");
 
         var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root,
@@ -2574,6 +2647,7 @@ public sealed class OpenSpecCorpusGuards
             Task75DesignDecision,
             "Task 7.5's evolving-scope, immutable-exclusion, and historical-fixture decision must survive archival");
         Regex.Replace(design, @"\s+", " ").Should().Contain(Task75DesignReviewRemediationDecision);
+        design.Should().Contain(Task75DesignPostReviewHardeningDecision);
         design.Should().Contain(Path.GetFileName(Task7475ReviewRemediationArtifact));
     }
 

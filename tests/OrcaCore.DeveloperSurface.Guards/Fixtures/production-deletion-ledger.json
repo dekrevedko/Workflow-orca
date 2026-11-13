@@ -22,8 +22,8 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs",
       "field": "ForbiddenPublicSymbols",
       "kind": "PublicOrMember",
-      "expectedCount": 125,
-      "orderedSha256": "f0ab57e9140dd77953f696d429a2e02ec378990ad4e0ba9670e79af4a4ec657e",
+      "expectedCount": 122,
+      "orderedSha256": "302b74d5ac5d52ddb2586002454f1f6771c37896beb643499b854ae85645c3a4",
       "owner": "task:7.17",
       "evidence": "test:tests/OrcaCore.DeveloperSurface.Guards/PublicApiBaselineGuards.cs#RemovedDeferredAndWrongOwnerPublicSymbols_AreAbsentBeforeBaselineApproval"
     },
