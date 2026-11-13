@@ -197,5 +197,5 @@ public sealed class FailureProvenanceTests
         (WorkflowFailure)typeof(WorkflowFailure)
             .GetConstructors(BindingFlags.Instance | BindingFlags.NonPublic)
             .Single()
-            .Invoke([code, message, location, occurrence, causes]);
+            .Invoke([code, message, location, occurrence, causes, null]);
 }

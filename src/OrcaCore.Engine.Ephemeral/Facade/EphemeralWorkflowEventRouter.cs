@@ -1,4 +1,5 @@
 using OrcaCore.Core.Internal;
+using OrcaCore.Engine.Ephemeral.Execution;
 using LegacyStatus = OrcaCore.WorkflowInstanceStatus;
 using System.Security.Cryptography;
 using System.Text;
@@ -115,10 +116,13 @@ internal sealed class EphemeralWorkflowEventRouter(
             throw FacadeValueFactory.InstanceNotFound(instanceId);
         }
 
-        if (!instance!.Lifetime.TryOwn(out var routingOwnership))
+        EphemeralInstanceLifetime.WorkLease? terminalPin = null;
+        if (!instance!.Lifetime.TryOwn(out var routingOwnership) && !instance.Lifetime.TryPin(out terminalPin))
             throw FacadeValueFactory.InstanceNotFound(instanceId);
+        using var retainedTerminal = terminalPin;
         using var ownedRoute = routingOwnership;
-        instance.Lifetime.RegisterCleanup(this, () => ForgetAcceptedInstance(instanceId));
+        if (routingOwnership is not null)
+            instance.Lifetime.RegisterCleanup(this, () => ForgetAcceptedInstance(instanceId));
 
         var fingerprint = EventFingerprint(inboundEvent, payloadBytes);
         lock (gate)
@@ -157,7 +161,7 @@ internal sealed class EphemeralWorkflowEventRouter(
             inboundEvent.CorrelationId,
             inboundEvent.OccurredAt,
             payloadBytes ?? []);
-        await binding!.Runtime.RaiseEventAsync(instanceId, envelope, cancellationToken).ConfigureAwait(false);
+        await binding!.Runtime!.RaiseEventAsync(instanceId, envelope, cancellationToken).ConfigureAwait(false);
         lock (gate)
         {
             accepted[(instanceId, inboundEvent.EventId.Value)] = fingerprint;

@@ -20,6 +20,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     private readonly CancellationTokenSource terminalCancellation = new();
     private readonly Dictionary<object, Action> cleanupOwners = new(ReferenceEqualityComparer.Instance);
     private TaskCompletionSource settled = NewCompletion();
+    private readonly TaskCompletionSource finalSettlement = NewCompletion();
     private Action? removeInstance;
     private Func<InstanceId, EphemeralWorkKind, ValueTask>? completionPending;
     private Action<EphemeralInstanceLifetime>? changed;
@@ -42,6 +43,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     internal bool IsTerminal { get { lock (gate) return terminal; } }
     internal CancellationToken TerminalCancellation => terminalCancellation.Token;
     internal Task WhenSettled { get { lock (gate) return settled.Task; } }
+    internal Task FinalSettlement => finalSettlement.Task;
 
     internal void Initialize(Action remove, Func<InstanceId, EphemeralWorkKind, ValueTask>? observer, object visibilityGate, Action<EphemeralInstanceLifetime> onChanged, EphemeralHostLifetime? hostLifetime = null)
     {
@@ -62,7 +64,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     {
         lock (gate)
         {
-            if (retired) { lease = null; return false; }
+            if (retired || finalSettlement.Task.IsCompleted) { lease = null; return false; }
             if (owned == 0) settled = NewCompletion();
             checked { owned++; }
             lease = new WorkLease(this, hostOwner: host?.Own());
@@ -132,6 +134,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
             completed = owned == 0 ? settled : null;
             publication = provisionalOwner;
             provisionalOwner = null;
+            CompleteFinalSettlement();
         }
         try
         {
@@ -145,15 +148,21 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     internal void SignalTerminal()
     {
         EphemeralHostLifetime.Lease? active;
+        WorkLease handoff;
         lock (gate)
         {
             if (terminal) return;
+            handoff = Own();
             terminal = true;
             active = activeOwner;
             activeOwner = null;
         }
         try { _ = DispatchCancellation(terminalCancellation); }
-        finally { active?.Dispose(); }
+        finally
+        {
+            try { handoff.Dispose(); }
+            finally { active?.Dispose(); }
+        }
     }
 
     internal void Abort()
@@ -179,7 +188,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     {
         lock (gate)
         {
-            if (retired) { ownership = null; return false; }
+            if (retired || finalSettlement.Task.IsCompleted) { ownership = null; return false; }
             EphemeralHostLifetime.Lease? callback = null;
             if (host is not null && !host.TryEnterCallback(out callback)) { ownership = null; return false; }
             TryOwn(out var work);
@@ -319,6 +328,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
                 owned--;
             }
             completed = owned == 0 ? settled : null;
+            CompleteFinalSettlement();
             notify = changed;
             if (owned == 0 && pins == 0 && !startPending && !accepted && terminal && !retired)
             {
@@ -342,6 +352,13 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         completionPending = null;
         changed = null;
         return actions;
+    }
+
+    // The completion is also the admission seal. RunContinuationsAsynchronously
+    // prevents observer code from running under the instance visibility gate.
+    private void CompleteFinalSettlement()
+    {
+        if (accepted && terminal && owned == 0) finalSettlement.TrySetResult();
     }
 
     private void FinishCleanup(Action[] actions, TaskCompletionSource completed)

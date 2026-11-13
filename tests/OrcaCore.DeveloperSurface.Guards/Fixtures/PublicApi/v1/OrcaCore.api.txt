@@ -1476,6 +1476,7 @@ type public sealed class OrcaCore.WorkflowFailure attributes [[System.Private.Co
   property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore]OrcaCore.WorkflowFailure!]! Causes { get:public }
   property [System.Private.CoreLib]System.String! Code { get:public }
   property [System.Private.CoreLib]System.String! Message { get:public }
+  property [System.Private.CoreLib]System.String? ExceptionType { get:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
 type public class OrcaCore.WorkflowInboundEvent attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   method public static Create([OrcaCore]OrcaCore.WorkflowEventContract! eventContract, [OrcaCore]OrcaCore.EventId! eventId, [OrcaCore]OrcaCore.CorrelationId! correlationId, [OrcaCore]OrcaCore.EventId? causationEventId attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)], [System.Private.CoreLib]System.DateTimeOffset occurredAt, [OrcaCore]OrcaCore.WorkflowEventRoute! route) -> [OrcaCore]OrcaCore.WorkflowInboundEvent!
   property [OrcaCore]OrcaCore.CorrelationId! CorrelationId { get:public }
@@ -1498,6 +1499,7 @@ type public class OrcaCore.WorkflowInstanceHandle attributes [[System.Private.Co
   method public GetStateAsync<TState>([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[!!TState!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])] where [TState]
   method public RequestCancellationAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore]OrcaCore.WorkflowCancellationRequestStatus]
   method public TerminateAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore]OrcaCore.WorkflowTerminationStatus]
+  method public WaitForSettlementAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask
   property [OrcaCore]OrcaCore.InstanceId! InstanceId { get:public }
 type public sealed class OrcaCore.WorkflowInstanceHandle`1 : [OrcaCore]OrcaCore.WorkflowInstanceHandle~
   generic TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]

@@ -227,3 +227,24 @@ approval unset. Existing issue #3 native research and released-version results
 remain immutable history, not support credit for this implementation.
 
 Issue #13 converter catalogue amendment (2026-10-25): developer-facing-surface, workflow-contracts and quality-and-verification retain their exact requirement identities and gain the approved factory catalogue/scenarios. Docs 03/10/11/12/13/17, the declaration companion, API/compile/package owners and task-2.2 registry/guards reproduce that amendment. AC-564 maps NS-02d; AC-568 maps NS-06g–h. The dated R1 protocol and all original assertions remain unchanged.
+
+## Issue #16 transition routing (2026-11-01; implementation pending)
+
+The approved contract checkpoint 0cae922, tree cf054886, and external verdict child
+7697c79 own twelve synchronized blocks: developer-facing-surface (2),
+management-and-querying (6), workflow-contracts (2), structured-fiber-execution (1)
+and quality-and-verification (1). The transition keeps canonical/source approval
+unset until its named review and supplies no product-source evidence.
+
+CR-014/014a/016 in 04 own elected originals, diagnostic type text, legacy/v2 bytes
+and logical-vs-physical waits. MG-070/071 in 09 own receipts, detached/live exception
+boundaries and Closed/Stopping/Completed/disposal exceptions; 03 defines the terms,
+CP-033 in 08 preserves ownership and durable failure bytes, PR-042 in 10 owns the
+exact two-member/package/no-provider boundary, NF-035 in 11 owns qualification,
+AC-619–638 in 12 map FS-01–20, 13 tracks pending status, and OB-082 in 15 classifies
+diagnostics. Doc 17's matrix and declaration companion change here; real assembly
+API/compile/package baselines remain task 3. Guides/README/package docs mark the
+members implementation pending. Every active numbered/matrix/declaration and
+canonical/delta reverse occurrence is classified in the adjacent task-2.1 ledger;
+historical approved artifacts remain unchanged. This adds no destructive command,
+friend, serializer hook, durable type capture or unjoined-process guarantee.

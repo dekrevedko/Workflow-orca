@@ -64,6 +64,18 @@ GROUPS = {**GROUPS,
           "NS-11": GROUPS["NS-11"] + ["included-members-generated", "included-members-default"]}
 
 
+# Protocol 4 retains protocol 3 verbatim as history and adds issue #16 witnesses.
+PROTOCOL3_NATIVE_CASES, PROTOCOL3_LEGACY_CASES, PROTOCOL3_GROUPS = NATIVE_CASES, LEGACY_CASES, GROUPS
+NATIVE_CASES += ("failure-settlement-generated",)
+LEGACY_CASES += ("failure-settlement-legacy",)
+GROUPS = {**GROUPS, "FS-16": ["failure-settlement-generated"]}
+
+def protocol_cases(protocol):
+    if protocol == 2: return BASE_NATIVE_CASES, BASE_LEGACY_CASES, BASE_GROUPS
+    if protocol == 3: return PROTOCOL3_NATIVE_CASES, PROTOCOL3_LEGACY_CASES, PROTOCOL3_GROUPS
+    return NATIVE_CASES, LEGACY_CASES, GROUPS
+
+
 def require(condition, message):
     if not condition:
         raise ValueError(message)
@@ -75,11 +87,10 @@ def package_version(value):
     return value
 
 
-def validate_cell(record, minimum_protocol=3):
+def validate_cell(record, minimum_protocol=4):
     protocol = record.get("protocol")
-    require(protocol in (2, 3) and protocol >= minimum_protocol, "Support protocol 3 is required for current qualification")
-    native, legacy, groups = ((BASE_NATIVE_CASES, BASE_LEGACY_CASES, BASE_GROUPS) if protocol == 2
-                              else (NATIVE_CASES, LEGACY_CASES, GROUPS))
+    require(protocol in (2, 3, 4) and protocol >= minimum_protocol, "Support protocol 4 is required for current qualification")
+    native, legacy, groups = protocol_cases(protocol)
     host = record["host"]
     require(host.get("qualified") and host.get("os") in HOSTS and
             host.get("architecture") == "x64" and not host.get("container"), "Unqualified native host")
@@ -139,13 +150,17 @@ def validate_cell(record, minimum_protocol=3):
             wanted = witnesses + (["jit-missing-engine"] if name == "NS-12" and flavor == "jit" else [])
             require(coverage.get("outcome") == "Passed" and coverage.get("witnesses") == wanted and
                     set(wanted).issubset(required), "Incomplete required " + table + ": " + name)
+    if protocol >= 4:
+        require(record.get("failureTypes") == "System.IO.IOException|FailureConsumerError", "Missing or changed issue-16 type witness")
+        if flavor == "jit":
+            require(record["failureTypes"] == record.get("legacyFailureTypes"), "Legacy/generated failure type parity differs")
     require(record.get("golden") and record.get("strong"), "Missing parity corpus")
     if flavor == "jit":
         require(record["golden"] == record.get("legacyGolden") and record["strong"] == record.get("legacyStrong"),
                 "Legacy/generated parity differs")
 
 
-def validate_matrix(records, minimum_protocol=3, expected_package_version=None):
+def validate_matrix(records, minimum_protocol=4, expected_package_version=None):
     require(len(records) == 6, "Exactly six cells required")
     require({(r["host"]["os"], r["flavor"]) for r in records} ==
             {(os, flavor) for os in HOSTS for flavor in FLAVORS}, "Missing or duplicate host/profile")
@@ -154,15 +169,15 @@ def validate_matrix(records, minimum_protocol=3, expected_package_version=None):
             require(record.get("packageVersion") == package_version(expected_package_version),
                     "Missing or different release package version")
         validate_cell(record, minimum_protocol)
+        if record["protocol"] >= 4: require(record["failureTypes"] == records[0]["failureTypes"], "Cross-cell exception type parity differs")
         require(record.get("packageVersion") == records[0].get("packageVersion"), "Cross-cell drift: packageVersion")
         for key in ("protocol", "sourceSha", "sourceTree", "sourceFiles", "harnessFiles", "packageHashes", "golden", "strong"):
             require(record[key] == records[0][key], "Cross-cell drift: " + key)
 
 
-def sample_record(os, flavor, protocol=3):
+def sample_record(os, flavor, protocol=4):
     """Synthetic schema fixture for negative gate controls, never native evidence."""
-    native, legacy, groups = ((BASE_NATIVE_CASES, BASE_LEGACY_CASES, BASE_GROUPS) if protocol == 2
-                              else (NATIVE_CASES, LEGACY_CASES, GROUPS))
+    native, legacy, groups = protocol_cases(protocol)
     ids = list(AOT_IDS) + list(native)
     if flavor == "jit":
         ids += ["legacy-" + name for name in AOT_IDS] + list(legacy) + ["jit-missing-engine"]
@@ -180,7 +195,8 @@ def sample_record(os, flavor, protocol=3):
                 publicBoundary=BOUNDARY, liveEventDeliveryQualified=False, outgoingPublishingQualified=False,
                 coverage={name:dict(outcome="Passed", witnesses=rows + (["jit-missing-engine"] if name == "NS-12" and flavor == "jit" else [])) for name,rows in groups.items()},
                 subcases={name:dict(outcome="Passed", witnesses=rows) for name,rows in SUBCASES.items()},
-                legacyGolden="fixture", legacyStrong="fixture")
+                legacyGolden="fixture", legacyStrong="fixture",
+                failureTypes="System.IO.IOException|FailureConsumerError", legacyFailureTypes="System.IO.IOException|FailureConsumerError")
 
 
 if __name__ == "__main__":
@@ -191,5 +207,5 @@ if __name__ == "__main__":
     parser.add_argument("folders", nargs="+")
     args = parser.parse_args()
     records = [json.loads(path.read_text(encoding="utf-8")) for folder in args.folders for path in Path(folder).rglob("support-report.json")]
-    validate_matrix(records, minimum_protocol=2 if args.allow_historical else 3, expected_package_version=args.package_version)
+    validate_matrix(records, minimum_protocol=2 if args.allow_historical else 4, expected_package_version=args.package_version)
     print("Six native support cells agree; independent review is still required.")

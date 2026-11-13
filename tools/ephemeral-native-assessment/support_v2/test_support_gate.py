@@ -7,6 +7,23 @@ from run_support import materialize
 from support_gate import validate_cell, validate_matrix, sample_record
 
 class SupportGateTests(unittest.TestCase):
+    def test_issue16_requires_new_native_and_legacy_witnesses(self):
+        for flavor, name in (("aot", "failure-settlement-generated"), ("jit", "failure-settlement-legacy")):
+            record = sample_record("ubuntu-24.04", flavor)
+            record["cases"] = [case for case in record["cases"] if case["id"] != name]
+            with self.subTest(flavor=flavor):
+                with self.assertRaises(ValueError): validate_cell(record)
+        record = sample_record("windows-2025", "jit")
+        record["legacyFailureTypes"] = "wrong"
+        with self.assertRaises(ValueError): validate_cell(record)
+        record = sample_record("windows-2025", "aot")
+        record["failureTypes"] = "wrong"
+        with self.assertRaises(ValueError): validate_cell(record)
+
+    def test_protocol3_remains_history_and_cannot_qualify_issue16(self):
+        records = [sample_record(os, flavor, protocol=3) for os in ("windows-2025", "ubuntu-24.04") for flavor in ("jit", "trimmed", "aot")]
+        validate_matrix(records, minimum_protocol=3)
+        with self.assertRaises(ValueError): validate_matrix(records)
     def test_release_package_version_is_bound_to_every_file(self):
         record = sample_record("ubuntu-24.04", "aot")
         record["packageVersion"] = "0.1.0-preview.3"

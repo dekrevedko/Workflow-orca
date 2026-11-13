@@ -30,7 +30,8 @@ internal sealed record FiberFailure
         string message,
         IReadOnlyList<FiberFailure>? causes = null,
         AuthoredLocation? authoredLocation = null,
-        FailureOccurrence? occurrence = null)
+        FailureOccurrence? occurrence = null,
+        string? exceptionType = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         ArgumentException.ThrowIfNullOrWhiteSpace(message);
@@ -39,11 +40,14 @@ internal sealed record FiberFailure
         Causes = Array.AsReadOnly(causes?.ToArray() ?? []);
         AuthoredLocation = authoredLocation ?? FailureProvenance.Location("workflow:$");
         Occurrence = occurrence ?? FailureProvenance.RootOccurrence();
+        ExceptionType = exceptionType;
     }
 
     public string Code { get; }
 
     public string Message { get; }
+
+    public string? ExceptionType { get; }
 
     public IReadOnlyList<FiberFailure> Causes { get; }
 

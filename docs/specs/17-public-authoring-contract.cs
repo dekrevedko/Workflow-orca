@@ -1302,3 +1302,23 @@ public sealed class StrongStringValueJsonConverterFactory : System.Text.Json.Ser
         Type typeToConvert, System.Text.Json.JsonSerializerOptions options) => throw new NotSupportedException();
 }
 }
+
+// Issue #16: normative application declarations; implementation pending.
+// These are member fragments for existing types, not replacement full declarations.
+// All existing members remain specified by document 17. Only ExceptionType and the
+// base WaitForSettlementAsync member are additions; executable baselines wait for source.
+namespace OrcaCore
+{
+public sealed class WorkflowFailure
+{
+    internal WorkflowFailure() => throw new NotSupportedException();
+    public string? ExceptionType => throw new NotSupportedException();
+}
+
+public class WorkflowInstanceHandle
+{
+    internal WorkflowInstanceHandle(InstanceId instanceId) => throw new NotSupportedException();
+    public ValueTask WaitForSettlementAsync(
+        CancellationToken cancellationToken = default) => throw new NotSupportedException();
+}
+}

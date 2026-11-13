@@ -35,12 +35,12 @@ public sealed class CodecMemberCorrectionGuards
             "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs");
-        // This correction owns application codec sources, not every subsequent
-        // provider/protocol implementation. The Task 2.1 guard separately pins its
-        // complete source path set; the three actual codec files remain byte-pinned here.
-        Git(root, "diff", "--name-only", Base, "--", "src/OrcaCore.Abstractions")
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src/OrcaCore.Abstractions").Trim().Should().BeEmpty();
+        Git(root, "diff", "--name-only", Base, "--", "src")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Except(EphemeralFailureSettlementSourceReview.AuthorizedPaths(root), StringComparer.Ordinal)
+            .Except(DagPumpSliceGuards.ApprovedDagSourcePaths(root), StringComparer.Ordinal)
+            .Should().Equal(files.Select(file => file.Name));
+        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
         foreach (var file in files)
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
         foreach (var file in record.GetProperty("harnessFiles").EnumerateObject())
@@ -105,7 +105,7 @@ public sealed class CodecMemberCorrectionGuards
                             !file.Name.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal))
                             continue;
                     }
-                    var current = table == "sourceFiles" ? File.ReadAllBytes(Path.Combine(root, file.Name)) :
+                    var current = table == "sourceFiles" ? EphemeralFailureSettlementSourceReview.HistoricalBytes(root, file.Name) :
                         GitBytes(root, "show", HarnessCheckpoint + ":" + file.Name);
                     if (file.Name == ".github/workflows/ephemeral-native-support.yml")
                         current = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(current).Replace(

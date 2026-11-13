@@ -11,7 +11,7 @@ using LegacyStatus = OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.Engine.Ephemeral;
 
-internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
+internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry, IDisposable
 {
     private readonly object gate;
     private readonly SemaphoreSlim startGate = new(1, 1);
@@ -286,7 +286,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
                         !retained!.Lifetime.TryPin(out replayPin))
                     {
                         starts.Remove(idempotencyKey.Value);
-                        instances.Remove(existing.InstanceId);
+                        if (instances.Remove(existing.InstanceId, out var stale)) stale.Access.Release(retired: true);
                     }
                     else if (existing.DefinitionId.Equals(definitionId) &&
                         existing.DefinitionVersion.Equals(definitionVersion) &&
@@ -329,7 +329,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
                 definitionId,
                 definitionVersion,
                 definitionFingerprint,
-                stateType, typedRuntime);
+                stateType, typedRuntime, runtime.Lifetime.FinalSettlement, new InstanceHandleAccess(this));
 
             lock (gate)
             {
@@ -371,7 +371,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
     {
         lock (gate)
         {
-            instances.Remove(instanceId);
+            if (instances.Remove(instanceId, out var retired)) retired.Access.Release(retired: true);
             foreach (var key in starts.Where(pair => pair.Value.InstanceId.Equals(instanceId))
                          .Select(pair => pair.Key).ToArray()) starts.Remove(key);
         }
@@ -417,23 +417,57 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         return null;
     }
 
-    private WorkflowInstanceHandle CreateInstanceHandle(InstanceBinding binding) =>
-        FacadeHandleFactory.Create(
-            binding.InstanceId,
-            token => GetSnapshotAsync(binding, token),
-            (requestedType, token) => GetStateAsync(binding, requestedType, token),
-            token => RequestCancellationAsync(binding, token),
-            token => TerminateAsync(binding, token));
+    private WorkflowInstanceHandle CreateInstanceHandle(InstanceBinding binding)
+    {
+        var address = binding with { Runtime = null };
+        return FacadeHandleFactory.Create(
+            address.InstanceId,
+            token => address.Access.Require(address.InstanceId, token).GetSnapshotAsync(address, token),
+            (requestedType, token) => address.Access.Require(address.InstanceId, token).GetStateAsync(address, requestedType, token),
+            token => address.Access.Require(address.InstanceId, token).RequestCancellationAsync(address, token),
+            token => address.Access.Require(address.InstanceId, token).TerminateAsync(address, token), address.Settlement);
+    }
 
-    private WorkflowInstanceHandle<TOutput> CreateInstanceHandle<TOutput>(InstanceBinding binding) =>
-        FacadeHandleFactory.Create<TOutput>(
-            binding.InstanceId,
-            token => GetSnapshotAsync(binding, token),
-            (requestedType, token) => GetStateAsync(binding, requestedType, token),
-            token => RequestCancellationAsync(binding, token),
-            token => TerminateAsync(binding, token),
-            token => GetOutputAsync<TOutput>(binding, token),
-            token => WaitForOutputAsync<TOutput>(binding, token));
+    private WorkflowInstanceHandle<TOutput> CreateInstanceHandle<TOutput>(InstanceBinding binding)
+    {
+        var address = binding with { Runtime = null };
+        return FacadeHandleFactory.Create<TOutput>(
+            address.InstanceId,
+            token => address.Access.Require(address.InstanceId, token).GetSnapshotAsync(address, token),
+            (requestedType, token) => address.Access.Require(address.InstanceId, token).GetStateAsync(address, requestedType, token),
+            token => address.Access.Require(address.InstanceId, token).RequestCancellationAsync(address, token),
+            token => address.Access.Require(address.InstanceId, token).TerminateAsync(address, token),
+            token => address.Access.Require(address.InstanceId, token).GetOutputAsync<TOutput>(address, token),
+            token => address.Access.Require(address.InstanceId, token).WaitForOutputAsync<TOutput>(address, token), address.Settlement);
+    }
+
+    public void Dispose()
+    {
+        lock (gate)
+            foreach (var binding in instances.Values) binding.Access.Release(retired: false);
+    }
+
+    // Keep ordinary authority live until definitive retirement or owner disposal.
+    // An issued receipt must not prolong the registry/DI graph after that boundary.
+    internal sealed class InstanceHandleAccess(EphemeralWorkflowDefinitionRegistry owner)
+    {
+        private EphemeralWorkflowDefinitionRegistry? registry = owner;
+        private int releasedState;
+
+        internal EphemeralWorkflowDefinitionRegistry Require(InstanceId id, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (Volatile.Read(ref registry) is { } current) return current;
+            if (Volatile.Read(ref releasedState) == 1) throw FacadeValueFactory.InstanceNotFound(id);
+            throw new ObjectDisposedException(nameof(EphemeralWorkflowDefinitionRegistry));
+        }
+
+        internal void Release(bool retired)
+        {
+            Volatile.Write(ref releasedState, retired ? 1 : 2);
+            Volatile.Write(ref registry, null);
+        }
+    }
 
     private global::OrcaCore.WorkflowInstanceSnapshot MapSnapshot(
         InstanceBinding binding,
@@ -535,7 +569,9 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         DefinitionVersion DefinitionVersion,
         DefinitionFingerprint DefinitionFingerprint,
         Type StateType,
-        IEphemeralDefinitionRuntime Runtime);
+        IEphemeralDefinitionRuntime? Runtime,
+        Task Settlement,
+        InstanceHandleAccess Access);
 
     internal sealed record StartBinding(
         InstanceId InstanceId,
@@ -565,8 +601,9 @@ file static class FacadeHandleFactory
         Func<CancellationToken, ValueTask<global::OrcaCore.WorkflowInstanceSnapshot>> getSnapshot,
         Func<Type, CancellationToken, ValueTask<object?>> getState,
         Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation,
-        Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate) =>
-        new(instanceId, getSnapshot, getState, requestCancellation, terminate);
+        Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate,
+        Task settlement) =>
+        new(instanceId, getSnapshot, getState, requestCancellation, terminate, settlement);
 
     internal static WorkflowInstanceHandle<TOutput> Create<TOutput>(
         InstanceId instanceId,
@@ -575,8 +612,9 @@ file static class FacadeHandleFactory
         Func<CancellationToken, ValueTask<WorkflowCancellationRequestStatus>> requestCancellation,
         Func<CancellationToken, ValueTask<WorkflowTerminationStatus>> terminate,
         Func<CancellationToken, ValueTask<WorkflowOutputResult<TOutput>>> getOutput,
-        Func<CancellationToken, ValueTask<TOutput>> waitForOutput) =>
-        new(instanceId, getSnapshot, getState, requestCancellation, terminate, getOutput, waitForOutput);
+        Func<CancellationToken, ValueTask<TOutput>> waitForOutput,
+        Task settlement) =>
+        new(instanceId, getSnapshot, getState, requestCancellation, terminate, getOutput, waitForOutput, settlement);
 }
 
 internal static class FacadeValueFactory
@@ -633,8 +671,9 @@ internal static class FacadeValueFactory
 
     internal static WorkflowOutputUnavailableException OutputUnavailable(
         WorkflowInstanceStatus status,
-        WorkflowFailure? failure) =>
-        new WorkflowOutputUnavailableException(status, failure);
+        WorkflowFailure? failure,
+        Exception? original = null) =>
+        new WorkflowOutputUnavailableException(status, failure, original);
 
     internal static AmbiguousWaitRegistrationException AmbiguousWait(
         DefinitionId definitionId,

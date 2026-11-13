@@ -14,7 +14,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "f61d8b49b25095b31989639fb43a8ac6cae6fedc996ddfe1bbf4ec7233b4fae2";
+    private const string CanonicalContentRecordSha256 = "205ac1af86b2024521028603cf15fd361f84861b4d244054fd6472e907214335";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(
@@ -228,7 +228,7 @@ public sealed class DagStreamIdentitySliceGuards
         ValidateReviewEvidence(root, evidence);
     }
 
-    private static void ValidateReviewEvidence(string root, TransitionEvidence evidence)
+    internal static void ValidateReviewEvidence(string root, TransitionEvidence evidence)
     {
         Git(root, "rev-parse", $"{evidence.CheckpointCommit}^{{tree}}").Trim().Should().Be(evidence.CheckpointTree);
         Git(root, "rev-list", "--parents", "-n", "1", evidence.EvidenceCommit).Trim()
@@ -254,9 +254,9 @@ public sealed class DagStreamIdentitySliceGuards
         Hash(before).Should().Be("ef13f660beecb09c88c0d22b09abae7b69332158d8fcea4b7da69ad5e0a32678");
         var after = Normalize(Git(root, "show", "10aec46e4a1f2f0771f6a5418b4dc6ef3ff3b5fd:" + path));
         Hash(after).Should().Be(ApprovedOrcaCoreApiSha256);
-        var current = Normalize(File.ReadAllText(Path.Combine(root, path)));
+        var current = EphemeralFailureSettlementSourceReview.PriorApi(Normalize(File.ReadAllText(Path.Combine(root, path))));
         Hash(current).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
-        Hash(PublicApiBaseline.CaptureCurrent()["OrcaCore"]).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
+        Hash(EphemeralFailureSettlementSourceReview.PriorApi(PublicApiBaseline.CaptureCurrent()["OrcaCore"])).Should().Be("4a2e0af3420a8126f1a943a1510f8009b5da9371276a3a98e1e03092da432d3a");
         // Normalize only the exact separately approved throttle-parameter annotation.
         // Both complete current/source hashes above remain pinned; the prior metadata API is exact too.
         var metadataApi = current.Replace("  method public static For<TStep>([System.Private.CoreLib]System.Int32 maxConcurrency) -> [OrcaCore]OrcaCore.Hosting.StepExecutionThrottle! where [TStep : attributes [[System.Private.CoreLib]System.Diagnostics.CodeAnalysis.DynamicallyAccessedMembersAttribute(8192), [System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]",
@@ -335,7 +335,7 @@ public sealed class DagStreamIdentitySliceGuards
                 delta.Should().StartWith("## ADDED Requirements\n\n");
                 expected += "\n" + delta["## ADDED Requirements\n\n".Length..].TrimEnd('\n') + "\n";
             }
-            Normalize(File.ReadAllText(Path.Combine(root, path))).Should().Be(expected,
+            EphemeralFailureSettlementReviewHistory.CanonicalBefore(root, path).Should().Be(expected,
                 "only the exact reviewed layers extend this canonical target; native-support guards pin its Git-approved deltas");
         }
         Git(root, "ls-files", "--others", "--exclude-standard", "--",
@@ -398,6 +398,6 @@ public sealed class DagStreamIdentitySliceGuards
     }
 
     private sealed record CanonicalFile(string Path, int Bytes, string Sha256);
-    private sealed record TransitionEvidence(string CheckpointCommit, string CheckpointTree, string EvidenceCommit,
+    internal sealed record TransitionEvidence(string CheckpointCommit, string CheckpointTree, string EvidenceCommit,
         string VerdictPath, string VerdictSha256);
 }

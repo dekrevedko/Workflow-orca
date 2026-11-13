@@ -463,3 +463,19 @@ These criteria extend document 12; suggested IDs for catalog merge:
 - Outbox hooks: `docs/specs/06-requirements-durable-execution.md` DU-032, `docs/specs/10-provider-model-and-extensibility.md` PR-015
 - Review findings: `docs/review/findings/R7-hosting-cross-cutting.md`, `docs/review/findings/R8-dotnet10-csharp-quality.md`
 - OpenTelemetry: [Logs data model](https://opentelemetry.io/docs/specs/otel/logs/data-model/), [Metrics exemplars](https://opentelemetry.io/docs/specs/otel/metrics/data-model/#exemplars), [Trace-Log correlation](https://opentelemetry.io/docs/specs/otel/logs/supplementary-guidelines/)
+
+## Issue #16 failure diagnostics
+
+### OB-082 Original exception references are not telemetry payloads
+
+WF-STEP-UNHANDLED already identifies arbitrary business-step exceptions;
+WF-LEGACY-LIFECYCLE SHALL not substitute for it. Failure Code is the stable matching
+key; ExceptionType is nullable diagnostic text, not protocol identity. Captured
+nonblank messages remain verbatim; blank detached messages use CR-014's fallback.
+The original exception appears only in the ephemeral output-unavailable wrapper's
+InnerException. The engine SHALL not serialize its object graph, stack, Data or
+live inner graph into snapshots, provider records, events or diagnostics. Existing
+bounded diagnostic identity/provenance policies remain. True aggregates carry
+ordered detached causes, and late timeout/cancel losers do not replace the elected
+failure. A passive settlement receipt emits no new post-Completed diagnostic and
+does not turn retirement-cleanup diagnostics into physical work. See MG-070/071.

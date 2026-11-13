@@ -111,7 +111,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry
                 {
                     case WorkflowOutputResult<T>.Available available: return available.Output;
                     case WorkflowOutputResult<T>.Unavailable unavailable:
-                        throw FacadeValueFactory.OutputUnavailable(unavailable.Status, unavailable.Failure);
+                        throw FacadeValueFactory.OutputUnavailable(unavailable.Status, unavailable.Failure, runtime.OriginalFailure);
                 }
                 await signal.Task.WaitAsync(token).ConfigureAwait(false);
             }

@@ -1,0 +1,348 @@
+{
+  "schemaVersion": 2,
+  "stage": "ContractApprovedCanonicalPreparedSourcePending",
+  "owningChange": "expose-ephemeral-failures-and-settlement",
+  "baseCommit": "0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580",
+  "successorOperation": "MODIFIED",
+  "canonicalSyncTask": "2.1",
+  "canonicalApprovalEvidencePath": null,
+  "sourceApprovalEvidencePath": null,
+  "semanticApprovalEligible": true,
+  "proposedSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Completion waits are notification-driven and race-free",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "df231a9e8e8794cbc8da86c63a58fdfdf2b7c598745c84e8beedcdbc5d035914",
+      "canonicalBlockSha256": "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1",
+      "successorBlockSha256": "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1",
+      "historicalCanonicalBlock": "### Requirement: Completion waits are notification-driven and race-free\n`WorkflowInstanceHandle<TOutput>.WaitForOutputAsync(CancellationToken cancellationToken = default)` SHALL return `ValueTask<TOutput>` containing the fixed-codec-detached output after successful completion or throw `WorkflowOutputUnavailableException` carrying terminal status and failure when the instance terminalizes without output. A same-named `ValueTask<TOutput>` convenience extension on `WorkflowStartResult<WorkflowInstanceHandle<TOutput>>` SHALL project through `GetHandleOrThrow()`. `DagRunHandle.WaitForTerminalAsync(CancellationToken cancellationToken = default)` SHALL return `ValueTask<DagRunSnapshot>` containing the detached terminal snapshot. Durable implementations SHALL use subscribe-then-recheck around the committed notification boundary so completion cannot be lost; these operations SHALL NOT poll. Caller cancellation SHALL cancel only the local wait and SHALL NOT cancel the workflow instance or DAG run.\n\n#### Scenario: Completion races wait subscription\n- **WHEN** output or DAG terminal state commits immediately before, during, or after wait subscription\n- **THEN** the wait observes the committed result exactly once without a polling interval or lost-notification window\n\n#### Scenario: Caller abandons a local wait\n- **WHEN** the wait cancellation token is cancelled\n- **THEN** only that caller's wait ends and runtime execution remains governed by its separate cancellation API",
+      "historicalCanonicalBlockSha256": "df231a9e8e8794cbc8da86c63a58fdfdf2b7c598745c84e8beedcdbc5d035914"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Completed ephemeral host shutdown proves host-wide quiescence",
+      "predecessorChange": "add-ephemeral-host-shutdown",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "1cbcd063c33b69eb7c578338954b5f4cb6cddbb67bf0d84a6d802a745653fc21",
+      "canonicalBlockSha256": "c501a0d41ff62fdd463c3ca8761e26edc727a3110e9d1f47ad49e3a61193815c",
+      "successorBlockSha256": "c501a0d41ff62fdd463c3ca8761e26edc727a3110e9d1f47ad49e3a61193815c",
+      "historicalCanonicalBlock": "### Requirement: Completed ephemeral host shutdown proves host-wide quiescence\nCompleted SHALL require stable zero host-owned quiescence obligations after every\nproducer is sealed: admitted registrations/queued starts, commands/queries/waits and execution\nturns; physical root/branch/item attempts and capacity release; retry/resource/yield\ncontinuations; first cancellation dispatches and their handlers; entered workflow,\nstep-timeout and stuck-step timer callbacks and dispatch; retention sweeps and all\ncommit/notification/cleanup handoffs. A successor SHALL acquire ownership before\nits predecessor releases it. Pre-existing output waiters SHALL keep their pins until\ntheir normal detached terminal result or local cancellation. Runtime cancellation\nand provisional abort SHALL preserve existing immutable workflow terminal states.\n\nStopping SHALL request cooperative cancellation, cancel scheduled producers and\nprevent new Init/business-attempt admission from queued retries or resource grants, while\nallowing required owning-lane terminal fences and cleanup to finish. Disposed timers,\nan empty instance registry, logical terminal status and a snapshot of replaceable\nWhenSettled tasks SHALL NOT prove completion. An entered callback/dispatcher/sweep\nSHALL be joined; any late rejected trampoline SHALL only check the sealed gate and\nreturn without engine/dependency access, rearming, notification, ownership or commit.\nNo owned user callback, dependency use or late commit SHALL occur after Completed.\nAn invocation whose own initialization/attempt admission won the applicable gate\n(Closed for new initialization, Stopping for already-initialized or accepted work) SHALL remain\nowned even if its user body begins or returns later; user code SHALL NOT\nrun under the visibility lock to manufacture wall-clock ordering. Stop observers\nand the coordinator's root reference SHALL NOT count as join obligations or wait\nfor themselves; their resources SHALL be observer-local and all dependency-using\ncancellation/sealing/handoff jobs SHALL be accounted independently.\n\nAfter Completed and before owner disposal, no engine path SHALL create owned work, touch DI dependencies,\ninvoke user code, arm timers, dispatch notifications/diagnostics or commit. All\nnew live instance operations listed above SHALL still fail as host-stopping, even\nfor retained terminal data. Only pure argument/token and immutable identity/error\nchecks, passive registered-definition handle lookup on an already-resolved registry,\nreading previously detached caller-owned values and returning the cached detached\nCompleted result SHALL remain available. Repeated stop's Completed fast path SHALL\nallocate no observation timer/registration, restart no producer and emit no diagnostic.\nRetained metadata SHALL remain frozen until owner disposal; no retention sweep SHALL\nresume. Disposal MAY release already-joined internal storage and application-owned\ndependencies but SHALL NOT start engine work. Caller use of detached data is outside\nengine-owned work; it SHALL NOT imply a live query or service-resolution permission.\n\n#### Scenario: A cancellation request is only logically terminal\n- **WHEN** an instance has reached Cancelled or TimedOut but its physical step still runs\n- **THEN** shutdown remains incomplete and holds physical ownership until that body and its capacity-release continuation finish\n\n#### Scenario: Timer disposal races entered work\n- **WHEN** shutdown disposes a timer whose callback/dispatch or retention sweep already entered\n- **THEN** join waits for that callback and its final handoffs; a later rejected timer trampoline cannot create work after Completed\n\n#### Scenario: Final notification hands work to another owner\n- **WHEN** a terminal commit wakes an admitted output waiter or schedules cleanup\n- **THEN** ownership transfers before prior release and Completed cannot appear in a transient zero-count gap\n\n#### Scenario: A caller reads after Completed\n- **WHEN** a caller requests a new live instance-handle/snapshot/state/output/wait/command/ingress operation after Completed\n- **THEN** metadata-only not-found/mismatch precedence applies, otherwise host-stopping occurs without DI/codec/user work, pins, timers or commits; previously detached values and passive registered-handle identity remain readable\n\n#### Scenario: Stop is observed again after Completed\n- **WHEN** a valid noncancelled caller repeats StopAsync before owner disposal\n- **THEN** it receives the detached cached Completed result without new owned work, timers, token registrations, diagnostics, callbacks or commits",
+      "historicalCanonicalBlockSha256": "1cbcd063c33b69eb7c578338954b5f4cb6cddbb67bf0d84a6d802a745653fc21"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Ephemeral host shutdown closes admission atomically",
+      "predecessorChange": "add-ephemeral-host-shutdown",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "009db0deff82740ebecb0d5b92027d576b3686316d8a861493142d3eb8409fc9",
+      "canonicalBlockSha256": "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d",
+      "successorBlockSha256": "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d",
+      "historicalCanonicalBlock": "### Requirement: Ephemeral host shutdown closes admission atomically\nOne host-scoped Open-to-Closed boundary SHALL irreversibly close new business\nadmission without cancellation or producer sealing. ApplicationStopping, read from\nits token state independently of callback ordering, SHALL establish only Closed.\nRaw abortive disposal SHALL likewise only close, not initiate cancellation/join.\nOnly an admitted public StopAsync or the engine's own hosted StopAsync SHALL move\nClosed to Stopping, closing first if still Open, and start the one cooperative-\ncancellation/sealing/join operation. Close SHALL NOT acquire the facade start\nsemaphore, wait for a lane, enumerate/cancel users or run serialization/user code\nunder the visibility gate.\n\nA start SHALL acquire host ownership before input fingerprinting and startGate\nqueuing, including pre-Init time. Queued starts SHALL recheck initialization and\nrun no Init if Closed won. A start whose initialization admission won before Closed\nSHALL proceed normally through Init/attempts and MAY publish Accepted while Closed;\nclosing SHALL NOT abort it or convert successful pending-start completion to a\nhost-stopping error. The acceptance/abort election SHALL instead share the Stopping\nvisibility gate. Acceptance winning Stopping SHALL publish Accepted once; Stopping\nthen cancels remaining active workflow work separately. Only starts still unaccepted\nwhen Stopping wins SHALL be unpublished and caller-independently fenced through\ntheir owning lane, preserving immutable terminal status and authoritative original\nerror/caller cancellation, otherwise returning host-stopping. They SHALL release\nphysical capacity only after actual settlement in both retention modes. Closed\nalone SHALL neither abort these initialized starts nor dispatch cancellation. An\ninitialization/attempt admission winning its applicable gate MAY begin/return later\noutside the lock and SHALL remain owned.\n\nAfter ordinary argument/token checks, new/replayed/conflicting StartOrGetAsync in\nClosed or later SHALL fail as host-stopping before input serialization. Registration\nSHALL preserve metadata-only mode/static-capability HostIncompatible precedence;\notherwise compatible registration, including idempotent replay, SHALL fail as\nstopping before mutation or fingerprint-conflict/success. Existing registered-\ndefinition handle lookup on an already-resolved registry SHALL remain a passive\nidentity lookup, with no registration, user callback, DI use or owned work.\n\nIn Closed before Stopping, accepted instances SHALL retain ordinary live instance-\nhandle acquisition (GetInstanceAsync), snapshot,\nstate and output queries, new output waits/pins, cancellation/termination commands,\nevent ingress, delays/timers, retries/resource grants/yield continuations and\nretention behavior. They MAY execute new accepted-instance attempts, notify and\ncommit normally. Closed itself SHALL NOT cancel anything or seal these producers.\nExisting retention/not-found races and explicit per-instance commands/token\ncancellation SHALL retain their normal semantics; no unbounded drain is guaranteed.\n\nFrom Stopping, original-ID absence/retirement and identity/state-type mismatch\nchecks SHALL preserve precedence using metadata only. Otherwise the following new\nlive operations SHALL fail as host-stopping before work, pins or mutation:\n\n- GetInstanceAsync/live instance-handle acquisition: acquiring a runtime handle/pin can create work.\n- Snapshot query: mapping/inspection can invoke runtime or codec work.\n- State query: extraction can use codecs/dependencies.\n- Output query, including terminal output: decoding can run user/dependency work.\n- Output wait: it creates a pin, waiter or decoding work.\n- Cancellation/termination: it can dispatch callbacks, enter a lane or commit.\n- Event ingress: it can invoke handlers, resume work or commit.\n\nAlready-admitted operations, including those admitted during Closed, SHALL finish\nwith their normal result/error and remain joined. No new accepted-instance attempt\nSHALL enter after Stopping; only already-admitted work and required fences/cleanup\nSHALL continue. Shutdown SHALL NOT expire a key, replace an ID, prove an accepted\nstart never ran or grant effect-safe replay. Open/Closed accepted-instance retention\nbehavior and detached caller values SHALL remain unchanged. These six additions\nSHALL add the host lifecycle precondition without rewriting ordinary open-host rules.\n\n#### Scenario: ApplicationStopping precedes every hosted stop\n- **WHEN** the stopping token is cancelled but no engine hosted/public StopAsync has run\n- **THEN** only starts/replays/compatible registrations are closed, no shutdown cancellation is queued, and accepted work continues with ordinary operations and producers\n\n#### Scenario: Accepted work finishes naturally while Closed\n- **WHEN** an accepted physical attempt finishes between admission closure and Stopping\n- **THEN** it can commit and deliver its normal result without a host-requested cancellation\n\n#### Scenario: An event reaches a waiting accepted instance while Closed\n- **WHEN** ingress supplies a valid event after ApplicationStopping but before engine stop\n- **THEN** normal dispatch can satisfy the wait, resume the accepted workflow and commit completion\n\n#### Scenario: A retry or delay resumes while Closed\n- **WHEN** an accepted instance's retry backoff or delay timer becomes ready in Closed\n- **THEN** its continuation can admit the next accepted-instance attempt and complete normally; the host stopping token alone does not cancel or seal it\n\n#### Scenario: A new output waiter arrives during drain\n- **WHEN** a caller starts an output wait on a retained accepted instance while Closed\n- **THEN** the normal waiter/pin is admitted, observes normal completion or local cancellation and remains owned if Stopping later begins\n\n#### Scenario: A noncooperative first step holds the start semaphore\n- **WHEN** close races a pre-handle start running its first physical step\n- **THEN** admission closes without that semaphore, the initialized start remains owned and can return Accepted while Closed after its first step finishes; only a later Stopping phase cancels remaining work or aborts a still-unaccepted start\n\n#### Scenario: A queued start has not initialized\n- **WHEN** a start admitted before close reaches initialization after Closed\n- **THEN** no Init/business step runs and the queued start releases its admission with the authoritative original cancellation/error or host-stopping result\n\n#### Scenario: An initialized pending start completes during Closed\n- **WHEN** initialization admission won before close and its first step finishes during Closed\n- **THEN** the pending start proceeds normally and returns Accepted once; awaiting pending starts during drain does not produce host-stopping merely because close occurred\n\n#### Scenario: Acceptance races Stopping\n- **WHEN** accepted publication and entry to Stopping contend at the same visibility boundary\n- **THEN** acceptance either wins once and the workflow is separately cancelled if still active, or Stopping wins while unaccepted and owning-lane abort preserves authoritative original errors/cancellation and physical ownership\n\n#### Scenario: A retired handle is queried on a stopping host\n- **WHEN** the old handle's original ID has retired before a query in Stopping or Completed\n- **THEN** its typed not-found still names that ID; an otherwise valid retained handle reports host-stopping before any decoding, and no replacement ID is addressed",
+      "historicalCanonicalBlockSha256": "009db0deff82740ebecb0d5b92027d576b3686316d8a861493142d3eb8409fc9"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Management API is scope-oriented and fluent",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "predecessorBlockSha256": "a4d3e7049758e4dd0565ee893b33d4061f841ed7b73d1d71a7690a1e8ebef988",
+      "canonicalBlockSha256": "da1b5b276450abfd7cb8da95e2e8d377f34db6911c01f052c71496455e4872ca",
+      "successorBlockSha256": "da1b5b276450abfd7cb8da95e2e8d377f34db6911c01f052c71496455e4872ca",
+      "historicalCanonicalBlock": "### Requirement: Management API is scope-oriented and fluent\nThe ordinary management interface SHALL use the exact typed definition and instance handles approved by the matrix. The common `IWorkflowDefinitionRegistry` SHALL expose all resultless/resultful ephemeral/durable registration overloads and return the matching typed handle through its closed `Registered` result or resolve an already registered exact typed reference through `GetRequiredHandle`; engine-mode mismatch or missing statically inspectable host capabilities SHALL return `HostIncompatible` before mutation. Exact-reference lookup SHALL never register and SHALL throw `WorkflowDefinitionNotRegisteredException` when absent or stale. Each definition handle SHALL remain the sole owner of typed `StartOrGetAsync` and `GetInstanceAsync`; each instance handle SHALL expose only detached snapshot/state queries, cancellation request, and termination, with typed output query added only by `WorkflowInstanceHandle<TOutput>`. State inspection SHALL remain separate from committed workflow output inspection.\n\n#### Scenario: Operator targets one workflow instance\n- **WHEN** an operator selects a known instance in either execution mode\n- **THEN** `GetSnapshotAsync`, `GetStateAsync<TState>`, optional typed `GetOutputAsync`, `RequestCancellationAsync`, and `TerminateAsync` provide the exact typed results and errors\n\n#### Scenario: Application resolves a configured workflow\n- **WHEN** runtime code supplies an exact typed reference installed by the host's staged definition batch\n- **THEN** `GetRequiredHandle` returns the typed definition handle without registration, a cast, keyed DI, or another workflow client abstraction\n\n#### Scenario: Operator looks for bulk querying\n- **WHEN** an operator inspects ordinary v1 handles\n- **THEN** engine-wide/definition selections, `Where`, list/count/statistics, and bulk mutation members are absent",
+      "historicalCanonicalBlockSha256": "a4d3e7049758e4dd0565ee893b33d4061f841ed7b73d1d71a7690a1e8ebef988"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Retired ephemeral handles have deterministic outcomes",
+      "predecessorChange": "add-ephemeral-terminal-retention",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "6d1054c92bdd79769b207ac292e319ebd3f3038c0a3447bf7e57e2a1f5b67937",
+      "canonicalBlockSha256": "0e78f5fe9acd951aed476bb066c4097b49b0c2828a0b6ce7fb6d12da8d0cc810",
+      "successorBlockSha256": "0e78f5fe9acd951aed476bb066c4097b49b0c2828a0b6ce7fb6d12da8d0cc810",
+      "historicalCanonicalBlock": "### Requirement: Retired ephemeral handles have deterministic outcomes\nHandles SHALL carry identity without extending retained payload lifetime. Operation admission and retirement SHALL share a linearization boundary. A snapshot/state/output query admitted before retirement SHALL pin a coherent unit until it captures a detached result. A pre-existing `WaitForOutputAsync` SHALL subscribe and authoritatively recheck under that protocol, retain an operation pin until detached successful output or terminal failure is captured, and settle without polling or a missed wakeup even if count/age pressure races notification. Completion/error/local caller cancellation SHALL release that pin exactly once; caller cancellation SHALL NOT cancel the workflow. Obtaining a handle alone SHALL NOT grant a pin to later calls. After retirement, `GetInstanceAsync` and every runtime operation on an existing handle SHALL throw existing `WorkflowInstanceNotFoundException`, code `WF-INSTANCE-NOT-FOUND`, carrying that handle's original ID; no replacement instance SHALL be targeted. Previously detached values and completed wait results SHALL remain caller-owned and valid. For a retained instance, existing definition/type mismatch behavior SHALL remain unchanged.\n\n#### Scenario: A stale handle is reused after its key starts a new instance\n- **WHEN** a unit has retired and a later start reuses its former key\n- **THEN** all calls through the old handle fail with not-found for the old ID while the new handle addresses only the new runtime-minted ID\n\n#### Scenario: Output notification races retirement\n- **WHEN** count/age pressure selects a newly terminal instance with already admitted output waiters\n- **THEN** each waiter captures its detached output or typed terminal failure before pin release and no waiter hangs or becomes spuriously not-found\n\n#### Scenario: Caller cancels one output wait\n- **WHEN** local cancellation wins for one admitted waiter\n- **THEN** only its subscription/pin is released and the workflow and other waiters remain unchanged\n\n#### Scenario: Read and retirement interleave\n- **WHEN** a query races the retirement visibility boundary\n- **THEN** it either completes from a pinned detached value or returns typed not-found, with no partially removed state or live payload reference\n\n#### Scenario: Count pressure retires a result between start return and observation\n- **WHEN** `StartOrGetAsync` has returned `Accepted` for a completed unit and enough other units settle to retire it by count before the caller's direct or start-result-helper `WaitForOutputAsync` is admitted\n- **THEN** the wait throws `WorkflowInstanceNotFoundException` for the original ID even though that job ran and may have produced output or side effects; replay of its now-unbound key creates a fresh ID with `WasExisting = false` and may repeat side effects, so not-found after acceptance SHALL NOT be interpreted as proof the run never started or as permission for an effect-safe retry",
+      "historicalCanonicalBlockSha256": "6d1054c92bdd79769b207ac292e319ebd3f3038c0a3447bf7e57e2a1f5b67937"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Typed committed root state and output are queryable",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "dacc721bac2e381fac462a15e1f53fd993b878b096ca64decb572985f550a025",
+      "canonicalBlockSha256": "903b32810c655cfa6622c16e04e5277c3c39236adc1c46ddc6b11b9cd9b7460c",
+      "successorBlockSha256": "903b32810c655cfa6622c16e04e5277c3c39236adc1c46ddc6b11b9cd9b7460c",
+      "historicalCanonicalBlock": "### Requirement: Typed committed root state and output are queryable\nBoth engines SHALL provide fixed-codec-detached root business-state inspection. Resultful definitions SHALL additionally expose `WorkflowOutputResult<TOutput>` as pending, available, or unavailable; resultless definitions SHALL have no synthetic output. `GetStateAsync<TState>` SHALL return the last committed root state and fail with `WorkflowStateTypeMismatchException` for another type. `WorkflowInstanceHandle<TOutput>` SHALL expose `ValueTask<TOutput> WaitForOutputAsync(CancellationToken cancellationToken = default)`, and the start-result helper SHALL expose the callable shape `ValueTask<TOutput> WaitForOutputAsync<TOutput>(this WorkflowStartResult<WorkflowInstanceHandle<TOutput>> start, CancellationToken cancellationToken = default)` after projecting the handle through `GetHandleOrThrow()`. Neither mode SHALL return live state, in-flight attempt copies, branch/item-private payloads, or checkpoint/provider DTOs.\n\nWorkflow output waiting SHALL be notification-driven and race-free: register the terminal/output notification before an authoritative state recheck, complete from the committed output if terminality raced registration, and never poll. A terminal result without output SHALL throw typed `WorkflowOutputUnavailableException` carrying terminal status and optional `WorkflowFailure`. Caller cancellation SHALL cancel only the local wait and SHALL NOT request workflow cancellation or mutate runtime state.\n\n#### Scenario: Durable business state is inspected\n- **WHEN** a caller requests the registered root state type for a retained instance\n- **THEN** management returns a detached value representing the last committed root business state\n\n#### Scenario: Resultful workflow completed\n- **WHEN** a caller queries a successful resultful instance through its typed handle\n- **THEN** it receives the atomically committed `TOutput` and fixed outcome metadata separately\n\n#### Scenario: Output commits while a caller starts waiting\n- **WHEN** successful output commits before, during, or immediately after `WaitForOutputAsync` registers its notification\n- **THEN** subscribe-then-recheck observes the committed output exactly once without polling or a missed wakeup\n\n#### Scenario: Output wait is cancelled by its caller\n- **WHEN** the caller cancellation token wins while output is still pending\n- **THEN** only that local wait is cancelled, while the workflow receives no cancellation request and remains eligible to complete\n\n#### Scenario: Workflow terminates without output\n- **WHEN** a resultful workflow reaches a terminal status that has no successful output\n- **THEN** `WaitForOutputAsync` throws `WorkflowOutputUnavailableException` with that terminal status and optional committed failure\n\n#### Scenario: Structured branches contain private state\n- **WHEN** active branch or item fibers hold payloads of the same or another CLR type\n- **THEN** root-state and output queries never select those private payloads",
+      "historicalCanonicalBlockSha256": "dacc721bac2e381fac462a15e1f53fd993b878b096ca64decb572985f550a025"
+    },
+    {
+      "capability": "structured-fiber-execution",
+      "requirement": "Join policies define one scope outcome",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "MODIFIED",
+      "predecessorBlockSha256": "761c281ae01ace0adb13e4ee4cf4cb6d7910b6379d2c502f79e0a20d49cb5b53",
+      "canonicalBlockSha256": "abb787d8657278214ad3838120aed70e0ee3e8554329b4eaa89fc2b0a6ddaab4",
+      "successorBlockSha256": "abb787d8657278214ad3838120aed70e0ee3e8554329b4eaa89fc2b0a6ddaab4",
+      "historicalCanonicalBlock": "### Requirement: Join policies define one scope outcome\n`WhenAll` SHALL wait for every branch or item to become terminal, SHALL merge once only when all succeed, and otherwise SHALL fail after all finish without automatically cancelling siblings. One failure SHALL be preserved directly; multiple failures SHALL become `SFE-JOIN-FAILED` with causes ordered by authored branch or item index. `WhenAllOutcomes` SHALL wait for every child, merge the complete ordered success/failure outcomes once, and complete the scope successfully. An ancestor cancellation, termination, or workflow deadline SHALL suppress either merge instead of creating a merge-visible cancellation outcome.\n\n#### Scenario: A WhenAll branch fails\n- **WHEN** any `WhenAll` branch commits failure before the scope joins\n- **THEN** remaining branch work is allowed to reach terminal, merge does not execute, and the scope fails with the ordered failure result\n\n#### Scenario: A WhenAllOutcomes branch fails\n- **WHEN** fixed branches reach a mixture of success and failure in any completion order\n- **THEN** the merge executes once with authored-order success/failure outcomes and the parent resumes from its replacement state\n\n#### Scenario: Ancestor terminal transition wins\n- **WHEN** workflow cancellation, termination, or workflow deadline commits while the scope is active\n- **THEN** child work is signalled or fenced, merge is suppressed, and no branch or item cancellation outcome is fabricated",
+      "historicalCanonicalBlockSha256": "761c281ae01ace0adb13e4ee4cf4cb6d7910b6379d2c502f79e0a20d49cb5b53"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow failures carry authored and occurrence provenance",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "f4e682a20efd4aa3a70996053dd07b79beb0b3f15911da2564d85e33813e0c31",
+      "canonicalBlockSha256": "53adb4428771c1ffe87f3681628b328c1d52ebd5d9346c29f21fcba30ff7e7a0",
+      "successorBlockSha256": "53adb4428771c1ffe87f3681628b328c1d52ebd5d9346c29f21fcba30ff7e7a0",
+      "historicalCanonicalBlock": "### Requirement: Workflow failures carry authored and occurrence provenance\nEvery runtime-created `WorkflowFailure` SHALL carry non-null `AuthoredLocation` and non-null\n`FailureOccurrence`. `AuthoredLocation` SHALL use the existing authored-only grammar and identify\nthe instruction at which the failure is created. `FailureOccurrence` SHALL be an externally\nnon-derivable runtime-created abstract record with exactly `Root`, `Branch(AuthoredBranchId)`, and\n`Item(int index)` variants; its base constructor SHALL be `private protected`, variant constructors\nSHALL be internal, branch identity SHALL be non-null, and item index SHALL be nonnegative.\n\nProvenance SHALL attach when the failure is created rather than at join. A single `WhenAll` failure\nSHALL propagate unchanged. A synthesized `SFE-JOIN-FAILED` SHALL carry the owning scope fiber's\noccurrence while each ordered cause retains its own provenance. Occurrence variants SHALL retain\nrecord value equality; `WorkflowFailure` SHALL retain reference equality. Detachment SHALL copy\nlocation, occurrence, and causes. `orcacore-json-v1` SHALL round-trip the closed versioned\noccurrence discriminator allowlist `root`, `branch`, and `item`.\n\n#### Scenario: One ForEach item fails\n- **WHEN** root `ForEach.WhenAll` has exactly one failed item\n- **THEN** the propagated failure retains the authored instruction location and that item's stable index occurrence without a synthetic join wrapper\n\n#### Scenario: Several branches fail\n- **WHEN** root `Parallel.WhenAll` synthesizes `SFE-JOIN-FAILED`\n- **THEN** the aggregate records the owning root occurrence and every authored-order cause retains its own branch occurrence\n\n#### Scenario: Consumer matches an occurrence\n- **WHEN** application code switches over a `FailureOccurrence`\n- **THEN** it can handle the three documented variants and uses a defensive default because C# v1 does not compiler-enforce exhaustiveness for the closed runtime-created hierarchy",
+      "historicalCanonicalBlockSha256": "f4e682a20efd4aa3a70996053dd07b79beb0b3f15911da2564d85e33813e0c31"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow success projections and output waits are typed",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "predecessorBlockSha256": "4a7aeb679b4d019e48d0052bd40ed26677bbb023cb91eaed08617ffc9c6454d7",
+      "canonicalBlockSha256": "aa35a7e882a3a3d62ba6840a90ea021148ce0fbec909d9f21f50e6b6bcad2174",
+      "successorBlockSha256": "aa35a7e882a3a3d62ba6840a90ea021148ce0fbec909d9f21f50e6b6bcad2174",
+      "historicalCanonicalBlock": "### Requirement: Workflow success projections and output waits are typed\n`WorkflowRegistrationResult<TDefinitionHandle>` SHALL be the closed union of `Registered`, `HostIncompatible(DefinitionHostCompatibilityFailure)`, and `Conflict(DefinitionRegistrationConflict)`. `DefinitionHostCompatibilityFailure` SHALL be the closed union of `EngineModeMismatch`, `MissingTransientPools`, `MissingDurableResourcePools`, and `MissingWorkflowEventDispatcher`; each missing-name collection SHALL be defensively copied, distinct, and ordinal-sorted. Validation SHALL perform mode mismatch first, then all statically inspectable host capabilities, then fingerprint conflict, with no registry mutation on failure. Ephemeral registration SHALL inspect all authored transient-pool names; durable registration SHALL inspect static lease requests and require an application dispatcher for authored `Publish`, while selector-created durable names remain runtime validation. `IWorkflowDefinitionRegistry` SHALL expose four typed `GetRequiredHandle(reference)` overloads that resolve an already registered exact mode/identity/version/fingerprint and never register; no match SHALL throw `WorkflowDefinitionNotRegisteredException` with code `WF-DEFINITION-NOT-REGISTERED` carrying the requested reference's `DefinitionId`, `DefinitionVersion`, and `DefinitionFingerprint` as immutable structured properties. `WorkflowStartResult<TInstanceHandle>` SHALL retain its closed accepted/conflict variants. Both results SHALL expose `GetHandleOrThrow()` returning the typed handle without a cast. Host incompatibility SHALL throw `WorkflowDefinitionHostCompatibilityException` with code `WF-DEFINITION-HOST-INCOMPATIBLE` carrying the failure, registration conflict SHALL throw `WorkflowDefinitionRegistrationConflictException`, and start conflict SHALL throw `WorkflowStartIdempotencyConflictException`; each exception SHALL carry the original closed value. `WorkflowInstanceHandle<TOutput>` SHALL expose `ValueTask<TOutput> WaitForOutputAsync(CancellationToken cancellationToken = default)`. A convenience extension with the callable shape `ValueTask<TOutput> WaitForOutputAsync<TOutput>(this WorkflowStartResult<WorkflowInstanceHandle<TOutput>> start, CancellationToken cancellationToken = default)` SHALL first project through `GetHandleOrThrow()`, enabling `await start.WaitForOutputAsync(token)`. Both wait forms SHALL be notification-driven and race-free, SHALL return the fixed-codec-detached output, SHALL never poll, and SHALL treat caller cancellation as cancellation of only the local wait rather than the workflow. If the instance terminalizes without output, they SHALL throw `WorkflowOutputUnavailableException` carrying its terminal status and optional `WorkflowFailure`. Durable waiting SHALL subscribe and recheck around the committed notification boundary so a completion cannot be lost. Resultless handles and resultless start results SHALL expose no output wait.\n\n#### Scenario: Registration succeeds on the common path\n- **WHEN** a consumer calls `GetHandleOrThrow()` on a registered workflow result\n- **THEN** the exact typed definition handle is returned without a downcast or variant pattern match\n\n#### Scenario: Configuration-registered definition is resolved\n- **WHEN** a consumer calls `GetRequiredHandle` with an exact typed reference staged and installed at startup\n- **THEN** the corresponding handle is returned without registration or keyed service resolution\n\n#### Scenario: Definition does not fit the selected host\n- **WHEN** registration observes an engine-mode mismatch or one or more missing statically inspectable pools\n- **THEN** it returns `HostIncompatible` before mutation, and `GetHandleOrThrow()` throws `WorkflowDefinitionHostCompatibilityException` carrying the unchanged closed failure\n\n#### Scenario: Start conflicts on the convenience path\n- **WHEN** a consumer calls `await start.WaitForOutputAsync(token)` on a conflicting resultful start\n- **THEN** `GetHandleOrThrow()` first throws `WorkflowStartIdempotencyConflictException` carrying the original `StartIdempotencyConflict`, and no output subscription is created\n\n#### Scenario: Output becomes available after subscription\n- **WHEN** a resultful workflow commits output while `WaitForOutputAsync` is pending\n- **THEN** the notification-driven wait completes once with the detached output without polling or losing the completion race\n\n#### Scenario: Local output wait is cancelled\n- **WHEN** the caller cancels the token passed to `WaitForOutputAsync`\n- **THEN** only that local wait is cancelled and the workflow receives no cancellation or termination request\n\n#### Scenario: Workflow terminalizes without output\n- **WHEN** a resultful instance becomes failed, timed out, cancelled, or terminated before committing output\n- **THEN** `WaitForOutputAsync` throws `WorkflowOutputUnavailableException` carrying the terminal status and optional detached failure",
+      "historicalCanonicalBlockSha256": "4a7aeb679b4d019e48d0052bd40ed26677bbb023cb91eaed08617ffc9c6454d7"
+    }
+  ],
+  "canonicalReviewPending": true,
+  "sourceImplementationAuthorized": false,
+  "checkpointCommit": "0cae922a1d68f4c55f9bfc19b50060bfcdbaaa83",
+  "checkpointParent": "0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580",
+  "checkpointTree": "cf054886e39c20d9294b3baac55e58fa19c6bbdf",
+  "approvalEvidenceCommit": "7697c7981c02d03408cbccf9a2e0b9bade33ca14",
+  "verdictPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-external-independent-review-verdict-2026-10-29.md",
+  "verdictSha256": "3e7fc94ef23e6c0130e23aecc349a71248b5da3f6c5992d178d2da78a6f12fd8",
+  "synchronizedOperations": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Completion waits are notification-driven and race-free",
+      "operation": "MODIFIED",
+      "blockSha256": "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1"
+    },
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Ephemeral settlement observation is a passive handle operation",
+      "operation": "ADDED",
+      "blockSha256": "a632c6370287489da951b94b1d950e22bdedb80fbac0fd396e02fea2b3a68ea2"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Management API is scope-oriented and fluent",
+      "operation": "MODIFIED",
+      "blockSha256": "da1b5b276450abfd7cb8da95e2e8d377f34db6911c01f052c71496455e4872ca"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Typed committed root state and output are queryable",
+      "operation": "MODIFIED",
+      "blockSha256": "903b32810c655cfa6622c16e04e5277c3c39236adc1c46ddc6b11b9cd9b7460c"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Retired ephemeral handles have deterministic outcomes",
+      "operation": "MODIFIED",
+      "blockSha256": "0e78f5fe9acd951aed476bb066c4097b49b0c2828a0b6ce7fb6d12da8d0cc810"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Ephemeral host shutdown closes admission atomically",
+      "operation": "MODIFIED",
+      "blockSha256": "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Completed ephemeral host shutdown proves host-wide quiescence",
+      "operation": "MODIFIED",
+      "blockSha256": "c501a0d41ff62fdd463c3ca8761e26edc727a3110e9d1f47ad49e3a61193815c"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Ephemeral physical settlement is independently observable",
+      "operation": "ADDED",
+      "blockSha256": "32f2650202968cd33ad451c558945f884c82d7445f905e15a695fcf6e5e92483"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Ephemeral original failures and settlement are behavior verified",
+      "operation": "ADDED",
+      "blockSha256": "8d33b5f27865045a2293d553b6d086ad160cf4648ab634b44e73a3147444c186"
+    },
+    {
+      "capability": "structured-fiber-execution",
+      "requirement": "Join policies define one scope outcome",
+      "operation": "MODIFIED",
+      "blockSha256": "abb787d8657278214ad3838120aed70e0ee3e8554329b4eaa89fc2b0a6ddaab4"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow success projections and output waits are typed",
+      "operation": "MODIFIED",
+      "blockSha256": "aa35a7e882a3a3d62ba6840a90ea021148ce0fbec909d9f21f50e6b6bcad2174"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow failures carry authored and occurrence provenance",
+      "operation": "MODIFIED",
+      "blockSha256": "53adb4428771c1ffe87f3681628b328c1d52ebd5d9346c29f21fcba30ff7e7a0"
+    }
+  ],
+  "normativeDocumentationSuccessors": [
+    {
+      "path": "README.md",
+      "beforeSha256": "c3dd637721d235ded288e6e0039049d04cd7b3104065e75f4327ab3a009e4564",
+      "afterSha256": "ae0dd0d6c7dd06c9dce1d889407d7db45baf43b8cc027f740d48729123551b61"
+    },
+    {
+      "path": "docs/ephemeral-engine-developer-guide.md",
+      "beforeSha256": "4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0",
+      "afterSha256": "0bb2f9493df043172f446d61294ff963df367a007d00e49455c5352a95996d9c"
+    },
+    {
+      "path": "docs/ephemeral-native-support.md",
+      "beforeSha256": "2cffef9edd18745b820214d99292f0eb27280adf660ace2033c57faa2b41e198",
+      "afterSha256": "c9e4f52a20129489a5256f4d266c0d56d06b92c68a8980e21fcf1dfe9dc86899"
+    },
+    {
+      "path": "docs/normative-source-map.md",
+      "beforeSha256": "4bbecd28e5ede36215e5a7c68b903fe617c60ee1830a696788c3ff0c07b1afdf",
+      "afterSha256": "7cb1cf7d4678bc897198627ab261e2e50c6040b83a310cf87ce7758e07e2ac40"
+    },
+    {
+      "path": "docs/packages.md",
+      "beforeSha256": "cea690c7db747ab6a976807ddd6324aac9c44f5d5bacd440a42a507ca3e04eab",
+      "afterSha256": "a6557cc353876915f3bd599253bc02f24f71312f67b5ca060ec6bc41577a265b"
+    },
+    {
+      "path": "docs/specs/03-domain-model-and-glossary.md",
+      "beforeSha256": "f541785b062b14fd8b5231124cc50952da87c111fd9c0883093484ff8154a175",
+      "afterSha256": "5750f167b24f5d3b66368583690c011372c706d9f3ad26dbafb3520571ef09bc"
+    },
+    {
+      "path": "docs/specs/04-requirements-core-runtime.md",
+      "beforeSha256": "e95bee32f37239d85bee0772694ab3c82b46212f482526728e9c8c01e50da876",
+      "afterSha256": "ad76459771d1101cda0adcd1ce17828cbec269d83a03d9457067f2d86d716744"
+    },
+    {
+      "path": "docs/specs/08-requirements-composition.md",
+      "beforeSha256": "6f97ed004cef8ee58648b2f41744e4ccf93ddf157a589124c19132067f7e9c9e",
+      "afterSha256": "6abb679e3691a47666d27607da4f543d2a75223da47e634bd00da9fa53b67bf9"
+    },
+    {
+      "path": "docs/specs/09-requirements-management-operations.md",
+      "beforeSha256": "c24a44983974023b20d6e59cee0162bf1caf48140ebe307942f006dc7eb5a738",
+      "afterSha256": "f3d29bb2942c273a06ac263567366b882ead8b0c04233ef857727dfaef7f9705"
+    },
+    {
+      "path": "docs/specs/10-provider-model-and-extensibility.md",
+      "beforeSha256": "2e832b0068a3c31fd0e41db64db4624272dd2f90b224cc98078040e42f44acca",
+      "afterSha256": "2451bc8bc6fa96182948a1c745b7cc93bcba8709296e2ff21944f08ecbae4389"
+    },
+    {
+      "path": "docs/specs/11-non-functional-requirements.md",
+      "beforeSha256": "44a41e66c8ff6712519b09f482f2dead8a2d3ca0f04931dee2565c503805bea1",
+      "afterSha256": "d7f6fa1add6e6b4368a45e5e0743f1bf3a5c4094d534dbeb1206912bdca3ac9a"
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "6fbd9b7716acfbd2fb4d9676e640d03eecd09d2e0380f3ddcb97c141304fc31b",
+      "afterSha256": "568ba469524110af0a1c3b91040cdfaf06e057ae2e7b0773a4dcf3b28153d830"
+    },
+    {
+      "path": "docs/specs/13-phasing-and-open-questions.md",
+      "beforeSha256": "9c5e51821dab5ed9b257d64c25d9639dcba23a15390746478d3cc4263495ae8f",
+      "afterSha256": "6d018a7e3b6806956bbc4199568dc7474064a779334b583385df873ff3b48a08"
+    },
+    {
+      "path": "docs/specs/15-requirements-observability-otel.md",
+      "beforeSha256": "fca3e7acee152f96c26f461ef13f058513f727ca8106fdee4df67eeb70de284c",
+      "afterSha256": "b7535d2374c3146e7de696c4a680050922b7a56f1c8ed6cad799e1d2eedc8ad7"
+    },
+    {
+      "path": "docs/specs/17-public-authoring-contract.cs",
+      "beforeSha256": "327b054c4c0d4cc8f77347c26ac8342f9f355ba83a45d07567111d66190ce4d6",
+      "afterSha256": "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536"
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "beforeSha256": "1feb0801924be67e0abe164723f50c24cc80b43284f3dbabb0ad6431ba849a29",
+      "afterSha256": "efcaae57972fbbd38cd070f33386483eb4debea1d51e589e1b1bf0a6b58fa88c"
+    }
+  ],
+  "canonicalFiles": [
+    {
+      "path": "openspec/specs/developer-facing-surface/spec.md",
+      "beforeSha256": "9ee055f6bb9520c992d86aa1b6fbe58e5e12798cd940c1f909dfab3e3b44937b",
+      "afterSha256": "acb2d03660e081cd9b8e20982cf1074ebeaa88b3f067da41d6e009c07d6127a1"
+    },
+    {
+      "path": "openspec/specs/durable-persistence-and-outbox/spec.md",
+      "beforeSha256": "691031135a18e50eb82944960f2249c3c01d653745283d4f2dcb4662eedad0d8",
+      "afterSha256": "691031135a18e50eb82944960f2249c3c01d653745283d4f2dcb4662eedad0d8"
+    },
+    {
+      "path": "openspec/specs/durable-runtime/spec.md",
+      "beforeSha256": "bdc574beee3acc0069773a11f668b4894d9531e38c97d94e5a5765deeb3cfa1c",
+      "afterSha256": "bdc574beee3acc0069773a11f668b4894d9531e38c97d94e5a5765deeb3cfa1c"
+    },
+    {
+      "path": "openspec/specs/event-driven-prototype/spec.md",
+      "beforeSha256": "e7acef58398ad572c94b8fec658cfde043ba56c1338d55855a120b62657830c6",
+      "afterSha256": "e7acef58398ad572c94b8fec658cfde043ba56c1338d55855a120b62657830c6"
+    },
+    {
+      "path": "openspec/specs/event-routing-and-waits/spec.md",
+      "beforeSha256": "e51e4deb0941936d000192a19cd8eeca779a378249b4d8aecb597e289c2ab296",
+      "afterSha256": "e51e4deb0941936d000192a19cd8eeca779a378249b4d8aecb597e289c2ab296"
+    },
+    {
+      "path": "openspec/specs/management-and-querying/spec.md",
+      "beforeSha256": "0351617a08772d9f296a7a179cd29dc789ed797aa92765f1de033860f55243b3",
+      "afterSha256": "244031ed3ee641d57ed467bcb0a3d2741e5300e705b4b8356dcde2967a9ec4f7"
+    },
+    {
+      "path": "openspec/specs/quality-and-verification/spec.md",
+      "beforeSha256": "31bc4812deb86f8195d12f12e32bcc351e1cfc860d93abdacf72938ad89c1abd",
+      "afterSha256": "e1cfb8e47607e6e216628ebb0eeecdc633ff5af0add7442c75a3ab2a565fa610"
+    },
+    {
+      "path": "openspec/specs/repository-foundation/spec.md",
+      "beforeSha256": "4baa0211862fb910a256f1ab99ca4a2ccf9fc4fdae5c6064ee9a909755aac89d",
+      "afterSha256": "4baa0211862fb910a256f1ab99ca4a2ccf9fc4fdae5c6064ee9a909755aac89d"
+    },
+    {
+      "path": "openspec/specs/runtime-resource-governance/spec.md",
+      "beforeSha256": "b6599a9c9b2a60c78640aa8682f000230897e5ec6abf08359dba85c675d3b924",
+      "afterSha256": "b6599a9c9b2a60c78640aa8682f000230897e5ec6abf08359dba85c675d3b924"
+    },
+    {
+      "path": "openspec/specs/saga-orchestration/spec.md",
+      "beforeSha256": "01e1664c8a78cd6c00c35f2e6aade8b9cbaa1de039da52dc13f7376b7781b418",
+      "afterSha256": "01e1664c8a78cd6c00c35f2e6aade8b9cbaa1de039da52dc13f7376b7781b418"
+    },
+    {
+      "path": "openspec/specs/state-driven-runtime/spec.md",
+      "beforeSha256": "d9ea3cbc2dcf52f891250c71698c16ffa9ca11f9a6101af99bbf86364aa9305d",
+      "afterSha256": "d9ea3cbc2dcf52f891250c71698c16ffa9ca11f9a6101af99bbf86364aa9305d"
+    },
+    {
+      "path": "openspec/specs/structured-fiber-execution/spec.md",
+      "beforeSha256": "72878548bdf48e93712de842a8f7deb144a84404958df3769b4666d4dc965579",
+      "afterSha256": "5061343198e9f29c0595199b01ef5ca430cccc194b6a82d54a5759c44689a687"
+    },
+    {
+      "path": "openspec/specs/workflow-authoring/spec.md",
+      "beforeSha256": "1a2bf4b8cfd5c1d921e18d6dfda19cf195bec1c13c811df646b320a5152d9a21",
+      "afterSha256": "1a2bf4b8cfd5c1d921e18d6dfda19cf195bec1c13c811df646b320a5152d9a21"
+    },
+    {
+      "path": "openspec/specs/workflow-contracts/spec.md",
+      "beforeSha256": "4933c487e13ba0d03f47d94e175e7ca2529a6d6792b273e41eb0877e5d6ae5d2",
+      "afterSha256": "f63220026e9edb3f8fa4e86279f2c9def3cfc8b07519b0e677c08539416d50a9"
+    }
+  ]
+}

@@ -65,19 +65,23 @@ public sealed class ShutdownOwnershipTests
             .Then<CallbackBody>().WithStepTimeout(TimeSpan.FromSeconds(30)).End().Build();
         var start = host.Start(host.Register(definition));
         await body.Entered.Task.WaitAsync(Guard, Token);
+        Task? receipt = null;
         try
         {
             Record.Exception(() => host.Clock.Advance(TimeSpan.FromSeconds(30))).Should().BeNull("a step-token callback cannot escape a system timer");
             await body.CallbackEntered.Task.WaitAsync(Guard, Token);
             var instance = (await start.WaitAsync(Guard, Token)).GetHandleOrThrow();
             (await instance.GetSnapshotAsync(Token)).Status.Should().Be(WorkflowInstanceStatus.Failed);
+            receipt = instance.WaitForSettlementAsync(Token).AsTask();
             body.ReleaseBody.TrySetResult();
             await body.BodyReturned.Task.WaitAsync(Guard, Token);
+            receipt.IsCompleted.Should().BeFalse("even physical body return cannot bypass a blocked cancellation handler");
             (await host.Lifetime.StopAsync(TimeSpan.Zero, Token)).Should().BeOfType<EphemeralHostShutdownResult.Incomplete>();
         }
         finally { body.ReleaseBody.TrySetResult(); body.ReleaseCallback.Set(); }
         (await host.Lifetime.StopAsync(Timeout.InfiniteTimeSpan, Token).AsTask().WaitAsync(Guard, Token))
             .Should().BeOfType<EphemeralHostShutdownResult.Completed>();
+        await receipt!.WaitAsync(Guard, Token);
     }
 
     [Fact]

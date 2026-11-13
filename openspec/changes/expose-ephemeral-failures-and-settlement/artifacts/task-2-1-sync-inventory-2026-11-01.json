@@ -1,0 +1,74 @@
+[
+  {
+    "capability": "developer-facing-surface",
+    "requirement": "Completion waits are notification-driven and race-free",
+    "operation": "MODIFIED",
+    "blockSha256": "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1"
+  },
+  {
+    "capability": "developer-facing-surface",
+    "requirement": "Ephemeral settlement observation is a passive handle operation",
+    "operation": "ADDED",
+    "blockSha256": "a632c6370287489da951b94b1d950e22bdedb80fbac0fd396e02fea2b3a68ea2"
+  },
+  {
+    "capability": "management-and-querying",
+    "requirement": "Management API is scope-oriented and fluent",
+    "operation": "MODIFIED",
+    "blockSha256": "da1b5b276450abfd7cb8da95e2e8d377f34db6911c01f052c71496455e4872ca"
+  },
+  {
+    "capability": "management-and-querying",
+    "requirement": "Typed committed root state and output are queryable",
+    "operation": "MODIFIED",
+    "blockSha256": "903b32810c655cfa6622c16e04e5277c3c39236adc1c46ddc6b11b9cd9b7460c"
+  },
+  {
+    "capability": "management-and-querying",
+    "requirement": "Retired ephemeral handles have deterministic outcomes",
+    "operation": "MODIFIED",
+    "blockSha256": "0e78f5fe9acd951aed476bb066c4097b49b0c2828a0b6ce7fb6d12da8d0cc810"
+  },
+  {
+    "capability": "management-and-querying",
+    "requirement": "Ephemeral host shutdown closes admission atomically",
+    "operation": "MODIFIED",
+    "blockSha256": "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d"
+  },
+  {
+    "capability": "management-and-querying",
+    "requirement": "Completed ephemeral host shutdown proves host-wide quiescence",
+    "operation": "MODIFIED",
+    "blockSha256": "c501a0d41ff62fdd463c3ca8761e26edc727a3110e9d1f47ad49e3a61193815c"
+  },
+  {
+    "capability": "management-and-querying",
+    "requirement": "Ephemeral physical settlement is independently observable",
+    "operation": "ADDED",
+    "blockSha256": "32f2650202968cd33ad451c558945f884c82d7445f905e15a695fcf6e5e92483"
+  },
+  {
+    "capability": "quality-and-verification",
+    "requirement": "Ephemeral original failures and settlement are behavior verified",
+    "operation": "ADDED",
+    "blockSha256": "8d33b5f27865045a2293d553b6d086ad160cf4648ab634b44e73a3147444c186"
+  },
+  {
+    "capability": "structured-fiber-execution",
+    "requirement": "Join policies define one scope outcome",
+    "operation": "MODIFIED",
+    "blockSha256": "abb787d8657278214ad3838120aed70e0ee3e8554329b4eaa89fc2b0a6ddaab4"
+  },
+  {
+    "capability": "workflow-contracts",
+    "requirement": "Workflow success projections and output waits are typed",
+    "operation": "MODIFIED",
+    "blockSha256": "aa35a7e882a3a3d62ba6840a90ea021148ce0fbec909d9f21f50e6b6bcad2174"
+  },
+  {
+    "capability": "workflow-contracts",
+    "requirement": "Workflow failures carry authored and occurrence provenance",
+    "operation": "MODIFIED",
+    "blockSha256": "53adb4428771c1ffe87f3681628b328c1d52ebd5d9346c29f21fcba30ff7e7a0"
+  }
+]

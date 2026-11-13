@@ -39,8 +39,9 @@ internal static class EphemeralContractAdapter
         string message,
         AuthoredLocation authoredLocation,
         FailureOccurrence occurrence,
-        IReadOnlyList<WorkflowFailure> causes) =>
-        new(code, message, authoredLocation, occurrence, causes);
+        IReadOnlyList<WorkflowFailure> causes,
+        string? exceptionType = null) =>
+        new(code, message, authoredLocation, occurrence, causes, exceptionType);
 
     internal static WorkflowWaitTimeoutException WaitTimeout(
         WorkflowEventContract eventContract,

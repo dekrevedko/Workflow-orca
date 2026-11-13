@@ -227,6 +227,11 @@ operations still finish normally and are joined. After Completed there is no new
 engine work, DI/user code, timer, diagnostic or commit: only passive registered
 identity, previously detached values and cached Completed remain available.
 
+The issue #16 source checkpoint adds passive settlement observation on an
+already-issued handle in Closed and Stopping. The completed receipt remains
+readable after Completed and correct owner disposal. Preview.3 predates this
+API. See the [resource-release recipe](#issue-16-resource-release-recipe).
+
 Incomplete has Reason/PendingWorkCount, not stuck-instance identities. **Before
 calling stop**, inspect existing snapshots/state and stuck-step/lifecycle diagnostics
 to identify and record suspect instances. Once Stopping rejects live queries use
@@ -254,14 +259,17 @@ Completed and DI ownership rules taught here. Reproduction, exact package and
 host identities, individual findings and measurements are recorded in
 [the assessment harness](../tools/ephemeral-native-assessment/README.md).
 
-## Issue #13 native metadata path (source-qualified; release pending)
+## Issue #13 native metadata path
 
 User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
 this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
-and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
-Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
-version is published by this approval. See [the qualified recipe](ephemeral-native-support.md).
+and Ubuntu 24.04 linux-x64. The 2026-10-28 preparation recorded the status
+as “source-qualified; release pending.” Published `0.1.0-preview.3` passed all
+384 cases in the same six profiles using its exact release assets. Published
+`0.1.0-preview.2` retains its unsupported trimming and AOT assessment. See
+[the qualified recipe](ephemeral-native-support.md) and the
+[preview.3 publication and exact-asset results](releases/0.1.0-preview.3/published-2026-10-29.md).
 
 The qualified startup order is: register the existing ephemeral role in
 IServiceCollection; call WorkflowJsonMetadata.Register<AppJsonContext>(); author
@@ -326,3 +334,56 @@ AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required
 A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
+
+## Issue #16 resource-release recipe
+
+The issue #16 checkpoint implements this recipe. Preview.3 predates the
+settlement API, so use the checkpointed source when trying the example. Keep
+application resources that a step uses until its accepted handle's
+`WaitForSettlementAsync` succeeds. Output success or failure, logical timeout
+and local output-wait cancellation can precede physical return.
+
+Capture the accepted handle, await output in a try, and in the owner's finally await
+settlement with an owner-controlled cleanup token before disposing that job's
+resources. If cleanup observation is cancelled or does not complete, retain them.
+Observe from outside the still-owned step/callback; a step cannot await its own
+return. Steps must await their process/I/O/read-copy tasks before returning;
+unjoined FFmpeg or fire-and-forget work is outside engine proof.
+
+A start that fails/cancels before Accepted supplies no handle or receipt, including
+an abort when host Stopping wins after Init. Retain resources through step-owned
+cleanup, your own physical-work owner or a completed host-wide StopAsync. Do not
+infer return from the start error. Shared/root DI disposal always needs host-wide
+Completed and other hosted-service obligations, even after one receipt succeeds.
+
+An elected single business-step failure is exposed as the exact original object in
+WorkflowOutputUnavailableException.InnerException. Failure is still authoritative
+detached data; ExceptionType is only diagnostic text. Do not deserialize/resolve
+that name or use it for matching. Code remains identity. Both direct and start-result
+output waits use the same rule, subject to ordinary admission/retirement races.
+Retried steps expose the final elected object; true join aggregates have ordered
+detached causes and no invented live aggregate. Durable waits keep no live original.
+
+Multiple observers may receive the same object. To rethrow it, use
+`ExceptionDispatchInfo.Capture(error.InnerException).Throw()` after checking it is
+non-null, or wrap it as an inner cause. Do not use `throw inner;`, which resets the
+shared object's stack. The engine itself does not rethrow or reset it. A caller-held
+exception may retain arbitrary application objects even after the engine retires
+the instance; drop caller references when finished.
+
+Settlement observers add no payload pin or host obligation. Old issued receipts
+succeed after count/age retirement and never address a replacement ID under the
+same key. Ordinary stale output/query/command calls still return original-ID
+not-found; that never proves the job did not run or permits effect-safe replay.
+In Closed, accepted workflows keep their ordinary operations and can drain.
+In Stopping, new live operations are rejected, subject to the existing identity
+and not-found checks. Settlement observation stays passive on an already-issued
+handle in both phases. A completed receipt remains readable after Completed and
+correct owner disposal with no DI/codec/user/engine work. A pre-cancelled token
+still cancels locally; durable calls otherwise reject without I/O.
+
+Typed failure values use the seven-field version-2 subformat. Older readers
+reject those values. Use a matched package closure when rolling out the new
+format. All-null-type failure graphs retain five-field legacy bytes. The new
+source passed the type-name, codec and settlement cases in all six hosted
+profiles. [Native run 42554435708](https://github.com/dekrevedko/Workflow-orca/actions/runs/42554435708)

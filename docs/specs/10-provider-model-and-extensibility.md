@@ -331,3 +331,18 @@ The selected three-package closure gains no durable/DAG/provider support claim.
 [NF-034, AC-563–574]
 
 The approved 2026-10-25 catalogue also exposes only the existing sealed OrcaCore.Abstractions.Ids.StrongStringValueJsonConverterFactory, its implicit parameterless constructor and two overrides. The eleven-type table/body and strong-value attributes remain unchanged. Ordinary generated DTO attribution is allowed; explicit context converter settings, even for this factory, still reject before publication with valid retry. No provider ownership or codec replacement is introduced.
+
+## PR-042 Issue #16 contract ownership (implementation pending)
+
+PackageId/assembly and namespace OrcaCore own exactly the nullable runtime-created
+WorkflowFailure.ExceptionType getter and the nonvirtual base
+WorkflowInstanceHandle.WaitForSettlementAsync(CancellationToken = default) method.
+No public constructor, setter, helper, overload, option, exception class, provider
+port, package, dependency or friend is added. The existing operational wrapper
+uses inherited InnerException, ephemeral only. Durable settlement rejects locally
+without provider access. Durable engine-produced failure fields stay null-type;
+fiber/checkpoint/outbox/projection/provider stored failure bytes must match base
+0a8e375 in InMemory and provider certification. Shared typed application values
+can use the exact legacy/v2 reader without changing durable error production.
+The normative companion changes in task 2.1; executable assembly/compile/package
+baselines change only with task 3 source. Contract text is not an installed API.
