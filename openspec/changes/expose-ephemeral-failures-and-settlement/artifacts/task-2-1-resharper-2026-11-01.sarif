@@ -1,0 +1,4854 @@
+{
+  "$schema": "https://schemastore.azurewebsites.net/schemas/json/sarif-2.1.0-rtm.6.json",
+  "version": "2.1.0",
+  "runs": [
+    {
+      "results": [
+        {
+          "ruleId": "CSharp14OverloadResolutionWithSpanBreakingChange",
+          "ruleIndex": 0,
+          "level": "note",
+          "message": {
+            "text": "The resolution for this invocation has changed in C# 14 due to a breaking change in overload resolution with spans. This can cause runtime exceptions when compiled with interpretation."
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 246,
+                  "startColumn": 101,
+                  "endLine": 246,
+                  "endColumn": 109,
+                  "charOffset": 12742,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "5CA57B7C68B9C6363BDE97F1CD62960E425207631167EDA37BB8A0F774D54756"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ActiveReviewFreeze' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7320,
+                  "startColumn": 27,
+                  "endLine": 7320,
+                  "endColumn": 45,
+                  "charOffset": 406557,
+                  "charLength": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "00FCC260AD19B39BE9BC117047C80F1B13475D8548443FE4C198945CAA660874"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ArchivedReviewFreeze' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7345,
+                  "startColumn": 27,
+                  "endLine": 7345,
+                  "endColumn": 47,
+                  "charOffset": 407288,
+                  "charLength": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3F02A6587B87B28F089902EE8EFDA871BFC37949C8959EC731CE9F6D3810AEE4"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'EphemeralRetentionContractEvidence' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7161,
+                  "startColumn": 27,
+                  "endLine": 7161,
+                  "endColumn": 61,
+                  "charOffset": 399919,
+                  "charLength": 34
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "064EC1035F49CCB8765E5348D7F182C53D53D7E626D2D8DB258298F62C1EC4CD"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'HistoricalCanonicalRemoval' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7301,
+                  "startColumn": 27,
+                  "endLine": 7301,
+                  "endColumn": 53,
+                  "charOffset": 405951,
+                  "charLength": 26
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "749AAF0E0C6D4C7B29AFF48707C335F8FA3473C8423BED96EF557EFFB74993A9"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ImmutableDocumentHistoryFixture' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7035,
+                  "startColumn": 27,
+                  "endLine": 7035,
+                  "endColumn": 58,
+                  "charOffset": 394811,
+                  "charLength": 31
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C5B41D527A40A740E742C986F37BA032AC799530307BC8D2C47370A5F4984B6B"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'MutableHistoricalDocumentPath' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7048,
+                  "startColumn": 27,
+                  "endLine": 7048,
+                  "endColumn": 56,
+                  "charOffset": 395285,
+                  "charLength": 29
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B4357827BC0C22DDD8C7B24C3A4A2A2D72E0046BDDDB1490AA664C0FC837D311"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'OpenSpecProvenanceCheckpoint' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7075,
+                  "startColumn": 27,
+                  "endLine": 7075,
+                  "endColumn": 55,
+                  "charOffset": 396221,
+                  "charLength": 28
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "8FA3BE040D056AF36C6C87F63BA8F14A1BF303A6FE0C517A7C12AF9E3C58DA3D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'PostGateAmendment' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7273,
+                  "startColumn": 27,
+                  "endLine": 7273,
+                  "endColumn": 44,
+                  "charOffset": 404860,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "4BE5C2B7C7E7F0A986E13299866C4AADC88B54C047801F526A0A0C76762E4A4C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'PostGateAmendmentCheckpoint' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7133,
+                  "startColumn": 27,
+                  "endLine": 7133,
+                  "endColumn": 54,
+                  "charOffset": 398236,
+                  "charLength": 27
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "8EEDCA2D6575F68B83CF539179EED7204EE65715743ECB62C01DDB07A1CFE35C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ProvenanceNewCanonicalCapability' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7125,
+                  "startColumn": 27,
+                  "endLine": 7125,
+                  "endColumn": 59,
+                  "charOffset": 398016,
+                  "charLength": 32
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "A9E48F2169A165CFE8E57729381922BF313244E15D39CAD86ABA9D92C27DC4DE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ProvenanceNewCapability' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7114,
+                  "startColumn": 27,
+                  "endLine": 7114,
+                  "endColumn": 50,
+                  "charOffset": 397734,
+                  "charLength": 23
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "34BBD0FCF257D00CE4C2A2D6882F36E671DB6914B43E6A6739D3623BF12A4DCE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ProvenancePendingCapability' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7108,
+                  "startColumn": 27,
+                  "endLine": 7108,
+                  "endColumn": 54,
+                  "charOffset": 397567,
+                  "charLength": 27
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "F439102F1AADFEFA887C76F40FD76F48EB64ECE39E019BDB13DE828983AE7D0A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'RejectedReviewFreeze' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7330,
+                  "startColumn": 27,
+                  "endLine": 7330,
+                  "endColumn": 47,
+                  "charOffset": 406851,
+                  "charLength": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "409AFE72BA734AE0FBB49394C7A0B2F2BA82F9C573AE19D56BFB1781CE390BF7"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ReviewManifestProvenanceCheckpoint' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7313,
+                  "startColumn": 27,
+                  "endLine": 7313,
+                  "endColumn": 61,
+                  "charOffset": 406279,
+                  "charLength": 34
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "5E2AD0E7CAE94AC7F4F6F4F77B527ECC5FBABD3CF661200844E7D29B74A0ED0A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ReviewManifestProvenanceEntry' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7364,
+                  "startColumn": 27,
+                  "endLine": 7364,
+                  "endColumn": 56,
+                  "charOffset": 407865,
+                  "charLength": 29
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "8D8B68D9D60482A7A816E899128D4CA69362E5AF367C37E719CDD3D30F7B2A6E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'ReviewVerdictEvidence' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7397,
+                  "startColumn": 27,
+                  "endLine": 7397,
+                  "endColumn": 48,
+                  "charOffset": 409001,
+                  "charLength": 21
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "AA80CE03FD5BC03E0ED8D5FA4B638D0C003A82FF07D15A9D0E76920CD46DDA38"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ClassNeverInstantiated.Local",
+          "ruleIndex": 1,
+          "level": "note",
+          "message": {
+            "text": "Record 'SourcePendingAmendment' is never instantiated"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7179,
+                  "startColumn": 27,
+                  "endLine": 7179,
+                  "endColumn": 49,
+                  "charOffset": 400982,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "9D75676BB320C71348A851DCD6DC0775427D70AD85D9A6B8A6F07DB80360326A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "ConvertToUsingDeclaration",
+          "ruleIndex": 2,
+          "level": "note",
+          "message": {
+            "text": "Convert into 'using' declaration"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 724,
+                  "startColumn": 9,
+                  "endLine": 724,
+                  "endColumn": 14,
+                  "charOffset": 40478,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B0EA0FE7AFBC5558D8434D7E924C27BD3D830C61344C3B2F2FB1D907C2ED7616"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberHidesStaticFromOuterClass",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Property 'string HistoricalCanonicalRemovalCatalogSha256' hides constant from outer class"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7086,
+                  "startColumn": 16,
+                  "endLine": 7086,
+                  "endColumn": 55,
+                  "charOffset": 396709,
+                  "charLength": 39
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "403A483A300F1D609EEAC4D95AB2A2ECC70AB4DAAC0BCA617CFB3A96FD7CEDC5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberHidesStaticFromOuterClass",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Property 'string HistoricalCanonicalSourceCommit' hides constant from outer class"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7085,
+                  "startColumn": 16,
+                  "endLine": 7085,
+                  "endColumn": 47,
+                  "charOffset": 396661,
+                  "charLength": 31
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3784E1E3C856C4DD9FFD56C8C057E07A8F9CD82AAEA44AE49741E06C0D3C0864"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberHidesStaticFromOuterClass",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Property 'string RelativePath' hides method from outer class"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7189,
+                  "startColumn": 31,
+                  "endLine": 7189,
+                  "endColumn": 43,
+                  "charOffset": 401675,
+                  "charLength": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "BCEAA8ED8FE3D7C873D61E3A3F7C06ED90F761D5CDEEDFADECC49A1D8C8C9FCB"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberHidesStaticFromOuterClass",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Property 'string Sha256' hides method from outer class"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7050,
+                  "startColumn": 92,
+                  "endLine": 7050,
+                  "endColumn": 98,
+                  "charOffset": 395437,
+                  "charLength": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "BB946FD3A9D66A4475F4803A073AD7079A4924557F675AAC5064B8322A534172"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberHidesStaticFromOuterClass",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Property 'string Sha256' hides method from outer class"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7395,
+                  "startColumn": 16,
+                  "endLine": 7395,
+                  "endColumn": 22,
+                  "charOffset": 408965,
+                  "charLength": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2B62D43E0D12AF7AFC008369B7A2C27A1859081A98BDFC30A665B80D766A538C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MemberHidesStaticFromOuterClass",
+          "ruleIndex": 3,
+          "level": "warning",
+          "message": {
+            "text": "Property 'string Sha256' hides method from outer class"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7400,
+                  "startColumn": 16,
+                  "endLine": 7400,
+                  "endColumn": 22,
+                  "charOffset": 409084,
+                  "charLength": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2653ECB88085D1354344A42F2A8A9C2AF9103958118966254F5B5B9C93AC5EAE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MergeIntoPattern",
+          "ruleIndex": 4,
+          "level": "note",
+          "message": {
+            "text": "Merge into pattern"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6519,
+                  "startColumn": 28,
+                  "endLine": 6519,
+                  "endColumn": 30,
+                  "charOffset": 371667,
+                  "charLength": 2
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "770E9253779FB5EB1C2D1E987864AF5BE5D816F5E99A4B2E708ED67E45C9C3F5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MergeIntoPattern",
+          "ruleIndex": 4,
+          "level": "note",
+          "message": {
+            "text": "Merge into pattern"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6535,
+                  "startColumn": 28,
+                  "endLine": 6535,
+                  "endColumn": 30,
+                  "charOffset": 372416,
+                  "charLength": 2
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "770E9253779FB5EB1C2D1E987864AF5BE5D816F5E99A4B2E708ED67E45C9C3F5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "MoveVariableDeclarationInsideLoopCondition",
+          "ruleIndex": 5,
+          "level": "note",
+          "message": {
+            "text": "Variable 'entry' can be declared inside loop condition"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 726,
+                  "startColumn": 23,
+                  "endLine": 726,
+                  "endColumn": 28,
+                  "charOffset": 40554,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "1D7147ADA2903771C375BCAAE05BF1D367597E493F4F5CD5CC73011ABFBD6E6B"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.CanonicalRequirement.Requirement' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7058,
+                  "startColumn": 55,
+                  "endLine": 7058,
+                  "endColumn": 66,
+                  "charOffset": 395718,
+                  "charLength": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "7D8DC1E97747E952522662D6038EEBD9F36FA0C8BCBA8132FB6CA69067429A21"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedPendingEvidence.ImplementationTask' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7264,
+                  "startColumn": 16,
+                  "endLine": 7264,
+                  "endColumn": 34,
+                  "charOffset": 404589,
+                  "charLength": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "AEB18E1CBD2B07036CBD4D7C3B8C449BFE065D8DC59488D7A32706E683532762"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedPendingEvidence.Stage' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7256,
+                  "startColumn": 16,
+                  "endLine": 7256,
+                  "endColumn": 21,
+                  "charOffset": 404311,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B52F4F5C7C37D91A68F6E7EC14935F645B473102C4DA3FDD7DEE9D7C40B71CBF"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.Change' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7204,
+                  "startColumn": 55,
+                  "endLine": 7204,
+                  "endColumn": 61,
+                  "charOffset": 402196,
+                  "charLength": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "869ABE907A1D818E2EAB7B59F6CDEE1202C5ADB8F7CAB763ABF7BB11EA1849CB"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.PredecessorBlockSha256' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7206,
+                  "startColumn": 16,
+                  "endLine": 7206,
+                  "endColumn": 38,
+                  "charOffset": 402346,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "25E483B0B0164A1165D829D875E0310B2286A4DE95C61EFD7EC88A0880703D04"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.PredecessorChange' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7204,
+                  "startColumn": 70,
+                  "endLine": 7204,
+                  "endColumn": 87,
+                  "charOffset": 402211,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "869ABE907A1D818E2EAB7B59F6CDEE1202C5ADB8F7CAB763ABF7BB11EA1849CB"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.PredecessorOperation' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7205,
+                  "startColumn": 16,
+                  "endLine": 7205,
+                  "endColumn": 36,
+                  "charOffset": 402245,
+                  "charLength": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E845800116705C2F7C341E6D0485FF7BABEC6E583A5AF664DFD8B8BA202E504F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.ProposedBlockSha256' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7206,
+                  "startColumn": 47,
+                  "endLine": 7206,
+                  "endColumn": 66,
+                  "charOffset": 402377,
+                  "charLength": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "25E483B0B0164A1165D829D875E0310B2286A4DE95C61EFD7EC88A0880703D04"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.Stage' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7205,
+                  "startColumn": 72,
+                  "endLine": 7205,
+                  "endColumn": 77,
+                  "charOffset": 402301,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E845800116705C2F7C341E6D0485FF7BABEC6E583A5AF664DFD8B8BA202E504F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.SuccessorOperation' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7205,
+                  "startColumn": 45,
+                  "endLine": 7205,
+                  "endColumn": 63,
+                  "charOffset": 402274,
+                  "charLength": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E845800116705C2F7C341E6D0485FF7BABEC6E583A5AF664DFD8B8BA202E504F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateApprovedRunSuccessor.TurnsGreenTask' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7205,
+                  "startColumn": 86,
+                  "endLine": 7205,
+                  "endColumn": 100,
+                  "charOffset": 402315,
+                  "charLength": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E845800116705C2F7C341E6D0485FF7BABEC6E583A5AF664DFD8B8BA202E504F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateProposedRunSuccessor.Stage' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7198,
+                  "startColumn": 16,
+                  "endLine": 7198,
+                  "endColumn": 21,
+                  "charOffset": 401971,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "AF500A7019E3386CEF38C412F7BD1E4FAB61A4FA572F1167A634540DBAF6EE91"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateProposedRunSuccessor.TurnsGreenTask' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7199,
+                  "startColumn": 16,
+                  "endLine": 7199,
+                  "endColumn": 30,
+                  "charOffset": 401993,
+                  "charLength": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "85ABF5156145749E60C9C9B0B15DE9B442DBC57DAAECA12EF82569390089EC06"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRunApprovalEvidence.ArchivalPolicy' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7212,
+                  "startColumn": 64,
+                  "endLine": 7212,
+                  "endColumn": 78,
+                  "charOffset": 402824,
+                  "charLength": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "35CBEE41AE1C4DBFAD33B9E72E15B733778370652069AD45A6472AFFD4FB249E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRunApprovalEvidence.CanonicalSyncTask' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7211,
+                  "startColumn": 16,
+                  "endLine": 7211,
+                  "endColumn": 33,
+                  "charOffset": 402682,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "7148AE3F924A59D492158AE8FD8B9A5DB1F4C03E19D57ABCF389DC76D8C8C752"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRunApprovalEvidence.RegistryTransitionTask' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7211,
+                  "startColumn": 42,
+                  "endLine": 7211,
+                  "endColumn": 64,
+                  "charOffset": 402708,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "7148AE3F924A59D492158AE8FD8B9A5DB1F4C03E19D57ABCF389DC76D8C8C752"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRunApprovalEvidence.Stage' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7209,
+                  "startColumn": 16,
+                  "endLine": 7209,
+                  "endColumn": 21,
+                  "charOffset": 402499,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "9B6EC16F2A4C08D9F9B6A847EF65DB2853558EB20AE7EA86663C665D80B984BF"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRunApprovalEvidence.WithdrawalPolicy' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7212,
+                  "startColumn": 39,
+                  "endLine": 7212,
+                  "endColumn": 55,
+                  "charOffset": 402799,
+                  "charLength": 16
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "35CBEE41AE1C4DBFAD33B9E72E15B733778370652069AD45A6472AFFD4FB249E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.Capability' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7219,
+                  "startColumn": 16,
+                  "endLine": 7219,
+                  "endColumn": 26,
+                  "charOffset": 403114,
+                  "charLength": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "412CAE5A88B773BE9E179769AD3E01CB784797A1186BB93577F72EE87003289C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.Change' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7221,
+                  "startColumn": 16,
+                  "endLine": 7221,
+                  "endColumn": 22,
+                  "charOffset": 403169,
+                  "charLength": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2A754D7D5071C5D488A7FEFD0326EB45425898A49253E57DCB0190D6D9A97C55"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.PredecessorBlockSha256' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7227,
+                  "startColumn": 16,
+                  "endLine": 7227,
+                  "endColumn": 38,
+                  "charOffset": 403351,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "A66B6E5BBC85701AF074ED1571EA5AA30E113E25E75634CE046A0FDF9078001E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.PredecessorChange' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7222,
+                  "startColumn": 16,
+                  "endLine": 7222,
+                  "endColumn": 33,
+                  "charOffset": 403192,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "D2DF148E66C4C91A8F3FCAE8C5B43276AAF360162023114291AB28325FEAF275"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.PredecessorOperation' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7223,
+                  "startColumn": 16,
+                  "endLine": 7223,
+                  "endColumn": 36,
+                  "charOffset": 403226,
+                  "charLength": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "ACBA2D64528E2DCB1B776DF399B83CF38519B2FACA60F266DBB27212E985B5C7"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.ProposedBlockSha256' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7228,
+                  "startColumn": 16,
+                  "endLine": 7228,
+                  "endColumn": 35,
+                  "charOffset": 403390,
+                  "charLength": 19
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "1DC8E41A13E68F0069845D6AB9C5EE47BDCEB1FBFBE98BB8C4E240DD9325660F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.Requirement' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7220,
+                  "startColumn": 16,
+                  "endLine": 7220,
+                  "endColumn": 27,
+                  "charOffset": 403141,
+                  "charLength": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "D05EACC9C25529A9FF5E2C405E7189E74B9EACDDBD4DACCEBD0D0826C6B92D56"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.Stage' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7225,
+                  "startColumn": 16,
+                  "endLine": 7225,
+                  "endColumn": 21,
+                  "charOffset": 403298,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "AF500A7019E3386CEF38C412F7BD1E4FAB61A4FA572F1167A634540DBAF6EE91"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.SuccessorOperation' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7224,
+                  "startColumn": 16,
+                  "endLine": 7224,
+                  "endColumn": 34,
+                  "charOffset": 403263,
+                  "charLength": 18
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "4574416ECE393EFD9F03CB32A7984C53C61F83C74817FABF80B50B856C1065CC"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.PostGateRuntimeViewSuccessor.TurnsGreenTask' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7226,
+                  "startColumn": 16,
+                  "endLine": 7226,
+                  "endColumn": 30,
+                  "charOffset": 403320,
+                  "charLength": 14
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "85ABF5156145749E60C9C9B0B15DE9B442DBC57DAAECA12EF82569390089EC06"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.ProvenanceCapabilityCount.Capability' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7073,
+                  "startColumn": 60,
+                  "endLine": 7073,
+                  "endColumn": 70,
+                  "charOffset": 396170,
+                  "charLength": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "FCEAA235654102057CBF6F59AD707D2AEF0E1CDAE91F9D1FF72BB134FFCC4729"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.ProvenanceCapabilityCount.Count' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7073,
+                  "startColumn": 76,
+                  "endLine": 7073,
+                  "endColumn": 81,
+                  "charOffset": 396186,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "FCEAA235654102057CBF6F59AD707D2AEF0E1CDAE91F9D1FF72BB134FFCC4729"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.ProvenanceDeclaredNewCapability.Capability' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7122,
+                  "startColumn": 16,
+                  "endLine": 7122,
+                  "endColumn": 26,
+                  "charOffset": 397957,
+                  "charLength": 10
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C2BD4F09F5C5279E5DC7F9343EE6A2A6EDB1DFEBFFB1E6B8DAF5DA8318D9870C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.ProvenanceDeclaredNewCapability.Change' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7121,
+                  "startColumn": 16,
+                  "endLine": 7121,
+                  "endColumn": 22,
+                  "charOffset": 397934,
+                  "charLength": 6
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6BD02F9ED9655E1E70DE2280E02D8FEC24D8C9D9F487D798BB5F9C1C3252DA83"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards.ProvenanceDeclaredNewCapability.Count' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 7123,
+                  "startColumn": 13,
+                  "endLine": 7123,
+                  "endColumn": 18,
+                  "charOffset": 397981,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "201F8E25F99E86A4DC48159162D0DD1228B8584C0C289BFC62EEA4175F3ACDBB"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.RecoveryCrosswalkInfrastructureGuards.HistoricalSourceRow.BaselineDeclarations' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 817,
+                  "startColumn": 13,
+                  "endLine": 817,
+                  "endColumn": 33,
+                  "charOffset": 44491,
+                  "charLength": 20
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "D82B3F32E08462FDB4272C1A65F843C879900C92D13C41C6A19142C2996D7AB9"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.RecoveryCrosswalkInfrastructureGuards.HistoricalSourceRow.Lifecycle' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 816,
+                  "startColumn": 16,
+                  "endLine": 816,
+                  "endColumn": 25,
+                  "charOffset": 44468,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "AFE3595A5850DDB81556E5B3CC890CDA14D811CA1FC77F2465C44F9D18D4EC5D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.RecoveryCrosswalkInfrastructureGuards.HistoricalSourceRow.Recovery' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 818,
+                  "startColumn": 16,
+                  "endLine": 818,
+                  "endColumn": 24,
+                  "charOffset": 44528,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "26E995527CB668F341D8010BDC4058568FB344EC18239150C8C3AB3EBC5ACF7F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.RecoveryCrosswalkInfrastructureGuards.RelocationRow.Recovery' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 825,
+                  "startColumn": 16,
+                  "endLine": 825,
+                  "endColumn": 24,
+                  "charOffset": 44700,
+                  "charLength": 8
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6DF5674D306B1F1841359EDD97D9080D510BDF92CB0C64B23A4627E5B68C07C4"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "NotAccessedPositionalProperty.Local",
+          "ruleIndex": 6,
+          "level": "warning",
+          "message": {
+            "text": "Positional property 'OrcaCore.DeveloperSurface.Guards.RecoveryCrosswalkInfrastructureGuards.SourceInventoryRow.OwnerProject' is never accessed (except in implicit Equals/ToString implementations)"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 812,
+                  "startColumn": 68,
+                  "endLine": 812,
+                  "endColumn": 80,
+                  "charOffset": 44334,
+                  "charLength": 12
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3B4C710AD92A25BB3A2BF4D435BD394FCC30364D9CFC510C0508563132F9D095"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "PossibleMultipleEnumeration",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "Possible multiple enumeration"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4926,
+                  "startColumn": 21,
+                  "endLine": 4926,
+                  "endColumn": 51,
+                  "charOffset": 289662,
+                  "charLength": 30
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "195E414E90936FD6F0900537B7F0348D4EB3D741CA72F774A6D69B43AC44E9D1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "PossibleMultipleEnumeration",
+          "ruleIndex": 7,
+          "level": "warning",
+          "message": {
+            "text": "Possible multiple enumeration"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4940,
+                  "startColumn": 25,
+                  "endLine": 4940,
+                  "endColumn": 55,
+                  "charOffset": 290416,
+                  "charLength": 30
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "527D611224687B355CDC1C0E75FBCDB619F395E52178353DA6F337B83E4F8095"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantEnumerableCastCall",
+          "ruleIndex": 8,
+          "level": "warning",
+          "message": {
+            "text": "Redundant 'IEnumerable.Cast<T>' call"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6649,
+                  "startColumn": 10,
+                  "endLine": 6649,
+                  "endColumn": 21,
+                  "charOffset": 376476,
+                  "charLength": 11
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "4253CB18B8A6B0CB063D4D62C2116E10309B34E9A90BF462F853BF5B50557B46"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantExplicitParamsArrayCreation",
+          "ruleIndex": 9,
+          "level": "note",
+          "message": {
+            "text": "Redundant explicit collection creation in argument of 'params' parameter"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 1145,
+                  "startColumn": 13,
+                  "endLine": 1145,
+                  "endColumn": 18,
+                  "charOffset": 83635,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "BF65B3387B104B55171B45AF8D1EDEA399F45CBC7957CBFB4396F69BB3C1E6D8"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 10,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 421,
+                  "startColumn": 32,
+                  "endLine": 421,
+                  "endColumn": 49,
+                  "charOffset": 30005,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "46F22D192A6A54685076653DFD0A789B2BDF250369FB1AE8C8CE266A92B1D34B"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 10,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 422,
+                  "startColumn": 31,
+                  "endLine": 422,
+                  "endColumn": 48,
+                  "charOffset": 30083,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C4813CF0625168979B635D6E7BAE74BD61C1CCEC10B58A29E5F5DAC0FA113F2C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantNameQualifier",
+          "ruleIndex": 10,
+          "level": "warning",
+          "message": {
+            "text": "Qualifier is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 444,
+                  "startColumn": 27,
+                  "endLine": 444,
+                  "endColumn": 44,
+                  "charOffset": 31846,
+                  "charLength": 17
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "2463CAF44718F47D66E0A19C149D1FDA49A9B4D508800C2563E6F7196038A54E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4867,
+                  "startColumn": 22,
+                  "endLine": 4867,
+                  "endColumn": 23,
+                  "charOffset": 287060,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "A0ECC36FBB462A16AB50227F3BE77C5A5AFA0BD0CC6A98D10F758357FFFED3D5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 5519,
+                  "startColumn": 34,
+                  "endLine": 5519,
+                  "endColumn": 35,
+                  "charOffset": 325579,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "249A302969235DDC9C2FFC4864D9906A1D39FF9BC0D2A7E35D3E4261CBD2FDF7"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6279,
+                  "startColumn": 30,
+                  "endLine": 6279,
+                  "endColumn": 31,
+                  "charOffset": 360598,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "EB65E4AE9CC8CF3D0A0F071A7EF3D84037C19F060169DE83358A5241F33B01AE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6286,
+                  "startColumn": 30,
+                  "endLine": 6286,
+                  "endColumn": 31,
+                  "charOffset": 361017,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "592508ADD9DD1365C2A6C6A5E2DE719050421425E558CE12BF5C1D7DE94AC3B1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6293,
+                  "startColumn": 30,
+                  "endLine": 6293,
+                  "endColumn": 31,
+                  "charOffset": 361419,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "592508ADD9DD1365C2A6C6A5E2DE719050421425E558CE12BF5C1D7DE94AC3B1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6308,
+                  "startColumn": 30,
+                  "endLine": 6308,
+                  "endColumn": 31,
+                  "charOffset": 362233,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3806EF42171ABD7BAA2DD3BE11462765FAEA64B7C49D97E2844F6ADF3DA3391C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantSuppressNullableWarningExpression",
+          "ruleIndex": 11,
+          "level": "warning",
+          "message": {
+            "text": "The nullable warning suppression expression is redundant"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6317,
+                  "startColumn": 30,
+                  "endLine": 6317,
+                  "endColumn": 31,
+                  "charOffset": 362756,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3806EF42171ABD7BAA2DD3BE11462765FAEA64B7C49D97E2844F6ADF3DA3391C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 669,
+                  "startColumn": 13,
+                  "endLine": 669,
+                  "endColumn": 14,
+                  "charOffset": 54157,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "DDC37759A447681BDFCEFE8EBBF20C80642498E7688329BF2C976B66BB4A8B0C"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 706,
+                  "startColumn": 13,
+                  "endLine": 706,
+                  "endColumn": 14,
+                  "charOffset": 56610,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "26D0B55AD3310617302776083B47DC94CB6301C53DF7CEBD91DCF5B48D988880"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 719,
+                  "startColumn": 9,
+                  "endLine": 719,
+                  "endColumn": 10,
+                  "charOffset": 57362,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "E091CA114D3672E80D7075B489BE446BD5F6E4BB1F26FA12FAE729E7A6EAC1A1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 720,
+                  "startColumn": 9,
+                  "endLine": 720,
+                  "endColumn": 10,
+                  "charOffset": 57413,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "4BE0B198B70DE315DF6B2E6DE5C04B4BA1DBE2BB442027CB02E8F42D9A4C817D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 721,
+                  "startColumn": 9,
+                  "endLine": 721,
+                  "endColumn": 10,
+                  "charOffset": 57467,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "8D3AA9E4A38A43A968FCF0B6DEC09CA13A415A190B74A823745696FBB7650E8E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 2481,
+                  "startColumn": 14,
+                  "endLine": 2481,
+                  "endColumn": 15,
+                  "charOffset": 163410,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "42CF2635E3442BAD6C5F0E75BDAC6C3222563E56FCA9C0B21357A08624731BB1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 2602,
+                  "startColumn": 14,
+                  "endLine": 2602,
+                  "endColumn": 15,
+                  "charOffset": 170118,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3AD513C31E126E9FC701FFDE608C656542AE7FEE158FDEB4C8EFD6062BE5B1C0"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4538,
+                  "startColumn": 51,
+                  "endLine": 4538,
+                  "endColumn": 52,
+                  "charOffset": 272452,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "3BCEBC85284E79043886974CCFF23FD196D153B9454A34625F7ADBE4057B7EFF"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 5735,
+                  "startColumn": 17,
+                  "endLine": 5735,
+                  "endColumn": 18,
+                  "charOffset": 334188,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "9FF4578C451AAFDD1C58797913B0590B37A6E7D5C1B7A7F96EE6901D2A2B290D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 5878,
+                  "startColumn": 13,
+                  "endLine": 5878,
+                  "endColumn": 14,
+                  "charOffset": 341029,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "EB160FAAF27F8FD9DC4946C38A26A375A7C05738A78FCC42234A872C3D336479"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 5945,
+                  "startColumn": 13,
+                  "endLine": 5945,
+                  "endColumn": 14,
+                  "charOffset": 344333,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "EB160FAAF27F8FD9DC4946C38A26A375A7C05738A78FCC42234A872C3D336479"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "RedundantVerbatimStringPrefix",
+          "ruleIndex": 12,
+          "level": "note",
+          "message": {
+            "text": "Redundant verbatim string prefix"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6022,
+                  "startColumn": 13,
+                  "endLine": 6022,
+                  "endColumn": 14,
+                  "charOffset": 348342,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "EB160FAAF27F8FD9DC4946C38A26A375A7C05738A78FCC42234A872C3D336479"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Global",
+          "ruleIndex": 13,
+          "level": "note",
+          "message": {
+            "text": "Method 'CurrentDocumentationHash' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 3
+                },
+                "region": {
+                  "startLine": 137,
+                  "startColumn": 28,
+                  "endLine": 137,
+                  "endColumn": 52,
+                  "charOffset": 7976,
+                  "charLength": 24
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6D7CB73732BA47B96EB824B09101B12067030E63BD1A952467CBDF56C340749D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UnusedMember.Local",
+          "ruleIndex": 14,
+          "level": "warning",
+          "message": {
+            "text": "Constant 'RuntimeViewCloseoutArtifact' is never used"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 112,
+                  "startColumn": 26,
+                  "endLine": 112,
+                  "endColumn": 53,
+                  "charOffset": 6284,
+                  "charLength": 27
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "BCAF0F03EB66B60F20FA66582DD96ECFA3D9C19E253F9A87F4250BF1450C1A84"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 2
+                },
+                "region": {
+                  "startLine": 456,
+                  "startColumn": 32,
+                  "endLine": 456,
+                  "endColumn": 37,
+                  "charOffset": 32560,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "A827AF0175B3EA7F5EF46A23B1E13F8A3F4B8D5E7EF884E3FA8CD5804729F0B6"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 1087,
+                  "startColumn": 29,
+                  "endLine": 1087,
+                  "endColumn": 34,
+                  "charOffset": 80744,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "96F9AB5AAE797D7F09EE40115FD3E81EBAE7EA225A522CBA3BDB6ED78D30A002"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 2402,
+                  "startColumn": 27,
+                  "endLine": 2402,
+                  "endColumn": 32,
+                  "charOffset": 159624,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "81B6EB1A98C6AB1953D1BD783744AF9C8C4809782109000F736BC8DE4961E5E0"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 48,
+                  "startColumn": 5,
+                  "endLine": 48,
+                  "endColumn": 6,
+                  "charOffset": 2497,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "B365F2BFC4B9513CCA389264A5964F5AF61AB53A1A428C368BD24351C6C2D6F8"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 54,
+                  "startColumn": 5,
+                  "endLine": 54,
+                  "endColumn": 6,
+                  "charOffset": 2772,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6D1BC0913210723D83F585302B01701987C24DE3EE17F2361D06336145BB0B2E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 59,
+                  "startColumn": 5,
+                  "endLine": 59,
+                  "endColumn": 6,
+                  "charOffset": 2913,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "784F0FCE6F5C7D4B57C9F3763D73D377A7CD70BB9369C59465A65FF8E8AD1B59"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 64,
+                  "startColumn": 5,
+                  "endLine": 64,
+                  "endColumn": 6,
+                  "charOffset": 3097,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "ED15873F5B63E7A3043481CDF4F3C6094324BA5B053EC89018A9A4D563DF82A0"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 69,
+                  "startColumn": 5,
+                  "endLine": 69,
+                  "endColumn": 6,
+                  "charOffset": 3237,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "344DB9CA21A43430DCAF432CBF0483731784BF29BB411EBB502FD76A8E74CD19"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 74,
+                  "startColumn": 5,
+                  "endLine": 74,
+                  "endColumn": 6,
+                  "charOffset": 3386,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "F8D79678E2EB8CF8F3A2BDCA0373215DC1ED6B089345CF766DB3E996482C9040"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 90,
+                  "startColumn": 5,
+                  "endLine": 90,
+                  "endColumn": 6,
+                  "charOffset": 5083,
+                  "charLength": 1
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "71B2F14DFDE09713DCB063E36C1674CED235962BF314CC16153B6CEFA4F8FBF2"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 174,
+                  "startColumn": 32,
+                  "endLine": 174,
+                  "endColumn": 37,
+                  "charOffset": 9130,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "68868ADDB5F7E27C852420D590BA2755DAE99CF0DA4E92E73C6F939C69C5431A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 175,
+                  "startColumn": 41,
+                  "endLine": 175,
+                  "endColumn": 46,
+                  "charOffset": 9189,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C7433397BCEFFF5F971F8356E2FE36D1A8CBC61D18C89D72987E956187423EAE"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 176,
+                  "startColumn": 37,
+                  "endLine": 176,
+                  "endColumn": 42,
+                  "charOffset": 9248,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "15C9E6E161D9A5FA49105A5B15383D019270FD85E23886C4FE88ED3C65B7CC7D"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 180,
+                  "startColumn": 32,
+                  "endLine": 180,
+                  "endColumn": 37,
+                  "charOffset": 9401,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "572506856A38F39F3ABB3ABD6C4C25A5E3E8D24DBFF092FD56057ED67B7FE6E5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 181,
+                  "startColumn": 41,
+                  "endLine": 181,
+                  "endColumn": 46,
+                  "charOffset": 9460,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "34E5C25D87BD369FBD3A2BCB22B74B9703EE444B1ADB933545D164237CBA782B"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseCollectionExpression",
+          "ruleIndex": 15,
+          "level": "note",
+          "message": {
+            "text": "Use collection expression"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 355,
+                  "startColumn": 25,
+                  "endLine": 355,
+                  "endColumn": 30,
+                  "charOffset": 20147,
+                  "charLength": 5
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "D85FC778CA1882AF3F2C34B2709C552E9B965FF3F8B7221123C79A64602E39F5"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4145,
+                  "startColumn": 26,
+                  "endLine": 4145,
+                  "endColumn": 48,
+                  "charOffset": 255279,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "47B9427F8526FD6FAC66B826D6E811D5F09763A12B85DA6E8BA900ABC2720AB2"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4154,
+                  "startColumn": 36,
+                  "endLine": 4154,
+                  "endColumn": 58,
+                  "charOffset": 255618,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "085D414645451B29A479ADC1A5FC2E9FEB9FA49AF21C33D928A2B62B8BD5401F"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4155,
+                  "startColumn": 37,
+                  "endLine": 4155,
+                  "endColumn": 59,
+                  "charOffset": 255691,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "4642DD5D92C8B34B9C5BBFB4D39C73B1FAFEF853B91342F20F917557E593823A"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4163,
+                  "startColumn": 36,
+                  "endLine": 4163,
+                  "endColumn": 58,
+                  "charOffset": 256008,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "08C709818525ED7067DCC813ED736681D9CFA00E1CF103A4FE8C5406DFA3B306"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 4164,
+                  "startColumn": 40,
+                  "endLine": 4164,
+                  "endColumn": 62,
+                  "charOffset": 256082,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "C895D5B1A7416BD56BA61BA2198D51CC743267CBA0071B2984FD0D5F5433C8D1"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6084,
+                  "startColumn": 26,
+                  "endLine": 6084,
+                  "endColumn": 48,
+                  "charOffset": 351607,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "7A07EDE4D3CB58AB1A84CE9ED9CFFBBDE138179270AD9BA1BE92A507221BF6EA"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6085,
+                  "startColumn": 28,
+                  "endLine": 6085,
+                  "endColumn": 50,
+                  "charOffset": 351667,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "6CFD737A31DA4F069CB81598B407A17DAAF1CB292F87AF5BA5A3C9355EC75895"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6096,
+                  "startColumn": 50,
+                  "endLine": 6096,
+                  "endColumn": 72,
+                  "charOffset": 352277,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "4666C500F91AFF80275EA94D97E70D9A1B6F6C47CF0CC670B3D45F5D296F928E"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseUtf8StringLiteral",
+          "ruleIndex": 16,
+          "level": "note",
+          "message": {
+            "text": "'Encoding.GetBytes' invocation can be replaced with a UTF-8 string literal"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 1
+                },
+                "region": {
+                  "startLine": 6102,
+                  "startColumn": 50,
+                  "endLine": 6102,
+                  "endColumn": 72,
+                  "charOffset": 352622,
+                  "charLength": 22
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "5B13E290F2AB9039FEA4D418D76F9B711F31F29B74A08CFB1D42D93D9C08CABB"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        },
+        {
+          "ruleId": "UseWithExpressionToCopyTuple",
+          "ruleIndex": 17,
+          "level": "note",
+          "message": {
+            "text": "Use 'with' expression to copy tuple"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+                  "uriBaseId": "solutionDir",
+                  "index": 0
+                },
+                "region": {
+                  "startLine": 111,
+                  "startColumn": 17,
+                  "endLine": 111,
+                  "endColumn": 26,
+                  "charOffset": 6546,
+                  "charLength": 9
+                }
+              }
+            }
+          ],
+          "partialFingerprints": {
+            "contextRegionHash/v1": "880F79EFD6C1F9C9DB87C1B588AF790AB99C35D38800BBF9A6C806B85C116875"
+          },
+          "properties": {
+            "tags": ["C#",".NET 10.0"]
+          }
+        }
+      ],
+      "tool": {
+        "driver": {
+          "name": "InspectCode",
+          "organization": "JetBrains, Inc",
+          "fullName": "JetBrains Inspect Code 2026.2.3.1",
+          "semanticVersion": "262.0.20260930.205657",
+          "informationUri": "http://www.jetbrains.com/resharper/features/command-line.html",
+          "rules": [
+            {
+              "id": "CSharp14OverloadResolutionWithSpanBreakingChange",
+              "fullDescription": {
+                "text": "C# 14 breaking change in overload resolution with span parameters. See <a href='https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/10.0/csharp-overload-resolution'>details</a>."
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/CSharp14OverloadResolutionWithSpanBreakingChange.html"
+              },
+              "shortDescription": {
+                "text": "C# 14 breaking change in overload resolution with span parameters"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/CSharp14OverloadResolutionWithSpanBreakingChange.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeInfo",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ClassNeverInstantiated.Local",
+              "fullDescription": {
+                "text": "Non-static class is never instantiated"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/ClassNeverInstantiated.Local.html"
+              },
+              "shortDescription": {
+                "text": "Class is never instantiated: Private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/ClassNeverInstantiated.Local.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ConvertToUsingDeclaration",
+              "fullDescription": {
+                "text": "Replace 'using' statement with 'using' declaration"
+              },
+              "shortDescription": {
+                "text": "Convert into 'using' declaration"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "MemberHidesStaticFromOuterClass",
+              "fullDescription": {
+                "text": "Member hides static member from outer class"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/MemberHidesStaticFromOuterClass.html"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/MemberHidesStaticFromOuterClass.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "MergeIntoPattern",
+              "fullDescription": {
+                "text": "Merge sequential null/pattern checks into single recursive/logical pattern check"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/MergeIntoPattern.html"
+              },
+              "shortDescription": {
+                "text": "Merge null/pattern checks into complex pattern"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/MergeIntoPattern.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "MoveVariableDeclarationInsideLoopCondition",
+              "fullDescription": {
+                "text": "Declare variable inside a loop condition using pattern matching syntax to reduce its scope and avoid doing a C-style assignment as a side effect"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/MoveVariableDeclarationInsideLoopCondition.html"
+              },
+              "shortDescription": {
+                "text": "Move variable declaration inside loop condition"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/MoveVariableDeclarationInsideLoopCondition.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "NotAccessedPositionalProperty.Local",
+              "fullDescription": {
+                "text": "Positional property is never accessed for reading"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/NotAccessedPositionalProperty.Local.html"
+              },
+              "shortDescription": {
+                "text": "Non-accessed positional property: Private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/NotAccessedPositionalProperty.Local.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "PossibleMultipleEnumeration",
+              "fullDescription": {
+                "text": "Possible multiple enumeration of IEnumerable or IAsyncEnumerable<T>"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/PossibleMultipleEnumeration.html"
+              },
+              "shortDescription": {
+                "text": "Possible multiple enumeration"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/PossibleMultipleEnumeration.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.CodeSmell",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "RedundantEnumerableCastCall",
+              "fullDescription": {
+                "text": "Redundant 'IEnumerable.Cast<T>' or 'IEnumerable.OfType<T>' call"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/RedundantEnumerableCastCall.html"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/RedundantEnumerableCastCall.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "RedundantExplicitParamsArrayCreation",
+              "fullDescription": {
+                "text": "Explicit collection creation in an argument passed to the 'params' parameter is redundant"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/RedundantExplicitParamsArrayCreation.html"
+              },
+              "shortDescription": {
+                "text": "Redundant explicit collection creation in argument of 'params' parameter"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/RedundantExplicitParamsArrayCreation.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "RedundantNameQualifier",
+              "fullDescription": {
+                "text": "Redundant use of qualifier for a type name or static member usage"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/RedundantNameQualifier.html"
+              },
+              "shortDescription": {
+                "text": "Redundant name qualifier"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/RedundantNameQualifier.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "RedundantSuppressNullableWarningExpression",
+              "fullDescription": {
+                "text": "Nullable warning suppression expression does not suppress any warnings and is applied to an already non-nullable operand"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/RedundantSuppressNullableWarningExpression.html"
+              },
+              "shortDescription": {
+                "text": "Redundant nullable warning suppression expression"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/RedundantSuppressNullableWarningExpression.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "RedundantVerbatimStringPrefix",
+              "fullDescription": {
+                "text": "String can be converted into a regular string without any changes"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/RedundantVerbatimStringPrefix.html"
+              },
+              "shortDescription": {
+                "text": "Redundant verbatim string prefix"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/RedundantVerbatimStringPrefix.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.CodeRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UnusedMember.Global",
+              "fullDescription": {
+                "text": "Type member is never used"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UnusedMember.Global.html"
+              },
+              "shortDescription": {
+                "text": "Type member is never used: Non-private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UnusedMember.Global.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "ASPX.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "ASXX.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "CSHARP.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "XAML.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UnusedMember.Local",
+              "fullDescription": {
+                "text": "Type member is never used"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UnusedMember.Local.html"
+              },
+              "shortDescription": {
+                "text": "Type member is never used: Private accessibility"
+              },
+              "defaultConfiguration": {
+                "level": "warning"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UnusedMember.Local.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "VBASIC.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                },
+                {
+                  "target": {
+                    "id": "XAML.DeclarationRedundancy",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UseCollectionExpression",
+              "fullDescription": {
+                "text": "Suggest to replace collection object construction and items additions with C# 12 collection expression syntax"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UseCollectionExpression.html"
+              },
+              "shortDescription": {
+                "text": "Use collection expression syntax"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UseCollectionExpression.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UseUtf8StringLiteral",
+              "fullDescription": {
+                "text": "Byte array can be converted to a UTF-8 string literal"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UseUtf8StringLiteral.html"
+              },
+              "shortDescription": {
+                "text": "Use UTF-8 string literal"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UseUtf8StringLiteral.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "UseWithExpressionToCopyTuple",
+              "fullDescription": {
+                "text": "Use 'with' expression to create a modified copy of a tuple"
+              },
+              "help": {
+                "text": "https://www.jetbrains.com/help/resharper/UseWithExpressionToCopyTuple.html"
+              },
+              "shortDescription": {
+                "text": "Use 'with' expression to copy tuple"
+              },
+              "defaultConfiguration": {
+                "level": "note"
+              },
+              "helpUri": "https://www.jetbrains.com/help/resharper/UseWithExpressionToCopyTuple.html",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP.LanguageUsage",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            }
+          ],
+          "taxa": [
+            {
+              "id": "ASPX",
+              "name": "Aspx"
+            },
+            {
+              "id": "ASPX.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "ASPX",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "ASXX",
+              "name": "HttpHandler or WebService"
+            },
+            {
+              "id": "ASXX.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "ASXX",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP",
+              "name": "C#"
+            },
+            {
+              "id": "CSHARP.CodeInfo",
+              "name": "Code Notification",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.CodeRedundancy",
+              "name": "Redundancies in Code",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.CodeSmell",
+              "name": "Potential Code Quality Issues",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "CSHARP.LanguageUsage",
+              "name": "Language Usage Opportunities",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "CSHARP",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "VBASIC",
+              "name": "VB.NET"
+            },
+            {
+              "id": "VBASIC.CodeSmell",
+              "name": "Potential Code Quality Issues",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "VBASIC",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "VBASIC.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "VBASIC",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            },
+            {
+              "id": "XAML",
+              "name": "XAML"
+            },
+            {
+              "id": "XAML.DeclarationRedundancy",
+              "name": "Redundancies in Symbol Declarations",
+              "relationships": [
+                {
+                  "target": {
+                    "id": "XAML",
+                    "toolComponent": {
+                      "name": "InspectCode"
+                    }
+                  },
+                  "kinds": [
+                    "superset"
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "invocations": [
+        {
+          "executionSuccessful": true
+        }
+      ],
+      "versionControlProvenance": [
+        {
+          "repositoryUri": "https://github.com/dekrevedko/Workflow-orca.git",
+          "revisionId": "7697c7981c02d03408cbccf9a2e0b9bade33ca14",
+          "branch": "HEAD",
+          "mappedTo": {
+            "uriBaseId": "solutionDir"
+          }
+        }
+      ],
+      "originalUriBaseIds": {
+        "solutionDir": {
+          "uri": "file:///E:/oc16t2/",
+          "description": {
+            "text": "Solution Directory"
+          }
+        }
+      },
+      "artifacts": [
+        {
+          "location": {
+            "uri": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "F5555A4EB84DF0727418D13B5FDF7D36",
+            "sha-1": "7C1F3C39BC79A4372E714B1D45FE05FB4DE00E99",
+            "sha-256": "B55EFA90D2A3FEC7A2EFB98EAE22DE82AE53CAF0B9ADF94813A4DDD8CEF074F7"
+          }
+        },
+        {
+          "location": {
+            "uri": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "126740F9217E0525FA2495AAF0A9EBB3",
+            "sha-1": "4297D96F01DDAA5BD9025BE48C64F52AA63CEF37",
+            "sha-256": "72EA0FE6FC1FC5EDD912116EFB88776A5CA79FAF2A8AF2DBE8E5836A16E0452B"
+          }
+        },
+        {
+          "location": {
+            "uri": "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "3F107833E883EF3E24A7B53AC17BBD51",
+            "sha-1": "E16F5DC956D0739026DA05895778A76C691FDC7E",
+            "sha-256": "57B02F3061F50AFFD2F302BE61E36D664567716BEB500A107DDA1DABD9176713"
+          }
+        },
+        {
+          "location": {
+            "uri": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs",
+            "uriBaseId": "solutionDir"
+          },
+          "hashes": {
+            "md5": "69A4F17AE11CD1185B5EDF893C125AB9",
+            "sha-1": "793AF84AA63C322A73A8B6271FDEEA8D3220E7EB",
+            "sha-256": "211A2F7E2A68C3C40A346448F9A1A9B33A48F6BE80DAFA73F96F0B3D49770332"
+          }
+        }
+      ],
+      "columnKind": "utf16CodeUnits"
+    }
+  ]
+}

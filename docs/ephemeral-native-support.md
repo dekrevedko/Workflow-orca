@@ -203,7 +203,7 @@ An unused excluded type in an otherwise valid context does not reject registrati
 
 Generic helpers forwarding `TStep` into `StepExecutionThrottle.For<TStep>` must
 propagate its approved `DynamicallyAccessedMembers(Interfaces)` requirement, as
-shown in [the engine guide](ephemeral-engine-developer-guide.md#issue-13-native-metadata-path-source-qualified-release-pending).
+shown in [the engine guide](ephemeral-engine-developer-guide.md#issue-13-native-metadata-path).
 The concrete call syntax, capacity-first validation and physical throttle ownership
 are unchanged.
 
@@ -212,3 +212,27 @@ and [immutable native records](../openspec/changes/support-ephemeral-native-aot/
 identify exact source, package, harness, host and diagnostic facts. Future package
 publication must bind its new version/source to those qualified operations; this
 guide does not make preview.2 pass or grant an unexecuted profile support.
+
+## Issue #16 source qualification
+
+Task 3 checkpoint `5a91477` adds original ephemeral step exceptions, detached
+`WorkflowFailure.ExceptionType` and passive settlement observation. The
+selected public ephemeral recipe passed 392 cases across Windows Server 2025
+and Ubuntu 24.04 x64 in JIT, full trimming and Native AOT. The aggregate bound
+all six cells to one source and one matched `0.0.0-phase0` package feed.
+[Native run 42554435708](https://github.com/dekrevedko/Workflow-orca/actions/runs/42554435708)
+
+The matrix preserves every earlier journey and checks failure type parity,
+the legacy and version-2 codec forms, and the settlement resource-owner recipe.
+Trimmed and AOT cells observed disabled JSON reflection. Both AOT cells
+observed disabled dynamic code. The only accepted warning rows are the 24
+count-pinned diagnostics from the handwritten metadata counterexample.
+
+The qualification covers the public ephemeral recipe in the profiles above.
+Live event ingress and outgoing publishing stay outside that boundary.
+Durable-produced failures retain detached null-type bytes. Durable, DAG,
+provider packages, and other RIDs require their own qualification.
+
+Preview.3 uses its own verified release assets. The issue #16 source run used
+validation packages. A future release needs a matched package version and an
+exact-asset qualification run. [Issue #16 evidence](../openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-3-native-pin-rerun-review-request-2026-11-08.md)

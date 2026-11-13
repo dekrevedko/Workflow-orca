@@ -1,0 +1,64 @@
+{
+  "schemaVersion": 1,
+  "stage": "MergedIssueClosed",
+  "authorizationQuote": "Recheck green CI, then merge PR #18 with a merge commit, close issue #16, sync master, and complete Task 4.2. No squash. Clean up temp/build artifacts.",
+  "publicationCheckpoint": "884a753cb24848ca1de1f4156e488f4f3ee5dc45",
+  "publicationCheckpointParent": "8667ea5e7894e7e64859070d7556594e559a4fe6",
+  "publicationCheckpointTree": "00b5f91565cfbc706474eb24ed014da6a5d89e8f",
+  "publicationVerdictCommit": "184ce3e940f5c0f033a2ab173256e4758141d81b",
+  "publicationVerdictPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-4-1-publication-independent-review-verdict-2026-11-08.md",
+  "publicationVerdictSha256": "ff6702e71991d345a86b316528d8802d01593a565cbc2a2a4a42ce0a6122ce8f",
+  "pr": {
+    "baseRefName": "master",
+    "baseRefOid": "0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580",
+    "headRefName": "codex/issue-16-ephemeral-failure-settlement",
+    "headRefOid": "184ce3e940f5c0f033a2ab173256e4758141d81b",
+    "mergeCommit": {
+      "oid": "893ca34e205e182c97e08cfda353c6765ab6208d"
+    },
+    "mergedAt": "2026-11-09T04:41:42Z",
+    "number": 18,
+    "state": "MERGED",
+    "url": "https://github.com/dekrevedko/Workflow-orca/pull/18"
+  },
+  "issue": {
+    "closedAt": "2026-11-09T04:41:43Z",
+    "number": 16,
+    "state": "CLOSED",
+    "stateReason": "COMPLETED",
+    "url": "https://github.com/dekrevedko/Workflow-orca/issues/16"
+  },
+  "prCi": {
+    "conclusion": "success",
+    "databaseId": 42561055690,
+    "event": "pull_request",
+    "headSha": "184ce3e940f5c0f033a2ab173256e4758141d81b",
+    "jobs": [
+      {
+        "name": "build + unit tests",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "container + integration tests",
+        "status": "completed",
+        "conclusion": "success"
+      },
+      {
+        "name": "pack + clean consumer",
+        "status": "completed",
+        "conclusion": "success"
+      }
+    ],
+    "status": "completed",
+    "url": "https://github.com/dekrevedko/Workflow-orca/actions/runs/42561055690"
+  },
+  "mergeCommit": "893ca34e205e182c97e08cfda353c6765ab6208d",
+  "mergeParents": [
+    "0a8e375fbcf5005a2a2f491cf24dfbbd9d64c580",
+    "184ce3e940f5c0f033a2ab173256e4758141d81b"
+  ],
+  "mergeTree": "28710f64c53ebdf9c339d0a1ad4ee7d3dcd8cc99",
+  "syncedMaster": "893ca34e205e182c97e08cfda353c6765ab6208d",
+  "releaseAuthorized": false
+}

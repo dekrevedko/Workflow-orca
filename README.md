@@ -209,3 +209,18 @@ source-generated metadata, process-wide startup order, the finite type boundary
 and diagnostics. Keep product converter attributes; do not add the public factory
 to context options. Live event delivery/resumption and outgoing publishing remain
 outside native credit. Durable/DAG/providers and other RIDs need separate proof.
+
+## Issue #16 checkpointed source
+
+The Task 3 checkpoint adds `WorkflowFailure.ExceptionType`, original business
+exceptions in `WorkflowOutputUnavailableException.InnerException`, and passive
+`WaitForSettlementAsync` on issued ephemeral handles. The
+[resource-owner recipe](docs/ephemeral-engine-developer-guide.md#issue-16-resource-release-recipe)
+explains when per-instance settlement allows resource disposal and when a
+host-wide join is required.
+
+The selected ephemeral recipe passed 392 cases across Windows Server 2025 and
+Ubuntu 24.04 x64 in JIT, full trimming and Native AOT. The run used a matched
+`0.0.0-phase0` feed for source qualification. Published `0.1.0-preview.3`
+predates these APIs. Use a future matched package version for rollout and
+qualify its exact release assets separately. [Native run 42554435708](https://github.com/dekrevedko/Workflow-orca/actions/runs/42554435708)

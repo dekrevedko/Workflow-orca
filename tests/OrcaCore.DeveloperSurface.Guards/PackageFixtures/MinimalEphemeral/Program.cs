@@ -31,6 +31,22 @@ _ = (Func<OrcaCoreEphemeralEngineBuilder, IWorkflowDefinitionRegistry, Input, Ca
 _ = (Func<WorkflowDefinitionNotRegisteredException,
     (DefinitionId, DefinitionVersion, DefinitionFingerprint)>)MissingDefinitionIdentity;
 
+static async ValueTask<string?> ObserveFailureAndPhysicalSettlementAsync(
+    WorkflowInstanceHandle<Output> resultful, WorkflowInstanceHandle resultless, CancellationToken token)
+{
+    try { await resultful.WaitForOutputAsync(token); }
+    catch (WorkflowOutputUnavailableException error)
+    {
+        string? capturedType = error.Failure?.ExceptionType;
+        await resultful.WaitForSettlementAsync(token);
+        await resultless.WaitForSettlementAsync(token);
+        return capturedType;
+    }
+    await resultful.WaitForSettlementAsync(token);
+    return null;
+}
+_ = (Func<WorkflowInstanceHandle<Output>, WorkflowInstanceHandle, CancellationToken, ValueTask<string?>>)ObserveFailureAndPhysicalSettlementAsync;
+
 
 static async ValueTask<string> ObserveEphemeralShutdownAsync(IEphemeralWorkflowHostLifetime lifetime, CancellationToken token)
 {

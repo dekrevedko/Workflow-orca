@@ -696,7 +696,9 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 $"No workflow instance exists for instance id '{instanceId}'.");
         }
 
-        using var commandOwnership = instance.Lifetime.Own();
+        if (!instance.Lifetime.TryOwn(out var commandLease))
+            return global::OrcaCore.WorkflowCancellationRequestStatus.AlreadyTerminal;
+        using var commandOwnership = commandLease;
         var disposition = instance.TryRequestCancellation(timeProvider.GetUtcNow());
         if (disposition != global::OrcaCore.WorkflowCancellationRequestStatus.Requested)
         {
@@ -745,7 +747,9 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 $"No workflow instance exists for instance id '{instanceId}'.");
         }
 
-        using var commandOwnership = instance.Lifetime.Own();
+        if (!instance.Lifetime.TryOwn(out var commandLease))
+            return global::OrcaCore.WorkflowTerminationStatus.AlreadyTerminal;
+        using var commandOwnership = commandLease;
         instance.SignalCancellation();
         var result = await executionLane.RunAsync(
                 instanceId,

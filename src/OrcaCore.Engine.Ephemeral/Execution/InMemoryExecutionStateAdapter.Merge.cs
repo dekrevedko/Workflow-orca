@@ -112,6 +112,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 instance.ReplaceState((TState)replacement!);
             }
 
+            instance.ForgetOriginals(scope.ChildFiberIds.Select(id => state.Fibers[id].Failure)
+                .Concat(scope.ForEach?.Outcomes.Values.Select(outcome => outcome.Failure) ?? []));
             return completed;
         }
         catch (Exception exception) when (exception is not OperationCanceledException)

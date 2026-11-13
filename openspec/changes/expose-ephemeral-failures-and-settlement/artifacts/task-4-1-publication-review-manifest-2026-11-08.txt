@@ -1,0 +1,12 @@
+README.md
+docs/ephemeral-engine-developer-guide.md
+docs/ephemeral-native-support.md
+docs/packages.md
+openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-4-1-publication-binding-2026-11-08.json
+openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-4-1-publication-pr-body-2026-11-08.md
+openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-4-1-publication-review-manifest-2026-11-08.txt
+openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-4-1-publication-review-request-2026-11-08.md
+openspec/changes/expose-ephemeral-failures-and-settlement/tasks.md
+tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementSourceGuards.cs
+tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
+tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs

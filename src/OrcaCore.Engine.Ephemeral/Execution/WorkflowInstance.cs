@@ -63,6 +63,11 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         InstanceId = instanceId;
         Lifetime = new EphemeralInstanceLifetime(instanceId);
         Lifetime.RegisterCleanup(cancellationSource, cancellationSource.Dispose);
+        Lifetime.RegisterCleanup(this, () =>
+        {
+            OriginalFailure = null;
+            originalFailures.Clear();
+        });
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
         State = state;
@@ -689,13 +694,18 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         DateTimeOffset updatedAt,
         StructuredSerializedValue? output = null)
     {
-        if (LifecycleMachine.TerminalStatuses.Contains(Status)) return;
-        Status = global::OrcaCore.WorkflowInstanceStatus.Completed;
-        EndOutcomeName = outcomeName;
-        Output = output;
-        UpdatedAt = updatedAt;
-        CurrentStatusEnteredAt = updatedAt;
-        LastActiveAt = updatedAt;
+        lock (snapshotGate)
+        {
+            if (LifecycleMachine.TerminalStatuses.Contains(Status)) return;
+            Status = global::OrcaCore.WorkflowInstanceStatus.Completed;
+            OriginalFailure = null;
+            originalFailures.Clear();
+            EndOutcomeName = outcomeName;
+            Output = output;
+            UpdatedAt = updatedAt;
+            CurrentStatusEnteredAt = updatedAt;
+            LastActiveAt = updatedAt;
+        }
         RecordLifecycleEvent("InstanceCompleted", null, global::OrcaCore.WorkflowInstanceStatus.Completed, updatedAt);
         Lifetime.SignalTerminal();
     }
@@ -710,29 +720,33 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
 
         SignalCancellation();
-        ApplyTerminalTrigger(LifecycleTrigger.Timeout, observedAt);
         var exception = global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WorkflowDeadline(deadline);
-        ErrorDetails = new WorkflowErrorDetails(
+        ApplyTerminalTrigger(LifecycleTrigger.Timeout, observedAt, new WorkflowErrorDetails(
             exception.Code,
             exception.Message,
             "workflow:$",
-            observedAt);
+            observedAt));
         return ToSnapshot();
     }
 
-    internal void Fail(WorkflowErrorDetails errorDetails)
+    internal void Fail(WorkflowErrorDetails errorDetails, FiberFailure? electedFailure = null)
     {
-        if (Status is not global::OrcaCore.WorkflowInstanceStatus.Running and not global::OrcaCore.WorkflowInstanceStatus.Waiting)
+        lock (snapshotGate)
         {
-            throw new WorkflowLifecycleException(
-                $"Lifecycle trigger '{LifecycleTrigger.Fail}' is not valid from workflow status '{Status}'.");
-        }
+            if (Status is not global::OrcaCore.WorkflowInstanceStatus.Running and not global::OrcaCore.WorkflowInstanceStatus.Waiting)
+            {
+                throw new WorkflowLifecycleException(
+                    $"Lifecycle trigger '{LifecycleTrigger.Fail}' is not valid from workflow status '{Status}'.");
+            }
 
-        Status = global::OrcaCore.WorkflowInstanceStatus.Failed;
-        ErrorDetails = errorDetails;
-        UpdatedAt = errorDetails.OccurredAt;
-        CurrentStatusEnteredAt = errorDetails.OccurredAt;
-        LastActiveAt = errorDetails.OccurredAt;
+            OriginalFailure = electedFailure is null ? null : originalFailures.GetValueOrDefault(electedFailure);
+            originalFailures.Clear();
+            Status = global::OrcaCore.WorkflowInstanceStatus.Failed;
+            ErrorDetails = errorDetails;
+            UpdatedAt = errorDetails.OccurredAt;
+            CurrentStatusEnteredAt = errorDetails.OccurredAt;
+            LastActiveAt = errorDetails.OccurredAt;
+        }
         RecordLifecycleEvent("InstanceFailed", null, global::OrcaCore.WorkflowInstanceStatus.Failed, errorDetails.OccurredAt);
         ClearRuntimeWork();
     }
@@ -852,6 +866,28 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
     EphemeralInstanceLifetime IWorkflowInstance.Lifetime => Lifetime;
 
+    public Exception? OriginalFailure { get; private set; }
+
+    private readonly Dictionary<FiberFailure, Exception> originalFailures = new(ReferenceEqualityComparer.Instance);
+
+    internal void RememberOriginal(FiberFailure failure, Exception original)
+    {
+        lock (snapshotGate)
+        {
+            if (Status is global::OrcaCore.WorkflowInstanceStatus.Running or global::OrcaCore.WorkflowInstanceStatus.Waiting)
+                originalFailures.Add(failure, original);
+        }
+    }
+
+    internal void ForgetOriginals(IEnumerable<FiberFailure?> recovered)
+    {
+        lock (snapshotGate)
+        {
+            foreach (var failure in recovered)
+                if (failure is not null) originalFailures.Remove(failure);
+        }
+    }
+
     InstanceId IWorkflowInstance.InstanceId => InstanceId;
 
     Type IWorkflowInstance.StateType => typeof(TState);
@@ -953,18 +989,27 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         SignalCancellation();
     }
 
-    private void ApplyTerminalTrigger(LifecycleTrigger trigger, DateTimeOffset updatedAt)
+    private void ApplyTerminalTrigger(
+        LifecycleTrigger trigger,
+        DateTimeOffset updatedAt,
+        WorkflowErrorDetails? errorDetails = null)
     {
-        var result = LifecycleMachine.Fire(Status, trigger);
-        if (result.IsFailure)
+        lock (snapshotGate)
         {
-            throw result.Error;
-        }
+            var result = LifecycleMachine.Fire(Status, trigger);
+            if (result.IsFailure)
+            {
+                throw result.Error;
+            }
 
-        Status = result.Value;
-        UpdatedAt = updatedAt;
-        CurrentStatusEnteredAt = updatedAt;
-        LastActiveAt = updatedAt;
+            Status = result.Value;
+            ErrorDetails = errorDetails;
+            OriginalFailure = null;
+            originalFailures.Clear();
+            UpdatedAt = updatedAt;
+            CurrentStatusEnteredAt = updatedAt;
+            LastActiveAt = updatedAt;
+        }
         RecordLifecycleEvent($"Instance{Status}", null, Status, updatedAt);
         ClearRuntimeWork();
     }

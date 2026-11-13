@@ -392,6 +392,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         CancellationToken cancellationToken)
     {
         StepResult result;
+        Exception? originalStepFailure = null;
         var updatedFiber = fiber;
         var resumedEvent = resumedEvents.Remove(fiber.Id, out var envelope) ? envelope : null;
         if (!grantedStepLeases.Remove(fiber.Id, out var governanceLease) &&
@@ -477,7 +478,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider,
                     forEachItem);
                 var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
-                    () => timeoutCancellation.RunAsync(() => rootStep.ExecuteAsync(stepContext, executionToken).AsTask()));
+                    () => timeoutCancellation.RunAsync(() => InvokeBusinessStepAsync(
+                        () => rootStep.ExecuteAsync(stepContext, executionToken).AsTask())));
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
                         timeoutReached.Task &&
@@ -490,6 +492,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 else
                 {
                     result = await physicalAttempt.ConfigureAwait(false);
+                    if (result is StepResult.Failed returned) originalStepFailure = returned.Error;
                     cancellationToken.ThrowIfCancellationRequested();
                     if (result is not StepResult.Failed && plan.DetachedAttemptState)
                     {
@@ -527,7 +530,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider,
                     forEachItem,
                     resourceLease: null,
-                    cancellationToken: executionToken).AsTask()));
+                    cancellationToken: executionToken, wrapExceptions: false,
+                    stepFailure: static error => new BusinessStepException(error)).AsTask()));
                 if (timeoutReached is not null &&
                     await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
                         timeoutReached.Task &&
@@ -542,6 +546,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     var invocation = await physicalAttempt.ConfigureAwait(false);
                     cancellationToken.ThrowIfCancellationRequested();
                     result = invocation.Result;
+                    if (result is StepResult.Failed returned) originalStepFailure = returned.Error;
                     if (result is not StepResult.Failed || !plan.DetachedAttemptState)
                     {
                         updatedFiber = updatedFiber with
@@ -576,9 +581,9 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
             instance.CompleteStep(instruction.Path, timeProvider.GetUtcNow());
-            var failure = exception is TargetInvocationException { InnerException: { } inner }
-                ? inner
-                : exception;
+            var failure = exception;
+            if (exception is BusinessStepException business)
+                originalStepFailure = business.InnerException;
             result = new StepResult.Failed(
                 failure as OrcaCoreException ?? new WorkflowLifecycleException(failure.Message, failure));
         }
@@ -631,7 +636,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     fiber,
                     instruction,
                     failed.Error.Code,
-                    failed.Error.Message);
+                    string.IsNullOrWhiteSpace(failed.Error.Message)
+                        ? "The step failed without an exception message." : failed.Error.Message,
+                    exceptionType: originalStepFailure is null ? null : originalStepFailure.GetType().FullName ?? originalStepFailure.GetType().Name);
+                if (originalStepFailure is not null) instance.RememberOriginal(failure, originalStepFailure);
                 if (fiber.OwningScopeId is { } scopeId)
                 {
                     var scope = state.Scopes[scopeId];
@@ -945,11 +953,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             provenance.Location,
             provenance.Occurrence);
         CancelAllStructuredWaits();
-        instance.Fail(new WorkflowErrorDetails(
-            failure.Code,
-            failure.Message,
-            scope.ScopePlanId.Value,
-            timeProvider.GetUtcNow(), ToPublicFailure(failure)));
+        FailInstance(instance, failure, scope.ScopePlanId.Value);
     }
 
     private static CompiledBranchPlan ResolveBranch(

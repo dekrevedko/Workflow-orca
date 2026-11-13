@@ -8,6 +8,20 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 
 internal sealed partial class InMemoryExecutionStateAdapter<TState>
 {
+    private static async Task<TResult> InvokeBusinessStepAsync<TResult>(Func<Task<TResult>> operation)
+    {
+        try { return await operation().ConfigureAwait(false); }
+        catch (Exception error) when (error is not OperationCanceledException)
+        {
+            throw new BusinessStepException(error);
+        }
+    }
+
+    private sealed class BusinessStepException(Exception original) : OrcaCoreException(
+        original is OrcaCoreException known ? known.Code : "WF-STEP-UNHANDLED",
+        string.IsNullOrWhiteSpace(original.Message) ? "The step failed without an exception message." : original.Message,
+        original);
+
     private void FailExecutionBoundary(
         StructuredExecutionState execution,
         FiberRecord fiber,
@@ -171,13 +185,13 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
             failure.Code,
             failure.Message,
             path,
-            timeProvider.GetUtcNow(), ToPublicFailure(failure)));
+            timeProvider.GetUtcNow(), ToPublicFailure(failure)), failure);
     }
 
     private static global::OrcaCore.WorkflowFailure ToPublicFailure(FiberFailure failure) =>
         global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.WorkflowFailure(
             failure.Code, failure.Message, failure.AuthoredLocation, failure.Occurrence,
-            failure.Causes.Select(ToPublicFailure).ToArray());
+            failure.Causes.Select(ToPublicFailure).ToArray(), failure.ExceptionType);
 
     private FiberFailure CreateFiberFailure(
         StructuredExecutionState execution,

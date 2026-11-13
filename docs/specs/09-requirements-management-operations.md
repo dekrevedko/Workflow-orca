@@ -42,6 +42,11 @@ treat caller cancellation as local to the wait. Ephemeral calls require retained
 admission under MG-057: an admitted wait pins its instance, but a successful start alone does
 not reserve a future wait or guarantee a minimum observation window.
 
+The sole live-reference exception is an elected ephemeral business-step original
+in WorkflowOutputUnavailableException.InnerException. Failure remains detached and
+authoritative, including nullable diagnostic ExceptionType; snapshots, state/output
+values and branch/item data never hold the original. See MG-071.
+
 ### MG-004 Bulk/destructive management is deferred
 Any future broad selection, retry, archive, purge, or destructive breadth contract must define
 authorization, previews/confirmation, per-instance outcomes, and provider/reference safety.
@@ -49,7 +54,9 @@ V1 does not predeclare `All`, `Where`, bulk `Terminate`, or bulk `Purge` members
 
 ### MG-005 Snapshots and closed outcomes only
 Queries return immutable detached snapshots/copies; commands return closed outcome values,
-never live objects or mutable runtime authority. `DagRunHandle.WaitForTerminalAsync` SHALL return
+never live query values or mutable runtime authority. MG-071 permits only the
+separate ephemeral exception carrier, which is not a query value or disposal proof.
+`DagRunHandle.WaitForTerminalAsync` SHALL return
 one committed terminal `DagRunSnapshot` through the same notification/recheck, no-poll,
 caller-cancellation-local contract.
 
@@ -242,10 +249,12 @@ pin-first protects the unit until a coherent detached query/terminal wait result
 retire-first rejects new operations. A pre-existing output wait keeps subscribe-then-recheck,
 no polling/missed wakeup, exactly-once pin release on result/error/local cancellation, and no
 workflow cancellation from local wait cancellation. Merely returning `Accepted` or a handle
-does not subscribe or pin a later wait. Every runtime operation on a retired handle, and
+does not subscribe or pin a later wait. Every ordinary runtime operation on a retired handle, and
 `GetInstanceAsync` for its old ID, throws `WorkflowInstanceNotFoundException` with existing
 `WF-INSTANCE-NOT-FOUND`; retained definition/type mismatch rules remain exact. Caller-owned
 detached values and completed wait results remain valid; an old handle never addresses a new ID.
+The sole passive exception is MG-070 settlement on an already-issued handle: its
+completed receipt survives retirement without lookup, payload pin or resurrection.
 
 Count pressure may retire a completed job between start return and direct/helper wait admission.
 That wait throws not-found despite the job having run, and its now-unbound key can start a new ID
@@ -599,6 +608,9 @@ registered-definition handle identity lookup on an already-resolved registry and
 previously detached caller values remain available. Closure SHALL NOT expire a key,
 replace an ID, prove a start never ran or authorize effect-safe replay.
 
+MG-070 additionally permits passive settlement observation on an already-issued
+handle in Closed/Stopping, without a runtime lane, DI, payload pin or host obligation.
+
 ### MG-067 Completed means stable host-wide physical quiescence
 Completed SHALL require stable zero after sealing every producer: pre-handle starts,
 operations/lanes, root/branch/item attempts and capacity release, retry/resource/yield,
@@ -611,8 +623,8 @@ Stop observers SHALL not wait for themselves; dependency-using handoffs remain o
 After Completed no engine path SHALL create work, use DI/user code, arm timers,
 dispatch diagnostics/notifications or commit. Live operations remain rejected even
 for terminal retained results; metadata is frozen until ordinary owner disposal.
-Pure validation/identity errors, passive definition-handle identity, detached values
-and cached Completed are allowed; the fast path SHALL not call TimeProvider or
+Pure validation/identity errors, passive definition-handle identity, detached values,
+an existing handle's completed settlement receipt and cached Completed are allowed; the fast path SHALL not call TimeProvider or
 create observation resources. Actual owner disposal releases already joined storage.
 
 ### MG-068 Incomplete reports ownership without claiming stop
@@ -638,3 +650,47 @@ or other observers. Later observations can see actual completion; accounting fau
 stay incomplete. Roots are independent; no observer/token/result history accumulates.
 Hosted stop SHALL return only for Completed, otherwise throw the typed incomplete
 exception. Exact signatures/validation are in doc 17 and PR-041.
+
+### MG-070 Passive per-instance physical-settlement observation
+
+WorkflowInstanceHandle SHALL expose nonvirtual ValueTask WaitForSettlementAsync(
+CancellationToken cancellationToken = default); WorkflowInstanceHandle<TOutput>
+inherits it. A receipt completes once only when its accepted ephemeral instance is
+terminal and every owned attempt, cancellation handler, pending commit, callback
+and final handoff is finished. Before success admission is sealed so later stale
+trampolines cannot create work, use dependencies or commit. Reusable WhenSettled
+epochs and nonterminal idle zero counts do not qualify. It is the physical predicate
+used by retention, excluding additional query-pin and cleanup-success conditions.
+
+Subscribe before recheck, never poll. Observers own no physical slot, payload pin
+or host join obligation. Cancellation removes only local registrations, never work
+or another observer. A pre-cancelled token wins before mode/proof checks. Durable
+calls otherwise throw NotSupportedException without DI/provider I/O.
+
+An issued receipt survives count/age retirement, key expiry and a replacement ID;
+it does not resurrect payloads or need a global tombstone. Ordinary stale queries/
+commands still report the original-ID not-found. Admitted output waits capture
+the elected detached failure and original together before releasing their pin.
+Closed and Stopping allow passive settlement without reopening live operations.
+Completed and correct owner disposal allow the completed local proof with no DI,
+codec, user, engine, timer, diagnostic or commit work; raw disposal manufactures none.
+
+Per-instance proof does not authorize root/shared DI disposal or join detached
+processes/I/O that a step did not await. Observe outside one's own still-owned
+body/callback; awaiting its receipt prevents that body's return. A provisional
+abort returns no accepted handle or receipt; retain resources through a step-owned/
+external physical owner or a successful host-wide join. Local wait cancellation,
+logical timeout and a start error never authorize early resource disposal.
+
+### MG-071 Original exceptions are narrowly ephemeral
+
+Both resultful output-wait forms SHALL expose the exact original elected single
+business-step error in their existing wrapper's InnerException, per CR-014.
+Failure remains authoritative and detached; its ExceptionType is nullable opaque
+diagnostic text, never a matching key. Genuine aggregate parents, synthetic errors,
+late losers and durable-produced failures have no invented live original. Never
+persist or diagnose the live object graph; clear engine associations on recovery
+or retirement. Caller-held exceptions remain valid and can retain application
+objects. Multiple observers may share that original; use ExceptionDispatchInfo or
+wrapping rather than resetting it with `throw inner;`. These two members are
+contract-approved but implementation pending until the reviewed task 3 target.

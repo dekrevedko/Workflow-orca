@@ -211,3 +211,20 @@ converter, throttle and public-consumer amendments. All six native cells pass,
 384 cases total; publication is pending.
 This status does not relax NF-034 or grant live event/publishing, other engine/RID
 or released-preview.2 support. [Qualified recipe](../ephemeral-native-support.md)
+
+## NF-035 Original-failure and settlement qualification (implementation pending)
+
+AC-619–638 require behavior-first barrier controls in retention-off and bounded
+modes, full source/coverage/stress/provider lanes, ReSharper and a fresh public-
+package resource-owner experiment. No sleep or polling replaces synchronization.
+The durable non-OrcaCore error witness compares stored failure bytes with base
+0a8e375 through InMemory and shared provider certification on real PostgreSQL/
+SQL Server. Neither a facade-only projection nor a new null field proves parity.
+The exact six-cell Windows Server 2025/Ubuntu 24.04 native recipe retains all
+issue #13 AOT-01–16 journeys, NS groups/subcases and diagnostic classifications,
+adding type/legacy/v2/original/settlement witnesses. Each trimmed/AOT cell proves
+ExceptionType equals its JIT control with JSON reflection disabled; no blanket
+rooting, suppression or broader support claim is allowed. Existing published
+preview.3 evidence remains historical proof for that release, not new-source
+qualification. Steps must await external process/I/O work before returning;
+unjoined child work is outside settlement. Root disposal still requires host join.

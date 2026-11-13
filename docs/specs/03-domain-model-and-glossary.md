@@ -397,3 +397,26 @@ Reflection behavior and common-admitted-shape bytes/values remain unchanged.
 Root/nested/member names and a remedy accompany the error. [NF-034, AC-563–574]
 
 The 2026-10-25 catalogue amendment makes the existing sealed product strong-string converter factory accessible to ordinary external generated DTOs. Product type attribution is distinct from prohibited application converter settings; it does not add a codec hook or metadata/DI ownership.
+
+## Issue #16 failure and physical-settlement vocabulary (contract approved; implementation pending)
+
+- **Original step exception**: the exact object thrown by an ephemeral business-step
+  execution body, or explicitly returned as its failed Error. Only an elected
+  single-step failure exposes it, through WorkflowOutputUnavailableException.InnerException.
+  It is application-owned live data, not a snapshot or protocol identity; it can
+  itself reference mutable application resources. Constructor/DI, initialization,
+  merge/selector/codec and lifecycle failures gain no original-object promise.
+- **ExceptionType**: nullable runtime-created diagnostic text in WorkflowFailure,
+  captured as the original runtime type's FullName (Name fallback), never resolved
+  as a Type or used for matching. Code remains failure identity. Failure values
+  and branch/item causes remain detached; true join parents have no captured type.
+- **Physical-settlement receipt**: a monotonic proof on an accepted ephemeral
+  handle that terminality and all instance-owned attempts, callbacks, pending
+  commits and final continuations have finished. Idle zero work is insufficient.
+  It grants no payload pin, runtime lookup, mutation, global tombstone, child-process
+  join or root-provider disposal permission. Its passive observer owns no host
+  obligation; its success survives retirement and correct host-owner disposal.
+- **Retention eligibility** additionally requires query pins to release. Settlement
+  does not wait for unrelated query pins or retirement-cleanup diagnostics. A
+  terminal status, output wait, cancelled observer or failed unaccepted start does
+  not substitute for physical proof. MG-070/071 and CR-014/016 govern this amendment.

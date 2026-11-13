@@ -1,4 +1,6 @@
 using AwesomeAssertions;
+using System.Reflection;
+using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
@@ -8,6 +10,43 @@ namespace OrcaCore.Engine.Durable.Tests.Facade;
 
 public sealed class DurableWorkflowFacadeTests
 {
+    [Fact]
+    [Trait("AC", "AC-636")]
+    public async Task Settlement_IsUnsupportedBeforeAnyProviderAccess_WithTokenFirstPrecedence()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var eventStore = DispatchProxy.Create<AllProviderPorts, ProviderProbe>();
+        var probes = new[] { (ProviderProbe)(object)eventStore };
+        foreach (var probe in probes) probe.Target = store;
+        var notifications = new DurableFacadeNotificationHub();
+        var processor = new DurableCommandProcessor(eventStore, runtimeObserver: notifications);
+        var runtime = new DurableWorkflowRuntime(processor, new DurableDefinitionRegistry(), TimeProvider.System, projectionStore: eventStore);
+        var registry = new DurableWorkflowDefinitionRegistry(runtime, eventStore, eventStore, processor, notifications, TimeProvider.System);
+        var definition = registry.Register(Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<Input>(input => new State(input.Value)).End(state => state.Value.Value).Build()).GetHandleOrThrow();
+        WorkflowInstanceHandle instance = (await definition.StartOrGetAsync(new Input(1), StartIdempotencyKey.Create("unsupported-settlement"), TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        foreach (var probe in probes) { probe.Calls = 0; probe.Armed = true; }
+        await Assert.ThrowsAsync<NotSupportedException>(async () => await instance.WaitForSettlementAsync(TestContext.Current.CancellationToken));
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await Assert.ThrowsAnyAsync<OperationCanceledException>(async () => await instance.WaitForSettlementAsync(cancelled.Token));
+        probes.Should().OnlyContain(probe => probe.Calls == 0);
+    }
+
+    public interface AllProviderPorts : IWorkflowEventStore, IWorkflowProjectionStore, IWorkflowStartIdempotencyStore, IWorkflowInboxStore, IWorkflowOutboxStore;
+
+    public class ProviderProbe : DispatchProxy
+    {
+        internal object Target { get; set; } = null!;
+        internal int Calls { get; set; }
+        internal bool Armed { get; set; }
+        protected override object? Invoke(MethodInfo? targetMethod, object?[]? args)
+        {
+            Calls++;
+            if (Armed) throw new InvalidOperationException("Settlement accessed a provider.");
+            return targetMethod!.Invoke(Target, args);
+        }
+    }
     [Fact]
     public async Task Registry_StartsReopensAndReturnsCommittedTypedOutput()
     {

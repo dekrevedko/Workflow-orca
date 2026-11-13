@@ -3,13 +3,13 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 374,
-    "physicalDeclarations": 1573,
-    "activeFiles": 219,
-    "activeDeclarations": 885,
+    "physicalFiles": 380,
+    "physicalDeclarations": 1596,
+    "activeFiles": 224,
+    "activeDeclarations": 908,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
-    "outOfBandFixtureFiles": 24,
+    "outOfBandFixtureFiles": 25,
     "outOfBandFixtureDeclarations": 0,
     "inactiveProjectFiles": 0,
     "inactiveProjectDeclarations": 0,
@@ -534,6 +534,12 @@
       "declarations": 5
     },
     {
+      "source": "tests/OrcaCore.Core.Tests/Serialization/WorkflowFailureCodecAmendmentTests.cs",
+      "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
       "source": "tests/OrcaCore.Core.Tests/TestSupport/AsyncSignalCounterTests.cs",
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "active",
@@ -720,6 +726,12 @@
       "declarations": 0
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/FailureSettlementCases.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/NativeMetadata.csproj",
+      "status": "out-of-band-fixture",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/OwnershipCases.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/NativeMetadata/NativeMetadata.csproj",
       "status": "out-of-band-fixture",
@@ -793,6 +805,18 @@
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DeadlineRetryContractGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementSourceGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 2
@@ -1377,7 +1401,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableWorkflowFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Lifecycle/DurableLifecycleEventTests.cs",
@@ -1674,6 +1698,12 @@
       "declarations": 4
     },
     {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Failures/OriginalStepFailureTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 10
+    },
+    {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/GlobalUsings.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
@@ -1738,6 +1768,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
       "declarations": 11
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/SettlementReceiptTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Policies/RetryPolicyTests.cs",
@@ -2079,7 +2115,7 @@
       "source": "tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
-      "declarations": 33
+      "declarations": 34
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs",

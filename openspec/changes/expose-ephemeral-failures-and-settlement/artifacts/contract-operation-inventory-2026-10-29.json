@@ -1,0 +1,22 @@
+{
+  "developer-facing-surface": {
+    "modified": 1,
+    "added": 1
+  },
+  "management-and-querying": {
+    "modified": 5,
+    "added": 1
+  },
+  "quality-and-verification": {
+    "modified": 0,
+    "added": 1
+  },
+  "structured-fiber-execution": {
+    "modified": 1,
+    "added": 0
+  },
+  "workflow-contracts": {
+    "modified": 2,
+    "added": 0
+  }
+}

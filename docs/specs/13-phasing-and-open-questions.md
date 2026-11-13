@@ -255,3 +255,18 @@ AOT-01 through AOT-16 assertion, NS group and mandatory subcase remains required
 A future ingress/publish capability requires its own reviewed public contract.
 This is an explicit qualification-scope adjustment, not the old full event
 requirement passing. Source/public API and the fixed codec are unchanged.
+
+## Issue #16 contract-to-source status (2026-11-01)
+
+The 26-path contract is approved and checkpointed at 0cae922, exact tree cf054886,
+with external verdict-only child 7697c79. Task 2.1 prepares canonical/numbered docs,
+the normative declaration companion and a Git-bound source-pending registry,
+including external F1 and the P3 clarifications. It remains uncommitted for review.
+WorkflowFailure.ExceptionType and WaitForSettlementAsync are **implementation
+pending** and are absent from released preview.3 and current runtime baselines.
+Source cannot start before the independently approved canonical checkpoint.
+No new management command, option, provider, friend, durable live exception or
+unjoined-process guarantee is introduced; all existing deferred entries remain.
+The existing preview.3 release/native evidence is unchanged. Task 3 owns behavior-
+first source, codec/baselines, stored durable-byte witnesses, package consumer,
+six native cells, full lanes and ReSharper. Push/PR/merge/release remain later gates.

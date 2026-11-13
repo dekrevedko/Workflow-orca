@@ -11,7 +11,8 @@ internal static class FailureProvenance
         CompiledInstruction instruction,
         string code,
         string message,
-        IReadOnlyList<FiberFailure>? causes = null)
+        IReadOnlyList<FiberFailure>? causes = null,
+        string? exceptionType = null)
     {
         ArgumentNullException.ThrowIfNull(plan);
         ArgumentNullException.ThrowIfNull(state);
@@ -23,7 +24,8 @@ internal static class FailureProvenance
             message,
             causes,
             LocationFromCompilerPath(instruction.Path),
-            occurrence);
+            occurrence,
+            exceptionType);
     }
 
     public static (AuthoredLocation Location, FailureOccurrence Occurrence) ForScope(

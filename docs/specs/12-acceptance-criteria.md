@@ -604,7 +604,9 @@ first-release evidence for AC-512…517.
 - **AC-552** After Completed reject live handle/query/wait/command/ingress operations
   before codec/DI/user/pin/timer/diagnostic/commit work, with original-ID precedence.
   Detached values/passive registered identity/cached result stay usable; cached stop
-  never calls TimeProvider. No post-disposal engine-owned access. [MG-067, NF-032]
+  never calls TimeProvider. An already-issued handle's completed MG-070 settlement
+  receipt also remains available after correct owner disposal, with local token/proof
+  checks only. No post-disposal engine-owned access. [MG-067/070, NF-032]
 - **AC-553** Concurrent/repeated observers, cancellation/deadline/settlement precedence,
   later actual completion, sticky accounting fault and independent fresh roots; no
   retained observer/token/result history. [MG-068/069]
@@ -777,3 +779,47 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 These are mandatory source/package/native regression assertions. Markdown, a green
 contract lane or the original unsupported assessment supplies no execution credit.
+
+## Issue #16 original failure and settlement (contract approved; implementation pending)
+
+- **AC-619** FS-01: Thrown root IOException / InvalidDataException. Exact InnerException identity/type/message/stack; WF-STEP-UNHANDLED; real authored/occurrence provenance. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-620** FS-02: OrcaCore throw and explicit StepResult.Failed. Original supplied object, stable existing code, captured type; no normalization wrapper exposed. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-621** FS-03: Engine invocation wrapper vs user-thrown TargetInvocationException. Unwrap only an owned engine wrapper; preserve a user-thrown wrapper itself; DI/merge/codec boundaries gain no live original promise. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-622** FS-04: Retry final attempt, equal errors and repeated sites. Only the actual final failure object; equal text/path never aliases an earlier attempt. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-623** FS-05: Root/branch/item timeout, cancel, terminate and late exception. Logical output finishes earlier; late error cannot overwrite elected failure/original slot. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-624** FS-06: Single branch/item propagation and true aggregate. Single original retained; SFE-JOIN-FAILED has no invented live inner; real causes keep authored/item order and type. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-625** FS-07: WhenAllOutcomes successful recovery. Only detached failure data crosses merge; obsolete originals released. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-626** FS-08: Null-type legacy and typed v2 codec. Exact old five-field bytes; exact ordered seven-field v2, mixed recursive graphs; no exception serialization/type resolution. Include deterministic durable thrown-non-OrcaCore stored-byte parity to base 0a8e375 through InMemory and provider certification. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-627** FS-09: Malformed wire and message edge controls. Unknown/duplicate/missing/wrong-type/version/type/provenance reject; nonblank messages verbatim and blank fallback exact. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-628** FS-10: Terminal/physical separation under retention off and bounded count. Output timeout/termination does not settle a blocked root/branch/item body or callback. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-629** FS-11: Nonterminal idle zero and terminal handoff. Event/delay/retry/lease/commit continuations cannot give premature or reversible success. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-630** FS-12: Multiple observers and local cancellation. One observer cancels without workflow/other-receipt cancellation, payload pin or host owner. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-631** FS-13: Subscribe/recheck and final notification race. No polling, no missed wakeup and exactly one observer completion. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-632** FS-14: Count/age retirement and expired-key replacement. Old receipt succeeds without payload/tombstone retention; normal old operations remain original-ID not-found. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-633** FS-15: Original reference retirement/release. Engine releases originals; caller-held wrapper remains valid; weak-reference test avoids a definition/caller capture. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-634** FS-16: Closed/Stopping/Completed and correct owner disposal. Draining allowed; passive receipt never blocks host join, invokes dependencies or creates work; completed fast path passive. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-635** FS-17: Provisional cancellation/exception after Init, in both policy modes. No invented handle or per-start receipt; abort remains terminal-fenced and host-owned until physical return. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-636** FS-18: Resultless/resultful, pre-cancel and durable. Inherited one method; token first; NotSupported with zero provider/DI calls; existing durable output/failure unchanged. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-637** FS-19: Fresh public-package application resource owner. Keep resources through output/local cancellation; release after receipt; retain without handle unless step/external/host owner proves settlement. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+- **AC-638** FS-20: Six native profiles with unchanged old journeys plus new witnesses. Actual jobs and aggregate run, package/source identities agree, legacy/v2/type/original/settlement controls succeed, no private rooting or reflection switch. Every native cell asserts ExceptionType text equals JIT for the same error types. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
+
+Each assertion remains a source/package/native obligation, with both retention modes where applicable. This transition supplies no runtime acceptance credit.
