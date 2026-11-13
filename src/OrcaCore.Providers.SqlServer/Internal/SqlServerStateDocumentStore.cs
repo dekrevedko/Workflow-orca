@@ -63,7 +63,8 @@ internal sealed class SqlServerStateDocumentStore
         Func<string?, TState> restore,
         Func<TState, Task<TResult>> operation,
         Func<TState, string> capture,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        Func<SqlConnection, SqlTransaction, Task>? validate = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(stateKey);
         ArgumentNullException.ThrowIfNull(restore);
@@ -82,6 +83,7 @@ internal sealed class SqlServerStateDocumentStore
             StateLockPrefix + Schema + ":" + stateKey,
             cancellationToken).ConfigureAwait(false);
 
+        if (validate is not null) await validate(connection, transaction).ConfigureAwait(false);
         var payload = await LoadPayloadAsync(
             connection,
             transaction,
@@ -120,7 +122,7 @@ internal sealed class SqlServerStateDocumentStore
         return await operation(restore(payload)).ConfigureAwait(false);
     }
 
-    private async Task<string?> LoadPayloadAsync(
+    internal async Task<string?> LoadPayloadAsync(
         SqlConnection connection,
         SqlTransaction? transaction,
         string stateKey,
@@ -134,7 +136,7 @@ internal sealed class SqlServerStateDocumentStore
         return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) as string;
     }
 
-    private async Task SavePayloadAsync(
+    internal async Task SavePayloadAsync(
         SqlConnection connection,
         SqlTransaction transaction,
         string stateKey,

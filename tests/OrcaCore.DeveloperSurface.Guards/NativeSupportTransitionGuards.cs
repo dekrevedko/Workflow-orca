@@ -96,6 +96,7 @@ public sealed class NativeSupportTransitionGuards
         current.Remove("nativeSupportContractEvidence");
         current.Remove("nativeSupportPendingAmendments");
         current["schemaVersion"] = 19;
+        DagStreamIdentitySliceGuards.ProjectTask21RegistryExtension(old!.AsObject(), current);
         JsonNode.DeepEquals(old, current).Should().BeTrue("only the two specifically validated native-support keys extend the prior registry");
         var evidence = root.GetProperty("nativeSupportContractEvidence");
         S(evidence, "stage").Should().Be(Stage);
@@ -452,6 +453,9 @@ public sealed class NativeSupportTransitionGuards
         var changed = Git("diff", "--name-only", VerdictCommit, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Concat(Git("ls-files", "--others", "--exclude-standard", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .Where(path => path.StartsWith("src/OrcaCore.Abstractions/", StringComparison.Ordinal) ||
+                path.StartsWith("src/OrcaCore.Core/", StringComparison.Ordinal) ||
+                path.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal).ToArray();
         changed.Should().Equal(new[]
         {

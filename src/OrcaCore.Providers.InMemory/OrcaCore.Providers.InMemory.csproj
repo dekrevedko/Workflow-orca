@@ -11,4 +11,8 @@
     <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
     <ProjectReference Include="..\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
   </ItemGroup>
+  <ItemGroup Label="DagRunPrivate">
+    <Compile Include="..\OrcaCore.Runtime.Protocol\Durable\Dag\DagRunStateReducer.cs" Link="Internal\DagRunStateReducer.cs" />
+    <Compile Include="..\OrcaCore.Provider.Abstractions\Dag\Internal\DagRunStoreRules.cs" Link="Internal\DagRunStoreRules.cs" />
+  </ItemGroup>
 </Project>

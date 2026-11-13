@@ -2216,7 +2216,6 @@
         "tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseExitScenarioHost.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs",
-        "tests/OrcaCore.Engine.Durable.Tests/Diagnostics/DurableOperationalTelemetryTests.cs",
         "docs/review/harmonize-downstream-capability-specs-task-7-2-dirty-manifest-2026-09-16.txt",
         "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-request-2026-09-16.md",
         "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-verdict-2026-09-16.md",
@@ -2593,9 +2592,7 @@
         }
       ],
       "currentWorktreeMatchPaths": [
-        "openspec/changes/reshape-developer-facing-interfaces/production-deletion-ledger.md",
         "tests/OrcaCore.DeveloperSurface.Guards/CompileFixtures/ProductForbiddenLegacySurface/ForbiddenLegacySurface.cs",
-        "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/production-deletion-ledger.json",
         "tests/OrcaCore.DeveloperSurface.Guards/ProductionDeletionLedgerGuards.cs",
         "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-dirty-manifest-2026-09-22.txt",
         "docs/review/harmonize-downstream-capability-specs-task-7-5-ooo-1-and-task-7-6-independent-review-request-2026-09-22.md",

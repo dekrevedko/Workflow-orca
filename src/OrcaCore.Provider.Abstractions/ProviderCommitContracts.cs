@@ -11,6 +11,9 @@ namespace OrcaCore.Abstractions.Providers;
 /// </summary>
 public sealed record ProviderCommitBatch
 {
+    /// <summary>Gets the separate, versioned DAG aggregate append, absent for workflow streams.</summary>
+    public global::OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? DagRun { get; init; }
+
     /// <summary>
     /// Gets the workflow stream being appended.
     /// </summary>
@@ -312,6 +315,10 @@ public enum InboxRecordState
 /// </summary>
 public sealed record OutboxWrite(OutboxRecordId OutboxRecordId, string Kind, byte[] Payload)
 {
+    public Guid? DagRunOwner { get; init; }
+    public Guid? RecipientHostId { get; init; }
+    public Guid? DagRunSubscriptionId { get; init; }
+
     /// <summary>
     /// Gets the positive durable claim-attempt ordinal when returned by an outbox store;
     /// commit writes use zero before the first claim.
