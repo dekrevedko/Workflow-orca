@@ -12,6 +12,29 @@ namespace OrcaCore.Engine.Durable.Tests.Outbox;
 
 public sealed class DurableOutboxTests
 {
+    [Theory]
+    [InlineData("dag-child-start-v1")]
+    [InlineData("dag-child-join-v1")]
+    [InlineData("dag-child-cancel-v1")]
+    [InlineData("dag-run-ready-v1")]
+    public async Task ExternalOutboxPump_RejectsDagKindsEvenIfTheProviderOrCallerSelectsThem(string kind)
+    {
+        foreach (var explicitSelector in new[] { false, true })
+        {
+            var record = new OutboxWrite(OutboxRecordId.New(), kind, [1]);
+            var store = new SelectorIgnoringOutboxStore(record);
+            var dispatcher = new FakeMessageDispatcher();
+            var request = new OutboxClaimRequest(1,DateTimeOffset.UtcNow,TimeSpan.FromSeconds(5))
+            {
+                KindSelector = explicitSelector ? OutboxKindSelector.Including(kind) : null
+            };
+            (await new DurableOutboxPump(store,dispatcher).PumpOnceAsync(request,TestContext.Current.CancellationToken)).Should().Be(0);
+            store.Released.Should().ContainSingle().Which.Should().Be(record.OutboxRecordId);
+            dispatcher.Dispatched.Should().BeEmpty();
+            if (!explicitSelector) store.CapturedRequest!.KindSelector!.Exclude.Should().Contain(kind);
+        }
+    }
+
     [Fact]
     [Trait("AC", "AC-310")]
     public async Task CommitFailure_DoesNotExposeOutboxRecordToDispatcher()
@@ -91,7 +114,8 @@ public sealed class DurableOutboxTests
             .PumpOnceAsync(1, TestContext.Current.CancellationToken);
 
         legacyStore.CapturedRequest!.KindSelector!.Exclude.Should()
-            .BeEquivalentTo(OutboxKinds.Continue, OutboxKinds.WorkflowEvent);
+            .BeEquivalentTo(OutboxKinds.Continue, OutboxKinds.WorkflowEvent,
+                "dag-child-start-v1", "dag-child-join-v1", "dag-child-cancel-v1", "dag-run-ready-v1");
         legacyStore.Released.Should().ContainSingle().Which.Should().Be(workflowEvent.OutboxRecordId);
         legacyDispatcher.Dispatched.Should().BeEmpty();
 

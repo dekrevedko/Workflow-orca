@@ -1,3 +1,5 @@
+using OrcaCore.Abstractions.Durable.Dag;
+using OrcaCore.Abstractions.Providers.Dag;
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -15,6 +17,50 @@ public sealed class FakeWorkflowEventStore :
     IWorkflowOutboxStore,
     IWorkflowProjectionStore
 {
+    public Task<Option<DagRunCheckpointV1>> LoadDagRunCheckpointAsync(
+        WorkflowStreamId streamId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<Option<DagRunDiscoveryV1>> GetDagRunByStartKeyAsync(
+        DagRunStartKeyV1 startKey, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<IReadOnlyList<DagRunRecordV1>> LoadDagRunTailAsync(
+        WorkflowStreamId streamId, StreamVersion afterVersion, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<DagRunLeaseResultV1> AcquireDagRunLeaseAsync(
+        DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(
+        DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(
+        DagRunFenceV1 fence, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task CancelDagRunLeaseRequestAsync(
+        Guid runId, Guid ownerId, Guid requestId, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(
+        DagRunDiscoveryRequestV1 request, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<DagRunSubscribeResultV1> SubscribeDagRunAsync(
+        DagRunSubscriptionV1 subscription, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task UnsubscribeDagRunAsync(Guid subscriptionId, Guid recipientHostId,
+        CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
+    public Task<int> PruneExpiredDagRunObserversAsync(
+        int maxCount, CancellationToken cancellationToken) =>
+        throw new NotSupportedException("This workflow-only test fake does not certify DAG persistence.");
+
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
 
     private readonly object gate = new();

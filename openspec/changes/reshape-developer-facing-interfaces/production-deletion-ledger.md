@@ -21,9 +21,9 @@ in the same target or the infrastructure guards fail.
 
 | Inventory | Exact count | Enforcement |
 |---|---:|---|
-| Disposition families | 24 | unique family IDs and one closed disposition each |
+| Disposition families | 25 | unique family IDs and one closed disposition each |
 | Physically deleted production paths | 134 | union of recovery/target trees compared with the current filesystem |
-| Production `<Compile Remove>` entries | 1 | every `src/` and `samples/` project parsed as XML |
+| Production `<Compile Remove>` entries | 2 | every `src/` and `samples/` project parsed as XML |
 | Orphaned production roots | 0 | source/SQL roots with no project file |
 | Retired/deferred package artifacts | 5 | deleted project identities absent from the exact v1 manifest |
 | Retired public/member symbols | 122 | exact current or historical qualified owners, ordered inventory, and SHA-256 pinned by harmonization task 7.6 |
@@ -69,6 +69,7 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | Provisional SQL Server project/package and migration | Replace/relocate | `OrcaCore.Providers.SqlServer` | The incomplete provisional provider and inactive tests remain deleted. The replacement provider implements the complete current split ports, owns one SQL Server-native greenfield schema, and carries current-release package/shared/real-storage certification; no deleted provisional source was restored. |
 | ZeroMQ adapter project/package | Remove | application-owned dispatcher adapters | The provisional broker-SDK package and inactive tests are deleted; transport mapping stays outward through `IWorkflowEventDispatcher` and the isolated broker-adapter sample. |
 | Broker-adapter sample source | Replace/relocate | isolated broker-adapter sample project | The parent sample excludes the files because a package-isolated project compiles and tests them. |
+| DAG provider-private framing and transaction sources | Replace/relocate | `src/OrcaCore.Providers.InMemory`, PostgreSQL and SQL Server provider projects | The contract assembly excludes the SDK-free private helper directory; the owning providers explicitly compile the shared sources. The exact links, public API absence and package-source inputs are checked in the Task 2.1 target. This is source ownership, not removed behavior or replacement credit. |
 
 ## Interpretation rules
 

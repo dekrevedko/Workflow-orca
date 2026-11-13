@@ -40,7 +40,11 @@ internal sealed class DurableOutboxPump(
             {
                 KindSelector = OutboxKindSelector.Excluding(
                     OutboxKinds.Continue,
-                    OutboxKinds.WorkflowEvent)
+                    OutboxKinds.WorkflowEvent,
+                    "dag-child-start-v1",
+                    "dag-child-join-v1",
+                    "dag-child-cancel-v1",
+                    "dag-run-ready-v1")
             }
             : request;
     }
@@ -80,6 +84,7 @@ internal sealed class DurableOutboxPump(
         foreach (var record in records)
         {
             if (string.Equals(record.Kind, OutboxKinds.Continue, StringComparison.Ordinal) ||
+                record.Kind is "dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1" ||
                 dispatchRequest.KindSelector is { } selector && !selector.Matches(record.Kind))
             {
                 await outboxStore

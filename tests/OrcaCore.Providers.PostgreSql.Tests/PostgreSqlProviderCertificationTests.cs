@@ -53,6 +53,50 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public Task DagCreationAndReplay_PersistAnIndependentAggregate() =>
+        DagRunCertification.CreationAndReplayAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFencedAppend_AtomicallyPersistsInputsAndAddressedNotices() =>
+        DagRunCertification.FencedAppendAndObserversAsync(certificationStore!, certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task DagLeaseQueue_UsesFifoAndAnAbsoluteTurnDeadline()
+    {
+        var time = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        certificationStore!.DagTransactionClock.TestUtcNow = () => time;
+        await DagRunCertification.LeaseQueueAsync(certificationStore, () => time, duration => time += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFailureClosure_PreservesIndependentWorkAndDerivesTerminalOutcome() =>
+        DagRunCertification.FailureClosureAndTerminalAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task DagObservers_CleanExpiredNoticesButRetainClaimsPoisonAndBusinessWork()
+    {
+        var time = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        certificationStore!.DagTransactionClock.TestUtcNow = () => time;
+        await DagRunCertification.ObserverCleanupAsync(certificationStore, certificationStore, () => time, duration => time += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagConcurrentLeaseRequests_SerializeAcrossStoreInstances()
+    {
+        await using var other = new PostgreSqlWorkflowStore(container.GetConnectionString());
+        await other.InitializeAsync(TestContext.Current.CancellationToken);
+        await DagRunCertification.ConcurrentLeasesAsync(certificationStore!, other, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagCancellationAndIntegrity_PreserveAdmissionsAndDeriveCancelledTerminal() =>
+        DagRunCertification.CancellationAndIntegrityAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagAndWorkflowIdentities_CannotOwnTheSameGuid() =>
+        DagRunCertification.CrossAggregateIdentityAsync(certificationStore!, certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
     [Trait("AC", "AC-108")]
     public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>
         DefinitionFanoutInboxCertification.RunAsync(CreateFixture());

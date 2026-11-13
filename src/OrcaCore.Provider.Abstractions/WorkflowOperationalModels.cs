@@ -23,6 +23,22 @@ public sealed record WorkflowOperatorActiveWaitGroup(
 /// <summary>Provides provider-authoritative durable storage and dispatch pressure.</summary>
 public sealed record WorkflowOperationalPressure
 {
+    public long InternalDagPendingCount { get; init; }
+    public long InternalDagRetryableCount { get; init; }
+    public long InternalDagClaimedCount { get; init; }
+    public long InternalDagPoisonedCount { get; init; }
+    public long DagObserverPendingCount { get; init; }
+    public long DagObserverRetryableCount { get; init; }
+    public long DagObserverClaimedCount { get; init; }
+    public long DagObserverPoisonedCount { get; init; }
+    public long ActiveDagObserverCount { get; init; }
+    public long ExpiredDagObserverCount { get; init; }
+    public long ActiveDagRunCount { get; init; }
+    public long StuckDagRunCount { get; init; }
+    public long DagRunStreamEventCount { get; init; }
+    public long DagRunCheckpointCount { get; init; }
+    public long DagRunCheckpointLag { get; init; }
+
     public long ActiveInstanceCount { get; init; }
 
     public long StuckInstanceCount { get; init; }
