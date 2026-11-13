@@ -30,7 +30,7 @@
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "dc606bd0c11ca42ea91db5c5c70863e94a0e7de08c0f8329b7748e337c5b28e0"
+      "sourceSha256": "ca36a25b109c272022ba52043a0c71a47d2e3652c24ba5c9461bab334f8e6e97"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
@@ -40,27 +40,27 @@
     {
       "id": "OrcaCore.Provider.Abstractions",
       "project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj",
-      "sourceSha256": "1cfdd1ecbcd8ba7f25e913394a6d7ff793aaf1a4b864111006b0e67f5491026e"
+      "sourceSha256": "c4ed9d0827882f823625e25018be6d58a207a0ae755193fcc10b7cd66f5de1fb"
     },
     {
       "id": "OrcaCore.Providers.InMemory",
       "project": "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj",
-      "sourceSha256": "241b18f1d0c10dd77ce441d433ae3939704c803108c4dcaebcfb90967e8b24a8"
+      "sourceSha256": "61662abf4be7a1b74b50e2a2da0bf53e48296d5f9e3287dce0f4527d64b57d08"
     },
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "1227fe4cf636ced825624491d3b3b3b8c54f1545d8f56167aedd2ceb2744c84d"
+      "sourceSha256": "677c465008fbd0710ed5ad7c46d66a6849a21d85356d14ad2387dd52e8fc0851"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",
       "project": "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj",
-      "sourceSha256": "ab3a64388a76d9274cd3dacd3800dfb3aba1c2fd6fac9bfaaeb31e3ba553b9ff"
+      "sourceSha256": "9c9817667dbbc3ec995bb7bbd20a024877190cdb7273432b3ae955e453ad185e"
     },
     {
       "id": "OrcaCore.Runtime.Protocol",
       "project": "src/OrcaCore.Runtime.Protocol/OrcaCore.Runtime.Protocol.csproj",
-      "sourceSha256": "e60830f54517b2dc0583673929a3c4d2865e3cb9ffe1085dd9126bea5dc4c2f2"
+      "sourceSha256": "93ddf8226a111c996d6c636e2380f40bc7b905108c174056b5b3a9fb7e8d8ba3"
     }
   ]
 }

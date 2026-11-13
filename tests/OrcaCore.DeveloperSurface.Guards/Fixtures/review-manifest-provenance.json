@@ -2216,7 +2216,6 @@
         "tests/OrcaCore.DeveloperSurface.BehaviorScenarios/LeaseExitScenarioHost.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/LeaseDiscoveryAndGovernanceContractGuards.cs",
         "tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs",
-        "tests/OrcaCore.Engine.Durable.Tests/Diagnostics/DurableOperationalTelemetryTests.cs",
         "docs/review/harmonize-downstream-capability-specs-task-7-2-dirty-manifest-2026-09-16.txt",
         "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-request-2026-09-16.md",
         "docs/review/harmonize-downstream-capability-specs-task-7-2-independent-review-verdict-2026-09-16.md",

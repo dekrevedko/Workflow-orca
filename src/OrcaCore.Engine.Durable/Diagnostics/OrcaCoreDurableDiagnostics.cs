@@ -78,6 +78,13 @@ internal static class OrcaCoreDurableDiagnostics
         Meter.CreateObservableGauge(
             OrcaCoreMetrics.ExternalOutboxPendingCount,
             () => Volatile.Read(ref fleet).ExternalOutboxStates),
+        Meter.CreateObservableGauge("orca.dag.internal.pending.count", () => Volatile.Read(ref fleet).DagInternalStates),
+        Meter.CreateObservableGauge("orca.dag.observer.pending.count", () => Volatile.Read(ref fleet).DagObserverStates),
+        Meter.CreateObservableGauge("orca.dag.observer.subscription.count", () => Volatile.Read(ref fleet).DagSubscriptions),
+        Meter.CreateObservableGauge("orca.dag.runs.count", () => Volatile.Read(ref fleet).DagRuns),
+        Meter.CreateObservableGauge("orca.dag.stream.events.count", () => Volatile.Read(ref fleet).DagEvents),
+        Meter.CreateObservableGauge("orca.dag.checkpoints.count", () => Volatile.Read(ref fleet).DagCheckpoints),
+        Meter.CreateObservableGauge("orca.dag.checkpoint.lag", () => Volatile.Read(ref fleet).DagCheckpointLag),
         Meter.CreateObservableGauge(OrcaCoreMetrics.StreamEvents, () => Volatile.Read(ref fleet).StreamEvents),
         Meter.CreateObservableGauge(OrcaCoreMetrics.CheckpointsCount, () => Volatile.Read(ref fleet).CheckpointCount),
         Meter.CreateObservableGauge(OrcaCoreMetrics.CheckpointsLag, () => Volatile.Read(ref fleet).CheckpointLag),
@@ -141,7 +148,16 @@ internal static class OrcaCoreDurableDiagnostics
                 PoolMeasurements(
                     resourcePools,
                     pool => Math.Max(0, pool.HeldTickets.Sum(ticket => ticket.Count) - pool.Capacity)),
-                PoolMeasurements(resourcePools, pool => pool.ExpiredTickets.Count)));
+                PoolMeasurements(resourcePools, pool => pool.ExpiredTickets.Count))
+            {
+                DagInternalStates = DagQueueMeasurements(statistics.ProviderName, pressure.InternalDagPendingCount, pressure.InternalDagRetryableCount, pressure.InternalDagClaimedCount, pressure.InternalDagPoisonedCount),
+                DagObserverStates = DagQueueMeasurements(statistics.ProviderName, pressure.DagObserverPendingCount, pressure.DagObserverRetryableCount, pressure.DagObserverClaimedCount, pressure.DagObserverPoisonedCount),
+                DagSubscriptions = [DagStateMeasurement(statistics.ProviderName,"Active",pressure.ActiveDagObserverCount), DagStateMeasurement(statistics.ProviderName,"Expired",pressure.ExpiredDagObserverCount)],
+                DagRuns = [DagStateMeasurement(statistics.ProviderName,"Active",pressure.ActiveDagRunCount), DagStateMeasurement(statistics.ProviderName,"Stuck",pressure.StuckDagRunCount)],
+                DagEvents = ProviderMeasurement(statistics.ProviderName,pressure.DagRunStreamEventCount),
+                DagCheckpoints = ProviderMeasurement(statistics.ProviderName,pressure.DagRunCheckpointCount),
+                DagCheckpointLag = ProviderMeasurement(statistics.ProviderName,pressure.DagRunCheckpointLag)
+            });
     }
 
     internal static void RecordCommand(WorkflowRuntimeObservation observation)
@@ -340,16 +356,16 @@ internal static class OrcaCoreDurableDiagnostics
     [
         StateMeasurement(
             OrcaCoreDiagnostics.PendingOutboxState,
-            pressure.ContinuationPendingCount + pressure.ExternalOutboxPendingCount),
+            pressure.ContinuationPendingCount + pressure.ExternalOutboxPendingCount + pressure.InternalDagPendingCount),
         StateMeasurement(
             OrcaCoreDiagnostics.RetryableOutboxState,
-            pressure.ContinuationRetryableCount + pressure.ExternalOutboxRetryableCount),
+            pressure.ContinuationRetryableCount + pressure.ExternalOutboxRetryableCount + pressure.InternalDagRetryableCount),
         StateMeasurement(
             OrcaCoreDiagnostics.ClaimedOutboxState,
-            pressure.ContinuationClaimedCount + pressure.ExternalOutboxClaimedCount),
+            pressure.ContinuationClaimedCount + pressure.ExternalOutboxClaimedCount + pressure.InternalDagClaimedCount),
         StateMeasurement(
             OrcaCoreDiagnostics.PoisonedOutboxState,
-            pressure.ContinuationPoisonedCount + pressure.ExternalOutboxPoisonedCount)
+            pressure.ContinuationPoisonedCount + pressure.ExternalOutboxPoisonedCount + pressure.InternalDagPoisonedCount)
     ];
 
     private static Measurement<long>[] QueueStateMeasurements(
@@ -388,6 +404,16 @@ internal static class OrcaCoreDurableDiagnostics
                     ? OrcaCoreDiagnostics.ContinuationQueueLane
                     : OrcaCoreDiagnostics.ExternalOutboxQueueLane),
             new KeyValuePair<string, object?>(OrcaCoreDiagnostics.OutboxStateKey, state));
+
+    private static Measurement<long>[] DagQueueMeasurements(string provider, long pending, long retryable, long claimed, long poisoned) =>
+    [
+        DagStateMeasurement(provider,"Pending",pending), DagStateMeasurement(provider,"Retryable",retryable),
+        DagStateMeasurement(provider,"Claimed",claimed), DagStateMeasurement(provider,"Poisoned",poisoned)
+    ];
+
+    private static Measurement<long> DagStateMeasurement(string provider, string state, long value) =>
+        new(value, new KeyValuePair<string,object?>(OrcaCoreDiagnostics.ProviderNameKey,provider),
+            new KeyValuePair<string,object?>(OrcaCoreDiagnostics.OutboxStateKey,state));
 
     private static Measurement<long>[] ProviderMeasurement(string providerName, long value) =>
     [
@@ -536,6 +562,14 @@ internal static class OrcaCoreDurableDiagnostics
         Measurement<long>[] ResourcePoolOverCapacityDebt,
         Measurement<long>[] ResourcePoolReconciliationDue)
     {
+        internal Measurement<long>[] DagInternalStates { get; init; } = [];
+        internal Measurement<long>[] DagObserverStates { get; init; } = [];
+        internal Measurement<long>[] DagSubscriptions { get; init; } = [];
+        internal Measurement<long>[] DagRuns { get; init; } = [];
+        internal Measurement<long>[] DagEvents { get; init; } = [];
+        internal Measurement<long>[] DagCheckpoints { get; init; } = [];
+        internal Measurement<long>[] DagCheckpointLag { get; init; } = [];
+
         internal static FleetGaugeSnapshot Empty { get; } =
             new([], [], [], [], [], [], [], [], [], [], [], [], [], []);
     }

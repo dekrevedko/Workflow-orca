@@ -29,9 +29,39 @@ public abstract class EventStoreCertificationTests
         var before = await fixture.EventStore.LoadTailAsync(workflow, StreamVersion.Empty, TestContext.Current.CancellationToken);
         foreach (var invalid in new[] { WorkflowStreamId.ForDagRun(identity), default })
         {
+            var inboxEventId = EventId.Create(Guid.CreateVersion7().ToString());
+            var outboxRecordId = OutboxRecordId.New();
+            // Build a valid batch first: Batch itself reads InstanceId. The invalid
+            // identity must reach the provider rather than fail in this test helper.
+            var rejectedBatch = Batch(workflow, StreamVersion.Empty, inboxEventId, outboxRecordId) with
+            {
+                StreamId = invalid
+            };
+            var pressureBefore = fixture.EventStore is IWorkflowOperationalStore operationalBefore
+                ? (await operationalBefore.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken)).Pressure.StreamEventCount
+                : (long?)null;
             Func<Task> append = async () => await fixture.EventStore.AppendAsync(
-                Batch(invalid, StreamVersion.Empty), TestContext.Current.CancellationToken);
+                rejectedBatch, TestContext.Current.CancellationToken);
             await append.Should().ThrowAsync<InvalidOperationException>();
+            (await fixture.InboxStore.GetByEventIdAsync(inboxEventId, TestContext.Current.CancellationToken))
+                .HasValue.Should().BeFalse("a rejected stream must not acquire inbox ownership");
+            var claimed = await fixture.OutboxStore.ClaimAsync(
+                new OutboxClaimRequest(100, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(5)),
+                TestContext.Current.CancellationToken);
+            claimed.Should().NotContain(record => record.OutboxRecordId == outboxRecordId,
+                "a rejected stream must not publish a related outbox write");
+            if (fixture.EventStore is IWorkflowOperationalStore operationalAfter)
+            {
+                (await operationalAfter.GetOperatorStatisticsAsync(TestContext.Current.CancellationToken))
+                    .Pressure.StreamEventCount.Should().Be(pressureBefore,
+                        "checking the matching workflow tail alone misses leaked DAG/default stream events");
+            }
+            using var cancelled = new CancellationTokenSource();
+            cancelled.Cancel();
+            Func<Task> rejectedBeforeIo = async () => await fixture.EventStore.AppendAsync(
+                rejectedBatch, cancelled.Token);
+            await rejectedBeforeIo.Should().ThrowAsync<InvalidOperationException>(
+                "identity rejection must precede cancellation-sensitive storage access, even where a transaction would roll back");
         }
 
         var after = await fixture.EventStore.LoadTailAsync(workflow, StreamVersion.Empty, TestContext.Current.CancellationToken);

@@ -12,7 +12,6 @@ namespace OrcaCore.Providers.SqlServer.Internal;
 /// Applies the certified workflow-port transitions to one transactionally loaded SQL Server state document.
 /// </summary>
 internal sealed class SqlServerWorkflowStateEngine :
-    IWorkflowEventStore,
     IWorkflowInboxStore,
     IWorkflowStartIdempotencyStore,
     IWorkflowOutboxStore,
@@ -23,6 +22,31 @@ internal sealed class SqlServerWorkflowStateEngine :
     IMessageDispatcher
 {
     private static readonly TimeSpan DefaultLeaseDuration = TimeSpan.FromMinutes(5);
+
+    internal bool ContainsWorkflow(Guid id) => streams.Any(stream => stream.Key.InstanceId.Value == id && stream.Value.Count != 0);
+
+    internal void AddDagOutbox(Guid runId, IReadOnlyList<OutboxWrite> writes)
+    {
+        foreach (var write in writes)
+            if (outbox.TryGetValue(write.OutboxRecordId, out var old) &&
+                (old.Write.Kind != write.Kind || old.Write.DagRunOwner != write.DagRunOwner ||
+                 old.Write.RecipientHostId != write.RecipientHostId || old.Write.DagRunSubscriptionId != write.DagRunSubscriptionId ||
+                 !old.Write.Payload.AsSpan().SequenceEqual(write.Payload)))
+                throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: outbox identity collision.");
+        foreach (var write in writes)
+            outbox.TryAdd(write.OutboxRecordId, new InMemoryOutboxRecord(InstanceId.Parse(runId.ToString("D")),
+                write with { Payload = write.Payload.ToArray() }, OutboxRecordState.Pending));
+    }
+
+    internal bool PruneDagObserver(Guid runId, Guid subscriptionId, Guid recipientId, DateTimeOffset now)
+    {
+        var records = outbox.Values.Where(row => row.Write.DagRunOwner == runId && row.Write.DagRunSubscriptionId == subscriptionId &&
+            row.Write.RecipientHostId == recipientId && row.Write.Kind == "dag-run-ready-v1").ToArray();
+        if (records.Any(row => row.State == OutboxRecordState.Poisoned ||
+            row.State == OutboxRecordState.Claimed && row.ClaimedUntil > now)) return false;
+        foreach (var row in records) outbox.Remove(row.Write.OutboxRecordId);
+        return true;
+    }
 
     private readonly Lock gate = new();
     private readonly Dictionary<EventId, InboxRecord> inbox = [];
@@ -998,6 +1022,7 @@ internal sealed class SqlServerWorkflowStateEngine :
             var claimed = outbox.Values
                 .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
                 .Where(record => request.KindSelector is null || request.KindSelector.Matches(record.Write.Kind))
+                .Where(record => record.Write.RecipientHostId is null || record.Write.RecipientHostId == request.RecipientHostId)
                 .Take(request.MaxCount)
                 .Select(record => CloneOutboxWrite(record.Write) with
                 {
@@ -1383,7 +1408,31 @@ internal sealed class SqlServerWorkflowStateEngine :
                 ExternalOutboxPendingCount = CountExternalOutbox(OutboxRecordState.Pending),
                 ExternalOutboxRetryableCount = CountExternalOutbox(OutboxRecordState.Retryable),
                 ExternalOutboxClaimedCount = CountExternalOutbox(OutboxRecordState.Claimed),
-                ExternalOutboxPoisonedCount = CountExternalOutbox(OutboxRecordState.Poisoned)
+                ExternalOutboxPoisonedCount = CountExternalOutbox(OutboxRecordState.Poisoned),
+                InternalDagPendingCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Pending &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                InternalDagRetryableCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Retryable &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                InternalDagClaimedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Claimed &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                InternalDagPoisonedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Poisoned &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                DagObserverPendingCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Pending &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                DagObserverRetryableCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Retryable &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                DagObserverClaimedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Claimed &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                DagObserverPoisonedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Poisoned &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null)
             };
             return Task.FromResult(new WorkflowOperatorStatistics
             {
@@ -1493,7 +1542,8 @@ internal sealed class SqlServerWorkflowStateEngine :
 
     private long CountExternalOutbox(OutboxRecordState state) =>
         outbox.Values.LongCount(record =>
-            !string.Equals(record.Write.Kind, OutboxKinds.Continue, StringComparison.Ordinal) && record.State == state);
+            !string.Equals(record.Write.Kind, OutboxKinds.Continue, StringComparison.Ordinal) &&
+            record.Write.Kind is not ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") && record.State == state);
 
     private void MarkStuckInstances(WorkflowOperatorStatisticsRequest request)
     {

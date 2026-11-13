@@ -16,4 +16,9 @@
   <ItemGroup>
     <EmbeddedResource Include="Migrations\*.sql" />
   </ItemGroup>
+  <ItemGroup Label="DagRunPrivate">
+    <Compile Include="..\OrcaCore.Runtime.Protocol\Durable\Dag\DagRunStateReducer.cs" Link="Internal\DagRunStateReducer.cs" />
+    <Compile Include="..\OrcaCore.Provider.Abstractions\Dag\Internal\DagRunStoreRules.cs" Link="Internal\DagRunStoreRules.cs" />
+    <Compile Include="..\OrcaCore.Provider.Abstractions\Dag\Internal\DagRunSqlStore.cs" Link="Internal\DagRunSqlStore.cs" />
+  </ItemGroup>
 </Project>

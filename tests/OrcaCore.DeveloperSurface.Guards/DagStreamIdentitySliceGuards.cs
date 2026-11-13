@@ -11,7 +11,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
 public sealed class DagStreamIdentitySliceGuards
 {
-    private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
+    private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
     private const string CanonicalContentRecordSha256 = "f61d8b49b25095b31989639fb43a8ac6cae6fedc996ddfe1bbf4ec7233b4fae2";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
@@ -62,7 +62,61 @@ public sealed class DagStreamIdentitySliceGuards
             .Deserialize<TransitionEvidence>(JsonOptions)!;
         evidence.Should().Be(ApprovedTransition);
         ValidateReviewEvidence(root, evidence);
-        ValidateProposedFingerprintAmendment(root, registry.RootElement);
+        ValidateApprovedFingerprintAmendment(root, registry.RootElement);
+    }
+
+    [Fact]
+    public void FingerprintAmendmentApproval_BindsTheActualCheckpointAndVerdictAddition()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        using var registry = ReadFixture(root, "post-gate-amendment-path.json");
+        var amendment = registry.RootElement.GetProperty("dagRunFingerprintContractAmendment");
+        amendment.GetProperty("stage").GetString().Should().Be("Approved",
+            "the next source target must consume the independently checkpointed fingerprint contract");
+        var evidence = amendment.GetProperty("approval").Deserialize<TransitionEvidence>(JsonOptions)!;
+        evidence.Should().Be(new TransitionEvidence(
+            "a6f02fa5be9c31db232e3582d2f77d35acf86639",
+            "dcf4337daffef0630f917f57d563011e43d330ec",
+            "3c2cd9606db6e4380b148c5f8dd3503e367f255f",
+            "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-independent-review-verdict-2026-10-15.md",
+            "f8c0082e190d5656211caf5e76c318f5044b370524caad053287097aecfda3c2"));
+        ValidateReviewEvidence(root, evidence);
+    }
+
+    [Fact]
+    public void Task21ProtocolProviderCandidate_PreservesApprovedHistoryAndOnlyAddsReleased()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        const string artifacts = "openspec/changes/admit-durable-dag-run-progression/artifacts/";
+        Hash(Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-protocol-provider-errata-2026-10-29.md"))))
+            .Should().Be("551755299eb243a2565aa7a4fabd5195a6a7363d7092dadede653c4c0f5d6c1a", "the combined source/errata review target must remain explicit");
+        Hash(Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-protocol-provider-api-candidate-2026-10-29.md"))))
+            .Should().Be("cbe6395a2fc19dcd43a40c365c1e7425aada685a6a6dd8a377ea2137d4694581", "the combined source/errata review target must remain explicit");
+        Hash(Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-protocol-provider-signatures-2026-10-29.cs"))))
+            .Should().Be("17576395ef39391c315c451d3ac80b3ead3ccac3d40639f6202e5a41bf7644df", "the combined source/errata review target must remain explicit");
+        using var registry = ReadFixture(root, "post-gate-amendment-path.json");
+        Hash(JsonSerializer.Serialize(registry.RootElement.GetProperty("dagRunProtocolProviderErrataCandidate")))
+            .Should().Be("e2b343553a8a8ac07cd8f2c4a494da196b37c0f9ee39ce47dc7d3c8ea3696d10", "the combined candidate is proposed, never self-approved by a green lane");
+        var priorSignatures = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-fingerprint-amendment-signatures-2026-10-14.cs")));
+        var signatures = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-protocol-provider-signatures-2026-10-29.cs")));
+        signatures.Should().Be(priorSignatures.Replace(
+            "public enum DagRunLeaseOutcomeV1 { Granted, Queued, OwnerBusy, StaleFence, NotFound, Terminal }",
+            "public enum DagRunLeaseOutcomeV1 { Granted, Queued, OwnerBusy, StaleFence, NotFound, Terminal, Released }", StringComparison.Ordinal));
+        var priorCatalog = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-exact-api-additions-fingerprint-amendment-2026-10-14.md")));
+        var candidate = Normalize(File.ReadAllText(Path.Combine(root, artifacts + "task-2-1-protocol-provider-api-candidate-2026-10-29.md")));
+        var expected = CatalogApiKeys(priorCatalog[priorCatalog.IndexOf("## OrcaCore.Runtime.Protocol\n", StringComparison.Ordinal)..]);
+        const string leaseType = "type public enum OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 : [System.Private.CoreLib]System.Int32";
+        expected.Add(leaseType + "\t  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Released = 6");
+        CatalogApiKeys(candidate).Should().BeEquivalentTo(expected);
+        foreach (var assembly in new[] { "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions" })
+        {
+            var path = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/" + assembly + ".api.txt";
+            var before = ApiKeys(Normalize(Git(root, "show", "82811cd41aae577d8a1ae13258790d3da0c30d72:" + path)));
+            var actual = ApiKeys(Normalize(File.ReadAllText(Path.Combine(root, path))));
+            before.Except(actual).Should().BeEmpty("this slice removes no existing public key");
+            var allowed = CatalogApiKeys(candidate.Split("## " + assembly + "\n", StringSplitOptions.None)[1].Split("\n## ", StringSplitOptions.None)[0]);
+            actual.Except(before).Should().BeEquivalentTo(allowed.Except(before));
+        }
     }
 
     private static void ValidateReviewEvidence(string root, TransitionEvidence evidence)
@@ -108,14 +162,13 @@ public sealed class DagStreamIdentitySliceGuards
         newLines.Except(oldLines).Should().HaveCount(7);
     }
 
-    private static void ValidateProposedFingerprintAmendment(string root, JsonElement registry)
+    private static void ValidateApprovedFingerprintAmendment(string root, JsonElement registry)
     {
         var amendment = registry.GetProperty("dagRunFingerprintContractAmendment");
         Hash(JsonSerializer.Serialize(amendment)).Should().Be(FingerprintAmendmentRegistrySha256,
             "the proposed fingerprint addendum and exact artifacts must remain source-pinned, not routine fixture data");
-        amendment.GetProperty("stage").GetString().Should().Be("Proposed");
-        amendment.GetProperty("approval").ValueKind.Should().Be(JsonValueKind.Null,
-            "no implementation approval exists until the exact amendment is independently checkpointed and evidenced");
+        amendment.GetProperty("stage").GetString().Should().Be("Approved");
+        ValidateReviewEvidence(root, amendment.GetProperty("approval").Deserialize<TransitionEvidence>(JsonOptions)!);
         var original = amendment.GetProperty("amendedContract");
         ValidateReviewEvidence(root, original.Deserialize<TransitionEvidence>(JsonOptions)!);
         foreach (var pair in new[] { ("contractPath", "contractSha256"), ("apiCatalogPath", "apiCatalogSha256") })
@@ -142,16 +195,14 @@ public sealed class DagStreamIdentitySliceGuards
             .Replace("[OrcaCore]OrcaCore.PayloadFingerprint! Fingerprint", "[System.Private.CoreLib]System.String! Fingerprint", StringComparison.Ordinal)),
             "no seventh API key or direct provider-port signature may change in this contract refinement");
         var baseCommit = amendment.GetProperty("baseCommit").GetString()!;
-        // This pending DAG amendment freezes its own implementations and contract surfaces.
-        // Independent ephemeral ownership work is authorized by its separately carried 3.1 verdict.
+        // The fingerprint contract is now independently checkpointed and evidenced.
+        // Task 2.1 may implement the protocol/provider data plane, not the later Hosting slices.
         Git(root, "diff", "--name-only", baseCommit, "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting",
             "openspec/changes/admit-durable-dag-run-progression/specs",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Provider.Abstractions.api.txt")
-            .Should().BeEmpty("the proposed fingerprint amendment authorizes no DAG implementation or DAG contract edit");
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt")
+            .Should().BeEmpty("Task 2.1 does not authorize Dag or Hosting source, their public APIs, or a delta change");
         // Exact independently approved append-only layers; this grants no DAG source or broad canonical exemption.
         var layers = new Dictionary<string, string[]>(StringComparer.Ordinal)
         {

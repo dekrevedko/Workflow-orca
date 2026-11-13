@@ -139,6 +139,9 @@ create table if not exists orcacore_pending_start_intents (
 
 create table if not exists orcacore_outbox (
     outbox_record_id uuid primary key,
+    dag_run_owner uuid null,
+    recipient_host_id uuid null,
+    dag_run_subscription_id uuid null,
     instance_id uuid not null,
     kind text not null,
     payload bytea not null,
@@ -233,3 +236,119 @@ create table if not exists orcacore_resource_governance_records (
     checksum text not null,
     primary key (partition_id, sequence)
 );
+
+
+-- DAG run aggregate: complete first-create schema; no runtime upgrade path.
+create table if not exists dag_runs (
+    run_id uuid primary key,
+    start_key_digest text collate "C" not null unique,
+    start_key_text text collate "C" not null,
+    creation_sequence bigint generated always as identity not null unique,
+    version bigint not null check (version >= 1),
+    definition_id text collate "C" not null,
+    definition_version bigint not null check (definition_version > 0),
+    definition_fingerprint text collate "C" not null,
+    state text collate "C" not null check (state in ('Running','CancellationRequested','Succeeded','Failed','Cancelled','IntegrityFault')),
+    last_operational_at timestamp with time zone not null,
+    is_stuck boolean not null default false,
+    last_progress_at timestamp with time zone not null,
+    graph_payload bytea not null,
+    input_payload bytea not null,
+    checkpoint_payload bytea not null,
+    checkpoint_sha256 text collate "C" not null,
+    created_at timestamp with time zone not null,
+    updated_at timestamp with time zone not null,
+    completed_at timestamp with time zone null,
+    owner_id uuid null,
+    owner_fence bigint not null default 0 check (owner_fence >= 0),
+    lease_request_id uuid null,
+    lease_granted_at timestamp with time zone null,
+    lease_expires_at timestamp with time zone null,
+    lease_hard_deadline timestamp with time zone null,
+    check ((owner_id is null and lease_request_id is null and lease_granted_at is null and lease_expires_at is null and lease_hard_deadline is null) or (owner_id is not null and lease_request_id is not null and lease_granted_at is not null and lease_expires_at is not null and lease_hard_deadline is not null and owner_fence > 0 and lease_expires_at <= lease_hard_deadline and lease_hard_deadline = lease_granted_at + interval '15 seconds'))
+);
+create index if not exists ix_dag_runs_recovery on dag_runs (state,creation_sequence);
+
+create table if not exists dag_run_events (
+    run_id uuid not null references dag_runs(run_id),
+    stream_version bigint not null check (stream_version > 0),
+    operation_id uuid not null,
+    record_kind text collate "C" not null check (record_kind in ('dag-run-created-v1','dag-node-input-admitted-v1','dag-node-mapping-failed-v1','dag-child-terminal-joined-v1','dag-run-cancellation-requested-v1','dag-run-terminal-v1','dag-run-integrity-faulted-v1','dag-run-poison-reconciled-v1')),
+    record_version int not null check (record_version = 1),
+    payload bytea not null,
+    checksum text collate "C" not null,
+    created_at timestamp with time zone not null,
+    primary key (run_id,stream_version)
+);
+
+
+create table if not exists dag_run_operations (
+    run_id uuid not null references dag_runs(run_id),
+    operation_id uuid not null,
+    operation_fingerprint text collate "C" not null,
+    result_version bigint not null check (result_version > 0),
+    receipt_payload bytea not null,
+    primary key (run_id,operation_id)
+);
+
+
+create table if not exists dag_run_nodes (
+    run_id uuid not null references dag_runs(run_id),
+    ordinal int not null check (ordinal >= 0),
+    node_id text collate "C" not null,
+    binding_payload bytea not null,
+    dependencies_payload bytea not null,
+    state text collate "C" not null check (state in ('Pending','Ready','StartAuthorized','CancellationRequested','Succeeded','Failed','Cancelled','DependencyBlocked')),
+    child_id uuid null,
+    input_present boolean not null,
+    input_bytes bytea null,
+    input_contract text collate "C" null,
+    input_codec text collate "C" null,
+    input_fingerprint text collate "C" null,
+    check ((input_present = false and input_bytes is null and input_contract is null and input_codec is null and input_fingerprint is null) or (input_present = true and input_bytes is not null and input_contract is not null and input_codec = 'orcacore-json-v1' and input_fingerprint is not null)),
+    output_present boolean not null,
+    output_bytes bytea null,
+    output_contract text collate "C" null,
+    output_codec text collate "C" null,
+    output_fingerprint text collate "C" null,
+    check ((output_present = false and output_bytes is null and output_contract is null and output_codec is null and output_fingerprint is null) or (output_present = true and output_bytes is not null and output_contract is not null and output_codec = 'orcacore-json-v1' and output_fingerprint is not null)),
+    failure_code text collate "C" null,
+    ready_at timestamp with time zone null,
+    started_at timestamp with time zone null,
+    completed_at timestamp with time zone null,
+    primary key (run_id,ordinal),
+    unique(run_id,node_id)
+);
+create unique index if not exists uq_dag_run_child on dag_run_nodes (child_id) where child_id is not null;
+create index if not exists ix_dag_run_nodes_state on dag_run_nodes (run_id,state,ordinal);
+
+create table if not exists dag_run_lease_requests (
+    run_id uuid not null references dag_runs(run_id),
+    request_id uuid not null,
+    queue_sequence bigint generated always as identity not null unique,
+    owner_id uuid not null,
+    purpose text collate "C" not null check (purpose in ('Admission','ChildJoin','RunCancellation','IntegrityReconciliation')),
+    state text collate "C" not null check (state in ('Waiting','Granted','Consumed')),
+    wait_expires_at timestamp with time zone not null,
+    granted_at timestamp with time zone null,
+    lease_expires_at timestamp with time zone null,
+    hard_deadline timestamp with time zone null,
+    granted_token bigint null check (granted_token > 0),
+    append_committed boolean not null default false,
+    primary key (run_id,request_id)
+);
+create unique index if not exists uq_dag_live_owner on dag_run_lease_requests (run_id,owner_id) where state in ('Waiting','Granted');
+create index if not exists ix_dag_run_queue on dag_run_lease_requests (run_id,state,queue_sequence,wait_expires_at);
+
+create table if not exists dag_run_subscriptions (
+    subscription_id uuid primary key,
+    recipient_host_id uuid not null,
+    run_id uuid not null references dag_runs(run_id),
+    after_version bigint not null check (after_version >= 0),
+    lease_expires_at timestamp with time zone not null
+);
+create index if not exists ix_dag_run_subscriptions_expiry on dag_run_subscriptions (lease_expires_at,run_id);
+create index if not exists ix_dag_run_subscriptions_run on dag_run_subscriptions (run_id,recipient_host_id);
+
+create index if not exists ix_orcacore_outbox_dag_recipient on orcacore_outbox (kind,state,recipient_host_id,claimed_until);
+create index if not exists ix_orcacore_outbox_dag_observer on orcacore_outbox (dag_run_owner,dag_run_subscription_id,recipient_host_id);

@@ -10,7 +10,7 @@ namespace OrcaCore.Providers.InMemory;
 /// <summary>
 /// Provides in-memory durable port implementations for tests and local execution.
 /// </summary>
-internal sealed class InMemoryWorkflowProvider :
+internal sealed partial class InMemoryWorkflowProvider :
     IWorkflowEventStore,
     IWorkflowInboxStore,
     IWorkflowStartIdempotencyStore,
@@ -69,11 +69,17 @@ internal sealed class InMemoryWorkflowProvider :
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(batch);
+        if (batch.StreamId.AggregateKind == DurableAggregateKind.DagRun && batch.DagRun is not null)
+            return AppendDagRunAsync(batch, cancellationToken);
         _ = batch.StreamId.InstanceId;
+        if (batch.DagRun is not null) throw new InvalidOperationException("A workflow append cannot contain a DAG append.");
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
+            if (dagRuns.ContainsKey(batch.StreamId.InstanceId.Value))
+                return Task.FromResult(global::OrcaCore.Abstractions.Providers.Dag.Internal.DagRunStoreRules.Failure(
+                    "DAG_INTEGRITY_CONFLICT", "DAG run owns this aggregate identity"));
             var conflictingEventId = batch.InboxOperations
                 .Where(operation => operation.EnvelopeFingerprint is not null)
                 .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
@@ -874,6 +880,7 @@ internal sealed class InMemoryWorkflowProvider :
             var claimed = outbox.Values
                 .Where(record => IsOutboxClaimable(record, request.ClaimedAt))
                 .Where(record => request.KindSelector is null || request.KindSelector.Matches(record.Write.Kind))
+                .Where(record => record.Write.RecipientHostId is null || record.Write.RecipientHostId == request.RecipientHostId)
                 .Take(request.MaxCount)
                 .Select(record => CloneOutboxWrite(record.Write) with
                 {
@@ -1210,6 +1217,10 @@ internal sealed class InMemoryWorkflowProvider :
         lock (gate)
         {
             MarkStuckInstances(request);
+            foreach (var run in dagRuns.Values)
+                run.IsStuck = !global::OrcaCore.Abstractions.Durable.Dag.DagRunStateReducer.Terminal(run.Snapshot.State) &&
+                    run.Snapshot.UpdatedAt <= request.ObservedAt.Subtract(request.StuckThreshold) &&
+                    run.Snapshot.Nodes.Any(n => n.State == global::OrcaCore.Abstractions.Durable.Dag.DagNodeStateV1.Ready);
         }
 
         return Task.CompletedTask;
@@ -1242,8 +1253,8 @@ internal sealed class InMemoryWorkflowProvider :
                 ActiveInstanceCount = summaries.Values.LongCount(snapshot => IsActive(snapshot.InstanceId)),
                 StuckInstanceCount = summaries.Values.LongCount(snapshot => snapshot.IsStuck),
                 ActiveWaitCount = summaries.Values.Sum(snapshot => (long)snapshot.ActiveWaits.Count),
-                StreamEventCount = streams.Values.Sum(stream => (long)stream.Count),
-                CheckpointCount = checkpoints.Count,
+                StreamEventCount = streams.Values.Sum(stream => (long)stream.Count) + dagRuns.Values.Sum(r => r.Snapshot.StreamVersion.Value),
+                CheckpointCount = checkpoints.Count + dagRuns.Count,
                 CheckpointLag = streams
                     .Select(stream => Math.Max(
                         0,
@@ -1259,7 +1270,38 @@ internal sealed class InMemoryWorkflowProvider :
                 ExternalOutboxPendingCount = CountExternalOutbox(OutboxRecordState.Pending),
                 ExternalOutboxRetryableCount = CountExternalOutbox(OutboxRecordState.Retryable),
                 ExternalOutboxClaimedCount = CountExternalOutbox(OutboxRecordState.Claimed),
-                ExternalOutboxPoisonedCount = CountExternalOutbox(OutboxRecordState.Poisoned)
+                ExternalOutboxPoisonedCount = CountExternalOutbox(OutboxRecordState.Poisoned),
+                InternalDagPendingCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Pending &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                InternalDagRetryableCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Retryable &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                InternalDagClaimedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Claimed &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                InternalDagPoisonedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Poisoned &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is null),
+                DagObserverPendingCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Pending &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                DagObserverRetryableCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Retryable &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                DagObserverClaimedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Claimed &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                DagObserverPoisonedCount = outbox.Values.LongCount(r => r.State == OutboxRecordState.Poisoned &&
+                    r.Write.Kind is ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") &&
+                    r.Write.RecipientHostId is not null),
+                ActiveDagRunCount = dagRuns.Values.LongCount(r => !global::OrcaCore.Abstractions.Durable.Dag.DagRunStateReducer.Terminal(r.Snapshot.State)),
+                StuckDagRunCount = dagRuns.Values.LongCount(r => r.IsStuck),
+                DagRunStreamEventCount = dagRuns.Values.Sum(r => r.Snapshot.StreamVersion.Value),
+                DagRunCheckpointCount = dagRuns.Count,
+                DagRunCheckpointLag = dagRuns.Values.Select(r => r.Snapshot.StreamVersion.Value - r.Checkpoint.StreamVersion.Value).DefaultIfEmpty().Max(),
+                ActiveDagObserverCount = dagRuns.Values.Sum(r => r.Observers.Values.LongCount(o => o.ExpiresAt > timeProvider.GetUtcNow())),
+                ExpiredDagObserverCount = dagRuns.Values.Sum(r => r.Observers.Values.LongCount(o => o.ExpiresAt <= timeProvider.GetUtcNow()))
             };
             return Task.FromResult(new WorkflowOperatorStatistics
             {
@@ -1369,7 +1411,8 @@ internal sealed class InMemoryWorkflowProvider :
 
     private long CountExternalOutbox(OutboxRecordState state) =>
         outbox.Values.LongCount(record =>
-            !string.Equals(record.Write.Kind, OutboxKinds.Continue, StringComparison.Ordinal) && record.State == state);
+            !string.Equals(record.Write.Kind, OutboxKinds.Continue, StringComparison.Ordinal) &&
+            record.Write.Kind is not ("dag-child-start-v1" or "dag-child-join-v1" or "dag-child-cancel-v1" or "dag-run-ready-v1") && record.State == state);
 
     private void MarkStuckInstances(WorkflowOperatorStatisticsRequest request)
     {
