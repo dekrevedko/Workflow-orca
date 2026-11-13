@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "dag-run-task-2-2-pumps-and-certification",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-independent-review-request-2026-11-01.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-dirty-manifest-2026-11-01.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "602844547539e0e5908d250c2a0d9560fc4b25dc",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 5864,
+    "contentRecordSha256": "c83ad635680eaf7a0562e463467b9edce94b37a5f7706ccffabf17ab5fadc7d2"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",

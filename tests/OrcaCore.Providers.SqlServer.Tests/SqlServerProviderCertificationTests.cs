@@ -50,6 +50,22 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
     }
 
     [Fact]
+    public async Task DagDeadWaiter_ExpiresWithoutBlockingTheLiveQueue()
+    {
+        var time = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        certificationStore!.DagTransactionClock.TestUtcNow = () => time;
+        await DagRunCertification.DeadWaiterExpiresAsync(certificationStore, duration => time += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagTurnPurpose_RejectsForeignRecordsBeforeStorage() =>
+        DagRunCertification.TurnPurposeRejectsForeignRecordsAsync(certificationStore!, certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagLastNode_RequiresAtomicRunClosure() =>
+        DagRunCertification.LastNodeRequiresAtomicRunClosureAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task DagFailureClosure_PreservesIndependentWorkAndDerivesTerminalOutcome() =>
         DagRunCertification.FailureClosureAndTerminalAsync(certificationStore!, TestContext.Current.CancellationToken);
 

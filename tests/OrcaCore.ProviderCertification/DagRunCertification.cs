@@ -178,6 +178,76 @@ public static class DagRunCertification
     private static DagRunLeaseRequestV1 Request(Guid run) => new(run, Guid.NewGuid(), Guid.NewGuid(),
         DagRunLeasePurposeV1.Admission, null, TimeSpan.FromSeconds(5));
 
+    public static async Task DeadWaiterExpiresAsync(IWorkflowEventStore store, Action<TimeSpan> advance,
+        CancellationToken token)
+    {
+        var run = Initial();
+        (await store.AppendAsync(Creation(run), token)).IsSuccess.Should().BeTrue();
+        var owner = await store.AcquireDagRunLeaseAsync(Request(run.RunId), token);
+        owner.Outcome.Should().Be(DagRunLeaseOutcomeV1.Granted);
+        var abandoned = Request(run.RunId);
+        (await store.AcquireDagRunLeaseAsync(abandoned, token)).Outcome.Should().Be(DagRunLeaseOutcomeV1.Queued);
+        advance(TimeSpan.FromSeconds(20));
+        var live = Request(run.RunId);
+        (await store.AcquireDagRunLeaseAsync(live, token)).Outcome.Should().Be(DagRunLeaseOutcomeV1.Queued);
+        advance(TimeSpan.FromSeconds(11));
+        var result = await store.AcquireDagRunLeaseAsync(live, token);
+        result.Outcome.Should().Be(DagRunLeaseOutcomeV1.Granted,
+            "a dead FIFO head expires after 30 seconds without blocking a still-live waiter");
+        result.Fence!.Token.Should().BeGreaterThan(owner.Fence!.Token);
+        (await store.AcquireDagRunLeaseAsync(abandoned, token)).Outcome.Should().Be(DagRunLeaseOutcomeV1.StaleFence);
+        await store.ReleaseDagRunLeaseAsync(result.Fence, token);
+    }
+
+    public static async Task TurnPurposeRejectsForeignRecordsAsync(IWorkflowEventStore store,
+        IWorkflowOutboxStore outbox, CancellationToken token)
+    {
+        var run = Initial();
+        (await store.AppendAsync(Creation(run), token)).IsSuccess.Should().BeTrue();
+        var fence = (await store.AcquireDagRunLeaseAsync(
+            Request(run.RunId) with { Purpose = DagRunLeasePurposeV1.ChildJoin }, token)).Fence!;
+        var forbidden = Admit(run, fence);
+        var result = await store.AppendAsync(forbidden, token);
+        result.IsFailure.Should().BeTrue("a child-join turn must not admit a child");
+        result.Error.Message.Should().StartWith("DAG_PROTOCOL_INVALID:");
+        (await store.LoadDagRunTailAsync(forbidden.StreamId, new(1), token)).Should().BeEmpty();
+        (await store.LoadDagRunCheckpointAsync(forbidden.StreamId, token)).Value.StreamVersion.Should().Be(new StreamVersion(1));
+        (await outbox.GetStateAsync(forbidden.OutboxRecords[0].OutboxRecordId, token)).HasValue.Should().BeFalse();
+        await store.ReleaseDagRunLeaseAsync(fence, token);
+    }
+
+    public static async Task LastNodeRequiresAtomicRunClosureAsync(IWorkflowEventStore store,
+        CancellationToken token)
+    {
+        var initial = Initial();
+        initial = initial with { Graph = initial.Graph with { Nodes = [initial.Graph.Nodes[0]] }, Nodes = [initial.Nodes[0]] };
+        (await store.AppendAsync(Creation(initial), token)).IsSuccess.Should().BeTrue();
+        var admissionFence = (await store.AcquireDagRunLeaseAsync(Request(initial.RunId), token)).Fence!;
+        var admission = Admit(initial, admissionFence);
+        (await store.AppendAsync(admission, token)).IsSuccess.Should().BeTrue();
+        await store.ReleaseDagRunLeaseAsync(admissionFence, token);
+        var before = Snapshot(admission);
+        var fence = (await store.AcquireDagRunLeaseAsync(
+            Request(initial.RunId) with { Purpose = DagRunLeasePurposeV1.ChildJoin }, token)).Fence!;
+        var time = before.UpdatedAt.AddTicks(1);
+        var node = before.Nodes[0] with { State = DagNodeStateV1.Succeeded, CompletedAt = time };
+        var unclosed = before with { StreamVersion = new(3), Nodes = [node], UpdatedAt = time };
+        var operation = Guid.NewGuid();
+        var join = new DagRunRecordV1(1, DagRunRecordKindV1.ChildJoined, initial.RunId, operation, new(3),
+            DagRunStateV1.Running, null,
+            [new(0, node.State, node.ChildInstanceId, null, null, null, node.ReadyAt, node.StartedAt, time)], time, null);
+        var rejected = await store.AppendAsync(Batch(unclosed, [join], fence, []), token);
+        rejected.IsFailure.Should().BeTrue("finishing the last node without closing its run must be atomic rejection");
+        rejected.Error.Message.Should().StartWith("DAG_PROTOCOL_INVALID:");
+        (await store.LoadDagRunCheckpointAsync(admission.StreamId, token)).Value.StreamVersion.Should().Be(new StreamVersion(2));
+        (await store.LoadDagRunTailAsync(admission.StreamId, new(2), token)).Should().BeEmpty();
+        var end = unclosed with { StreamVersion = new(4), State = DagRunStateV1.Succeeded, CompletedAt = time };
+        var terminal = new DagRunRecordV1(1, DagRunRecordKindV1.Terminal, initial.RunId, operation, new(4),
+            DagRunStateV1.Succeeded, null, [], time, time);
+        (await store.AppendAsync(Batch(end, [join, terminal], fence, []), token)).IsSuccess.Should().BeTrue();
+        (await store.ListRecoverableDagRunsAsync(new(0, 1000), token)).Should().NotContain(r => r.RunId == initial.RunId);
+    }
+
     public static async Task ObserverCleanupAsync(IWorkflowEventStore store, IWorkflowOutboxStore outbox,
         Func<DateTimeOffset> now, Action<TimeSpan> advance, CancellationToken token)
     {

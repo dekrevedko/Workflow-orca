@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-dirty-manifest-2026-10-29.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-dirty-manifest-2026-11-01.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2549,6 +2549,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-independent-review-verdict-2026-10-14.md",
       "bytes": 16156,
       "sha256": "d786d7ca7c00af25c147079d68ccf74875b28878364738c9c06198453c23cb39"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-dirty-manifest-2026-11-01.txt",
+      "bytes": 3057,
+      "sha256": "d17c81ba6d8cbced8106302b4bbdd003ceacc06678cbf0e5ee0d198b155fb8da"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-independent-review-request-2026-11-01.md",
+      "bytes": 14123,
+      "sha256": "79f39693b5e81625ae4ee60c6f15ba20c8536e5ab5613a7732db42bce7fd8767"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",

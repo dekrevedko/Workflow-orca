@@ -18,6 +18,8 @@ using OrcaCore.Hosting.Diagnostics;
 using OrcaCore.Hosting.ResourceLeases;
 using OrcaCore.Provider.Abstractions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using OrcaCore.Engine.Durable.Dag;
+using OrcaCore.Durable.Hosting.Dag;
 
 namespace OrcaCore.Hosting;
 
@@ -179,6 +181,26 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
 
     private static void AddProgressionLoops(IServiceCollection services)
     {
+        services.TryAddSingleton<DurableDagHostIdentity>();
+        services.TryAddSingleton(provider => new DurableDagRunTurns(
+            provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagHostIdentity>(),
+            provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton(provider =>
+        {
+            _ = provider.GetRequiredService<IWorkflowDefinitionRegistry>(); // Install the staged catalog before child work.
+            return new DurableDagChildEngine(provider.GetRequiredService<IWorkflowEventStore>(),
+                provider.GetRequiredService<DurableDefinitionRegistry>(), provider.GetRequiredService<DurableCommandProcessor>(),
+                provider.GetRequiredService<TimeProvider>());
+        });
+        services.TryAddSingleton<IDurableDagChildHandler>(provider => new DurableDagChildCoordinator(
+            provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagChildEngine>(),
+            provider.GetRequiredService<DurableDagRunTurns>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton(provider => new DurableDagChildPump(provider.GetRequiredService<IWorkflowOutboxStore>(),
+            provider.GetRequiredService<IDurableDagChildHandler>(), provider.GetService<IOutboxPumpObserver>()));
+        services.TryAddSingleton(provider => new DurableDagReadyPump(provider.GetRequiredService<IWorkflowEventStore>(),
+            provider.GetRequiredService<IWorkflowOutboxStore>(), provider.GetRequiredService<DurableDagHostIdentity>(),
+            provider.GetService<IDurableDagReadySinkV1>()));
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, DurableDagPumpHostedService>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreDurableWorkflowCatalogReadinessHostedService>());
         services.TryAddEnumerable(

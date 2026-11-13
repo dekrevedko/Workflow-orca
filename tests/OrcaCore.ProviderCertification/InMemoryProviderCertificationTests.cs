@@ -29,6 +29,28 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
     }
 
     [Fact]
+    public async Task DagDeadWaiter_ExpiresWithoutBlockingTheLiveQueue()
+    {
+        var clock = new DagCertificationTimeProvider();
+        using var provider = InMemoryProviderPorts.Create(clock);
+        await DagRunCertification.DeadWaiterExpiresAsync(provider.EventStore, clock.Advance, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagTurnPurpose_RejectsForeignRecordsBeforeStorage()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.TurnPurposeRejectsForeignRecordsAsync(provider.EventStore, provider.OutboxStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagLastNode_RequiresAtomicRunClosure()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.LastNodeRequiresAtomicRunClosureAsync(provider.EventStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public async Task DagFailureClosure_PreservesIndependentWorkAndDerivesTerminalOutcome()
     {
         using var provider = InMemoryProviderPorts.Create();

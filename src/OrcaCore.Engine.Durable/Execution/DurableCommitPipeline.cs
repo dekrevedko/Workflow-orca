@@ -2,6 +2,7 @@ using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Dag;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -31,14 +32,12 @@ internal sealed class DurableCommitPipeline(
                 .ConfigureAwait(false);
         }
 
+        var batch = commitMaterializer.CreateBatch(instanceId, aggregate.StreamVersion, decision, aggregate, inboxDelivery);
+        var dagJoin = await DurableDagTerminalNotice.CreateAsync(eventStore, aggregate, decision, cancellationToken).ConfigureAwait(false);
+        if (dagJoin is not null) batch = batch with { OutboxRecords = batch.OutboxRecords.Concat([dagJoin]).ToArray() };
         var appendResult = await eventStore
             .AppendAsync(
-                commitMaterializer.CreateBatch(
-                    instanceId,
-                    aggregate.StreamVersion,
-                    decision,
-                    aggregate,
-                    inboxDelivery),
+                batch,
                 cancellationToken)
             .ConfigureAwait(false);
 
