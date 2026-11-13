@@ -74,6 +74,10 @@ never depends on a commit naming itself. `ApprovalAwaitingEvidenceCommit` regist
 evidence commit unset. The first distinct checkpoint commits that verdict and transition record;
 only a following mechanical activation may set `Approved` and pin the already-existing evidence
 commit. Immutable earlier `REJECT` verdicts remain registered in both states.
+A committed independent approval is valid only when its evidence commit is a single-parent child of
+the exact reviewed target and introduces the governing verdict. The historical Task 5.3 owner
+authorization is explicitly retroactive: its evidence commit must introduce the verdict and descend
+from the reviewed target, but cannot truthfully claim that target as its direct parent.
 A first-pass `APPROVE` is valid without any preceding `REJECT`; the awaiting-evidence state
 therefore requires approval evidence but deliberately does not require rejection history. When a
 later remediation round is also approved, every immutable approval remains registered and
@@ -227,13 +231,13 @@ Task 7.2 makes immutable-history classification executable. A machine-readable c
 LF-normalized baseline derived from the exact committed blobs at the Task 7.2 base. Guard source owns
 that baseline's count and digest, so checkout line-ending transforms cannot redefine it. Every later
 record under either historical root belongs to one family-independent permanent append-only set. While
-uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, its first Git
-addition permanently binds its normalized bytes. The guard also derives every post-baseline addition
-from Git history and requires that path to remain present and cataloged; deletion or relocation requires
-a separately reviewed tombstone mechanism, which the current contract does not provide. Both Git
-addition-history queries use `--full-history`, so a record added and later deleted on a merged side branch
-remains visible. The exact active archive index and reusable review template remain the only mutable
-surfaces.
+uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, every Git
+addition of that path must reproduce the catalogued normalized bytes. Re-adding identical content is
+allowed; any differing addition fails. The guard also derives every post-baseline addition from Git history
+and requires that path to remain present and cataloged; deletion or relocation requires a separately reviewed
+tombstone mechanism, which the current contract does not provide. Both Git addition-history queries use
+`--full-history`, so a record added and later deleted on a merged side branch remains visible. The exact
+active archive index and reusable review template remain the only mutable surfaces.
 Validation also replaces the leased-retry fixtures' second-attempt race against the inline start
 operation with observation of the real workflow instance terminal state; the start operation can
 complete before the scheduler publishes `SecondStarted`, while the persisted instance is the
@@ -348,6 +352,32 @@ than a second delta. The empty directory was therefore removed during planning r
 Namespace-pinned forbidden-symbol entries that cannot address a real historical or current owner
 are corrected or deleted and receive a regression against the exact qualified owner. Neither an
 empty directory nor an impossible negative guard may silently satisfy completeness.
+
+### 8. Task 7.3 reconciles the approved Section 7B contract without widening product scope
+
+Task 7.3 updates exactly the 22 stale active sources assigned by the Task 3.1 sweep; the separate
+Orleans future-hosting note remains owned by Task 7.4. The reconciled record treats durable
+`IWorkflowEventIngress`, its direct/correlation/definition-fanout/start-or-deliver route union,
+caller-created global inbound event identity, retained pre-wait ownership, broker acknowledgement
+after `Accepted` or `Duplicate`, and durable authored `Publish` through the application-registered
+`IWorkflowEventDispatcher` as current behavior.
+It preserves `orcacore-json-v1`, the exact role-specific host/provider graph, application-facing
+absence of broad statistics and public archive/purge, and provider/operator ownership through
+`IWorkflowOperationalStore` and `IWorkflowProviderMaintenanceStore`. Numbered requirements in
+documents 05 and 12 are the explicit contract and acceptance owners; Task 7.5 still owns the
+recurring repository-wide stale-negative scan.
+
+The dated Task 7.3 artifact records an LF-normalized SHA-256 for every reconciled source, and guard
+source pins that artifact. This makes every one of the 22 reviewed documents durable evidence rather
+than relying on a vocabulary denylist that can miss reworded stale claims. Reconciliation preserves
+unrelated timeout, collation, statistics, and dispatch-hook obligations. Acceptance-criterion traits
+belong to the product, provider, hosting, and engine tests that exercise the behavior; the Markdown
+corpus guard cannot satisfy product acceptance coverage by reading its own documentation.
+
+Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its
+recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that
+intentionally edits the source and updates the artifact row, guard-source artifact digest, and
+review evidence; neither may perform a mechanical follow-up refresh for an earlier unreviewed edit.
 
 ## Risks / Trade-offs
 

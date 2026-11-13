@@ -62,12 +62,12 @@
       "numberedRequirementTask": {
         "change": "harmonize-downstream-capability-specs",
         "task": "7.3",
-        "expectedState": "Open"
+        "expectedState": "Complete"
       },
       "acceptanceCriteriaTask": {
         "change": "harmonize-downstream-capability-specs",
         "task": "7.3",
-        "expectedState": "Open"
+        "expectedState": "Complete"
       },
       "implementationTaskCount": 11,
       "implementationTasks": [

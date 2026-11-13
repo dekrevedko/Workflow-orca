@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 337,
-    "physicalDeclarations": 1392,
+    "physicalDeclarations": 1393,
     "activeFiles": 189,
-    "activeDeclarations": 704,
+    "activeDeclarations": 705,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 17,
@@ -771,7 +771,7 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
-      "declarations": 12
+      "declarations": 13
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OperationalTelemetryContractGuards.cs",

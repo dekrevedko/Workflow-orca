@@ -63,7 +63,7 @@ surface.
   - *Infrastructure (control-flow) steps*: `Init`, `End`, `If`, root `While`, root `Parallel`
     joined by `WhenAll` or `WhenAllOutcomes`, `Wait`, `Delay`/`Timer`, bounded root `ForEach`,
     durable root `ContinueAsNew`, ephemeral transient-pool scopes, and durable scoped
-    `AcquireResources`. Workflow-authored `Publish` and `Cancel` are deferred.
+    `AcquireResources`, plus durable workflow-authored `Publish`. Workflow-authored `Cancel` is deferred.
   - *Business steps*: user-defined async units implementing the step contract.
 - **Step contract** — a business step receives a typed execution context (business state,
   resumed-event access, execution identity, and cancellation token) and returns a **step
@@ -187,15 +187,13 @@ output. Unnamed completion is represented by absence, not an empty/default name.
   may evict the activation immediately and rehydrates it on wake-up. Residency is an engine
   optimization, never an author-selected semantic.
 - **Matching rule** — within an instance, events match waits by `EventName` + `CorrelationId`.
-- **Routing modes** — how an event reaches an instance (a caller decision, not an envelope
-  property): *instance-targeted* or *correlation-targeted*. Correlation routing resolves the
-  unique active wait by `(DefinitionId, EventName, CorrelationId)`. A second active registration
-  for that key, including a second same-pair wait inside one instance, fails before parking.
-  Definition-targeted fanout is deferred.
-- **Pre-wait delivery** — both routes require a matching active wait. Delivery before that wait
-  returns non-consuming `NoActiveWait`, writes no mailbox/inbox/dedup state, and requires the
-  source to redeliver the same `EventId` and normalized envelope after observing registration.
-  V1 has no pending-event mailbox.
+- **Routing modes** — a closed `WorkflowEventRoute` carried by the durable inbound envelope:
+  *direct instance*, *correlation*, *definition fanout*, or *start-or-deliver*. Correlation resolves
+  one active wait; fanout snapshots the complete current nonterminal target set atomically;
+  start-or-deliver binds an exact definition/version/idempotency key and fixed-codec workflow input.
+- **Pre-wait delivery** — durable ingress accepts and retains ownership before a matching wait
+  exists. A later wait claims the persisted record without source redelivery or a hot instance.
+  Ephemeral waits are process-local and make no durable acknowledgement promise.
 - **Signal-stream semantics** — an event/correlation pair identifies a signal stream, not a
   loop-iteration occurrence. After one wait consumes one event, a later iteration may register
   the same pair and consume a later event. Authors that need occurrence-specific matching encode
@@ -215,13 +213,15 @@ output. Unnamed completion is represented by absence, not an empty/default name.
 - **Aggregate** — the deterministic in-memory decision model rebuilt from checkpoint + stream
   tail; owns runtime and business state during a command's processing.
 - **Checkpoint** — materialized aggregate state at a stream version, bounding replay cost.
-- **Projection** — derived read model (instance summaries, active waits, accepted-event audit,
-  and history) serving queries and routing. It is not a pending-event mailbox.
-- **Inbox** — durable record of received external deliveries by `EventId` with states
-  `Received` / `Applied` / `DuplicateIgnored` / `Poisoned`; provides restart-safe dedup.
-- **Outbox** — durable records of runtime-owned continuation, lifecycle/status, timer, and
-  internal DAG child intents derived from committed facts in the same boundary; dispatched
-  asynchronously, retryably, at-least-once. Workflow-authored `Publish` is deferred.
+- **Projection** — derived provider/operator read model (instance summaries, active waits, accepted-
+  event audit, history, and operational statistics) serving keyed routing and operations; it does
+  not create broad application enumeration.
+- **Inbox** — durable record of accepted external deliveries by global `EventId`, with per-target
+  ownership for fanout and states that progress to applied or observably poisoned; provides
+  restart-safe pre-wait retention and deduplication.
+- **Outbox** — durable records of runtime-owned continuations, lifecycle/status, timer, internal DAG
+  child intents, and workflow-authored outbound events derived in the same commit. Public workflow
+  events reach only `IWorkflowEventDispatcher`; internal continuations never do.
 - **DAG definition / run** — a typed acyclic graph authored through the separate
   `OrcaCore.Dag` package and driven by `OrcaCore.Dag.Hosting`. Each resultful or resultless node
   references a typed durable workflow and executes as its own child workflow instance. A node
@@ -238,9 +238,10 @@ output. Unnamed completion is represented by absence, not an empty/default name.
   request plus termination. Resultful workflow handles/start results expose notification-driven
   typed output waiting, and DAG-run handles expose notification-driven terminal-snapshot
   waiting; both use subscribe/recheck without polling, and caller cancellation is local to the
-  wait. `IWorkflowEventClient` owns the two event-delivery routes. Broad fluent selection,
-  public instance enumeration/bulk retrieval, pause/resume, failed-instance retry, archive, and
-  purge are deferred.
+  wait. Durable `IWorkflowEventIngress` owns the closed four-route event union. Broad fluent
+  selection, public instance enumeration/bulk retrieval, pause/resume, failed-instance retry,
+  archive, and purge remain absent from the application surface; provider/operator maintenance
+  owns retained statistics and retention policy.
 - **Lifecycle events** — first-class notifications for instance and step transitions
   (created, activated, suspended, resumed, completed, failed, timed out, cancelled,
   terminated, evicted, stuck-detected; step scheduled/started/completed/failed/retried/

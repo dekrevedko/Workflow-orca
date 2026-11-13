@@ -8,22 +8,16 @@ guide.
 
 ## Current gate
 
-Sections 4 through 7 of `reshape-developer-facing-interfaces` are independently approved and
-checkpointed. The post-checkpoint Section 7A closure is active and owns the non-event public-surface
-cleanup, exported API baseline machinery, packed negative consumers, recovery crosswalk, and timer
-regression. Its event-surface baseline and final acceptance accounting wait for the pending Section
-7B durable-messaging/application-catalog amendment.
+Sections 4 through 7 of `reshape-developer-facing-interfaces`, including the Section 7A/7B
+developer-facing contract, are independently approved and checkpointed. Durable self-routing
+ingress, pre-wait retention, definition fanout, start-or-deliver, workflow-authored `Publish`, the
+application dispatcher, the fixed codec, exact host roles, and the three certified durable
+providers are current product authority.
 
-Section 7B is a proposal, not current product authority. Until task 7.23 approves it, the selected
-matrix and canonical specs continue to define the implemented event contract. Guides must not teach
-the proposed buffered ingress, fanout, start-or-deliver, publish, dispatcher, or catalog APIs as
-available v1 members.
-
-The separate `harmonize-downstream-capability-specs` change is also pending independent planning
-approval and still contains event semantics superseded by the Section 7B draft. Its non-conflicting
-remainder must be reconciled and approved before any delta is synchronized into `openspec/specs/`.
-Section 8 source work remains blocked until the combined Section 7A/7B target and the final
-synchronized harmonization target are independently approved and checkpointed.
+The separate `harmonize-downstream-capability-specs` change has synchronized the canonical
+requirements and is reconciling the remaining active guides. Section 8 source work remains blocked
+until that harmonization target is independently approved and checkpointed; this guide does not
+grant Section 8 authority.
 
 ## Selected application journeys
 
@@ -33,7 +27,8 @@ implementations:
 1. Author and build a typed definition from PackageId/assembly `OrcaCore`.
 2. Register it through `IWorkflowDefinitionRegistry` and inspect the closed registration result.
 3. Start or reopen through a typed definition handle with a deterministic idempotency key.
-4. Deliver payloadless or typed events by exact instance or correlation route.
+4. Submit a payloadless or typed durable inbound event through direct, correlation,
+   definition-fanout, or start-or-deliver routing.
 5. Inspect detached snapshot, root state, and typed output through the instance handle.
 6. Request cooperative cancellation or immediate fenced termination through that handle.
 7. Repeat the durable journey on a replacement host and a certified provider.
@@ -42,8 +37,9 @@ The ephemeral host role is registered by
 `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`. The durable host uses
 `AddOrcaCoreDurableEngine(DurableEngineHostOptions)` or callback-only
 `AddOrcaCoreDurableEventIngress`, together with exactly one durable provider role. Development and
-test use `AddOrcaCoreInMemoryDurableProvider`; production certification targets
-`AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`.
+test use `AddOrcaCoreInMemoryDurableProvider`; production certification covers
+`AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)` and
+`AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`.
 
 ## Validation lanes
 
@@ -63,21 +59,17 @@ Every review target records and reproduces these lanes independently:
 Container-backed provider suites run sequentially to avoid shared Docker resource contention. Safe
 non-container build/test lanes may run in parallel when they use independent outputs.
 
-## Workstream A: close Sections 7A and 7B
+## Workstream A: completed Sections 7A and 7B
 
-- finish non-event Section 7A cleanup and approve one exact exported type/member baseline for each
-  of the eleven v1 assemblies after Section 7B fixes the event surface;
-- reject every legacy/deferred public surface through metadata and fresh-package compile fixtures;
-- preserve the currently approved event behavior until the Section 7B amendment is approved, then
-  implement its descriptor, durable ingress/publish, route-inbox, catalog, and provider evidence;
-- recalculate the exact current-v1 acceptance lane after Section 7B and preserve deferred or
-  historical sources outside that positive lane;
-- maintain a method-level old-declaration-to-current-evidence crosswalk before removing any source;
-- retain the public-facade timer retry/no-loss regression;
-- freeze the exact target and obtain focused independent approval.
-
-No post-Section-7 checkpoint is created until one combined Section 7A/7B approval reproduces the
-frozen target with zero drift.
+- the exact twelve-package surface, role-specific hosting, three durable providers, and exported
+  type/member baselines are implemented and checkpointed;
+- durable ingress accepts the closed four-route union, retains accepted pre-wait records, and uses
+  global event identity plus stable fanout membership and start-intent ownership;
+- durable workflow-authored `Publish` commits through the transactional outbox and reaches only
+  `IWorkflowEventDispatcher`; internal continuation records stay isolated;
+- application-facing broad enumeration/statistics and public retention commands remain absent,
+  while provider/operator ports own retained statistics and maintenance;
+- removed and deferred surfaces remain rejected by metadata and fresh-package compile fixtures.
 
 ## Workstream B: harmonize normative and guide trees
 

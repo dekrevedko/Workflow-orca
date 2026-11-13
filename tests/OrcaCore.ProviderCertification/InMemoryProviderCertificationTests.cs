@@ -7,6 +7,7 @@ namespace OrcaCore.ProviderCertification;
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
     [Fact]
+    [Trait("AC", "AC-108")]
     public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>
         DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
 

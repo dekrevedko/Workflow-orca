@@ -392,6 +392,8 @@ public sealed class FacadeHostingProductSurfaceGuards
     }
 
     [Fact]
+    [Trait("AC", "AC-116")]
+    [Trait("AC", "AC-118")]
     public void Reflection_EventRoutesAndAcceptanceResultsAreClosedToTheExactCases()
     {
         ExactNestedTypes("OrcaCore.WorkflowEventRoute",

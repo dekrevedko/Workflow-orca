@@ -17,14 +17,10 @@ the approved normalized source SHA-256 record plus the current Release assemblie
 is test evidence, not a publication commitment.
 
 The approved first-release surface is [spec 17](specs/17-selected-mode-capability-matrix.md).
-Sections 4 through 7 are implemented and checkpointed; the post-checkpoint Section 7A closure is
-removing residual non-event public-surface and test-evidence gaps. Pending Section 7B proposes a
-replacement durable messaging/application-catalog contract, but the delivery guarantees below
-remain the approved matrix semantics until task 7.23 approves that amendment. No provisional source
-member is a compatibility promise. Section 8 remains blocked until the combined Section 7A/7B
-target receives independent approval and its mandatory coherent checkpoint commit, and until the
-revised non-conflicting `harmonize-downstream-capability-specs` remainder is approved, synchronized,
-independently reviewed, and checkpointed.
+Sections 4 through 7, including Section 7A/7B, are implemented, independently approved, and
+checkpointed. The canonical harmonization is synchronized and its remaining active-guide
+reconciliation is in progress. No provisional source member is a compatibility promise. Section 8
+remains blocked until that final harmonized target is independently reviewed and checkpointed.
 
 ## Delivery Guarantees
 
@@ -40,10 +36,10 @@ independently reviewed, and checkpointed.
 - Each step attempt receives a fixed-codec detached copy of committed state and may use
   `StepContext<TState>.ReplaceState`; failed/timed-out/fenced copies cannot commit. V1 fixes the
   certified format to `orcacore-json-v1` and has no serializer replacement hook.
-- Durable event deduplication is per target `InstanceId` by `EventId`; correlation routing admits
-  exactly one active wait for `(DefinitionId, EventName, CorrelationId)`. Definition-targeted
-  fanout is deferred. Pre-wait `NoActiveWait` does not consume the `EventId`, so the same envelope
-  may be accepted after the wait registers.
+- Durable ingress checks global `EventId` plus the full normalized-envelope fingerprint before
+  route state. Direct, correlation, definition-fanout, and start-or-deliver routes retain accepted
+  ownership before a wait exists; fanout snapshots the current nonterminal target set once and
+  deduplicates per target. Only `Accepted` or `Duplicate` permits source acknowledgement.
 - Typed workflow and DAG registration/start results remain inspectable closed unions;
   `GetHandleOrThrow()` is a cast-free success projection, not a replacement for conflict
   inspection. `WaitForOutputAsync` and DAG terminal waits use notification plus recheck and never
@@ -144,10 +140,12 @@ role-specific OrcaCore registration:
 
 - `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)` for an ephemeral execution role, or
   `AddOrcaCoreDurableEngine(DurableEngineHostOptions)` for a durable execution role including its
-  hosted loops. One service provider cannot select both engine roles. The selected role owns its
-  definition registry, execution services, and `IWorkflowEventClient` routing.
-- `AddOrcaCoreDurableEventIngress()` for a definition-less callback role; it does not register a
-  definition registry, execution worker, timer/reconciliation loop, or DAG coordinator.
+  hosted loops. One service provider cannot select both engine roles. The durable engine owns
+  `IWorkflowEventIngress`; the application registers an `IWorkflowEventDispatcher` implementation
+  that the durable engine consumes for authored `Publish`. The ephemeral role exposes neither port.
+- `AddOrcaCoreDurableEventIngress()` for a definition-less callback role; it owns durable event
+  persistence and continuation handoff but does not register a definition registry, execution
+  worker, timer/reconciliation loop, or DAG coordinator.
 - `AddOrcaCoreInMemoryDurableProvider()` only for development/tests; it makes no process-restart
   claim. `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)` adds only DAG
   coordinator/registry on top of a durable-engine role.
@@ -165,7 +163,11 @@ role-specific OrcaCore registration:
   The one call registers the complete certified production durable role. Its programmatically
   constructed get-only `ConnectionString` and `Schema` are copied and rejected when null, empty,
   or whitespace before any partial provider services become visible; there is no raw-string or
-  configuration-binding overload.
+  configuration-binding overload. `OrcaCore.Providers.SqlServer` owns the equivalent complete
+  certified production role through `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`.
+- Provider/operator services own retained operational statistics and maintenance/retention through
+  `IWorkflowOperationalStore` and `IWorkflowProviderMaintenanceStore`; applications receive no
+  broad enumeration/statistics or public archive/purge surface.
 
 The ordinary sample flow keeps the closed registration/start results available for conflict
 inspection, uses `GetHandleOrThrow()` for the success path, and awaits

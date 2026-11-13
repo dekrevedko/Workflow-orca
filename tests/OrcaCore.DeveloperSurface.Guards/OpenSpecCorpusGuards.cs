@@ -90,10 +90,11 @@ public sealed class OpenSpecCorpusGuards
         "      post-baseline record, or one of exactly two mutable surfaces: the active archive index and\n" +
         "      reusable review template. A guard-source count and digest pin only the fixed Task 7.2 baseline.\n" +
         "      Every later archive or review record belongs to one permanent append-only set. While uncommitted,\n" +
-        "      the catalog's active freeze manifest must name the record; after checkpoint, its first Git\n" +
-        "      addition permanently binds its normalized bytes. The infrastructure guard derives every\n" +
+        "      the catalog's active freeze manifest must name the record; after checkpoint, every Git\n" +
+        "      addition of that path must reproduce the catalogued normalized bytes. Re-adding identical\n" +
+        "      content is allowed; any differing addition fails. The infrastructure guard derives every\n" +
         "      post-baseline addition from Git history and rejects missing, moved, modified, unclassified,\n" +
-        "      duplicate, or broadened records. Deletion or relocation first requires a separately reviewed\n" +
+        "      or broadened records. Deletion or relocation first requires a separately reviewed\n" +
         "      tombstone mechanism, which the current contract does not provide.\n" +
         "      **Validation remediation:** the leased-retry fixtures now race `SecondStarted` against the\n" +
         "      real instance terminal status, not the inline `StartOrGetAsync` operation that can complete\n" +
@@ -112,7 +113,8 @@ public sealed class OpenSpecCorpusGuards
         "      that the active manifest names each uncommitted record. **Post-approval hardening:** YY-1 is\n" +
         "      closed by using `--full-history` for both addition-history queries, including merged side-branch\n" +
         "      additions; ZZ-1 is closed by making Task 7.7 require immutable predecessor evidence and a reviewed\n" +
-        "      tombstone mechanism before any relocation.\n" +
+        "      tombstone mechanism before any relocation. **Second post-approval hardening:** AAA-1 is closed by\n" +
+        "      accepting repeated additions only when every addition commit reproduces the catalogued normalized bytes.\n" +
         "      **Review carry-forward:** Task 7.1 finding OO-1 is closed by naming the two exact harmonization\n" +
         "      planning paths whose pre-finalization TSV rows intentionally predate their final text.";
     private const string Task72DesignDecision =
@@ -120,13 +122,13 @@ public sealed class OpenSpecCorpusGuards
         "LF-normalized baseline derived from the exact committed blobs at the Task 7.2 base. Guard source owns\n" +
         "that baseline's count and digest, so checkout line-ending transforms cannot redefine it. Every later\n" +
         "record under either historical root belongs to one family-independent permanent append-only set. While\n" +
-        "uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, its first Git\n" +
-        "addition permanently binds its normalized bytes. The guard also derives every post-baseline addition\n" +
-        "from Git history and requires that path to remain present and cataloged; deletion or relocation requires\n" +
-        "a separately reviewed tombstone mechanism, which the current contract does not provide. Both Git\n" +
-        "addition-history queries use `--full-history`, so a record added and later deleted on a merged side branch\n" +
-        "remains visible. The exact active archive index and reusable review template remain the only mutable\n" +
-        "surfaces.";
+        "uncommitted, the catalog's active freeze manifest must name the record. After checkpoint, every Git\n" +
+        "addition of that path must reproduce the catalogued normalized bytes. Re-adding identical content is\n" +
+        "allowed; any differing addition fails. The guard also derives every post-baseline addition from Git history\n" +
+        "and requires that path to remain present and cataloged; deletion or relocation requires a separately reviewed\n" +
+        "tombstone mechanism, which the current contract does not provide. Both Git addition-history queries use\n" +
+        "`--full-history`, so a record added and later deleted on a merged side branch remains visible. The exact\n" +
+        "active archive index and reusable review template remain the only mutable surfaces.";
     private const string Task72ValidationRemediationDecision =
         "Validation also replaces the leased-retry fixtures' second-attempt race against the inline start\n" +
         "operation with observation of the real workflow instance terminal state; the start operation can\n" +
@@ -142,15 +144,62 @@ public sealed class OpenSpecCorpusGuards
         "   both historical-document roots are immutable; only this active archive index and the reusable\n" +
         "   review template are mutable. Add every new review or archive record to `appendOnlyRecords`. During\n" +
         "   its reviewed freeze, set `activeFreezeManifestPath` to the manifest that names every uncommitted\n" +
-        "   record. The guard binds each record to that active freeze and, after checkpoint, to its first Git\n" +
-        "   addition. Every committed post-baseline path must remain present and cataloged; deletion or\n" +
-        "   relocation first requires an explicit reviewed tombstone mechanism. Update this index to route\n" +
+        "   record. The guard binds each record to that active freeze and, after checkpoint, requires every Git\n" +
+        "   addition of that path to reproduce the catalogued normalized bytes. Re-adding identical content is\n" +
+        "   allowed; any differing addition fails. Every committed post-baseline path must remain present\n" +
+        "   and cataloged; deletion or relocation first requires an explicit reviewed tombstone mechanism. Update this index to route\n" +
         "   readers to the superseding record instead of rewriting the historical file.";
     private const string Task77ArchiveProvenanceDecision =
         "- [ ] 7.7 Repair the Phase-0 kickoff prompt archive move by adding an explicit immutable archive\n" +
         "      provenance record that names the exact predecessor and commit; do not rename, delete, or edit\n" +
         "      an existing protected path. Any future history-preserving relocation first requires a separately\n" +
         "      reviewed tombstone mechanism, which the current Task 7.2 contract does not provide.";
+    private const string Task73DocumentationArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-7-3-active-documentation-reconciliation-2026-09-18.md";
+    private const string Task73DocumentationArtifactSha256 =
+        "397ce4cc784480ae226c8df14d48d495d4cc51a4a7a3ee43dc85e98282e69e44";
+    private const string Task73PinRefreshDecision =
+        "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
+        "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
+        "edits the source and updates the artifact row, guard-source artifact digest, and review evidence; neither " +
+        "may perform a mechanical follow-up refresh for an earlier unreviewed edit.";
+    private const string Task73SourceSweepArtifact =
+        "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+        "task-3-1-active-corpus-vocabulary-sweep-2026-08-18.md";
+    private const string Task73CompletionDecision =
+        "**Completed:** reconciled exactly 22 Task 3.1 sources to the approved Section 7B contract; " +
+        "Task 7.4 retains the separate Orleans note and Task 7.5 retains recurring active-tree enforcement. " +
+        "**Review remediation:** corrected caller-created inbound identity and application-registered dispatcher ownership; " +
+        "restored unrelated timeout, collation, statistics, dynamic-wait, and dispatch-hook obligations; moved " +
+        "AC-108/116/118/119/120 evidence to the real provider/product/hosting/engine tests; and pinned the " +
+        "LF-normalized SHA-256 of every reconciled source through the guard-source-owned artifact digest.";
+    private static readonly string[] Task73ActiveDocumentationPaths =
+    [
+        "CLAUDE.md",
+        "docs/eks-scheduler-handoff.md",
+        "docs/end-to-end-plan.md",
+        "docs/ephemeral-engine-developer-guide.md",
+        "docs/ephemeral-engine-diagrams.md",
+        "docs/implementation/00-stack-decisions.md",
+        "docs/implementation/01-solution-architecture.md",
+        "docs/implementation/02-engineering-conventions.md",
+        "docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md",
+        "docs/normative-source-map.md",
+        "docs/production-readiness.md",
+        "docs/project-technical-overview.md",
+        "docs/specs/01-concept-and-goals.md",
+        "docs/specs/03-domain-model-and-glossary.md",
+        "docs/specs/05-requirements-events-waits-timers.md",
+        "docs/specs/06-requirements-durable-execution.md",
+        "docs/specs/09-requirements-management-operations.md",
+        "docs/specs/10-provider-model-and-extensibility.md",
+        "docs/specs/12-acceptance-criteria.md",
+        "docs/specs/13-phasing-and-open-questions.md",
+        "docs/specs/14-driving-scenario-eks-job-scheduler.md",
+        "docs/specs/16-requirements-durable-driver.md"
+    ];
+
     private const string HarmonizationTaskLedgerPath =
         "openspec/changes/harmonize-downstream-capability-specs/tasks.md";
     private const string HarmonizationDesignPath =
@@ -405,7 +454,7 @@ public sealed class OpenSpecCorpusGuards
         {
             ValidateReviewManifestProvenance(root, entry);
             ValidateReviewVerdictEvidence(root, entry);
-            ValidateReviewStateEvidence(entry);
+            ValidateReviewStateEvidence(root, entry);
         }
 
         var verdictEvidence = checkpoint.Entries
@@ -436,9 +485,9 @@ public sealed class OpenSpecCorpusGuards
         var task51 = checkpoint.Entries.Single(entry => entry.Task == "5.1");
         var task52 = checkpoint.Entries.Single(entry => entry.Task == "5.2");
         ValidateReviewVerdictEvidence(root, task51);
-        ValidateReviewStateEvidence(task51);
+        ValidateReviewStateEvidence(root, task51);
         ValidateReviewVerdictEvidence(root, task52);
-        ValidateReviewStateEvidence(task52);
+        ValidateReviewStateEvidence(root, task52);
 
         task51.CheckpointCommit.Should().NotBeNullOrWhiteSpace();
         task51.CheckpointTree.Should().NotBeNullOrWhiteSpace();
@@ -1839,6 +1888,7 @@ public sealed class OpenSpecCorpusGuards
                 $"{entry.Path} is immutable; line-ending transforms are ignored, content changes are not");
         }
 
+        ValidateHistoricalAdditionSemantics();
         ValidateAppendOnlyHistoricalRecords(root, fixture);
 
         var discoveredPaths = ImmutableDocumentationPrefixes
@@ -1896,6 +1946,171 @@ public sealed class OpenSpecCorpusGuards
             "the mutable archive index must direct corrections into new dated superseding records");
     }
 
+    [Fact]
+    public void Task73_ActiveDocumentationMatchesTheApprovedSection7BContract()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        Task73ActiveDocumentationPaths.Should().HaveCount(22);
+        Task73ActiveDocumentationPaths.Should().OnlyHaveUniqueItems();
+        Task73ActiveDocumentationPaths.Should().Equal(
+            Task73ActiveDocumentationPaths.Order(StringComparer.Ordinal));
+
+        var sweep = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task73SourceSweepArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        foreach (var path in Task73ActiveDocumentationPaths)
+        {
+            File.Exists(Path.Combine(root, path.Replace('/', Path.DirectorySeparatorChar)))
+                .Should().BeTrue($"Task 7.3 source '{path}' must remain present");
+            sweep.Should().Contain($"`{path}`",
+                $"Task 7.3 source '{path}' must derive from the Task 3.1 sweep");
+        }
+
+        Task73ActiveDocumentationPaths.Should().NotContain("docs/orleans-engine/README.md");
+        sweep.Should().Contain("`docs/orleans-engine/README.md`",
+            "Task 7.4 must retain ownership of the separate Orleans finding");
+
+        var documents = Task73ActiveDocumentationPaths.ToDictionary(
+            path => path,
+            path => NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root,
+                path.Replace('/', Path.DirectorySeparatorChar)))),
+            StringComparer.Ordinal);
+        var corpusGuardSource = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            "tests",
+            "OrcaCore.DeveloperSurface.Guards",
+            "OpenSpecCorpusGuards.cs")));
+        var acceptanceTraitToken = "[Trait(" + "\"AC\"";
+        corpusGuardSource.Should().NotContain(
+            acceptanceTraitToken,
+            "the Markdown corpus guard must not satisfy product acceptance coverage with AC traits");
+        var staleClaims = new[]
+        {
+            "IWorkflowEventClient",
+            "NoActiveWait",
+            "Definition-targeted fanout is deferred",
+            "Definition fanout is deferred",
+            "Workflow-authored `Publish` is deferred",
+            "two event routes",
+            "two first-release routing",
+            "EventDeliveryStatus",
+            "pending Section 7B",
+            "Section 7B is a proposal"
+        };
+        foreach (var (path, content) in documents)
+        {
+            foreach (var staleClaim in staleClaims)
+            {
+                content.Should().NotContain(staleClaim,
+                    $"Task 7.3 source '{path}' must not retain stale Section 7B claim '{staleClaim}'");
+            }
+        }
+
+        var eventRequirements = documents["docs/specs/05-requirements-events-waits-timers.md"];
+        eventRequirements.Should().ContainAll(
+            "a globally unique caller-created `EventId`, required `CorrelationId`",
+            "### EV-010 Four self-routing durable routes",
+            "### EV-030 Durable pre-wait acceptance is retained",
+            "### EV-031 Global identity before routing, per-target fanout ownership",
+            "### EV-045 Static and dynamic wait authoring",
+            "### EV-060 Publish uses the transactional outbox",
+            "IWorkflowEventDispatcher.DispatchAsync(WorkflowOutboundEvent, CancellationToken)");
+
+        var acceptance = Regex.Replace(
+            documents["docs/specs/12-acceptance-criteria.md"],
+            @"\s+",
+            " ");
+        acceptance.Should().ContainAll(
+            "AC-104",
+            "AC-108",
+            "StepAttemptTimeoutException",
+            "leaves the wait `Active` and the accepted record re-matchable",
+            "AC-116",
+            "`DirectInstanceTerminal`, `StartConflict`",
+            "dynamic `StepResult.WaitForEvent`",
+            "regardless of its default collation",
+            "AC-118",
+            "AC-119",
+            "AC-120",
+            "direct, correlation, definition-fanout, and start-or-deliver");
+
+        var management = Regex.Replace(
+            documents["docs/specs/09-requirements-management-operations.md"],
+            @"\s+",
+            " ");
+        management.Should().Contain(
+            "active waits by definition/event name, stuck instances by definition, and provider-authoritative pressure");
+        management.Should().NotContain(
+            "age groups",
+            "MG-030 must describe only the grouped and pressure values returned by IWorkflowOperationalStore");
+
+        var providerModel = Regex.Replace(
+            documents["docs/specs/10-provider-model-and-extensibility.md"],
+            @"\s+",
+            " ");
+        providerModel.Should().ContainAll(
+            "`OrcaCore.Engine.Ephemeral` owns `OrcaCore.Hosting.OrcaCoreEphemeralEngineServiceCollectionExtensions`",
+            "`OrcaCore.Durable.Hosting` owns `OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions`",
+            "the application registers its implementation, and the durable engine consumes it");
+        Regex.Replace(documents["docs/specs/16-requirements-durable-driver.md"], @"\s+", " ").Should().Contain(
+            "the application registers its implementation and the engine consumes it");
+        Regex.Replace(documents["docs/production-readiness.md"], @"\s+", " ").Should().Contain(
+            "the application registers an `IWorkflowEventDispatcher` implementation");
+
+        var joined = string.Join('\n', documents.Values);
+        joined.Should().ContainAll(
+            "IWorkflowEventIngress",
+            "WorkflowEventAcceptanceResult",
+            "IWorkflowEventDispatcher",
+            "orcacore-json-v1",
+            "IWorkflowOperationalStore",
+            "IWorkflowProviderMaintenanceStore",
+            "AddOrcaCoreSqlServerDurableProvider");
+
+        var artifact = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            Task73DocumentationArtifact.Replace('/', Path.DirectorySeparatorChar))));
+        Sha256(artifact).Should().Be(Task73DocumentationArtifactSha256);
+        Regex.Replace(artifact, @"\s+", " ").Should().Contain(Task73PinRefreshDecision);
+        var artifactRows = Regex.Matches(
+                artifact,
+                @"(?m)^\| (\d+) \| `([^`]+)` \| `([0-9a-f]{64})` \|$",
+                RegexOptions.CultureInvariant)
+            .Select(match => new
+            {
+                Number = int.Parse(match.Groups[1].Value, CultureInfo.InvariantCulture),
+                Path = match.Groups[2].Value,
+                Sha256 = match.Groups[3].Value
+            })
+            .ToArray();
+        artifactRows.Select(row => row.Number).Should().Equal(Enumerable.Range(1, 22));
+        artifactRows.Select(row => row.Path).Should().Equal(Task73ActiveDocumentationPaths);
+        foreach (var row in artifactRows)
+        {
+            Sha256(documents[row.Path]).Should().Be(
+                row.Sha256,
+                $"Task 7.3 source '{row.Path}' must remain byte-equivalent after LF normalization");
+        }
+
+        var ledger = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationTaskLedgerPath.Replace('/', Path.DirectorySeparatorChar))));
+        var task = Regex.Match(
+            ledger,
+            @"(?ms)^- \[x\] 7\.3 .*?(?=^- \[[ xX]\] 7\.4 )",
+            RegexOptions.CultureInvariant);
+        task.Success.Should().BeTrue("Task 7.3 must retain its completed 22-source disposition");
+        Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task73CompletionDecision);
+        Regex.Replace(task.Value, @"\s+", " ").Should().Contain(Task73PinRefreshDecision);
+        task.Value.Should().Contain($"`{Task73DocumentationArtifact}`");
+
+        var design = NormalizeLineEndings(File.ReadAllText(Path.Combine(
+            root,
+            HarmonizationDesignPath.Replace('/', Path.DirectorySeparatorChar))));
+        Regex.Replace(design, @"\s+", " ").Should().Contain(Task73PinRefreshDecision);
+    }
+
     private static string[] ReadHistoricalDocumentPaths(string root, string commit)
     {
         var result = RunGit(
@@ -1935,6 +2150,50 @@ public sealed class OpenSpecCorpusGuards
         }
 
         return normalized.ToArray();
+    }
+
+    private static void ValidateHistoricalAdditionSemantics()
+    {
+        var normalized = Encoding.UTF8.GetBytes("same\n");
+        var entry = new ImmutableHistoricalDocumentRecord(
+            "docs/review/synthetic.md",
+            normalized.Length,
+            Sha256(normalized));
+
+        Action identicalReAdditions = () => ValidateHistoricalAdditions(
+            entry,
+            [
+                ("first-addition", Encoding.UTF8.GetBytes("same\r\n")),
+                ("second-addition", Encoding.UTF8.GetBytes("same\n"))
+            ]);
+        identicalReAdditions.Should().NotThrow(
+            "re-adding byte-identical normalized history must remain valid");
+
+        Action divergentReAddition = () => ValidateHistoricalAdditions(
+            entry,
+            [
+                ("first-addition", Encoding.UTF8.GetBytes("same\n")),
+                ("divergent-addition", Encoding.UTF8.GetBytes("different\n"))
+            ]);
+        divergentReAddition.Should().Throw<InvalidDataException>()
+            .WithMessage("*divergent-addition*");
+    }
+
+    private static void ValidateHistoricalAdditions(
+        ImmutableHistoricalDocumentRecord entry,
+        IEnumerable<(string Commit, byte[] Content)> additions)
+    {
+        foreach (var (commit, content) in additions)
+        {
+            var normalized = NormalizeHistoricalDocumentBytes(content);
+            if (normalized.Length != entry.Bytes ||
+                !string.Equals(Sha256(normalized), entry.Sha256, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new InvalidDataException(
+                    $"Historical record '{entry.Path}' does not reproduce its catalogued normalized bytes " +
+                    $"at Git addition {commit}.");
+            }
+        }
     }
 
     private static void ValidateAppendOnlyHistoricalRecords(
@@ -2002,18 +2261,11 @@ public sealed class OpenSpecCorpusGuards
                 continue;
             }
 
-            introductionCommits.Should().ContainSingle(
-                "a dated post-baseline record must have one first-addition commit on the current lineage");
-            var introducedBytes = NormalizeHistoricalDocumentBytes(ReadGitBlob(
-                root,
-                introductionCommits[0],
-                entry.Path));
-            introducedBytes.Should().HaveCount(
-                entry.Bytes,
-                $"{entry.Path} must retain the normalized length from its first Git addition");
-            Sha256(introducedBytes).Should().Be(
-                entry.Sha256.ToLowerInvariant(),
-                $"{entry.Path} must retain the content from its first Git addition");
+            ValidateHistoricalAdditions(
+                entry,
+                introductionCommits.Select(commit => (
+                    commit,
+                    ReadGitBlob(root, commit, entry.Path))));
         }
     }
 
@@ -3771,7 +4023,9 @@ public sealed class OpenSpecCorpusGuards
         }
     }
 
-    private static void ValidateReviewStateEvidence(ReviewManifestProvenanceEntry entry)
+    private static void ValidateReviewStateEvidence(
+        string root,
+        ReviewManifestProvenanceEntry entry)
     {
         var approvals = entry.VerdictEvidence.Count(evidence => evidence.Verdict == "APPROVE");
         var rejections = entry.VerdictEvidence.Count(evidence => evidence.Verdict == "REJECT");
@@ -3816,6 +4070,11 @@ public sealed class OpenSpecCorpusGuards
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
                 RequireIndependentReviewAuthority(entry.Task, stateEvidence.Path);
+                ValidateCommittedApprovalEvidence(
+                    root,
+                    entry,
+                    stateEvidence,
+                    requireReviewedTargetAsDirectParent: true);
                 break;
             case OwnerAuthorizationAwaitingEvidenceCommitReviewState:
                 approvals.Should().Be(1);
@@ -3828,17 +4087,121 @@ public sealed class OpenSpecCorpusGuards
                 break;
             case OwnerAuthorizedReviewState:
                 approvals.Should().Be(1);
-                entry.ApprovalEvidenceCommit.Should().NotBeNullOrWhiteSpace();
                 entry.CheckpointCommit.Should().NotBeNullOrWhiteSpace();
                 entry.CheckpointTree.Should().NotBeNullOrWhiteSpace();
                 stateEvidence.Should().NotBeNull();
                 stateEvidence!.Verdict.Should().Be("APPROVE");
                 RequireOwnerAuthorizationAuthority(entry.Task, stateEvidence.Path);
+                ValidateCommittedApprovalEvidence(
+                    root,
+                    entry,
+                    stateEvidence,
+                    requireReviewedTargetAsDirectParent: false);
                 break;
             default:
                 throw new InvalidDataException(
                     $"Unsupported review state '{entry.ReviewState}' for Task {entry.Task}.");
         }
+    }
+
+    private static void ValidateCommittedApprovalEvidence(
+        string root,
+        ReviewManifestProvenanceEntry entry,
+        ReviewVerdictEvidence stateEvidence,
+        bool requireReviewedTargetAsDirectParent)
+    {
+        entry.ApprovalEvidenceCommit.Should().NotBeNullOrWhiteSpace(
+            "approved states must name the distinct commit that preserved their approval evidence");
+
+        var commit = RunGit(
+            root,
+            "rev-parse",
+            "--verify",
+            $"{entry.ApprovalEvidenceCommit}^{{commit}}");
+        commit.ExitCode.Should().Be(
+            0,
+            $"Task {entry.Task} approval-evidence commit must resolve: {commit.StandardError}");
+        NormalizeLineEndings(commit.StandardOutput).Trim().Should().Be(
+            entry.ApprovalEvidenceCommit,
+            "approval-evidence commits must use the exact full object id rather than an ambiguous prefix");
+
+        entry.ReviewedTargetCommit.Should().NotBeNullOrWhiteSpace(
+            "approved states must name the exact reviewed target that directly precedes their evidence commit");
+        var commitLine = RunGit(
+            root,
+            "rev-list",
+            "--parents",
+            "-n",
+            "1",
+            entry.ApprovalEvidenceCommit!);
+        commitLine.ExitCode.Should().Be(
+            0,
+            $"Task {entry.Task} approval-evidence parent must resolve: {commitLine.StandardError}");
+        var commitAndParents = NormalizeLineEndings(commitLine.StandardOutput)
+            .Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries);
+        commitAndParents.Should().HaveCount(
+            2,
+            "approval evidence must be one distinct non-merge commit directly after the reviewed target");
+        commitAndParents[0].Should().Be(entry.ApprovalEvidenceCommit);
+        if (requireReviewedTargetAsDirectParent)
+        {
+            commitAndParents[1].Should().Be(
+                entry.ReviewedTargetCommit,
+                "an independent approval-evidence commit parent must be the exact reviewed target");
+        }
+        else
+        {
+            var targetAncestry = RunGit(
+                root,
+                "merge-base",
+                "--is-ancestor",
+                entry.ReviewedTargetCommit!,
+                entry.ApprovalEvidenceCommit!);
+            targetAncestry.ExitCode.Should().Be(
+                0,
+                "a retroactively recorded owner authorization must still descend from its exact reviewed target");
+        }
+
+        var ancestry = RunGit(
+            root,
+            "merge-base",
+            "--is-ancestor",
+            entry.ApprovalEvidenceCommit!,
+            "HEAD");
+        ancestry.ExitCode.Should().Be(
+            0,
+            $"Task {entry.Task} approval evidence must remain in the current checkpoint lineage");
+
+        var committedVerdict = RunGit(
+            root,
+            "show",
+            $"{entry.ApprovalEvidenceCommit}:{stateEvidence.Path}");
+        committedVerdict.ExitCode.Should().Be(
+            0,
+            $"Task {entry.Task} approval-evidence commit must contain {stateEvidence.Path}");
+        NormalizeLineEndings(committedVerdict.StandardOutput).Should().Be(
+            NormalizeLineEndings(File.ReadAllText(Path.Combine(
+                root,
+                stateEvidence.Path.Replace('/', Path.DirectorySeparatorChar)))),
+            "the evidence commit must preserve the registered governing verdict byte content");
+
+        var verdictAddition = RunGit(
+            root,
+            "diff-tree",
+            "--root",
+            "--no-commit-id",
+            "--name-status",
+            "-r",
+            "--no-renames",
+            entry.ApprovalEvidenceCommit!,
+            "--",
+            stateEvidence.Path);
+        verdictAddition.ExitCode.Should().Be(
+            0,
+            $"Task {entry.Task} approval-evidence addition must resolve: {verdictAddition.StandardError}");
+        NormalizeLineEndings(verdictAddition.StandardOutput).Trim().Should().Be(
+            $"A\t{stateEvidence.Path}",
+            "the approval-evidence commit must add the governing verdict rather than merely contain it");
     }
 
     private static void RequireIndependentReviewAuthority(string owner, string evidencePath)

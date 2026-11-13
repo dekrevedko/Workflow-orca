@@ -76,25 +76,25 @@ An instance handle provides:
 
 Local cancellation of `WaitForOutputAsync` cancels only the caller's wait, not the workflow.
 
-## Event delivery
+## Waits and external event ingress
 
-Create a payloadless or typed `WorkflowEvent` and deliver it through `IWorkflowEventClient` using
-one of exactly two routes:
+Ephemeral `Wait` is an in-process suspension owned by the ephemeral engine. The application surface
+does not expose a durable acknowledgement or replay contract for sending events into that
+process-local runtime.
 
-- `DeliverToInstanceAsync` for one `InstanceId`;
-- `DeliverByCorrelationAsync` for one `(DefinitionId, EventName, CorrelationId)` route.
-
-Delivery is a non-buffering signal stream. If no matching active wait exists, the result is
-`NoActiveWait` and the `EventId` is not consumed, so the same envelope can be redelivered later.
-Duplicate and conflict classification is per target instance. A competing active correlation pair
-is rejected at wait registration rather than resolved by a delivery-time tie breaker.
+External self-routing ingress is a durable-host capability in `OrcaCore.Durable.Hosting`.
+`IWorkflowEventIngress` accepts `WorkflowInboundEvent` through exactly four routes: direct instance,
+correlation, definition fanout, and start-or-deliver. Durable acceptance persists ownership before a
+matching wait is required; `Accepted` and `Duplicate` are the only outcomes that permit a broker
+source to acknowledge. This durable boundary does not turn the ephemeral engine into a persistent
+mailbox.
 
 ## Deliberately unavailable in v1
 
 The future-capability registry is
 [§13.4, “Future-capability registry”](specs/13-phasing-and-open-questions.md#134-future-capability-registry).
 It records deferred capabilities—including `WhenFirst`, Saga, public child/external-job authoring,
-nested fan-out, definition-targeted event fanout, and broad lifecycle/management operations—with
+nested structural fan-out and broad lifecycle/management operations—with
 rationale and re-entry criteria. They are not callable v1 APIs. `WaitLong` and authored `Yield` are
 removed rather than deferred and have no alias or placeholder.
 

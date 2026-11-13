@@ -64,10 +64,11 @@ version; load/save checkpoints. Version-conflict outcomes are first-class result
 generic exceptions.
 
 ### PR-011 Inbox store port
-Record inbound deliveries by `EventId`; query by `EventId`; mark `Applied` /
-`DuplicateIgnored` / `Poisoned` (DU-030). Only an event accepted against a matching active wait
-enters durable inbox/dedup state. `NoActiveWait` is non-consuming and requires source redelivery;
-the provider SHALL NOT implement an undeclared pending-event mailbox.
+Atomically accept or classify `WorkflowInboundEvent` by global `EventId` and normalized-envelope
+fingerprint; retain direct/correlation records before a wait exists; persist stable definition-
+fanout membership and per-target ownership; reserve/materialize compatible start-or-deliver intents;
+and mark applied, duplicate, retryable failure, or poison outcomes. Accepted records have no
+automatic TTL and SHALL NOT depend on source redelivery.
 
 ### PR-012 Outbox store port
 Append outbound records in the commit boundary; claim/lease for dispatch; mark dispatched /
@@ -83,10 +84,12 @@ does not expose public instance enumeration or bulk retrieval.
 Schedule and cancel durable wake-ups that produce timer-fired commands after due time,
 surviving restarts (EV-050).
 
-### PR-015 Message dispatcher port
-Transport adapter for outbox delivery: receives normalized dispatch messages, returns
-explicit dispatch outcomes (success / retryable failure / permanent failure). The dispatch
-pump SHALL expose observability and retry-delay strategy hooks (DU-032).
+### PR-015 Application and internal dispatch boundaries
+`IWorkflowEventDispatcher` SHALL receive only materialized `WorkflowOutboundEvent` values and
+return the closed success/retryable/permanent result. Internal continuation/provider dispatch uses
+`IMessageDispatcher` and opaque provider records. Selector-aware claims and adapters SHALL make it
+impossible for either record family to cross into the other dispatcher. Both dispatch paths SHALL
+retain the observability and retry-delay strategy hooks required by DU-032.
 
 ### PR-016 Fixed payload codec contract
 V1 payload serialization SHALL use the engine-owned, nonreplaceable System.Text.Json-based
@@ -108,6 +111,16 @@ One record factory validates positive sequence, supported format, checksum, and 
 the full-stream factory defensively copies and validates exact `1..Version` continuity with zero
 version iff empty. Append accepts one copied non-empty batch numbered exactly after the expected
 version and commits all or conflicts without partial persistence.
+
+
+### PR-018 Operational statistics store
+`IWorkflowOperationalStore` SHALL refresh provider-owned stuck observations and return retained
+operator statistics without exposing broad application enumeration or raw provider records.
+
+### PR-019 Provider maintenance store
+`IWorkflowProviderMaintenanceStore` SHALL apply provider-owned retention, archive, purge, and poison
+maintenance under host/operator policy. It SHALL preserve atomic ownership and observability rules
+and SHALL NOT create public application archive/purge commands.
 
 ## 10.3 Provider invariants (certification)
 
@@ -164,45 +177,42 @@ stable `OrcaCoreException.Code`; CLR exception type names/messages are not proto
 ## 10.4 Ephemeral provider
 
 ### PR-030 In-memory baseline
-The ephemeral engine's in-memory store is the reference implementation of instance storage
-semantics (serialized execution, active-wait correlation index, non-consuming pre-wait delivery,
-and accepted-event deduplication) and SHALL pass every
-non-durable acceptance criterion. In-memory implementations of the durable ports SHALL exist
-for testing and as executable documentation of the contracts.
+The ephemeral engine's process-local store is the reference for shared wait matching and serialized
+execution but makes no durable ingress acknowledgement promise. The in-memory durable provider SHALL
+implement the complete current port contract, including pre-wait inbox retention, fanout/start
+intents, public-event outbox dispatch, operational statistics, and maintenance, and SHALL run the
+same provider certification as PostgreSQL and SQL Server.
 
 ## 10.5 Hosting integration (later phase)
 
 ### PR-040 Exact role-based host integration
-Hosting SHALL expose distinct reviewed entry points:
+Hosting SHALL expose exactly these reviewed entry points:
 
 - `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)`;
 - `AddOrcaCoreDurableEngine(DurableEngineHostOptions)`;
 - callback-only `AddOrcaCoreDurableEventIngress()`;
 - development/test-only `AddOrcaCoreInMemoryDurableProvider()`;
-- production `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`; and
+- production `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`;
+- production `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`; and
 - `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)`.
 
 Registration is idempotent only for the same role/options; conflicting duplicates fail startup.
 `OrcaCore.Engine.Ephemeral` owns
-`OrcaCore.Hosting.OrcaCoreEphemeralEngineServiceCollectionExtensions`, and ephemeral registration
-owns its in-process `IWorkflowEventClient`, active-wait routing, and accepted-event deduplication.
+`OrcaCore.Hosting.OrcaCoreEphemeralEngineServiceCollectionExtensions` and the ephemeral builder;
 `OrcaCore.Durable.Hosting` owns
-`OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions`; the durable engine requires
-exactly one complete certified provider role set and includes durable event ingress/progression.
-Callback-only ingress exposes durable `IWorkflowEventClient` plus inbox/continuation handoff but
-no definition registry, worker, timer/reconciler, or DAG coordinator.
-The in-memory durable provider makes no restart claim. `AddOrcaCoreDag` requires the durable
-engine and adds only DAG coordination/registration. There is no catch-all `AddOrcaCore`, second
-hosted-service toggle, implicit mode selection, serializer hook, or application registration of
-individual runtime-protocol ports.
-
-`OrcaCore.Providers.PostgreSql` SHALL own
-`OrcaCore.Providers.PostgreSql.OrcaCorePostgreSqlProviderServiceCollectionExtensions` and
-`AddOrcaCorePostgreSqlDurableProvider(IServiceCollection, PostgreSqlDurableProviderOptions)` as
-one complete certified production durable role set. `PostgreSqlDurableProviderOptions` exposes
-only get-only `ConnectionString` and `Schema` fixed by programmatic construction. Registration
-copies options and rejects null/empty/whitespace values before registering any provider service;
-no raw connection-string, configuration-binding, or partial-role overload exists.
+`OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions`, the durable builder,
+`IWorkflowEventIngress`, and `IWorkflowEventDispatcher`. Provider and DAG extensions remain in
+their owning package-specific classes; no public extension class is split across assemblies.
+Ephemeral and durable engine roles are mutually exclusive. Durable-engine and callback-only roles
+own `IWorkflowEventIngress`; only the durable engine owns definitions/workers. The
+`OrcaCore.Durable.Hosting` assembly owns the `IWorkflowEventDispatcher` port type, the application
+registers its implementation, and the durable engine consumes it when an authored definition uses
+`Publish`. Callback-only ingress persists events and hands off continuations but registers no
+definition registry, worker, timer/reconciler, dispatcher implementation, or DAG coordinator. The
+in-memory durable provider makes no restart claim; PostgreSQL and SQL Server each supply one
+complete certified production role. There is no catch-all registration, second hosted-service toggle,
+implicit mode selection, serializer hook, binder facade, or application registration of individual
+provider runtime-protocol ports.
 
 ## 10.6 Internal design conventions (extensibility-adjacent)
 

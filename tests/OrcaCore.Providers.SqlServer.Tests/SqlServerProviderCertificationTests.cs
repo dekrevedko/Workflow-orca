@@ -32,6 +32,7 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             ?? throw new InvalidOperationException("SQL Server certification store is not initialized."));
 
     [Fact]
+    [Trait("AC", "AC-108")]
     public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>
         DefinitionFanoutInboxCertification.RunAsync(CreateFixture());
 

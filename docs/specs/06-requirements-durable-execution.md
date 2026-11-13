@@ -83,38 +83,35 @@ lease/ownership layer MAY strengthen it for multi-node (DU-060).
 
 ## 6.4 Inbox / outbox
 
-### DU-030 Inbox (restart-safe dedup)
-After an active wait accepts a delivery, the engine SHALL durably record that accepted external
-delivery by `EventId` with states
-`Received`, `Applied`, `DuplicateIgnored`, `Poisoned`. Duplicate events after restart MUST
-NOT produce duplicate committed outcomes. The inbox also serves operational audit and replay
-defense. This is the transactional-inbox pattern: event ingestion and state mutation commit
-in one logical transaction (EV-032). A delivery for which no active wait exists returns
-`NoActiveWait` and creates no inbox/dedup record or pending-event state.
+### DU-030 Inbox (restart-safe pre-wait ownership and dedup)
+Durable ingress SHALL atomically record every accepted external event before a matching wait is
+required. Global `EventId` binds the full normalized-envelope fingerprint before route evaluation;
+fanout adds stable per-target ownership under one membership snapshot. Records progress through
+pending/received, applied/duplicate, or observably poisoned terminal states. Restart and host
+replacement MUST NOT lose, duplicate, or silently expire an accepted event.
 
 ### DU-031 Outbox (consistent runtime dispatch)
-Runtime-owned outbound records (continuations, lifecycle/status messages, timer work, and
-internal DAG child-start commands) SHALL be derived
-from committed workflow events as durable outbox records **in the same commit boundary** as
-the events themselves. The engine SHALL never dispatch a message that was not first committed
-as an outbox record.
-
-Every accepted application operation that can make an instance runnable SHALL commit a
-continuation outbox record in the same boundary, including when the accepting host does not
-have the bound definition registered locally.
+Runtime-owned continuations, lifecycle/status messages, timer work, internal DAG child-start
+commands, and workflow-authored outbound events SHALL be derived from committed workflow facts as
+durable outbox records in the same commit boundary. Every accepted operation that makes an instance
+runnable SHALL commit its continuation in that boundary even when the accepting host lacks the
+definition. A workflow-authored `Publish` SHALL commit its fixed-codec public event in that same
+boundary.
 
 ### DU-032 Asynchronous at-least-once dispatch
-Outbox dispatch SHALL run after commit: asynchronous, retryable, at-least-once, through the
-pluggable dispatcher port. The dispatch pipeline SHALL support: manual dispatch, automatic
-background pumping, poison/failure handling hooks, retry-delay strategy hooks, and
-observability hooks. Consumers are expected to handle at-least-once delivery; the engine
-SHALL make the guarantee explicit.
+Dispatch SHALL be asynchronous, retryable, and at-least-once after commit. Public `workflow-event`
+records SHALL reach only `IWorkflowEventDispatcher.DispatchAsync(WorkflowOutboundEvent, ct)` with
+closed success/retryable/permanent outcomes. Internal continuation/provider records SHALL use the
+internal dispatcher path and SHALL never cross the public event boundary. Retry reuses the committed
+identity; cancellation releases the claim; permanent failure records stable poison detail. The
+dispatch pipeline SHALL retain manual dispatch, automatic background pumping, poison/failure
+handling, retry-delay strategy, and observability hooks for both application and internal paths.
 
-### DU-033 One unified outbox
-A single logical outbox SHALL carry all approved runtime record kinds (continuations, internal
-DAG child-start commands, lifecycle/status messages, and host/provider dispatch work) so
-ordering/backlog management and operational tooling are uniform. Internal records do not become
-public workflow nodes, and this requirement does not approve workflow-authored `Publish`.
+### DU-033 One store, disjoint dispatch kinds
+One logical provider outbox SHALL retain every approved record kind, while selector-aware claims
+partition public workflow events from internal continuations and other host/provider work. The
+public dispatcher never receives internal records, and the internal pump never claims public
+workflow events. Uniform storage does not collapse these application and runtime boundaries.
 
 ## 6.5 Versioning of long-running instances
 

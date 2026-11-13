@@ -17,6 +17,7 @@ public sealed class DurablePublishTests
         new(2026, 8, 7, 20, 15, 0, TimeSpan.Zero);
 
     [Fact]
+    [Trait("AC", "AC-119")]
     public async Task Publish_CommitsProgressionAndCompleteRuntimeOwnedOutboundEventAtomically()
     {
         var store = new InMemoryWorkflowProvider();

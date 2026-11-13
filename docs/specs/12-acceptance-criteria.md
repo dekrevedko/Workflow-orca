@@ -129,12 +129,14 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
 - **AC-026** *Hosting roles are explicit* - Compile/startup fixtures expose only
   `AddOrcaCoreEphemeralEngine`, `AddOrcaCoreDurableEngine`, callback-only
   `AddOrcaCoreDurableEventIngress`, dev/test `AddOrcaCoreInMemoryDurableProvider`, production
-  `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, and
-  `OrcaCore.Dag.Hosting.AddOrcaCoreDag`. Ephemeral/durable registrations each own the correct
-  `IWorkflowEventClient`; PostgreSQL supplies one complete certified role with nonblank copied
-  connection string/schema. Conflicting duplicate roles, incomplete durable
-  providers, DAG without durable engine, catch-all `AddOrcaCore`, individual port registration,
-  and serializer replacement fail or are absent as specified. [PR-040]
+  `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, production
+  `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`, and
+  `OrcaCore.Dag.Hosting.AddOrcaCoreDag`. Durable-engine/callback roles own
+  `IWorkflowEventIngress`; the durable hosting assembly owns the `IWorkflowEventDispatcher` port,
+  the application registers its implementation, and the durable engine consumes it for authored
+  `Publish`. Each production provider supplies one complete certified role. Conflicting roles,
+  incomplete providers, DAG without durable engine, catch-all registration, individual port
+  registration, and serializer replacement fail or are absent. [PR-040]
 
 - **AC-027** *Public failure codes are stable* - Every public runtime exception derives from
   `OrcaCoreException`, exposes its authoritative nonblank fixed `Code`, and round-trips without
@@ -168,28 +170,27 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   point once, with the payload available to the next step. [EV-022, EV-023]
 - **AC-103** *Non-matching event does not resume* — Wrong `EventName` or `CorrelationId`
   leaves the instance waiting. [EV-020]
-- **AC-104** *Pre-wait delivery is non-consuming* — Instance/correlation delivery before the
-  matching wait returns `NoActiveWait`, writes no mailbox/inbox/dedup state, and does not resume
-  later by itself. After observing registration, the source redelivers the same `EventId` and
-  identical normalized envelope for first acceptance. [EV-030/031]
-- **AC-105** *Duplicate event deduplicated* — The same `EventId` delivered twice produces one
-  consumption and one continuation only after first acceptance; a prior non-consuming
-  `NoActiveWait` does not make redelivery `Duplicate`. [EV-031]
-- **AC-106** *Correlation-targeted routing resumes exactly one* — With multiple waiting
-  instances on distinct correlations, a correlation-targeted event resumes only the unique
-  match. [EV-010, EV-012]
+- **AC-104** *Durable pre-wait event is retained* — **[provider]** Direct or correlation ingress
+  accepted before its matching wait persists, survives host replacement, and is claimed by the
+  later wait without broker redelivery. Ephemeral waits make no durable acknowledgement promise.
+  [EV-030, DU-030]
+- **AC-105** *Global event identity is stable* — The same `EventId` and normalized envelope is a
+  duplicate before or after route/target progression; changed content is `EventConflict`. Fanout
+  deduplicates each retained target independently. [EV-031]
+- **AC-106** *Correlation routing resumes exactly one* — With multiple waiting instances on
+  distinct correlations, a correlation route resumes only the unique match. [EV-010/011]
 - **AC-107** *Ambiguous wait registration is rejected* — A second active registration for
-  `(DefinitionId, EventName, CorrelationId)`, including a same-pair wait in one instance, throws
-  `AmbiguousWaitRegistrationException` before parking or changing the index. Zero correlation
-  matches return `NoActiveWait`. [EV-011/012]
-- **AC-108** *Definition fanout is deferred and absent* — Public surfaces, protocol commands,
-  and positive fixtures expose only instance/correlation delivery; no definition-targeted route,
-  alias, or placeholder ships. [EV-010]
+  `(DefinitionId, EventName, CorrelationId)`, including inside one instance, throws
+  `AmbiguousWaitRegistrationException` before parking or changing the index. [EV-011]
+- **AC-108** *Definition fanout has stable membership* — **[provider]** First acceptance snapshots
+  the complete current nonterminal persisted target set atomically; empty is valid, later instances
+  are excluded, redelivery reuses the set, and every target progresses or poisons independently.
+  [EV-010/030/031]
 - **AC-109** *Loop waits are a signal stream* — Each `While` iteration gets a fresh `WaitId`;
   after one event consumes the active wait, a later iteration may reuse the pair and consume a
   later event. Occurrence-specific authors encode the occurrence in `CorrelationId`. [EV-043]
-- **AC-110** *Parallel waits isolated by branch* — With different waits in branches of one root `Parallel`,
-  one matching event resumes only its branch. [EV-021, CP-001]
+- **AC-110** *Parallel waits isolated by branch* — With different waits in branches of one root
+  `Parallel`, one matching event resumes only its branch. [EV-021, CP-001]
 - **AC-111** *Timer completes after due time* — A delay/timer step continues the workflow
   exactly once after its due time. [EV-050]
 - **AC-112** *Timer/event race deterministic* — Waiting on event + timeout simultaneously,
@@ -201,27 +202,37 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   new attempt deadline/number while keeping `StepOperationId`; `CompleteWithin` remains anchored
   at workflow start across admission, waits, retries, restart, and `ContinueAsNew`, then commits
   terminal `TimedOut` with `WorkflowDeadlineExceededException` and suppresses merges. [CR-018,
-  EV-052, MG-041] Host-loss replay before the attempt timeout winner commits reuses the persisted
+  EV-052, MG-041] Host-loss replay before the attempt-timeout winner commits reuses the persisted
   attempt deadline/number and never resets either bound.
-- **AC-114** *No accepted-event loss on crash between match and commit* — **[provider]** A crash
-  after acceptance/match but before commit leaves the wait `Active` and the accepted inbox event
-  re-matchable; no lost events or double effect. `NoActiveWait` wrote no event record and relies
-  on source redelivery. [EV-032, DU-020]
-- **AC-115** *Internal keyed routing has no public bulk promise* — Correlation delivery resolves
-  through the runtime-owned exact key without scanning an application-visible collection, while
-  public instance enumeration, multi-ID/filter retrieval, count/statistics, and bulk mutation are
-  absent/deferred. [EV-013, MG-001/004]
-
-- **AC-116** *Typed routing and portable dynamic wait* - Delivery returns only `Accepted`,
-  `Duplicate`, `NoActiveWait`, `InstanceTerminal`, or `EventConflict`; same target/event ID with
-  changed content conflicts only after first acceptance. `NoActiveWait` is non-consuming.
-  Structural `Wait` and dynamic `StepResult.WaitForEvent` both create one correctly owned
-  obligation in each mode. [EV-012, EV-030/031, EV-045]
+- **AC-114** *No accepted-event loss around apply commit* — **[provider]** A crash before the
+  consuming transition leaves the wait `Active` and the accepted record re-matchable; a crash
+  after commit cannot double-apply it. Source acknowledgement after `Accepted`/`Duplicate` does
+  not lose the event.
+  [EV-032, DU-020/030]
+- **AC-115** *Internal keyed routing has no public bulk promise* — Routing uses runtime-owned exact
+  keys without an application-visible collection; public instance enumeration, multi-ID/filter
+  retrieval, count/statistics, and bulk mutation are absent/deferred. [EV-013, MG-001/004]
+- **AC-116** *Closed acceptance and portable dynamic wait* — Durable ingress returns only
+  `Accepted`, `Duplicate`, or `Rejected` with `EventConflict`, `DirectInstanceNotFound`,
+  `DirectInstanceTerminal`, `StartConflict`, or `FanoutLimitExceeded`. Invalid arguments remain
+  exceptions. Structural `Wait` and dynamic `StepResult.WaitForEvent` both create one correctly
+  owned obligation in each mode. [EV-012, EV-030/031, EV-045]
 - **AC-117** *EventName equality is provider-independent* - `EventName.Create("Approval")` and
   `EventName.Create("approval")` are distinct, leading/trailing whitespace is rejected rather
   than trimmed, scalar round-trip preserves the exact value, and correlation routing returns the
   same result through every certified provider regardless of its default collation.
   [EV-003/020, PR-024]
+- **AC-118** *Route union is exact* — Reflection and fresh-package consumers expose exactly direct,
+  correlation, definition-fanout, and start-or-deliver routes. Start-or-deliver keeps fixed-codec
+  workflow input and `StartIdempotencyKey` distinct from the event payload and rejects
+  incompatible existing bindings before ownership. [EV-010]
+- **AC-119** *Durable Publish is transactional and isolated* — A durable authored `Publish` commits
+  one fixed-codec workflow event atomically with workflow state, retries with the same event
+  identity, and reaches only `IWorkflowEventDispatcher`; internal continuation records never do.
+  [EV-060, DU-031/033]
+- **AC-120** *Acceptance defines broker acknowledgement* — Only `Accepted` or `Duplicate` permits
+  the source to acknowledge. Rejections retain no false ownership, while unresolvable accepted
+  records become observable poison rather than disappearing. [EV-012/030/032]
 
 ## Composition (AC-2xx)
 
@@ -271,10 +282,11 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   definition, version, and wait state from durable metadata only. [DU-070]
 - **AC-309** *Concurrent durable resume serializes* — **[provider]** Racing resume attempts
   on a durable instance produce exactly one committed outcome. [DU-022]
-- **AC-310** *Runtime outbox dispatches after commit* — **[provider]** No runtime-owned message dispatches unless its
-  outbox record committed with the state transition; failures around the boundary cannot
-  yield state-without-message or message-without-state beyond documented at-least-once.
-  [DU-031/032]
+- **AC-310** *Outbox dispatches after commit and preserves kind isolation* — **[provider]** No
+  continuation, lifecycle, child intent, or workflow-authored public event dispatches unless its
+  outbox record committed with the state transition. `IWorkflowEventDispatcher` receives only
+  public workflow events; internal pumps never receive them. Failures preserve the documented
+  at-least-once identity and poison behavior. [DU-031/032/033]
 - **AC-311** *Idempotent start* — `StartOrGetAsync` with a repeated `StartIdempotencyKey` returns
   the existing instance; case variants are distinct, provider restart preserves the binding,
   and the key cannot be passed as an `InstanceId`. Reuse against a different definition,
@@ -303,9 +315,9 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   the correct typed definition handle; `StartOrGetAsync` compiles without a phantom state
   generic, and no start-by-raw-identity overload can register implicitly. [DU-054]
 - **AC-319** *Split-host event progresses exactly once* - A definition-less callback host
-  accepts a normalized event with `EventDeliveryStatus.Accepted` and commits the continuation;
-  the definition-owning host later progresses exactly once. The result does not expose whether
-  progression happened inline. [DU-031, DU-055]
+  returns `WorkflowEventAcceptanceResult.Accepted` only after inbox ownership commits; the
+  definition-owning host later progresses exactly once. The result does not expose whether
+  progression happened inline. [DU-030/031, DU-055]
 - **AC-320** *External report is event-idempotent* - A watcher reuses one `EventId` for retry
   or redelivery of the same logical report; the event commits once and a duplicate returns the
   stable duplicate outcome without resuming twice. [DU-030/056]

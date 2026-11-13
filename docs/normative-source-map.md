@@ -71,11 +71,13 @@ assemblies; they differ in what the **record** must say:
 
 | Kind | Members | Documentation obligation |
 |---|---|---|
-| **Deferred** | `WhenFirst`, Saga, public `RunExternalJob`, public `RunChild`/`RunChildren`, nested `Parallel`/`While`/`ForEach`, durable lambda steps, definition-wide retry, management retry, pause/resume/archive/purge, authored `Publish`/`Cancel`, definition-targeted event fanout | **Must stay recorded** with rationale and re-entry criteria |
+| **Deferred** | `WhenFirst`, Saga, public `RunExternalJob`, public `RunChild`/`RunChildren`, nested `Parallel`/`While`/`ForEach`, durable lambda steps, definition-wide retry, management retry, pause/resume/archive/purge, authored `Cancel` | **Must stay recorded** with rationale and re-entry criteria |
 | **Removed** | `WaitLong`, author `Yield` | **Must disappear** — no alias, tombstone, or placeholder |
 
 So a deferred capability is documented *as deferred*; do not erase its mention. A removed one is
-erased. Getting this backwards in either direction is a defect.
+erased. Getting this backwards in either direction is a defect. Durable workflow-authored
+`Publish` and definition-targeted event fanout are current Section 7B capabilities and therefore
+do not belong in this deferred registry.
 
 **The future-capability registry lives at
 [`specs/13-phasing-and-open-questions.md`](specs/13-phasing-and-open-questions.md)
@@ -94,8 +96,9 @@ name and cross-reference; reshape task `9.6` owns the registry's final membershi
 - **`13-phasing-and-open-questions.md` and `18-semantic-appendix.md` carry no requirement IDs.**
   `18` is explicitly non-normative.
 - **`17-public-authoring-contract.cs` is the compile/reflection guard baseline** (reshape proposal
-  item 34), but the 2026-07-28 amendment deliberately did not amend it (its §5). Confirm that
-  exclusion still holds before relying on it as a complete surface.
+  item 34). The 2026-07-28 amendment did not amend it, but the later approved Section 7B change did;
+  the current companion and exact API baselines include the shipped durable ingress and publish
+  surface.
 
 ---
 

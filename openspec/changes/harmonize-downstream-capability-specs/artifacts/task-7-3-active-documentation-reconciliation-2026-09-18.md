@@ -1,0 +1,71 @@
+# Task 7.3 — active documentation reconciliation
+
+**Date:** 2026-09-18
+**Change:** `harmonize-downstream-capability-specs`
+**Owner:** Task 7.3
+
+## Scope
+
+Task 3.1 found 23 stale active documents. Task 7.3 reconciles the 22 documents below; Task 7.4 separately owns `docs/orleans-engine/README.md`. No archived or immutable review record is rewritten.
+
+Each SHA-256 is over the complete source after CRLF/CR normalization to LF. The executable guard
+requires the numbered rows, paths, and hashes exactly as recorded here.
+
+| # | Active source | Normalized SHA-256 |
+|---:|---|---|
+| 1 | `CLAUDE.md` | `a062ddcd06ffefe934ac6d8c57ed35f4d5352933c9211c543266399e5e38e960` |
+| 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
+| 3 | `docs/end-to-end-plan.md` | `c2bb0ea26618a65248839ffd75281b9c89dc496467e5a90e9034da48fcae0e01` |
+| 4 | `docs/ephemeral-engine-developer-guide.md` | `7e3fe252e1bcb621b03bfb91a6aaf2d48bf5c5ad3997e442ad4fbcb3a90dfa2c` |
+| 5 | `docs/ephemeral-engine-diagrams.md` | `6393cfb7fb4155e0fc28ed908384e43126d05be9b5ebda04f6f7aee7aa25463a` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `b754bb49f39ac1b33cd415b1a0c94d7dc5fbbf3983ff3d7b52f56d11a479fe2b` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `1d77afa2b5bd707854e7d15664e6d1a8eb6732190dcddbfd2d1e261b042f58ba` |
+| 8 | `docs/implementation/02-engineering-conventions.md` | `e4a81233359e60e5ca43e596d26a58ff46e75879dded7536e95511e47d908c72` |
+| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `abc471060109638f4f520adabe369070d8af3c8d2665e388bce07db8fdcf6be6` |
+| 10 | `docs/normative-source-map.md` | `2f9dd197a2651269646cf960f45e56e06bf4b07aff78961ad0fcb1d2fdc6f09b` |
+| 11 | `docs/production-readiness.md` | `2812eb9121d455a59ec748dbdbcc4cba4ddd317398c9b8c5470edc44b9a6c1bc` |
+| 12 | `docs/project-technical-overview.md` | `62075350bba4adb0ad7f1698d8e7d271eb8f0e00df7071ab0adcb81355b8dc40` |
+| 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
+| 14 | `docs/specs/03-domain-model-and-glossary.md` | `d6a7b30d3e5285dd9c7c3c5e3bc1ec1de4ebe6befe14ed10aec31f728e98b5f9` |
+| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `e83dd2494d283ddfbcd3229032fc9772fa8686c4f5f7b37dc47c6b2e0b2e8c2b` |
+| 16 | `docs/specs/06-requirements-durable-execution.md` | `3cbf348da81093464d23835943e39f707ce36705bc0d9739e365018bb5db0294` |
+| 17 | `docs/specs/09-requirements-management-operations.md` | `b564eb6713e446ba846141ee4561a3f5ec49fa596e580f44625a231da5d6aa2b` |
+| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `ef401ba322643c8bd185792b7414cdf72fc9efaae4eadc126208a10c12c6e75e` |
+| 19 | `docs/specs/12-acceptance-criteria.md` | `5d572f2a0a32d707aea9ad25da6ff1952bc737f116279785490ae8d67f785263` |
+| 20 | `docs/specs/13-phasing-and-open-questions.md` | `c94f49b68a771382ba452a17a2d3ccff5e6d0bba7f62b7bffeae509064edc53d` |
+| 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
+| 22 | `docs/specs/16-requirements-durable-driver.md` | `eb2d2093a1e5994227c2fc849eceafea4b0759fdb284bf3f74e1db2ce45aa861` |
+
+## Reconciled contract
+
+- Durable external ingress is `IWorkflowEventIngress` over one fixed-codec `WorkflowInboundEvent`;
+  the caller creates its global `EventId` and supplies its required `CorrelationId`.
+- The closed route union is direct, correlation, definition fanout, and start-or-deliver.
+- `EventId` plus the complete normalized-envelope fingerprint is global identity before route state.
+- Accepted durable events remain owned before a wait exists; later claim needs no broker redelivery or hot instance.
+- Only `Accepted` and `Duplicate` authorize source acknowledgement; unresolved ownership becomes observable poison.
+- Definition fanout freezes the complete current nonterminal target set once and deduplicates per target.
+- Durable authored `Publish` commits through the workflow-event outbox and reaches only the
+  application-registered `IWorkflowEventDispatcher`; the engine consumes but does not create that
+  implementation.
+- Exact engine/provider/DAG roles remain separate; PostgreSQL and SQL Server are the production durable providers.
+- `orcacore-json-v1` remains the nonreplaceable durable codec.
+- Broad statistics/enumeration and public archive/purge remain absent from application handles; provider/operator ports own retained statistics and maintenance.
+
+## Numbered owners
+
+`docs/specs/05-requirements-events-waits-timers.md` now owns the exact four-route ingress, retained
+pre-wait acceptance, global identity, closed acceptance result, broker-ack boundary, portable
+dynamic waits, and transactional Publish requirements. `docs/specs/12-acceptance-criteria.md`
+retains the unrelated timeout/collation clauses and maps the Section 7B obligations to real product,
+provider, hosting, and engine tests rather than to the Markdown reconciliation guard itself.
+
+## Disposition
+
+All 22 Task 7.3 sources are reconciled. The separate Orleans future-hosting note remains open under
+Task 7.4, and repository-wide recurring stale-negative enforcement remains open under Task 7.5.
+
+Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its
+recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that
+intentionally edits the source and updates the artifact row, guard-source artifact digest, and
+review evidence; neither may perform a mechanical follow-up refresh for an earlier unreviewed edit.

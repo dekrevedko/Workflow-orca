@@ -463,6 +463,7 @@ public sealed class DurableRecoveryTests
     }
 
     [Fact]
+    [Trait("AC", "AC-120")]
     public async Task OwningStartPump_PoisonsAcceptedIntentWhenExactVersionIsUnavailable()
     {
         var store = new InMemoryWorkflowProvider();
