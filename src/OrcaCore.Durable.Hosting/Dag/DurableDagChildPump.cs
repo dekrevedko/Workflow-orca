@@ -44,7 +44,9 @@ internal sealed class DurableDagChildPump(IWorkflowOutboxStore outbox, IDurableD
                     completed++;
                     outcome = DispatchResult.Success;
                 }
-                else await outbox.ReleaseAsync(write.OutboxRecordId, token).ConfigureAwait(false);
+                // Retain a not-yet result until the existing claim lease expires.
+                // Immediate release returns the oldest record to the head and
+                // can prevent unrelated runs from being claimed at all.
             }
             catch (Exception exception) when (exception is InvalidDataException or JsonException)
             {
@@ -54,7 +56,8 @@ internal sealed class DurableDagChildPump(IWorkflowOutboxStore outbox, IDurableD
                 if (write.DagRunOwner is { } owner && owner != Guid.Empty &&
                     !await handler.RecordFaultAsync(owner, token).ConfigureAwait(false))
                 {
-                    await outbox.ReleaseAsync(write.OutboxRecordId, token).ConfigureAwait(false);
+                    // The owning fault was not committed. Defer, without poisoning
+                    // or immediately returning this record to the head of the lane.
                     continue;
                 }
                 await outbox.MarkPoisonedAsync(write.OutboxRecordId, "DAG_PROTOCOL_INVALID", exception.Message, token).ConfigureAwait(false);
@@ -68,7 +71,6 @@ internal sealed class DurableDagChildPump(IWorkflowOutboxStore outbox, IDurableD
             catch (Exception exception)
             {
                 error = exception;
-                await outbox.ReleaseAsync(write.OutboxRecordId, CancellationToken.None).ConfigureAwait(false);
                 throw;
             }
             finally { await telemetry.RecordAsync(write, outcome, watch.Elapsed, error).ConfigureAwait(false); }

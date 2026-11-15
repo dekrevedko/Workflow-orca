@@ -68,9 +68,11 @@ internal static class EphemeralFailureSettlementSourceReview
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetProperty("afterSha256").GetString());
         }
         Git(root, "diff", "--name-only", Base, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Except(DagPumpSliceGuards.ApprovedDagSourcePaths(root), StringComparer.Ordinal)
+            .Except(DagPumpSliceGuards.ReviewBoundDagSourcePaths(root), StringComparer.Ordinal)
             .Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Should().BeEmpty();
+        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal).Should().BeEmpty();
         var tasks = File.ReadAllText(Path.Combine(root, TaskLedgerPath));
         foreach (var task in new[] { "2.1", "2.2" }) tasks.Should().Contain("- [x] " + task + " ");
         var checkpointTasks = CheckpointTaskLedger(root);
@@ -271,7 +273,7 @@ internal static class EphemeralFailureSettlementSourceReview
         representative.GetProperty("sourceTree").GetString().Should().Be(qualification.GetProperty("sourceTree").GetString());
         var sourceCommit = qualification.GetProperty("sourceCommit").GetString()!;
         Git(root, "rev-parse", sourceCommit + "^{tree}").Trim().Should().Be(qualification.GetProperty("sourceTree").GetString());
-        var dagPaths = DagPumpSliceGuards.ApprovedDagSourcePaths(root).ToHashSet(StringComparer.Ordinal);
+        var dagPaths = DagPumpSliceGuards.ReviewBoundDagSourcePaths(root).ToHashSet(StringComparer.Ordinal);
         foreach (var table in new[] { "sourceFiles", "harnessFiles" })
         {
             var files = representative.GetProperty(table).EnumerateObject().ToArray();

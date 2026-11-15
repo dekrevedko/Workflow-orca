@@ -57,9 +57,28 @@ public sealed class DagChildRecoveryTests
         var final = await DagPumpRunFixture.ReadAsync(store, run.RunId, TestContext.Current.CancellationToken);
         final.State.Should().Be(DagRunStateV1.Succeeded);
         final.Nodes[0].Output!.Bytes.Should().Equal("42"u8.ToArray());
+        final.Nodes[0].Output!.ContractKey.Should().Be(
+            FormattableString.Invariant($"workflow:{workflow.DefinitionId}:{workflow.DefinitionVersion.Value}:output"));
         var join = DagPumpRunFixture.ChildWrite("dag-child-join-v1", run.RunId);
         (await handler.HandleAsync(join, TestContext.Current.CancellationToken)).Should().BeTrue();
         (await DagPumpRunFixture.ReadAsync(store, run.RunId, TestContext.Current.CancellationToken)).StreamVersion.Should().Be(final.StreamVersion);
+    }
+
+    [Fact]
+    public async Task ChildPump_RejectsOutputRoleUsedAsInputBeforeStartingChild()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var workflow = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(value => value).End(value => value.Value).Build();
+        await using var services = Services(workflow);
+        var store = services.GetRequiredService<IWorkflowEventStore>();
+        var outbox = services.GetRequiredService<IWorkflowOutboxStore>();
+        var (run, start) = await DagPumpRunFixture.CreateAsync(store, workflow, false, token, wrongInputRole: true);
+
+        (await services.GetRequiredService<DurableDagChildPump>().PumpOnceAsync(Request(), token)).Should().Be(0);
+        (await outbox.GetStateAsync(start.OutboxRecordId, token)).Value.Should().Be(OutboxRecordState.Poisoned);
+        (await store.LoadTailAsync(new(run.Nodes[0].ChildInstanceId!), StreamVersion.Empty, token)).Should().BeEmpty();
+        (await DagPumpRunFixture.ReadAsync(store, run.RunId, token)).State.Should().Be(DagRunStateV1.IntegrityFault);
     }
 
     [Fact]

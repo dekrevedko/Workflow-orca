@@ -66,8 +66,13 @@ internal static class DurableDagWire
             new DurableDagChildSignal(1, runId, ordinal), DurableDagJsonContext.Default.DurableDagChildSignal))
         { DagRunOwner = runId };
 
-    internal static string ContractKey(Type type) => Convert.ToHexString(
-        SHA256.HashData(Encoding.UTF8.GetBytes(type.AssemblyQualifiedName ?? type.FullName ?? type.Name)));
+    internal static string ChildInputKey(DagRunBindingV1 binding) =>
+        FormattableString.Invariant($"workflow:{binding.DefinitionId}:{binding.DefinitionVersion.Value}:input");
+
+    internal static string ChildOutputKey(DagRunBindingV1 binding) =>
+        FormattableString.Invariant($"workflow:{binding.DefinitionId}:{binding.DefinitionVersion.Value}:output");
+
+    internal static string ValueFingerprint(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes));
 
     internal static Guid ChildId(Guid runId, int ordinal)
     {
@@ -80,7 +85,25 @@ internal static class DurableDagWire
     internal static ProviderCommitBatch Commit(DagRunSnapshotV1 before, IReadOnlyList<DagRunRecordV1> records,
         DagRunFenceV1 fence, IReadOnlyList<OutboxWrite>? outbox = null)
     {
-        var after = before;
+        return FrameCommit(before.StreamVersion, before, records, fence, outbox ?? []);
+    }
+
+    internal static ProviderCommitBatch Create(DagRunSnapshotV1 initial)
+    {
+        var operation = Guid.CreateVersion7();
+        var created = new DagRunRecordV1(1, DagRunRecordKindV1.Created, initial.RunId,
+            operation, initial.StreamVersion, initial.State, initial, [], initial.UpdatedAt, null);
+        // A valid empty DAG has no work to admit. Close it in the creation append.
+        DagRunRecordV1[] records = initial.Nodes.Count == 0
+            ? [created, new(1, DagRunRecordKindV1.Terminal, initial.RunId, operation,
+                initial.StreamVersion.Next(), DagRunStateV1.Succeeded, null, [], initial.UpdatedAt, initial.UpdatedAt)]
+            : [created];
+        return FrameCommit(StreamVersion.Empty, initial, records, null, []);
+    }
+
+    private static ProviderCommitBatch FrameCommit(StreamVersion expected, DagRunSnapshotV1 after,
+        IReadOnlyList<DagRunRecordV1> records, DagRunFenceV1? fence, IReadOnlyList<OutboxWrite> outbox)
+    {
         // This is a write projection, not a second authority/reducer. The provider
         // independently validates every transition and compares this checkpoint to
         // its own reduction before it commits anything.
@@ -99,10 +122,9 @@ internal static class DurableDagWire
         }
         var bytes = JsonSerializer.SerializeToUtf8Bytes(new DurableDagCheckpointFrame("dag-run-v1", 1,
             after.RunId, after.StreamVersion.Value, after), DurableDagJsonContext.Default.DurableDagCheckpointFrame);
-        outbox ??= [];
         return new ProviderCommitBatch
         {
-            StreamId = WorkflowStreamId.ForDagRun(before.RunId), ExpectedVersion = before.StreamVersion,
+            StreamId = WorkflowStreamId.ForDagRun(after.RunId), ExpectedVersion = expected,
             OutboxRecords = outbox,
             DagRun = new(records[0].OperationId, OperationFingerprint(records, outbox), fence, records,
                 new(1, after.RunId, after.StreamVersion, CheckpointContentType, bytes, Hash(bytes)))

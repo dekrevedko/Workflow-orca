@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -51,6 +52,20 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         return new PostgreSqlProviderCertificationFixture(
             certificationStore ?? throw new InvalidOperationException("PostgreSQL certification store is not initialized."));
     }
+
+    [Fact]
+    public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
+        DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
+            new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+            TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public Task DagRetainedChild_DoesNotStarveHealthyRun(int batchSize) =>
+        DagRunCertification.RetainedChildDoesNotStarveHealthyRunAsync(
+            new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(
+                new(container.GetConnectionString(), "public")), batchSize, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task DagCreationAndReplay_PersistAnIndependentAggregate() =>

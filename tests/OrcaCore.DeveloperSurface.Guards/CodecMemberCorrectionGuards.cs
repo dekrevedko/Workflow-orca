@@ -38,9 +38,11 @@ public sealed class CodecMemberCorrectionGuards
         Git(root, "diff", "--name-only", Base, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Except(EphemeralFailureSettlementSourceReview.AuthorizedPaths(root), StringComparer.Ordinal)
-            .Except(DagPumpSliceGuards.ApprovedDagSourcePaths(root), StringComparer.Ordinal)
+            .Except(DagPumpSliceGuards.ReviewBoundDagSourcePaths(root), StringComparer.Ordinal)
             .Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
+        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal).Should().BeEmpty();
         foreach (var file in files)
             Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
         foreach (var file in record.GetProperty("harnessFiles").EnumerateObject())

@@ -36,3 +36,9 @@
 **Task 2.1 protocol/provider checkpoint recorded (2026-11-01):** checkpoint f62b0aafd8beeb69aa28efaba0f25413c4970b3b has the independently approved tree 0e5300632b9804f096ac45d119a602b5b9f5b9c7; its sole direct-child evidence commit 602844547539e0e5908d250c2a0d9560fc4b25dc adds the round-2026-10-29 APPROVE byte-exact and clears the active freeze. No activation or source-task checkbox followed.
 
 **Task 2.2 combined pump/certification target prepared (2026-11-01, pending independent review):** dedicated every-engine-host child pumps, the capable-sink-only ready claim seam, exact deterministic child binding, atomic terminal-join outbox production, fenced joins/cancellation recovery and visible poison handling are prepared together with the three carried provider-certification failures and the CLAUDE.md status correction. The real Dag.Hosting scheduler/ready-sink implementation, continuous run discovery, public DAG execution and full run bridge remain Task 2.3; no no-op ready sink is installed or allowed to acknowledge work. No new friend, public API, canonical sync, source-task completion or checkpoint is claimed. See artifacts/task-2-2-dedicated-pumps-and-certification-2026-11-01.md.
+
+**Task 2.3 implementation clarification (2026-11-13):** design §15 records the
+boot-local run-input binding and logical child value keys. Before enabling run
+creation, test restart rebinding and reject mismatched installed types or child
+role keys. Carry the child-pump starvation fix in the same uncommitted review
+target. No task is closed by this note.

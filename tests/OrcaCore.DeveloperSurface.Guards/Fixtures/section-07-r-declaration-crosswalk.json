@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 380,
-    "physicalDeclarations": 1596,
-    "activeFiles": 224,
-    "activeDeclarations": 908,
+    "physicalFiles": 383,
+    "physicalDeclarations": 1612,
+    "activeFiles": 227,
+    "activeDeclarations": 924,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -795,7 +795,7 @@
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs",
@@ -1881,7 +1881,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 8
+      "declarations": 9
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs",
@@ -1894,6 +1894,24 @@
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
       "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/DagRunCreationTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/DagRunInputBindingTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 3
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/DagSchedulerTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 1
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DurableDriverTelemetryAndOptionsTests.cs",
@@ -2121,7 +2139,7 @@
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
-      "declarations": 15
+      "declarations": 17
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderPorts.cs",
@@ -2187,7 +2205,7 @@
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
       "status": "active",
-      "declarations": 40
+      "declarations": 42
     },
     {
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourcePoolStoreCertificationTests.cs",
@@ -2229,7 +2247,7 @@
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
       "status": "active",
-      "declarations": 14
+      "declarations": 16
     },
     {
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs",

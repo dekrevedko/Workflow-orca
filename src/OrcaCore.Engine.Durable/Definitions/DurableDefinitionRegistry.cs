@@ -94,7 +94,8 @@ internal sealed class DurableDefinitionRegistry
         // DAG eligibility must not change registration/defense semantics for other
         // workflows (including adversarial runtime-shape certification fixtures).
         var dagBinding = initializers.Length == 1 && endings.Length == 1
-            ? new DurableDagDefinitionBinding(fingerprint, initializers[0].InputType, endings[0].OutputType)
+            ? new DurableDagDefinitionBinding(fingerprint, initializers[0].InputType, endings[0].OutputType,
+                endings[0].OutputSchemaIdentity)
             : null;
         var registered = new RegisteredDefinition(
             definition,
@@ -246,4 +247,5 @@ internal sealed record DurableRegisteredDefinitionBinding(
     DefinitionVersion DefinitionVersion,
     string Fingerprint);
 
-internal sealed record DurableDagDefinitionBinding(string Fingerprint, Type InputType, Type? OutputType);
+internal sealed record DurableDagDefinitionBinding(string Fingerprint, Type InputType, Type? OutputType,
+    string? OutputSchemaIdentity);

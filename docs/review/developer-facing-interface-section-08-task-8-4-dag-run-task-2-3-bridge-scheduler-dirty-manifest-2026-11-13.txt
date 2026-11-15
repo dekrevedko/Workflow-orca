@@ -1,0 +1,55 @@
+ M openspec/changes/admit-durable-dag-run-progression/design.md
+ M openspec/changes/admit-durable-dag-run-progression/proposal.md
+ M openspec/changes/admit-durable-dag-run-progression/tasks.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Dag.Hosting/DagHostingServices.cs
+ M src/OrcaCore.Dag.Hosting/OrcaCoreDagHostingServiceCollectionExtensions.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagChildCoordinator.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagChildPump.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagPumpHostedService.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagReadyPump.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagRunTurns.cs
+ M src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs
+ M src/OrcaCore.Engine.Durable/Dag/DurableDagChildEngine.cs
+ M src/OrcaCore.Engine.Durable/Dag/DurableDagWire.cs
+ M src/OrcaCore.Engine.Durable/Definitions/DurableDefinitionRegistry.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/CodecMemberCorrectionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementSourceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+ M tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.cs
+ M tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs
+ M tests/OrcaCore.Hosting.Tests/DagPumpRunFixture.cs
+ M tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj
+ M tests/OrcaCore.ProviderCertification/DagRunCertification.cs
+ M tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs
+ M tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-dirty-manifest-2026-11-13.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-independent-review-request-2026-11-13.md
+?? src/OrcaCore.Dag.Hosting/DagCoordinator.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagAdmission.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagChildBridge.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagIntegrity.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagMappingReader.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagNotifications.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagRunBridge.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagRunCancellation.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagRunInputCatalog.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagRunStore.cs
+?? src/OrcaCore.Engine.Durable/Dag/DurableDagInputShape.cs
+?? src/OrcaCore.Engine.Durable/Dag/DurableDagValues.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-2-3-bridge-references.txt
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-2-3-source-record.tsv
+?? tests/OrcaCore.Hosting.Tests/DagRunCreationTests.cs
+?? tests/OrcaCore.Hosting.Tests/DagRunInputBindingTests.cs
+?? tests/OrcaCore.Hosting.Tests/DagSchedulerTests.cs

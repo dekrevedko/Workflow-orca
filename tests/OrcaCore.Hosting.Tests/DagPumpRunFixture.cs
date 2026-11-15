@@ -18,20 +18,26 @@ internal static class DagPumpRunFixture
         { Converters = { new JsonStringEnumConverter() } };
 
     internal static async Task<(DagRunSnapshotV1 Run, OutboxWrite Start)> CreateAsync(IWorkflowEventStore store,
-        DurableWorkflowDefinition<int, int> workflow, bool cancelled, CancellationToken token, bool branches = false)
+        DurableWorkflowDefinition<int, int> workflow, bool cancelled, CancellationToken token,
+        bool branches = false, bool wrongInputRole = false)
     {
-        var key = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(typeof(int).AssemblyQualifiedName!)));
+        var coordinate = FormattableString.Invariant($"workflow:{workflow.DefinitionId}:{workflow.DefinitionVersion.Value}");
+        var outputKey = coordinate + ":output";
+        var inputKey = wrongInputRole ? outputKey : coordinate + ":input";
+        var runKey = FormattableString.Invariant($"dag:{workflow.DefinitionId}:{workflow.DefinitionVersion.Value}:run-input:") +
+            Convert.ToHexStringLower(SHA256.HashData("System.Int32\n"u8));
         var binding = new DagRunBindingV1(workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint.Value);
-        var value = new DagRunValueV1(true, key, "orcacore-json-v1", "41"u8.ToArray(), Convert.ToHexString(SHA256.HashData("41"u8)));
+        var value = new DagRunValueV1(true, inputKey, "orcacore-json-v1", "41"u8.ToArray(), Convert.ToHexString(SHA256.HashData("41"u8)));
         var runId = Guid.NewGuid();
         var time = DateTimeOffset.UtcNow;
         var run = new DagRunSnapshotV1(runId, new(1), new("dag-pump-" + runId.ToString("N")),
-            new(binding, key, [new(0, "node", binding, key, key, [])]), value, DagRunStateV1.Running,
+            new(binding, runKey, [new(0, "node", binding, inputKey, outputKey, [])]),
+            new(true, runKey, value.CodecFormat, value.Bytes, value.Fingerprint), DagRunStateV1.Running,
             [new(0, DagNodeStateV1.Ready, null, null, null, null, time, null, null)], time, time, null);
         if (branches)
             run = run with
             {
-                Graph = run.Graph with { Nodes = [run.Graph.Nodes[0], new(1, "dependent", binding, key, key, [0]), new(2, "independent", binding, key, key, [])] },
+                Graph = run.Graph with { Nodes = [run.Graph.Nodes[0], new(1, "dependent", binding, inputKey, outputKey, [0]), new(2, "independent", binding, inputKey, outputKey, [])] },
                 Nodes = [run.Nodes[0], new(1, DagNodeStateV1.Pending, null, null, null, null, null, null, null),
                     new(2, DagNodeStateV1.Ready, null, null, null, null, time, null, null)]
             };

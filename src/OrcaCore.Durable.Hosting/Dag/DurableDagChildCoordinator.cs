@@ -27,21 +27,51 @@ internal sealed class DurableDagChildCoordinator(IWorkflowEventStore store, Dura
                     throw new InvalidDataException("DAG child cancellation precedes the run barrier.");
                 return await children.CancelAsync(run, signal.Ordinal, token).ConfigureAwait(false);
             case DurableDagKinds.Join:
-                var fact = await children.ReadTerminalAsync(run, signal.Ordinal, token).ConfigureAwait(false);
-                if (fact is null) return false;
-                if (IsTerminal(node.State)) return MatchesJoined(node, fact, run);
-                return await turns.ExecuteAsync(run.RunId, DagRunLeasePurposeV1.ChildJoin, async (fence, ct) =>
-                {
-                    var current = await ReadAsync(run.RunId, ct).ConfigureAwait(false);
-                    if (current.State == DagRunStateV1.IntegrityFault) return false;
-                    var currentNode = current.Nodes[signal.Ordinal];
-                    if (IsTerminal(currentNode.State)) return MatchesJoined(currentNode, fact, current);
-                    var records = Join(current, signal.Ordinal, fact, Now(current));
-                    return (await store.AppendAsync(DurableDagWire.Commit(current, records, fence), ct).ConfigureAwait(false)).IsSuccess;
-                }, token).ConfigureAwait(false);
+                var joined = await ApplyChildTerminalAsync(run.RunId, signal.Ordinal, token).ConfigureAwait(false);
+                return joined.Outcome is DurableDagMutationOutcomeV1.Committed or DurableDagMutationOutcomeV1.Existing;
             default:
                 throw new InvalidDataException("Unknown DAG child record kind.");
         }
+    }
+
+    internal async ValueTask<DurableDagMutationResultV1> ApplyChildTerminalAsync(Guid runId, int ordinal, CancellationToken token)
+    {
+        var run = await ReadAsync(runId, token).ConfigureAwait(false);
+        if ((uint)ordinal >= (uint)run.Nodes.Count || run.Nodes[ordinal].Input is null)
+            throw new InvalidDataException("DAG join does not name an authorized node.");
+        if (run.State == DagRunStateV1.IntegrityFault)
+            return new(DurableDagMutationOutcomeV1.IntegrityConflict, run.StreamVersion, run);
+        var fact = await children.ReadTerminalAsync(run, ordinal, token).ConfigureAwait(false);
+        if (fact is null) return new(DurableDagMutationOutcomeV1.NotFound, run.StreamVersion, run);
+        if (IsTerminal(run.Nodes[ordinal].State))
+        {
+            _ = MatchesJoined(run.Nodes[ordinal], fact, run);
+            return new(DurableDagMutationOutcomeV1.Existing, run.StreamVersion, run);
+        }
+        DurableDagMutationResultV1 result = new(DurableDagMutationOutcomeV1.StaleFence, run.StreamVersion, run);
+        await turns.ExecuteAsync(runId, DagRunLeasePurposeV1.ChildJoin, async (fence, ct) =>
+        {
+            var current = await ReadAsync(runId, ct).ConfigureAwait(false);
+            if (current.State == DagRunStateV1.IntegrityFault)
+            {
+                result = new(DurableDagMutationOutcomeV1.IntegrityConflict, current.StreamVersion, current);
+                return false;
+            }
+            var currentNode = current.Nodes[ordinal];
+            if (IsTerminal(currentNode.State))
+            {
+                _ = MatchesJoined(currentNode, fact, current);
+                result = new(DurableDagMutationOutcomeV1.Existing, current.StreamVersion, current);
+                return true;
+            }
+            var records = Join(current, ordinal, fact, Now(current));
+            var appended = await store.AppendAsync(DurableDagWire.Commit(current, records, fence), ct).ConfigureAwait(false);
+            if (appended.IsFailure) return false;
+            result = new(DurableDagMutationOutcomeV1.Committed, appended.Value.NewVersion,
+                await ReadAsync(runId, ct).ConfigureAwait(false));
+            return true;
+        }, token).ConfigureAwait(false);
+        return result;
     }
 
     public async Task<bool> RecordFaultAsync(Guid runId, CancellationToken token)

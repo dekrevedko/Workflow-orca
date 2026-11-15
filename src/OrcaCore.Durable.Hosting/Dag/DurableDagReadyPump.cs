@@ -12,9 +12,18 @@ internal interface IDurableDagReadySinkV1
     ValueTask HandleAsync(DurableDagReadyNoticeV1 notice, CancellationToken cancellationToken);
 }
 
-internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOutboxStore outbox,
-    DurableDagHostIdentity host, IDurableDagReadySinkV1? sink)
+internal interface IDurableDagProgressionLoop
 {
+    Task RunAsync(CancellationToken cancellationToken);
+    void CompleteWake(DurableDagReadyNoticeV1 notice, bool acknowledged);
+}
+
+internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOutboxStore outbox,
+    DurableDagHostIdentity host, IDurableDagReadySinkV1? sink, DurableDagNotifications? notifications = null)
+{
+    internal Task RunDiscoveryAsync(CancellationToken token) =>
+        sink is IDurableDagProgressionLoop loop ? loop.RunAsync(token) : Task.CompletedTask;
+
     internal async Task<int> PumpOnceAsync(OutboxClaimRequest request, CancellationToken token)
     {
         // No capable DAG role means no claim, not claim/release churn. Task 2.3
@@ -55,8 +64,28 @@ internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOu
             {
                 // Sink failure is infrastructure failure, not malformed transport data.
                 // Successful acceptance means a bounded coalesced wake, never mapper completion.
-                await sink.HandleAsync(notice, token).ConfigureAwait(false);
-                await outbox.MarkAsync(write.OutboxRecordId, OutboxRecordState.Dispatched, token).ConfigureAwait(false);
+                if (notice.SubscriptionId is not null)
+                {
+                    if (notifications?.TryDeliver(notice) != true)
+                    {
+                        // The local subscription has ended; don't acknowledge it as
+                        // progression. Its release allows observer maintenance to purge it.
+                        await outbox.ReleaseAsync(write.OutboxRecordId, token).ConfigureAwait(false);
+                        continue;
+                    }
+                }
+                else await sink.HandleAsync(notice, token).ConfigureAwait(false);
+                var acknowledged = false;
+                try
+                {
+                    await outbox.MarkAsync(write.OutboxRecordId, OutboxRecordState.Dispatched, token).ConfigureAwait(false);
+                    acknowledged = true;
+                }
+                finally
+                {
+                    if (notice.SubscriptionId is null && sink is IDurableDagProgressionLoop loop)
+                        loop.CompleteWake(notice, acknowledged);
+                }
                 count++;
             }
             catch

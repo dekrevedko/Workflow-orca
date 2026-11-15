@@ -305,8 +305,9 @@ public sealed class DagStreamIdentitySliceGuards
             "no seventh API key or direct provider-port signature may change in this contract refinement");
         var baseCommit = amendment.GetProperty("baseCommit").GetString()!;
         // The fingerprint contract is now independently checkpointed and evidenced.
-        // Task 2.1 may implement the protocol/provider data plane, not the later Hosting slices.
-        Git(root, "diff", "--name-only", baseCommit, "--",
+        // The separately bounded Task 2.3 candidate cannot change the historical
+        // Task 2.1 scope, public API baselines, or the approved deltas.
+        Git(root, "diff", "--name-only", baseCommit, "f62b0aafd8beeb69aa28efaba0f25413c4970b3b", "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting",
             "openspec/changes/admit-durable-dag-run-progression/specs",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
@@ -338,8 +339,15 @@ public sealed class DagStreamIdentitySliceGuards
             EphemeralFailureSettlementReviewHistory.CanonicalBefore(root, path).Should().Be(expected,
                 "only the exact reviewed layers extend this canonical target; native-support guards pin its Git-approved deltas");
         }
-        Git(root, "ls-files", "--others", "--exclude-standard", "--",
-            "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs").Should().BeEmpty();
+        Git(root, "diff", "--name-only", baseCommit, "--",
+            "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/changes/admit-durable-dag-run-progression/specs",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
+            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--",
+                "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs")
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries))
+            .Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal).Should().BeEmpty();
     }
 
     private static HashSet<string> CatalogApiKeys(string text)

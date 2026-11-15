@@ -8,6 +8,7 @@
     <PackageReference Include="AwesomeAssertions" />
     <PackageReference Include="coverlet.collector" PrivateAssets="all" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" PrivateAssets="all" />
     <PackageReference Include="xunit.runner.visualstudio" PrivateAssets="all" />
     <PackageReference Include="xunit.v3" />
@@ -20,6 +21,7 @@
     <ProjectReference Include="..\..\src\OrcaCore.Provider.Abstractions\OrcaCore.Provider.Abstractions.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Dag.Hosting\OrcaCore.Dag.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="..\OrcaCore.DeveloperSurface.BehaviorContracts\OrcaCore.DeveloperSurface.BehaviorContracts.csproj" />
     <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />

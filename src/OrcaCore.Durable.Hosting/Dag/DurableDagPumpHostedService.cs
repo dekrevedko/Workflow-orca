@@ -20,6 +20,7 @@ internal sealed class DurableDagPumpHostedService(DurableDagChildPump children, 
         configuration.Validate();
         var boundary = new HostedServiceFailureBoundary(nameof(DurableDagPumpHostedService), logger, time);
         await Task.WhenAll(
+            ready.RunDiscoveryAsync(stoppingToken),
             LoopAsync(configuration.OutboxPumpInterval, async token =>
             {
                 var request = new OutboxClaimRequest(configuration.OutboxPumpBatchSize, time.GetUtcNow(), configuration.OutboxClaimLeaseDuration);

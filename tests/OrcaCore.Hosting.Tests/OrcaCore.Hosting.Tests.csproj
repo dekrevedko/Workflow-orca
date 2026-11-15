@@ -27,6 +27,7 @@
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Durable\OrcaCore.Engine.Durable.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Engine.Ephemeral\OrcaCore.Engine.Ephemeral.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Durable.Hosting\OrcaCore.Durable.Hosting.csproj" />
+    <ProjectReference Include="..\..\src\OrcaCore.Dag.Hosting\OrcaCore.Dag.Hosting.csproj" />
     <ProjectReference Include="..\..\src\OrcaCore.Providers.InMemory\OrcaCore.Providers.InMemory.csproj" />
     <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\OrcaCore.SampleHost.csproj" />
     <ProjectReference Include="..\..\samples\OrcaCore.SampleHost\BrokerAdapters\OrcaCore.SampleHost.BrokerAdapters.csproj" />

@@ -3,14 +3,21 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Diagnostics.Metrics;
+using System.Reflection;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OrcaCore.Abstractions.Durable.Dag;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Providers.Dag;
+using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Serialization;
 using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Engine.Durable.Diagnostics;
+using OrcaCore.Dag;
+using OrcaCore.Dag.Hosting;
+using OrcaCore.Hosting;
 
 namespace OrcaCore.ProviderCertification;
 
@@ -22,6 +29,200 @@ public static class DagRunCertification
     {
         Converters = { new JsonStringEnumConverter() }
     };
+
+    public static async Task ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
+        IServiceCollection services, CancellationToken token)
+    {
+        var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(input => input).End(state => state.Value).Build();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var exited = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var evaluationCount = 0;
+        var authored = OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var first = authored.Node(DagNodeId.Create("first"), child.Reference).MapInput(input =>
+        {
+            if (input.RunInput == 7)
+            {
+                Interlocked.Increment(ref evaluationCount);
+                entered.TrySetResult();
+                try { release.Wait(token); }
+                finally { exited.TrySetResult(); }
+            }
+            return input.RunInput;
+        });
+        authored.Node(DagNodeId.Create("second"), child.Reference).DependsOn(first)
+            .MapInput(input => input.OutputOf(first) + 1);
+        var plan = authored.Build();
+        services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
+            ResourcePools = new DurableResourcePoolOptions
+            {
+                PartitionId = ResourceGovernancePartitionId.Create("dag-scheduler-certification"), Pools = []
+            }
+        }).AddWorkflow(child);
+        services.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 1 });
+        using var host = Host.CreateDefaultBuilder().ConfigureServices(registrations =>
+        {
+            foreach (var descriptor in services) registrations.Add(descriptor);
+        }).Build();
+        await host.StartAsync(token);
+        try
+        {
+            var coordinatorType = typeof(DagHostOptions).Assembly.GetType("OrcaCore.Dag.Hosting.DagCoordinator", true)!;
+            var coordinator = host.Services.GetRequiredService(coordinatorType);
+            var create = coordinatorType.GetMethod("CreateOrReopenAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .MakeGenericMethod(typeof(int));
+            var bridgeType = typeof(OrcaCoreDurableEngineServiceCollectionExtensions).Assembly
+                .GetType("OrcaCore.Durable.Hosting.Dag.DurableDagRunBridge", true)!;
+            var bridge = host.Services.GetRequiredService(bridgeType);
+            var wait = bridgeType.GetMethod("WaitForTerminalAsync")!;
+            var cancel = bridgeType.GetMethod("RequestRunCancellationAsync")!;
+            var slow = Guid.NewGuid();
+            var healthy = Guid.NewGuid();
+            await InvokeAsync(create, coordinator, plan, slow, slow.ToString("D"), 7, token);
+            await entered.Task.WaitAsync(token);
+            await InvokeAsync(create, coordinator, plan, healthy, healthy.ToString("D"), 42, token);
+            var completed = await (ValueTask<DagRunSnapshotV1>)wait.Invoke(bridge, [healthy, token])!;
+            completed.State.Should().Be(DagRunStateV1.Succeeded);
+            completed.Nodes[1].Output!.Bytes.Should().Equal("43"u8.ToArray());
+            var tail = await host.Services.GetRequiredService<IWorkflowEventStore>()
+                .LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(healthy), StreamVersion.Empty, token);
+            tail.Where(record => record.Kind == DagRunRecordKindV1.InputAdmitted)
+                .Select(record => record.ChangedNodes.Single().Ordinal).Should().Equal(0, 1);
+            await InvokeAsync(cancel, bridge, slow, token);
+            var cancelled = await (ValueTask<DagRunSnapshotV1>)wait.Invoke(bridge, [slow, token])!;
+            cancelled.State.Should().Be(DagRunStateV1.Cancelled);
+            cancelled.Nodes.Should().OnlyContain(node => node.Input == null);
+            Volatile.Read(ref evaluationCount).Should().Be(1);
+            release.Set();
+            await exited.Task.WaitAsync(token);
+        }
+        finally
+        {
+            release.Set();
+            using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await host.StopAsync(stop.Token);
+        }
+
+        // The pre-8.6 test entry points are internal; only this harness uses
+        // reflection. It invokes the shipped host, real storage and hosted pumps.
+        static Task InvokeAsync(MethodInfo method, object target, params object[] args)
+        {
+            var result = method.Invoke(target, args)!;
+            return (Task)result.GetType().GetMethod("AsTask")!.Invoke(result, null)!;
+        }
+    }
+
+    public static async Task RetainedChildDoesNotStarveHealthyRunAsync(IServiceCollection services, int batchSize, CancellationToken token)
+    {
+        // Run the actual hosted pump, with the entire first claim batch occupied
+        // by blocked work. All claim, release, acknowledgement and append operations reach
+        // the real provider. A third claim proves two previous cycles finished.
+        var providerServices = services.Count(d => d.ServiceType == typeof(IHostedService));
+        var port = services.Last(d => d.ServiceType == typeof(IWorkflowOutboxStore));
+        services.AddSingleton<IWorkflowOutboxStore>(p => p.GetRequiredService<ObservedClaimOutbox>());
+        services.AddSingleton(p => new ObservedClaimOutbox((IWorkflowOutboxStore)port.ImplementationFactory!(p), batchSize));
+        var workflow = Workflow.Durable<int>(DefinitionId.Parse(Guid.NewGuid().ToString("D")), DefinitionVersion.Initial)
+            .Init<int>(value => value).End(value => value.Value).Build();
+        services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+        {
+            StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
+            ResourcePools = new DurableResourcePoolOptions { PartitionId = ResourceGovernancePartitionId.Create("dag-starvation-test"), Pools = [] }
+        }).AddWorkflow(workflow);
+        await using var provider = services.BuildServiceProvider();
+        var hosted = provider.GetServices<IHostedService>().ToArray();
+        foreach (var initializer in hosted.Take(providerServices)) await initializer.StartAsync(token);
+        var store = provider.GetRequiredService<IWorkflowEventStore>();
+        var outbox = provider.GetRequiredService<ObservedClaimOutbox>();
+        var pump = hosted.Single(service => service.GetType().Name == "DurableDagPumpHostedService");
+        var coordinate = FormattableString.Invariant($"workflow:{workflow.DefinitionId}:{workflow.DefinitionVersion.Value}");
+        var inputKey = coordinate + ":input";
+        var outputKey = coordinate + ":output";
+        var runKey = FormattableString.Invariant($"dag:{workflow.DefinitionId}:{workflow.DefinitionVersion.Value}:run-input:") +
+            Convert.ToHexStringLower(SHA256.HashData("System.Int32\n"u8));
+        var binding = new DagRunBindingV1(workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint.Value);
+        var value = new DagRunValueV1(true, inputKey, "orcacore-json-v1", "41"u8.ToArray(), Convert.ToHexString(SHA256.HashData("41"u8)));
+
+        async Task<(DagRunSnapshotV1 Run, OutboxWrite Start)> SeedAsync(bool faulted)
+        {
+            var run = Initial();
+            run = run with
+            {
+                Graph = new(binding, runKey, [new(0, "node", binding, inputKey, outputKey, [])]),
+                RunInput = new(true, runKey, value.CodecFormat, value.Bytes, value.Fingerprint),
+                Nodes = [run.Nodes[0]]
+            };
+            (await store.AppendAsync(Creation(run), token)).IsSuccess.Should().BeTrue();
+            var fence = (await store.AcquireDagRunLeaseAsync(Request(run.RunId), token)).Fence!;
+            var id = new OutboxRecordId(Guid.CreateVersion7(DateTimeOffset.UtcNow.AddDays(faulted ? -2 : -1)));
+            var write = new OutboxWrite(id, "dag-child-start-v1",
+                Encoding.UTF8.GetBytes($"{{\"version\":1,\"runId\":\"{run.RunId:D}\",\"ordinal\":0}}")) { DagRunOwner = run.RunId };
+            var admission = Admit(run, fence, input: value, signal: write);
+            (await store.AppendAsync(admission, token)).IsSuccess.Should().BeTrue();
+            await store.ReleaseDagRunLeaseAsync(fence, token);
+            run = Snapshot(admission);
+            if (faulted)
+            {
+                fence = (await store.AcquireDagRunLeaseAsync(Request(run.RunId) with
+                    { Purpose = DagRunLeasePurposeV1.IntegrityReconciliation }, token)).Fence!;
+                var fact = new DagRunRecordV1(1, DagRunRecordKindV1.IntegrityFaulted, run.RunId, Guid.NewGuid(),
+                    run.StreamVersion.Next(), DagRunStateV1.IntegrityFault, null, [], run.UpdatedAt, null);
+                run = run with { StreamVersion = fact.StreamVersion, State = fact.State };
+                (await store.AppendAsync(Batch(run, [fact], fence, []), token)).IsSuccess.Should().BeTrue();
+                await store.ReleaseDagRunLeaseAsync(fence, token);
+            }
+            return (run, write);
+        }
+
+        var retained = new List<(DagRunSnapshotV1 Run, OutboxWrite Start)>();
+        for (var i = 0; i < batchSize; i++) retained.Add(await SeedAsync(true));
+        var healthy = await SeedAsync(false);
+        await pump.StartAsync(token);
+        try
+        {
+            await outbox.TwoCyclesCompleted.Task.WaitAsync(token);
+            (await outbox.GetStateAsync(healthy.Start.OutboxRecordId, token)).Value.Should()
+                .Be(OutboxRecordState.Dispatched, "an earlier faulted run cannot monopolize the child lane");
+            (await store.LoadTailAsync(new(healthy.Run.Nodes[0].ChildInstanceId!), StreamVersion.Empty, token))
+                .OfType<OrcaCore.Abstractions.Durable.WorkflowStartedEvent>().Should().ContainSingle();
+            foreach (var blocked in retained)
+            {
+                (await store.LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(blocked.Run.RunId), StreamVersion.Empty, token))
+                    .Last().State.Should().Be(DagRunStateV1.IntegrityFault);
+                (await outbox.GetStateAsync(blocked.Start.OutboxRecordId, token)).Value.Should().Be(OutboxRecordState.Claimed);
+            }
+        }
+        finally
+        {
+            await pump.StopAsync(CancellationToken.None);
+        }
+
+        var expired = await outbox.ClaimAsync(new OutboxClaimRequest(batchSize, DateTimeOffset.UtcNow.AddHours(1), TimeSpan.FromSeconds(5))
+            { KindSelector = OutboxKindSelector.Including("dag-child-start-v1") }, token);
+        expired.Select(write => write.OutboxRecordId).Should().BeEquivalentTo(retained.Select(item => item.Start.OutboxRecordId),
+            "deferred records remain recoverable after the claim expires");
+        expired.Should().OnlyContain(write => write.DispatchAttempt == 2);
+    }
+
+    private sealed class ObservedClaimOutbox(IWorkflowOutboxStore store, int batchSize) : IWorkflowOutboxStore
+    {
+        private int claims;
+        internal TaskCompletionSource TwoCyclesCompleted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(int maxCount, CancellationToken token) => store.ClaimAsync(maxCount, token);
+        public Task<IReadOnlyList<OutboxWrite>> ClaimAsync(OutboxClaimRequest request, CancellationToken token)
+        {
+            if (Interlocked.Increment(ref claims) == 3) TwoCyclesCompleted.TrySetResult();
+            return store.ClaimAsync(request with { MaxCount = batchSize }, token);
+        }
+        public Task<Option<OutboxRecordState>> GetStateAsync(OutboxRecordId id, CancellationToken token) => store.GetStateAsync(id, token);
+        public Task MarkAsync(OutboxRecordId id, OutboxRecordState state, CancellationToken token) => store.MarkAsync(id, state, token);
+        public Task MarkPoisonedAsync(OutboxRecordId id, string code, string? detail, CancellationToken token) =>
+            store.MarkPoisonedAsync(id, code, detail, token);
+        public Task ReleaseAsync(OutboxRecordId id, CancellationToken token) => store.ReleaseAsync(id, token);
+    }
 
     public static async Task CreationAndReplayAsync(IWorkflowEventStore store, CancellationToken token)
     {
@@ -592,10 +793,11 @@ public static class DagRunCertification
             snapshot.UpdatedAt, null)
     ], null, []);
 
-    private static ProviderCommitBatch Admit(DagRunSnapshotV1 before, DagRunFenceV1 fence, int ordinal = 0)
+    private static ProviderCommitBatch Admit(DagRunSnapshotV1 before, DagRunFenceV1 fence, int ordinal = 0,
+        DagRunValueV1? input = null, OutboxWrite? signal = null)
     {
         var time = before.UpdatedAt.AddTicks(1);
-        var input = Value();
+        input ??= Value();
         var child = Guid.ParseExact(
             Convert.ToHexStringLower(
                 SHA256.HashData(Encoding.UTF8.GetBytes($"orcacore-dag-child-v1\n{before.RunId:D}\n{ordinal}\n")))[..32],
@@ -612,7 +814,7 @@ public static class DagRunCertification
             after.StreamVersion, DagRunStateV1.Running, null,
             [new(ordinal, node.State, node.ChildInstanceId, input, null, null, node.ReadyAt, time, null)], time, null);
         return Batch(after, [record], fence,
-            [new(OutboxRecordId.New(), "dag-child-start-v1", "child"u8.ToArray()) { DagRunOwner = before.RunId }]);
+            [signal ?? new(OutboxRecordId.New(), "dag-child-start-v1", "child"u8.ToArray()) { DagRunOwner = before.RunId }]);
     }
 
     private static ProviderCommitBatch Batch(DagRunSnapshotV1 after, IReadOnlyList<DagRunRecordV1> records,

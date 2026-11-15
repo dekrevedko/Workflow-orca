@@ -128,9 +128,9 @@ public sealed class OpenSpecCorpusGuards
     ];
     private static readonly (string Path, string Sha256)[] DagRunContractPlanningPins =
     [
-        ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "05dda5f320537e249bc471793f41d31034cd61463ecf2bf9bfaf9761754d52ea"),
-        ("openspec/changes/admit-durable-dag-run-progression/design.md", "445254e332f4c1d01f4c46011362c18aee76af1d65846fe83cca27b314960f9c"),
-        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "8122687d2f30e8d2d23e05d98adb6e8f3a1bda3f2467aefc68f4a5963d03c768"),
+        ("openspec/changes/admit-durable-dag-run-progression/proposal.md", "7a7171de1ed81cfb9afd08dcb88f74c9de99dd8bf888169a346dc94ec2af4d11"),
+        ("openspec/changes/admit-durable-dag-run-progression/design.md", "f63cbe461c6205a8f75e25a8fc16c1fc4a55e5b3782164baf7f2beea3a79fa9c"),
+        ("openspec/changes/admit-durable-dag-run-progression/tasks.md", "43b8e5a453da6e0936b264de5bdb039fae26a2473b5c5c0d51ed7fb7cc47ec27"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md", "f8a1a7f6d69dc337854dd7e6dc9bbe59a2e7c3a43329635cf1b57c9f8280d665"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-exact-api-additions-rc-3-remediation-2026-10-05.md", "766ad5d84c90a0666a8a631018fdd686f9a59b00d6c8d50f3378b1b4fa6a308f"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-standalone-signatures-rc-3-remediation-2026-10-05.cs", "8301094ba0a14634f9c8ba08ac2642eb2b8e5128981da453ecd0623762926189"),
@@ -2195,6 +2195,10 @@ public sealed class OpenSpecCorpusGuards
             RequireNonEmptyFile(root, path, "runtime-view executable evidence");
             ReadGitBlob(root, evidence.ReviewedCheckpointCommit, path).Should().NotBeEmpty();
         }
+        const string runtimeViewSource = "src/OrcaCore.Dag/DagRuntimeView.cs";
+        File.ReadAllBytes(RequireNonEmptyFile(root, runtimeViewSource, "shipped runtime view"))
+            .Should().Equal(ReadGitBlob(root, evidence.ReviewedCheckpointCommit, runtimeViewSource),
+                "the original executable-evidence list is preserved, and the actual runtime view is pinned independently");
         activation.Should().Be(RuntimeViewSourceActivationCommit);
         var parents = RunGit(root, "rev-list", "--parents", "-n", "1", activation);
         parents.ExitCode.Should().Be(0);

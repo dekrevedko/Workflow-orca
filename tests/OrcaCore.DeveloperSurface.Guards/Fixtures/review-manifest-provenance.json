@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "reshape-dag-run-task-2-3-bridge-scheduler",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-independent-review-request-2026-11-13.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-dirty-manifest-2026-11-13.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "048c3a6ecd3541f30c57d9f600190e63f6a16d84",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 7519,
+    "contentRecordSha256": "80923a6d8e9caa2b55d46c77ffcf30874c671082ca4bf0a2cc732eafc93688a5"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",

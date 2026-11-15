@@ -58,13 +58,13 @@ public sealed class DagOutboxPumpTests
     }
 
     [Fact]
-    public async Task ChildLane_DoesNotPoisonWhenOwningFaultCouldNotCommit()
+    public async Task ChildLane_DefersWithoutPoisonWhenOwningFaultCouldNotCommit()
     {
         var store = new TrackingOutbox(new OutboxWrite(OutboxRecordId.New(), "dag-child-start-v1", [1]) { DagRunOwner = Guid.NewGuid() });
         var handler = new RecordingHandler { Error = new InvalidDataException("bad child signal"), FaultResult = Task.FromResult(false) };
         (await new DurableDagChildPump(store, handler).PumpOnceAsync(Request(), TestContext.Current.CancellationToken)).Should().Be(0);
         store.Marked.Should().BeEmpty();
-        store.Released.Should().ContainSingle();
+        store.Released.Should().BeEmpty("the claim expires without putting this record back at the head of the queue");
     }
 
     private static OutboxClaimRequest Request() => new(10, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(30));

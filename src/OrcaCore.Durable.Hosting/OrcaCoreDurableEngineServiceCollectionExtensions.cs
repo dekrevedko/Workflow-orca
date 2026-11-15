@@ -182,6 +182,37 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
     private static void AddProgressionLoops(IServiceCollection services)
     {
         services.TryAddSingleton<DurableDagHostIdentity>();
+        services.TryAddSingleton<DurableDagRunInputCatalog>();
+        services.TryAddSingleton(provider =>
+        {
+            _ = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+            return new DurableDagRunStore(provider.GetRequiredService<IWorkflowEventStore>(),
+                provider.GetRequiredService<DurableDefinitionRegistry>(),
+                provider.GetRequiredService<DurableDagRunInputCatalog>(), provider.GetRequiredService<TimeProvider>());
+        });
+        services.TryAddSingleton(provider => new DurableDagMappingReader(
+            provider.GetRequiredService<DurableDagRunStore>(), provider.GetRequiredService<DurableDagRunInputCatalog>(),
+            provider.GetRequiredService<DurableDefinitionRegistry>()));
+        services.TryAddSingleton(provider => new DurableDagRunCancellation(
+            provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagRunStore>(),
+            provider.GetRequiredService<DurableDagRunTurns>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton(provider => new DurableDagAdmission(
+            provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagRunStore>(),
+            provider.GetRequiredService<DurableDagMappingReader>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton(provider => new DurableDagNotifications(
+            provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagRunStore>(),
+            provider.GetRequiredService<DurableDagHostIdentity>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton(provider => new DurableDagIntegrity(
+            provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagRunStore>(),
+            provider.GetRequiredService<DurableDagChildEngine>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton(provider => new DurableDagRunBridge(
+            provider.GetRequiredService<DurableDagRunStore>(), provider.GetRequiredService<DurableDagRunInputCatalog>(),
+            provider.GetRequiredService<DurableDagMappingReader>(), provider.GetRequiredService<DurableDagAdmission>(),
+            provider.GetRequiredService<DurableDagRunTurns>(), provider.GetRequiredService<DurableDagRunCancellation>(),
+            provider.GetRequiredService<DurableDagNotifications>(), provider.GetRequiredService<DurableDagChildEngine>(),
+            provider.GetRequiredService<DurableFacadeNotificationHub>(), provider.GetRequiredService<DurableDagChildCoordinator>(),
+            provider.GetRequiredService<DurableDagIntegrity>()));
+        services.TryAddSingleton<IDurableDagRunBridgeV1>(provider => provider.GetRequiredService<DurableDagRunBridge>());
         services.TryAddSingleton(provider => new DurableDagRunTurns(
             provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagHostIdentity>(),
             provider.GetRequiredService<TimeProvider>()));
@@ -192,14 +223,15 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
                 provider.GetRequiredService<DurableDefinitionRegistry>(), provider.GetRequiredService<DurableCommandProcessor>(),
                 provider.GetRequiredService<TimeProvider>());
         });
-        services.TryAddSingleton<IDurableDagChildHandler>(provider => new DurableDagChildCoordinator(
+        services.TryAddSingleton(provider => new DurableDagChildCoordinator(
             provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagChildEngine>(),
             provider.GetRequiredService<DurableDagRunTurns>(), provider.GetRequiredService<TimeProvider>()));
+        services.TryAddSingleton<IDurableDagChildHandler>(provider => provider.GetRequiredService<DurableDagChildCoordinator>());
         services.TryAddSingleton(provider => new DurableDagChildPump(provider.GetRequiredService<IWorkflowOutboxStore>(),
             provider.GetRequiredService<IDurableDagChildHandler>(), provider.GetService<IOutboxPumpObserver>()));
         services.TryAddSingleton(provider => new DurableDagReadyPump(provider.GetRequiredService<IWorkflowEventStore>(),
             provider.GetRequiredService<IWorkflowOutboxStore>(), provider.GetRequiredService<DurableDagHostIdentity>(),
-            provider.GetService<IDurableDagReadySinkV1>()));
+            provider.GetService<IDurableDagReadySinkV1>(), provider.GetRequiredService<DurableDagNotifications>()));
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IHostedService, DurableDagPumpHostedService>());
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreDurableWorkflowCatalogReadinessHostedService>());

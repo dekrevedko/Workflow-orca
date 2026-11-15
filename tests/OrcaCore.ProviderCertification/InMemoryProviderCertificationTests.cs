@@ -1,11 +1,25 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Providers.InMemory;
 using Xunit;
 
 namespace OrcaCore.ProviderCertification;
 
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
+    [Fact]
+    public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
+        DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
+            new ServiceCollection().AddOrcaCoreInMemoryDurableProvider(), TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public Task DagRetainedChild_DoesNotStarveHealthyRun(int batchSize) =>
+        DagRunCertification.RetainedChildDoesNotStarveHealthyRunAsync(
+            new ServiceCollection().AddOrcaCoreInMemoryDurableProvider(), batchSize, TestContext.Current.CancellationToken);
+
     [Fact]
     public async Task DagCreationAndReplay_PersistAnIndependentAggregate()
     {
