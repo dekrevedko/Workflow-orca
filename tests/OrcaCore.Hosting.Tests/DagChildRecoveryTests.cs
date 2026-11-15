@@ -65,6 +65,62 @@ public sealed class DagChildRecoveryTests
     }
 
     [Fact]
+    public async Task ChildPump_PoisonsTerminalOutputWithWrongSchemaAndKeepsAdmission()
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(20));
+        var token = timeout.Token;
+        var workflow = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(value => value).End(value => value.Value + 1).Build();
+        await using var services = Services(workflow);
+        var store = services.GetRequiredService<IWorkflowEventStore>();
+        var outbox = services.GetRequiredService<IWorkflowOutboxStore>();
+        var (run, _) = await DagPumpRunFixture.CreateAsync(store, workflow, false, token);
+        var pump = services.GetRequiredService<DurableDagChildPump>();
+        (await pump.PumpOnceAsync(Request(), token)).Should().Be(1);
+        var child = run.Nodes[0].ChildInstanceId!;
+        var continuation = services.GetServices<IHostedService>().OfType<OrcaCoreContinuationPumpHostedService>().Single();
+        await continuation.StartAsync(token);
+        try
+        {
+            var handle = await services.GetRequiredService<IWorkflowDefinitionRegistry>().GetRequiredHandle(workflow.Reference)
+                .GetInstanceAsync(child, token);
+            (await handle.WaitForOutputAsync(token)).Should().Be(42);
+        }
+        finally { await continuation.StopAsync(CancellationToken.None); }
+
+        var checkpoint = (await store.LoadCheckpointAsync(child, token)).Value;
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+        var output = envelope.Output!;
+        output.Payload.Should().Equal("42"u8.ToArray());
+        // Rewrite only the schema identity in the real terminal checkpoint. The
+        // completion facts, outbox join, output bytes and workflow role stay valid.
+        var foreignSchema = output with { SchemaIdentity = output.SchemaIdentity + ":wrong" };
+        var changed = checkpoint with { Payload = (envelope with { Output = foreignSchema }).Serialize() };
+        (await store.AppendAsync(new ProviderCommitBatch
+        {
+            StreamId = new(child), ExpectedVersion = checkpoint.StreamVersion, Checkpoint = changed
+        }, token)).IsSuccess.Should().BeTrue();
+        var pending = await outbox.ClaimAsync(Request() with
+        {
+            KindSelector = OutboxKindSelector.Including("dag-child-join-v1")
+        }, token);
+        var join = pending.Should().ContainSingle().Subject;
+        await outbox.ReleaseAsync(join.OutboxRecordId, token);
+
+        (await pump.PumpOnceAsync(Request(), token)).Should().Be(0, "wrong-schema bytes cannot acknowledge a child join");
+        var dispatch = (await outbox.GetDispatchSnapshotAsync(join.OutboxRecordId, token)).Value;
+        dispatch.State.Should().Be(OutboxRecordState.Poisoned);
+        dispatch.PoisonCode.Should().Be("DAG_PROTOCOL_INVALID");
+        var fault = await DagPumpRunFixture.ReadAsync(store, run.RunId, token);
+        fault.State.Should().Be(DagRunStateV1.IntegrityFault);
+        fault.Nodes[0].State.Should().Be(DagNodeStateV1.StartAuthorized);
+        fault.Nodes[0].Output.Should().BeNull();
+        var tail = await store.LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(run.RunId), run.StreamVersion, token);
+        tail.Select(record => record.Kind).Should().Equal(DagRunRecordKindV1.IntegrityFaulted);
+    }
+
+    [Fact]
     public async Task ChildPump_RejectsOutputRoleUsedAsInputBeforeStartingChild()
     {
         var token = TestContext.Current.CancellationToken;

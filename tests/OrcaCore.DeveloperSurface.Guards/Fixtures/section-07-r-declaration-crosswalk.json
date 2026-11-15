@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 383,
-    "physicalDeclarations": 1612,
+    "physicalDeclarations": 1615,
     "activeFiles": 227,
-    "activeDeclarations": 924,
+    "activeDeclarations": 927,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1881,7 +1881,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 9
+      "declarations": 10
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs",
@@ -1911,7 +1911,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagSchedulerTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 1
+      "declarations": 3
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DurableDriverTelemetryAndOptionsTests.cs",

@@ -1,8 +1,10 @@
+using System.Collections.Concurrent;
 using System.Reflection;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using OrcaCore.Abstractions.Durable.Dag;
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Dag;
 using OrcaCore.Dag.Hosting;
@@ -37,35 +39,16 @@ public sealed class DagSchedulerTests
             return input.RunInput;
         });
         var compiled = plan.Build();
-        using var host = Host.CreateDefaultBuilder().ConfigureServices(services =>
-        {
-            services.AddOrcaCoreInMemoryDurableProvider();
-            services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
-            {
-                StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
-                ResourcePools = new DurableResourcePoolOptions
-                {
-                    PartitionId = ResourceGovernancePartitionId.Create("dag-scheduler-tests"), Pools = []
-                }
-            }).AddWorkflow(child);
-            services.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 1 });
-        }).Build();
+        using var host = CreateHost(child, 1);
         await host.StartAsync(token);
         try
         {
             var bridge = host.Services.GetRequiredService<DurableDagRunBridge>();
-            // Only the test reaches the unshipped Task 8.6 entry point. The
-            // scheduler, provider, mappers and all runtime dispatch are real.
-            var assembly = typeof(DagHostOptions).Assembly;
-            var coordinatorType = assembly.GetType("OrcaCore.Dag.Hosting.DagCoordinator", throwOnError: true)!;
-            var create = coordinatorType.GetMethod("CreateOrReopenAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .MakeGenericMethod(typeof(int));
-            var coordinator = host.Services.GetRequiredService(coordinatorType);
             var slow = Guid.NewGuid();
             var fast = Guid.NewGuid();
-            (await Create(slow, 7)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            (await CreateRunAsync(host, compiled, slow, 7, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
             await entered.Task.WaitAsync(token);
-            (await Create(fast, 42)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            (await CreateRunAsync(host, compiled, fast, 42, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
             var finished = await bridge.WaitForTerminalAsync(fast, token);
             finished.State.Should().Be(DagRunStateV1.Succeeded);
             finished.Nodes[0].Output!.Bytes.Should().Equal("42"u8.ToArray());
@@ -75,9 +58,6 @@ public sealed class DagSchedulerTests
             cancelled.Nodes[0].Input.Should().BeNull();
             Volatile.Read(ref slowCalls).Should().Be(1);
             release.Set();
-
-            ValueTask<DurableDagCreateResultV1> Create(Guid id, int input) =>
-                (ValueTask<DurableDagCreateResultV1>)create.Invoke(coordinator, [compiled, id, id.ToString("D"), input, token])!;
         }
         finally
         {
@@ -85,5 +65,165 @@ public sealed class DagSchedulerTests
             using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
             await host.StopAsync(stop.Token);
         }
+    }
+
+    [Fact]
+    public async Task ShippedHost_TwoReadyRootsWithOneSlotMapAndAdmitInAuthoredOrder()
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        var token = timeout.Token;
+        var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(input => input).End(state => state.Value).Build();
+        var firstMapped = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var plan = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        plan.Node(DagNodeId.Create("first"), child.Reference).MapInput(input =>
+        {
+            firstMapped.TrySetResult(0);
+            return input.RunInput;
+        });
+        plan.Node(DagNodeId.Create("second"), child.Reference).MapInput(input =>
+        {
+            firstMapped.TrySetResult(1);
+            return input.RunInput;
+        });
+
+        using var host = CreateHost(child, 1);
+        await host.StartAsync(token);
+        try
+        {
+            var id = Guid.NewGuid();
+            (await CreateRunAsync(host, plan.Build(), id, 42, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            (await firstMapped.Task.WaitAsync(token)).Should().Be(0, "the first free slot belongs to the lowest ready ordinal");
+            var final = await host.Services.GetRequiredService<DurableDagRunBridge>().WaitForTerminalAsync(id, token);
+            final.State.Should().Be(DagRunStateV1.Succeeded);
+            (await ReadAdmissionOrderAsync(host, id, token)).Should().Equal(0, 1);
+        }
+        finally { await StopHostAsync(host); }
+    }
+
+    [Fact]
+    public async Task ShippedHost_DiscardsHigherReceiptWhenAChildJoinMakesLowerOrdinalReady()
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(30));
+        var token = timeout.Token;
+        var releaseChild = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var higherEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var releaseHigher = new ManualResetEventSlim();
+        var mapped = new ConcurrentQueue<int>();
+        var higherCalls = 0;
+        var initialChild = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(input => input).Then<GatedChildStep>()
+            .End(state => state.Value).Build();
+        var fastChild = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(input => input).End(state => state.Value).Build();
+        var plan = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        var first = plan.Node(DagNodeId.Create("first"), initialChild.Reference).MapInput(input =>
+        {
+            mapped.Enqueue(0);
+            return input.RunInput;
+        });
+        plan.Node(DagNodeId.Create("dependent"), fastChild.Reference).DependsOn(first).MapInput(input =>
+        {
+            mapped.Enqueue(1);
+            return input.RunInput;
+        });
+        plan.Node(DagNodeId.Create("independent"), fastChild.Reference).MapInput(input =>
+        {
+            mapped.Enqueue(2);
+            var attempt = Interlocked.Increment(ref higherCalls);
+            if (attempt == 1)
+            {
+                higherEntered.TrySetResult();
+                releaseHigher.Wait(token);
+            }
+            return input.RunInput + attempt;
+        });
+
+        using var host = CreateHost(initialChild, 2, fastChild, services =>
+            services.AddSingleton(new GatedChildStep(releaseChild.Task)));
+        await host.StartAsync(token);
+        try
+        {
+            var id = Guid.NewGuid();
+            (await CreateRunAsync(host, plan.Build(), id, 40, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            await higherEntered.Task.WaitAsync(token);
+            var bridge = host.Services.GetRequiredService<DurableDagRunBridge>();
+            var admitted = (await bridge.ReadAsync(id, token))!;
+            admitted.Nodes[1].State.Should().Be(DagNodeStateV1.Pending);
+            releaseChild.SetResult();
+            var joined = admitted;
+            while (joined.Nodes[1].State != DagNodeStateV1.Ready)
+                joined = await bridge.WaitForChangeAsync(id, joined.StreamVersion, token);
+            joined.Nodes[0].State.Should().Be(DagNodeStateV1.Succeeded);
+            releaseHigher.Set();
+
+            var final = await bridge.WaitForTerminalAsync(id, token);
+            final.State.Should().Be(DagRunStateV1.Succeeded);
+            mapped.Should().Equal(0, 2, 1, 2);
+            final.Nodes[2].Input!.Bytes.Should().Equal("42"u8.ToArray(), "the earlier receipt would have committed 41");
+            (await ReadAdmissionOrderAsync(host, id, token)).Should().Equal(0, 1, 2);
+        }
+        finally
+        {
+            releaseChild.TrySetResult();
+            releaseHigher.Set();
+            await StopHostAsync(host);
+        }
+    }
+
+    private sealed class GatedChildStep(Task release) : IStep<int>
+    {
+        public async ValueTask<StepResult> ExecuteAsync(StepContext<int> context, CancellationToken cancellationToken)
+        {
+            await release.WaitAsync(cancellationToken);
+            return new StepResult.Completed();
+        }
+    }
+
+    private static IHost CreateHost(DurableWorkflowDefinition<int, int> child, int limit,
+        DurableWorkflowDefinition<int, int>? otherChild = null, Action<IServiceCollection>? configure = null) =>
+        Host.CreateDefaultBuilder().ConfigureServices(services =>
+        {
+            services.AddOrcaCoreInMemoryDurableProvider();
+            var engine = services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
+            {
+                StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
+                ResourcePools = new DurableResourcePoolOptions
+                {
+                    PartitionId = ResourceGovernancePartitionId.Create("dag-scheduler-tests"), Pools = []
+                }
+            }).AddWorkflow(child);
+            if (otherChild is not null) engine.AddWorkflow(otherChild);
+            services.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = limit });
+            configure?.Invoke(services);
+        }).Build();
+
+    private static ValueTask<DurableDagCreateResultV1> CreateRunAsync(IHost host, WorkflowDagPlan<int> plan,
+        Guid id, int input, CancellationToken token)
+    {
+        // Only the test reaches the unshipped Task 8.6 entry point. The
+        // scheduler, provider, mappers and all runtime dispatch are real.
+        var coordinatorType = typeof(DagHostOptions).Assembly
+            .GetType("OrcaCore.Dag.Hosting.DagCoordinator", throwOnError: true)!;
+        var create = coordinatorType.GetMethod("CreateOrReopenAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .MakeGenericMethod(typeof(int));
+        return (ValueTask<DurableDagCreateResultV1>)create.Invoke(host.Services.GetRequiredService(coordinatorType),
+            [plan, id, id.ToString("D"), input, token])!;
+    }
+
+    private static async Task<int[]> ReadAdmissionOrderAsync(IHost host, Guid id, CancellationToken token)
+    {
+        var records = await host.Services.GetRequiredService<IWorkflowEventStore>()
+            .LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(id), StreamVersion.Empty, token);
+        return records.Where(record => record.Kind == DagRunRecordKindV1.InputAdmitted)
+            .Select(record => record.ChangedNodes.Single().Ordinal).ToArray();
+    }
+
+    private static async Task StopHostAsync(IHost host)
+    {
+        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+        await host.StopAsync(stop.Token);
     }
 }

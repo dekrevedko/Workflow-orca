@@ -1,6 +1,17 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": null,
+  "activeFreeze": {
+    "task": "dag-run-task-2-3-review-followups",
+    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-independent-review-request-2026-11-15.md",
+    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-dirty-manifest-2026-11-15.txt",
+    "disposition": "RawGitOrder",
+    "baseCommit": "bc52d7e674467c744964621cd3883c799669e983",
+    "contentRecordExcludedPaths": [
+      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
+    ],
+    "contentRecordBytes": 1384,
+    "contentRecordSha256": "c44ca6b9a8f286bd337a1f8da58de5418fdcf125f252a7ca317720ddfe6a447c"
+  },
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
