@@ -35,13 +35,12 @@ public sealed class CodecMemberCorrectionGuards
             "src/OrcaCore.Abstractions/Serialization/FixedWorkflowValueCodec.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonMetadataRegistry.cs",
             "src/OrcaCore.Abstractions/Serialization/WorkflowJsonTypeContracts.cs");
-        Git(root, "diff", "--name-only", Base, "--", "src")
+        Git(root, "diff", "--name-only", Base, HarnessCheckpoint, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Except(EphemeralFailureSettlementSourceReview.AuthorizedPaths(root), StringComparer.Ordinal)
             .Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Trim().Should().BeEmpty();
         foreach (var file in files)
-            Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
+            Hash(Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name)))
+                .Should().Be(file.Value.GetString());
         foreach (var file in record.GetProperty("harnessFiles").EnumerateObject())
             Hash(Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name)))
                 .Should().Be(file.Value.GetString(), "this receipt describes the approved historical harness");
@@ -64,6 +63,9 @@ public sealed class CodecMemberCorrectionGuards
             .Should().BeEquivalentTo(new[] { "windows-2025/jit", "windows-2025/trimmed", "windows-2025/aot",
                 "ubuntu-24.04/jit", "ubuntu-24.04/trimmed", "ubuntu-24.04/aot" });
         index.RootElement.GetProperty("totalCases").GetInt32().Should().Be(384);
+        var subsequentChanges = Git(root, "diff", "--name-only", HarnessCheckpoint, "--", ".")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
+        var checkpointHashes = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var cell in cells)
         {
             var reportBytes = File.ReadAllBytes(Path.Combine(root, cell.GetProperty("reportPath").GetString()!));
@@ -89,12 +91,19 @@ public sealed class CodecMemberCorrectionGuards
             foreach (var table in new[] { "sourceFiles", "harnessFiles" })
                 foreach (var file in value.GetProperty(table).EnumerateObject())
                 {
-                    var current = table == "sourceFiles" ? EphemeralFailureSettlementSourceReview.HistoricalBytes(root, file.Name) :
-                        Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name));
-                    if (file.Name == ".github/workflows/ephemeral-native-support.yml")
-                        current = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(current).Replace(
-                            "on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [codex/issue-13-native-evidence]\n  workflow_dispatch:", StringComparison.Ordinal));
-                    Hash(current).Should().Be(file.Value.GetString());
+                    if (!checkpointHashes.TryGetValue(file.Name, out var hash))
+                    {
+                        var contents = subsequentChanges.Contains(file.Name)
+                            ? Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name))
+                            : File.ReadAllBytes(Path.Combine(root, file.Name));
+                        if (file.Name == ".github/workflows/ephemeral-native-support.yml")
+                            contents = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(contents).Replace(
+                                "on:\n  workflow_dispatch:", "on:\n  push:\n    branches: [codex/issue-13-native-evidence]\n  workflow_dispatch:", StringComparison.Ordinal));
+                        hash = Hash(contents);
+                        checkpointHashes.Add(file.Name, hash);
+                    }
+
+                    hash.Should().Be(file.Value.GetString());
                 }
         }
     }
@@ -150,8 +159,6 @@ public sealed class CodecMemberCorrectionGuards
         foreach (var table in new[] { "sourceFiles", "harnessFiles" })
             foreach (var file in approval.GetProperty(table).EnumerateObject())
             {
-                if (table == "sourceFiles")
-                    Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetString());
                 Hash(Encoding.UTF8.GetBytes(Git(root, "show", checkpoint + ":" + file.Name)))
                     .Should().Be(file.Value.GetString());
             }

@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 374,
-    "physicalDeclarations": 1535,
-    "activeFiles": 218,
-    "activeDeclarations": 847,
+    "physicalFiles": 375,
+    "physicalDeclarations": 1540,
+    "activeFiles": 219,
+    "activeDeclarations": 852,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1672,6 +1672,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/ConcurrentStartTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 5
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowCatalogTests.cs",

@@ -202,7 +202,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                             ResolveWaitCorrelation(plan, execution, fiber, instance.State, instruction),
                             cancellationToken).ConfigureAwait(false);
                     }
-                    catch (Exception exception) when (exception is not OperationCanceledException)
+                    catch (Exception exception) when (exception is not (OperationCanceledException or AmbiguousWaitRegistrationException))
                     {
                         FailExecutionBoundary(execution, fiber, instruction, instance, exception);
                         return;
