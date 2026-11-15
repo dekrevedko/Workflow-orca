@@ -8,6 +8,40 @@ internal sealed class EphemeralRoutingIndex
     private readonly ConcurrentDictionary<InstanceId, IReadOnlyList<WaitRoutingKey>> indexedInstanceWaits = [];
     private readonly ConcurrentDictionary<WaitRoutingKey, ConcurrentDictionary<InstanceId, byte>> waitIndex = [];
     private readonly object routingGate = new();
+    private readonly Dictionary<(DefinitionId, WorkflowEventContract, CorrelationId), (InstanceId Owner, int Count)> uniqueWaits = [];
+
+    internal Action Reserve(DefinitionId definitionId, InstanceId instanceId, RuntimeWaitRecord wait)
+    {
+        var key = (definitionId, wait.EventContract, wait.CorrelationId);
+        lock (routingGate)
+        {
+            if (uniqueWaits.TryGetValue(key, out var current) && !current.Owner.Equals(instanceId))
+                throw FacadeValueFactory.AmbiguousWait(definitionId, wait.EventContract, wait.CorrelationId);
+
+            // A matched wait remains reserved until its continuation commits.
+            // That continuation can register the next occurrence on the same instance.
+            uniqueWaits[key] = (instanceId, checked(current.Count + 1));
+        }
+
+        return () =>
+        {
+            lock (routingGate)
+            {
+                var current = uniqueWaits[key];
+                if (current.Count == 1) uniqueWaits.Remove(key);
+                else uniqueWaits[key] = (instanceId, current.Count - 1);
+            }
+        };
+    }
+
+    internal InstanceId? FindUniqueOwner(
+        DefinitionId definitionId,
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId)
+    {
+        lock (routingGate)
+            return uniqueWaits.TryGetValue((definitionId, eventContract, correlationId), out var wait) ? wait.Owner : null;
+    }
 
     public IReadOnlyCollection<InstanceId> FindCandidates(EventEnvelope envelope)
     {

@@ -27,6 +27,11 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     private readonly ResourceGovernanceCoordinator governance;
     private readonly EphemeralRetentionCoordinator retention;
     internal object VisibilityGate => retention.Gate;
+
+    internal InstanceId? FindCorrelationTarget(
+        DefinitionId definitionId,
+        WorkflowEventContract eventContract,
+        CorrelationId correlationId) => routingIndex.FindUniqueOwner(definitionId, eventContract, correlationId);
     internal EphemeralRetentionCoordinator Retention => retention;
     internal EphemeralHostLifetime HostLifetime { get; }
     internal Func<InstanceId, ValueTask>? OperationPinAcquired => options.OperationPinAcquired;
@@ -301,7 +306,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         TInput input,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        bool enforceUniqueWaits = false)
     {
         ArgumentNullException.ThrowIfNull(definitionId);
         var commandStopwatch = Stopwatch.StartNew();
@@ -341,6 +347,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                         initializedInstance =>
                         {
                             instance = initializedInstance;
+                            if (enforceUniqueWaits) initializedInstance.SetCorrelationIndex(routingIndex);
                             initializedInstance.Lifetime.Initialize(
                                 () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending, retention.Gate, retention.Changed, HostLifetime);
                             retention.Track(initializedInstance.Lifetime);

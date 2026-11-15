@@ -75,31 +75,13 @@ internal sealed class EphemeralWorkflowEventRouter(
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(definitionId);
-        var matches = registry.ListInstances()
-            .Where(binding => binding.DefinitionId.Equals(definitionId))
-            .Where(binding => engine.TryGetFacadeInstance(binding.InstanceId, out var instance) &&
-                instance!.GetPublishedSnapshot().ActiveWaits.Any(wait =>
-                    wait.EventContract.Equals(inboundEvent.EventContract) &&
-                    wait.CorrelationId.Equals(inboundEvent.CorrelationId)))
-            .ToArray();
-        if (matches.Length == 0)
+        var target = engine.FindCorrelationTarget(definitionId, inboundEvent.EventContract, inboundEvent.CorrelationId);
+        if (target is null || !registry.TryGetInstance(target, out _))
         {
             return new EphemeralEventRouteResult(EphemeralEventRouteStatus.NoActiveWait, null);
         }
 
-        if (matches.Length > 1)
-        {
-            throw FacadeValueFactory.AmbiguousWait(
-                definitionId,
-                inboundEvent.EventContract,
-                inboundEvent.CorrelationId);
-        }
-
-        return await RouteToInstanceCoreAsync(
-            matches[0].InstanceId,
-            inboundEvent,
-            payloadBytes,
-            cancellationToken).ConfigureAwait(false);
+        return await RouteToInstanceCoreAsync(target, inboundEvent, payloadBytes, cancellationToken).ConfigureAwait(false);
     }
 
     private async ValueTask<EphemeralEventRouteResult> RouteToInstanceCoreAsync(
