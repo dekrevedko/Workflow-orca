@@ -184,7 +184,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         FiberId? fiberId = null,
         ScopeId? scopeId = null)
     {
-        if (correlationIndex is not null && !Lifetime.IsAccepted && activeWaits.Any(wait =>
+        if (correlationIndex is not null && activeWaits.Any(wait =>
             wait.EventContract.Equals(eventContract) && wait.CorrelationId.Equals(correlationId)))
         {
             throw FacadeValueFactory.AmbiguousWait(DefinitionId, eventContract, correlationId);
