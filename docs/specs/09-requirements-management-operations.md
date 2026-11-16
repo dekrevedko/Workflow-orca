@@ -590,14 +590,20 @@ The host SHALL progress irreversibly Open -> Closed -> Stopping -> Completed.
 ApplicationStopping SHALL establish only Closed from token state even if callback
 notification is blocked. New/replayed/conflicting starts and compatible registrations
 SHALL fail as host-stopping before serialization/mutation; preserve ordinary token/
-argument and metadata-only static HostIncompatible precedence. Queued pre-Init starts
-SHALL reject at Closed; starts whose initialization admission already won SHALL
+argument and metadata-only static HostIncompatible precedence. A start SHALL own
+host work from before input fingerprinting through any wait for its exact
+StartIdempotencyKey reservation. Different keys SHALL proceed independently of
+each other's reservations. A caller waiting for the same key SHALL recheck
+admission before replay, conflict, or another attempt and SHALL reject at
+Closed, subject to ordinary cancellation and error precedence. Queued pre-Init
+starts SHALL reject at Closed; starts whose initialization admission already won SHALL
 proceed normally and MAY publish Accepted during Closed. Accepted work SHALL retain
 normal queries, new waits, commands, ingress, timers, retries/grants and retention.
 Only public or engine-hosted StopAsync SHALL enter Stopping, closing first if needed.
 Acceptance/abort SHALL elect at Stopping; only still-unaccepted losers SHALL be
 caller-independently fenced with original-error/cancellation and terminal precedence.
-Close SHALL wait on no start semaphore/lane and run no user code under its gate.
+Close SHALL establish admission closure independently of in-flight start
+reservations and execution lanes and run no user code under its gate.
 
 From Stopping, metadata-only original-ID not-found/identity/state-type mismatch
 precedence SHALL remain. Otherwise new live GetInstanceAsync, snapshot/state/output

@@ -400,13 +400,19 @@ its token state independently of callback ordering, SHALL establish only Closed.
 Raw abortive disposal SHALL likewise only close, not initiate cancellation/join.
 Only an admitted public StopAsync or the engine's own hosted StopAsync SHALL move
 Closed to Stopping, closing first if still Open, and start the one cooperative-
-cancellation/sealing/join operation. Close SHALL NOT acquire the facade start
-semaphore, wait for a lane, enumerate/cancel users or run serialization/user code
-under the visibility gate.
+cancellation/sealing/join operation. Close SHALL establish admission closure
+independently of in-flight start reservations and execution lanes. It SHALL NOT
+enumerate or cancel workflow work or run serialization or user code under the
+visibility gate.
 
-A start SHALL acquire host ownership before input fingerprinting and startGate
-queuing, including pre-Init time. Queued starts SHALL recheck initialization and
-run no Init if Closed won. A start whose initialization admission won before Closed
+A start SHALL acquire host ownership before input fingerprinting and retain it
+while holding or waiting for an in-flight start reservation, including pre-Init
+time. In-flight start reservations SHALL be scoped to the exact
+StartIdempotencyKey. Different keys SHALL proceed independently of each other's
+reservations. A caller waiting for the same key SHALL recheck admission before
+replaying, reporting a conflict, or reserving the key for another attempt.
+Queued starts SHALL recheck admission before initialization and run no Init
+if Closed won. A start whose initialization admission won before Closed
 SHALL proceed normally through Init/attempts and MAY publish Accepted while Closed;
 closing SHALL NOT abort it or convert successful pending-start completion to a
 host-stopping error. The acceptance/abort election SHALL instead share the Stopping
@@ -484,9 +490,15 @@ waits and queries; this settlement exception SHALL not reopen those operations.
 - **WHEN** a caller starts an output wait on a retained accepted instance while Closed
 - **THEN** the normal waiter/pin is admitted, observes normal completion or local cancellation and remains owned if Stopping later begins
 
-#### Scenario: A noncooperative first step holds the start semaphore
-- **WHEN** close races a pre-handle start running its first physical step
-- **THEN** admission closes without that semaphore, the initialized start remains owned and can return Accepted while Closed after its first step finishes; only a later Stopping phase cancels remaining work or aborts a still-unaccepted start
+#### Scenario: A noncooperative first step holds a start reservation
+- **WHEN** close races a pre-handle start running its first physical step and holding its key's reservation
+- **THEN** admission closes independently of the reservation, and the initialized start remains owned and can return Accepted while Closed after its first step finishes
+- **AND** only a later Stopping phase cancels remaining work or aborts a still-unaccepted start
+
+#### Scenario: A same-key caller waits when admission closes
+- **WHEN** a start is waiting for the reservation of an already initialized start using the same key, and admission closes before the reservation clears
+- **THEN** the initialized owner may return Accepted during Closed
+- **AND** the waiting caller rechecks admission when the reservation clears and fails as host-stopping, subject to ordinary cancellation and error precedence, without running Init or returning a replay or conflict
 
 #### Scenario: A queued start has not initialized
 - **WHEN** a start admitted before close reaches initialization after Closed
