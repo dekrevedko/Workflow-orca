@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "dag-run-task-3-1-evidence-precision",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-request-2026-11-15.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-dirty-manifest-2026-11-15.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "9de147ce6a430a0ffd581790f05785a82b917979",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 1200,
-    "contentRecordSha256": "c368003939102cdffb3e607216520d0832ce7c2f35553490e430dc56501d2eac"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",
