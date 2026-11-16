@@ -1,11 +1,18 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 218,
-  "recordBytes": 58043,
-  "recordSha256": "f6e5ed0ad28a597fbbea17a62a10c9cfd6e05f580e0051f62f51d558d7a24783",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 219,
+  "recordBytes": 58320,
+  "recordSha256": "acd8999cb0b53db3c832feb0812c42474f4733fc1f3288b5cd5e6f22c18f1c5e",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "management-and-querying",
+      "count": 1,
+      "turnsGreenChange": "clarify-ephemeral-start-shutdown",
+      "turnsGreenTask": "1.2"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,11 +179,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 36,
-  "capabilityDirectoryBytes": 2954,
-  "capabilityDirectorySha256": "b03677cb7dd3dce316f7e36963e74170000f3989a292e5361296353adcdcb632",
-  "artifactPath": "openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-2-1-openspec-provenance-2026-11-01.md",
-  "artifactNormalizedSha256": "af5312085b60e8e78207044909e3a794f73c96ce1da6de8dc3a9e3bbd62a5af5",
+  "capabilityDirectoryCount": 37,
+  "capabilityDirectoryBytes": 3035,
+  "capabilityDirectorySha256": "33d3b2dc68ff3c7507aa6612b8d1be3cd205593e072ed057ce781ed714a78c47",
+  "artifactPath": "openspec/changes/clarify-ephemeral-start-shutdown/artifacts/process-openspec-provenance-2026-11-15.md",
+  "artifactNormalizedSha256": "db15cffd41fa1dabc47708e82223ac6f930fc2304f3895c44a0c25cf43a82cf5",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
