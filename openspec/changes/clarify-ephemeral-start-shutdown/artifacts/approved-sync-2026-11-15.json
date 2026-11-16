@@ -1,0 +1,25 @@
+{
+  "stage": "ContractApprovedCanonicalPrepared",
+  "processCheckpoint": "b98f4814b3f9757b951afa0edabae39915ded536",
+  "processApproval": "f1f033248a940d66992a774d9e44e14ac64ab904",
+  "processVerdictSha256": "421e3e8e0bb822e535774b950fdff1e6a7c2f6bc2ddeb777ee60ed8150b01f2c",
+  "contractApproval": "d54bca77652855fa0fe8ace55014ddc703592a8c",
+  "contractVerdictSha256": "d73d00e048d14925247c17e6c1c2501feccf261e58d25a36e77d3718c3830532",
+  "documents": [
+    {
+      "path": "openspec/specs/management-and-querying/spec.md",
+      "beforeSha256": "244031ed3ee641d57ed467bcb0a3d2741e5300e705b4b8356dcde2967a9ec4f7",
+      "afterSha256": "639183e2d7c3910d85004de836877e174e8243b852c929a8272f1718b4da2ee4"
+    },
+    {
+      "path": "docs/specs/09-requirements-management-operations.md",
+      "beforeSha256": "f3d29bb2942c273a06ac263567366b882ead8b0c04233ef857727dfaef7f9705",
+      "afterSha256": "fb1b7f12259788d0ccb296be2d8bf2b5dc8e12f40eac4dedc5c8c5dd86e1026c"
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "568ba469524110af0a1c3b91040cdfaf06e057ae2e7b0773a4dcf3b28153d830",
+      "afterSha256": "bf59cfe9987d7424e71c832c2db54cd07a4b654c3c2f9665236ebcc2d03c9618"
+    }
+  ]
+}

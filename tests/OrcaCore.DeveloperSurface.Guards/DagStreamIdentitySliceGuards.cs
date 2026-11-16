@@ -12,7 +12,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "321b8fda534883310f1593d98c33fc28c9b39d529e6efaae9440438a345601bd";
-    private const string CanonicalContentRecordSha256 = "205ac1af86b2024521028603cf15fd361f84861b4d244054fd6472e907214335";
+    private const string CanonicalContentRecordSha256 = "3764993c84f3bd976c3e47142345aaa827209730b0b18208fff01c9c46999222";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(

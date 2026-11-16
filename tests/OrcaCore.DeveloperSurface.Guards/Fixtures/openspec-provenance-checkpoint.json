@@ -2,17 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 219,
-  "recordBytes": 58320,
-  "recordSha256": "acd8999cb0b53db3c832feb0812c42474f4733fc1f3288b5cd5e6f22c18f1c5e",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [
-    {
-      "capability": "management-and-querying",
-      "count": 1,
-      "turnsGreenChange": "clarify-ephemeral-start-shutdown",
-      "turnsGreenTask": "1.2"
-    }
-  ],
+  "recordBytes": 58330,
+  "recordSha256": "ea6857b640976c03516b484cd438d8a78dcbdfff2a45fee185582cb38563d348",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -182,8 +175,8 @@
   "capabilityDirectoryCount": 37,
   "capabilityDirectoryBytes": 3035,
   "capabilityDirectorySha256": "33d3b2dc68ff3c7507aa6612b8d1be3cd205593e072ed057ce781ed714a78c47",
-  "artifactPath": "openspec/changes/clarify-ephemeral-start-shutdown/artifacts/process-openspec-provenance-2026-11-15.md",
-  "artifactNormalizedSha256": "db15cffd41fa1dabc47708e82223ac6f930fc2304f3895c44a0c25cf43a82cf5",
+  "artifactPath": "openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md",
+  "artifactNormalizedSha256": "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
@@ -212,8 +205,8 @@
     },
     {
       "path": "openspec/specs/management-and-querying/spec.md",
-      "bytes": 59197,
-      "sha256": "244031ed3ee641d57ed467bcb0a3d2741e5300e705b4b8356dcde2967a9ec4f7"
+      "bytes": 60176,
+      "sha256": "639183e2d7c3910d85004de836877e174e8243b852c929a8272f1718b4da2ee4"
     },
     {
       "path": "openspec/specs/quality-and-verification/spec.md",
@@ -259,5 +252,5 @@
   "canonicalContentRecordFormat": "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF",
   "canonicalContentCount": 14,
   "canonicalContentBytes": 1635,
-  "canonicalContentSha256": "205ac1af86b2024521028603cf15fd361f84861b4d244054fd6472e907214335"
+  "canonicalContentSha256": "3764993c84f3bd976c3e47142345aaa827209730b0b18208fff01c9c46999222"
 }
