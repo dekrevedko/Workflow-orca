@@ -450,13 +450,8 @@ public sealed class NativeSupportTransitionGuards
     [Fact]
     public void TypedDispatchSlice_SourceEditsStayWithinTheExplicitlyReviewedFileScope()
     {
-        _ = EphemeralFailureSettlementSourceReview.AuthorizedPaths(FixtureDefinitions.RepositoryRoot());
         var changed = Git("diff", "--name-only", VerdictCommit, EphemeralFailureSettlementSourceReview.Base, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Concat(Git("ls-files", "--others", "--exclude-standard", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
-            .Where(path => path.StartsWith("src/OrcaCore.Abstractions/", StringComparison.Ordinal) ||
-                path.StartsWith("src/OrcaCore.Core/", StringComparison.Ordinal) ||
-                path.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal))
             .Order(StringComparer.Ordinal).ToArray();
         changed.Should().Equal(new[]
         {

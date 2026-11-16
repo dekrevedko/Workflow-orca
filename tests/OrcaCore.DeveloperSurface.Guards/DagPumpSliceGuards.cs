@@ -21,6 +21,8 @@ public sealed class DagPumpSliceGuards
     private const string CandidateSha256 = "127ba6f6f6df268438ccc0796fe8b0fbf2ee02fe11c55f5760eccdd486f34bf1";
     private const string ArtifactSha256 = "00b0e6e150718cba0d193b6a929d64ce419c67cfa7c0ccd552a2ee51ae581680";
     private const string Task23Base = "048c3a6ecd3541f30c57d9f600190e63f6a16d84";
+    private const string EphemeralConcurrencyBase = "d380a793d9530a24f4bb26dcd9a4a80e80bf74a3";
+    private const string EphemeralConcurrencyTip = "c81e16df7d84015b94f6c392cece6117df565a37";
     private const string Task23SourceRecord =
         "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-2-3-source-record.tsv";
     private const string Task23SourceRecordSha256 = "2a8c3b24bc64c33e279516d8c5cb021f7115d737b67ac23bc033e33f0a1b94c0";
@@ -80,7 +82,17 @@ public sealed class DagPumpSliceGuards
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        paths.Should().Equal(changed);
+        // Separate master changes from the exact DAG source set. PR #25
+        // supersedes a #23 blob, so compare their combined paths to the final tip.
+        var ephemeralConcurrency = Git(root, "diff", "--name-only", EphemeralConcurrencyBase, EphemeralConcurrencyTip, "--", "src")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        ephemeralConcurrency.Should().HaveCount(9);
+        ephemeralConcurrency.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal));
+        paths.Intersect(ephemeralConcurrency, StringComparer.Ordinal).Should().BeEmpty();
+        changed.Should().Equal(paths.Concat(ephemeralConcurrency).Order(StringComparer.Ordinal));
+        foreach (var path in ephemeralConcurrency)
+            Convert.ToBase64String(File.ReadAllBytes(Path.Combine(root, path))).Should().Be(GitBytes(root, EphemeralConcurrencyTip, path),
+                "the separate ephemeral concurrency changes must equal the bytes merged in PRs #23 and #25");
         paths.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Dag.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Durable.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Engine.Durable/", StringComparison.Ordinal));

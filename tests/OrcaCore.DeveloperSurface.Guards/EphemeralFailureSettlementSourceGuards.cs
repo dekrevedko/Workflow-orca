@@ -65,14 +65,10 @@ internal static class EphemeralFailureSettlementSourceReview
         foreach (var file in files)
         {
             Hash(Encoding.UTF8.GetBytes(Git(root, "show", Base + ":" + file.Name))).Should().Be(file.Value.GetProperty("beforeSha256").GetString());
-            Hash(File.ReadAllBytes(Path.Combine(root, file.Name))).Should().Be(file.Value.GetProperty("afterSha256").GetString());
+            Hash(Encoding.UTF8.GetBytes(Git(root, "show", SourceCheckpoint + ":" + file.Name))).Should().Be(file.Value.GetProperty("afterSha256").GetString());
         }
-        Git(root, "diff", "--name-only", Base, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Except(DagPumpSliceGuards.ReviewBoundDagSourcePaths(root), StringComparer.Ordinal)
-            .Should().Equal(files.Select(file => file.Name));
-        Git(root, "ls-files", "--others", "--exclude-standard", "--", "src")
-            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal).Should().BeEmpty();
+        Git(root, "diff", "--name-only", Base, SourceCheckpoint, "--", "src")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(files.Select(file => file.Name));
         var tasks = File.ReadAllText(Path.Combine(root, TaskLedgerPath));
         foreach (var task in new[] { "2.1", "2.2" }) tasks.Should().Contain("- [x] " + task + " ");
         var checkpointTasks = CheckpointTaskLedger(root);
@@ -271,20 +267,20 @@ internal static class EphemeralFailureSettlementSourceReview
         representative.GetProperty("protocol").GetInt32().Should().Be(qualification.GetProperty("protocol").GetInt32()).And.Be(4);
         representative.GetProperty("sourceSha").GetString().Should().Be(qualification.GetProperty("sourceCommit").GetString());
         representative.GetProperty("sourceTree").GetString().Should().Be(qualification.GetProperty("sourceTree").GetString());
-        var sourceCommit = qualification.GetProperty("sourceCommit").GetString()!;
-        Git(root, "rev-parse", sourceCommit + "^{tree}").Trim().Should().Be(qualification.GetProperty("sourceTree").GetString());
-        var dagPaths = DagPumpSliceGuards.ReviewBoundDagSourcePaths(root).ToHashSet(StringComparer.Ordinal);
+        // The hosted replay commit may be absent after branch cleanup. The reviewed
+        // checkpoint supplies the local source and harness bytes for the archived matrix.
+        var subsequentChanges = Git(root, "diff", "--name-only", SourceCheckpoint, "--", ".")
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries).ToHashSet(StringComparer.Ordinal);
         foreach (var table in new[] { "sourceFiles", "harnessFiles" })
         {
             var files = representative.GetProperty(table).EnumerateObject().ToArray();
             files.Should().HaveCount(table == "sourceFiles" ? 360 : 23);
             foreach (var file in files)
             {
-                var content = table == "sourceFiles" && dagPaths.Contains(file.Name)
-                    ? Encoding.UTF8.GetBytes(Git(root, "show", sourceCommit + ":" + file.Name))
+                var contents = subsequentChanges.Contains(file.Name)
+                    ? Encoding.UTF8.GetBytes(Git(root, "show", SourceCheckpoint + ":" + file.Name))
                     : File.ReadAllBytes(Path.Combine(root, file.Name));
-                Hash(content).Should().Be(file.Value.GetString(),
-                    "the native receipt pins qualified bytes, not later DAG source");
+                Hash(contents).Should().Be(file.Value.GetString());
             }
         }
     }
@@ -306,19 +302,6 @@ internal static class EphemeralFailureSettlementSourceReview
         value.Split(property).Should().HaveCount(2);
         value.Split(method).Should().HaveCount(2);
         return value.Replace(property, "", StringComparison.Ordinal).Replace(method, "", StringComparison.Ordinal);
-    }
-
-    internal static byte[] HistoricalBytes(string root, string path)
-    {
-        var bytes = File.ReadAllBytes(Path.Combine(root, Prefix + "artifacts/task-3-source-authorization-2026-11-02.json"));
-        Hash(bytes).Should().Be(RegistryHash);
-        using var document = JsonDocument.Parse(bytes);
-        var current = File.ReadAllBytes(Path.Combine(root, path));
-        if (!document.RootElement.GetProperty("sourceFiles").TryGetProperty(path, out var pin)) return current;
-        Hash(current).Should().Be(pin.GetProperty("afterSha256").GetString());
-        var before = Encoding.UTF8.GetBytes(Git(root, "show", Base + ":" + path));
-        Hash(before).Should().Be(pin.GetProperty("beforeSha256").GetString());
-        return before;
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();

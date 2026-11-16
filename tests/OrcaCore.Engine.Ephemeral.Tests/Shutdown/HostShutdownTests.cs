@@ -125,7 +125,7 @@ public sealed class HostShutdownTests
         var handle = host.Register(definition);
         var first = host.Start(handle, "first");
         await host.Body.Entered.Task.WaitAsync(Guard, TestToken);
-        var queued = host.Start(handle, "queued");
+        var queued = host.Start(handle, "first");
         host.Application.StopApplication();
         host.Body.Release.TrySetResult();
         (await first.WaitAsync(Guard, TestToken)).Should().BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>();

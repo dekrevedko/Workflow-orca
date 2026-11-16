@@ -60,6 +60,8 @@ internal sealed class RuntimeWaitRecord
 
     internal Func<EventEnvelope, CancellationToken, Task> ResumeAsync { get; }
 
+    internal Action? ReleaseCorrelation { get; set; }
+
     private Action? cancelLoser;
 
     internal void SetCancelLoser(Action cancel)

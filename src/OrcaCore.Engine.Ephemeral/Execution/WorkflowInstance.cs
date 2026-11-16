@@ -38,6 +38,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private DateTimeOffset? stuckDetectedAt;
     private string? stuckStepPath;
     private long nextWaitSequence;
+    private EphemeralRoutingIndex? correlationIndex;
     private EphemeralWorkflowInstanceSnapshot? publishedSnapshot;
     private TState? publishedState;
     private bool hasPublishedState;
@@ -170,6 +171,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return activeWaits.Any(wait => wait.Matches(envelope));
     }
 
+    internal void SetCorrelationIndex(EphemeralRoutingIndex index) => correlationIndex = index;
+
     internal RuntimeWaitRecord EnterWait(
         WorkflowEventContract eventContract,
         CorrelationId correlationId,
@@ -181,9 +184,12 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         FiberId? fiberId = null,
         ScopeId? scopeId = null)
     {
-        Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
-        UpdatedAt = registeredAt;
-        CurrentStatusEnteredAt = registeredAt;
+        if (correlationIndex is not null && activeWaits.Any(wait =>
+            wait.EventContract.Equals(eventContract) && wait.CorrelationId.Equals(correlationId)))
+        {
+            throw FacadeValueFactory.AmbiguousWait(DefinitionId, eventContract, correlationId);
+        }
+
         var wait = new RuntimeWaitRecord(
             eventContract,
             correlationId,
@@ -195,6 +201,10 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             checked(++nextWaitSequence),
             fiberId,
             scopeId);
+        wait.ReleaseCorrelation = correlationIndex?.Reserve(DefinitionId, InstanceId, wait);
+        Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
+        UpdatedAt = registeredAt;
+        CurrentStatusEnteredAt = registeredAt;
         activeWaits.Add(wait);
         return wait;
     }
@@ -204,6 +214,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         ArgumentNullException.ThrowIfNull(wait);
         if (activeWaits.Remove(wait))
         {
+            wait.ReleaseCorrelation?.Invoke();
             wait.CancelLoser();
         }
 
@@ -421,6 +432,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             throw;
         }
 
+        wait.ReleaseCorrelation?.Invoke();
         if (Status == global::OrcaCore.WorkflowInstanceStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
             Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
@@ -471,6 +483,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             throw;
         }
 
+        wait.ReleaseCorrelation?.Invoke();
         wait.CancelLoser();
         RecordConsumedEvent(envelope.EventId);
         consumedWaits.Add(new WaitSignature(wait.EventContract, wait.CorrelationId, wait.BranchId));
@@ -614,6 +627,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         foreach (var wait in activeWaits.Where(wait => wait.BranchId == branchId).ToArray())
         {
             activeWaits.Remove(wait);
+            wait.ReleaseCorrelation?.Invoke();
             wait.CancelLoser();
         }
 
@@ -1019,6 +1033,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         Lifetime.SignalTerminal();
         foreach (var wait in activeWaits)
         {
+            wait.ReleaseCorrelation?.Invoke();
             wait.CancelLoser();
         }
 

@@ -128,16 +128,18 @@ public sealed class HostGovernanceOptionsTests
         delivery.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await independent.GetSnapshotAsync(TestContext.Current.CancellationToken))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
-        second.IsCompleted.Should().BeFalse();
+        // The second start returns once its instance is queued for capacity;
+        // the governed body itself must not run until the first one leaves.
         gate.InvocationCount.Should().Be(1);
 
         gate.ReleaseFirst.TrySetResult();
         _ = await first.WaitAsync(
             TimeSpan.FromSeconds(5),
             TestContext.Current.CancellationToken);
-        _ = await second.WaitAsync(
+        var queued = await second.WaitAsync(
             TimeSpan.FromSeconds(5),
             TestContext.Current.CancellationToken);
+        await queued.GetHandleOrThrow().WaitForSettlementAsync(TestContext.Current.CancellationToken);
         gate.InvocationCount.Should().Be(2);
     }
 
