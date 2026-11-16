@@ -275,7 +275,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "af5312085b60e8e78207044909e3a794f73c96ce1da6de8dc3a9e3bbd62a5af5";
+        "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -320,9 +320,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 28;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 30;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "8c936afa9d013abda87bb1c43b692520ef8748ff8bd5f604f0d507e77dbc72c5";
+        "b4e147610d04af86465c71031be12b23011c3fb117e71de88d91819f9c602f1d";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -392,7 +392,11 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/support-ephemeral-native-aot/artifacts/task-2-4-boundary-openspec-provenance-2026-10-27.md",
                 "a6c69937b197e814462d918f42735f02757c08579715d9619a80f3f9dd985ace"),
             ("openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/contract-openspec-provenance-2026-10-29.md",
-                "9e654e3efc789b0b08cd6a00a7914cf12cfb487ab89381fa1149a302b443f28f")
+                "9e654e3efc789b0b08cd6a00a7914cf12cfb487ab89381fa1149a302b443f28f"),
+            ("openspec/changes/expose-ephemeral-failures-and-settlement/artifacts/task-2-1-openspec-provenance-2026-11-01.md",
+                "af5312085b60e8e78207044909e3a794f73c96ce1da6de8dc3a9e3bbd62a5af5"),
+            ("openspec/changes/clarify-ephemeral-start-shutdown/artifacts/process-openspec-provenance-2026-11-15.md",
+                "db15cffd41fa1dabc47708e82223ac6f930fc2304f3895c44a0c25cf43a82cf5")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -1838,7 +1842,8 @@ public sealed class OpenSpecCorpusGuards
             var path = row.GetProperty("path").GetString()!;
             Sha256(NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, verdictCommit, path))))
                 .Should().Be(row.GetProperty("beforeSha256").GetString());
-            Sha256(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))))
+            var current = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path)));
+            Sha256(BeforeShutdownStartReservationSync(root, path, current))
                 .Should().Be(EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
                     root, path, row.GetProperty("afterSha256").GetString()!));
         }
@@ -1846,6 +1851,8 @@ public sealed class OpenSpecCorpusGuards
         Regex.Matches(ledger, @"(?m)^- \[x\] 1\.4\b").Should().ContainSingle();
         foreach (var task in new[] { "3.1", "3.2", "3.3", "3.4", "3.5", "3.6" })
             _ = ReadOpenTaskBlock(ledger, task);
+        var shutdownSuccessor = ValidateShutdownStartReservations(root, canonicalRequirements, activeRequirements);
+        canonicalRequirements = BeforeShutdownStartReservationSync(root, canonicalRequirements);
         var rows = record.GetProperty("proposedSuccessors").EnumerateArray().ToArray();
         rows.Should().HaveCount(9);
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -1854,7 +1861,8 @@ public sealed class OpenSpecCorpusGuards
             var capability = row.GetProperty("capability").GetString()!;
             var requirement = row.GetProperty("requirement").GetString()!;
             keys.Add(capability + "\0" + requirement).Should().BeTrue();
-            var owners = activeRequirements.Where(item => item.Capability == capability && item.Requirement == requirement).ToArray();
+            var owners = activeRequirements.Where(item =>
+                item.Capability == capability && item.Requirement == requirement && item != shutdownSuccessor).ToArray();
             owners.Should().HaveCount(2, "only the named predecessor and prepared successor may share this heading");
             var predecessor = owners.Single(item => item.Change == row.GetProperty("predecessorChange").GetString());
             var successor = owners.Single(item => item.Change == change);
@@ -1891,6 +1899,123 @@ public sealed class OpenSpecCorpusGuards
             canonicalRequirements[capability][requirement].Block.Should().Be(successor.Block);
         }
         return keys;
+    }
+
+    private const string ShutdownStartReservationChange = "clarify-ephemeral-start-shutdown";
+    private const string ShutdownStartReservationCapability = "management-and-querying";
+    private const string ShutdownStartReservationRequirement = "Ephemeral host shutdown closes admission atomically";
+    private const string ShutdownStartReservationArtifacts = "openspec/changes/" + ShutdownStartReservationChange + "/artifacts/";
+
+    private static JsonDocument ReadApprovedShutdownSpecSync(string root)
+    {
+        var bytes = File.ReadAllBytes(Path.Combine(root, ShutdownStartReservationArtifacts + "approved-sync-2026-11-15.json"));
+        Sha256(bytes).Should().Be("cecaa57948e675c5cb4dc39cf65d0ca666fecc066160498401feafaebfb4e78b",
+            "only the exact contract-approved synchronization is admitted");
+        return JsonDocument.Parse(bytes);
+    }
+
+    internal static string BeforeShutdownStartReservationSync(string root, string path, string current)
+    {
+        if (path is not (
+            "openspec/specs/management-and-querying/spec.md" or
+            "docs/specs/09-requirements-management-operations.md" or
+            "docs/specs/12-acceptance-criteria.md"))
+        {
+            return current;
+        }
+
+        using var registry = ReadApprovedShutdownSpecSync(root);
+        var row = registry.RootElement.GetProperty("documents").EnumerateArray()
+            .Single(item => item.GetProperty("path").GetString() == path);
+        Sha256(current).Should().Be(row.GetProperty("afterSha256").GetString(),
+            $"the current text of {path} must match the exact approved projection");
+        var baseline = registry.RootElement.GetProperty("contractApproval").GetString()!;
+        var prior = NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, baseline, path)));
+        Sha256(prior).Should().Be(row.GetProperty("beforeSha256").GetString());
+        return prior;
+    }
+
+    private static void ValidateShutdownStartReservationApprovals(string root)
+    {
+        using var registry = ReadApprovedShutdownSpecSync(root);
+        var row = registry.RootElement;
+        row.GetProperty("stage").GetString().Should().Be("ContractApprovedCanonicalPrepared");
+        var process = row.GetProperty("processApproval").GetString()!;
+        var contract = row.GetProperty("contractApproval").GetString()!;
+        VerifyVerdict(process, row.GetProperty("processCheckpoint").GetString()!, "process", "processVerdictSha256");
+        VerifyVerdict(contract, process, "contract", "contractVerdictSha256");
+        var ancestry = RunGit(root, "merge-base", "--is-ancestor", contract, "HEAD");
+        ancestry.ExitCode.Should().Be(0, "the exact contract approval must be in the synchronization's ancestry");
+
+        void VerifyVerdict(string commit, string parent, string kind, string shaField)
+        {
+            var actualParent = RunGit(root, "rev-parse", commit + "^");
+            actualParent.ExitCode.Should().Be(0);
+            actualParent.StandardOutput.Trim().Should().Be(parent);
+            var path = ShutdownStartReservationArtifacts + kind + "-independent-review-verdict-2026-11-15.md";
+            var changed = RunGit(root, "diff-tree", "--no-commit-id", "--name-only", "-r", commit);
+            changed.ExitCode.Should().Be(0);
+            changed.StandardOutput.Trim().Should().Be(path);
+            var bytes = ReadGitBlob(root, commit, path);
+            Sha256(bytes).Should().Be(row.GetProperty(shaField).GetString());
+            bytes.Should().Equal(File.ReadAllBytes(Path.Combine(root, path)));
+            Encoding.UTF8.GetString(bytes).Should().Contain("APPROVE");
+        }
+    }
+
+    private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>>
+        BeforeShutdownStartReservationSync(
+            string root, IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> current)
+    {
+        const string path = "openspec/specs/" + ShutdownStartReservationCapability + "/spec.md";
+        var prior = BeforeShutdownStartReservationSync(root, path,
+            NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
+        var requirements = new Dictionary<string, CanonicalRequirement>(current[ShutdownStartReservationCapability], StringComparer.Ordinal);
+        var historical = ReadRequirementBlocks(prior.Split('\n'), path, false)
+            .Single(item => item.Requirement == ShutdownStartReservationRequirement);
+        requirements[historical.Requirement] = new CanonicalRequirement(historical.Requirement, historical.Block);
+        return new Dictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>>(current, StringComparer.Ordinal)
+        {
+            [ShutdownStartReservationCapability] = requirements
+        };
+    }
+
+    private static DeltaRequirement ValidateShutdownStartReservations(
+        string root,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+        IReadOnlyCollection<DeltaRequirement> activeRequirements)
+    {
+        var registryBytes = File.ReadAllBytes(Path.Combine(root,
+            ShutdownStartReservationArtifacts + "proposed-successor-2026-11-15.json"));
+        Sha256(registryBytes).Should().Be("13ad3946d5fa0867bb52f5ac73d9cf90dd6d3fbabf705f329f10d4fc3cb62f29",
+            "only the exact proposed registration is admitted");
+        using var registry = JsonDocument.Parse(registryBytes);
+        var row = registry.RootElement;
+        row.GetProperty("stage").GetString().Should().Be(ProposedPostGateStage);
+        row.GetProperty("change").GetString().Should().Be(ShutdownStartReservationChange);
+        row.GetProperty("capability").GetString().Should().Be(ShutdownStartReservationCapability);
+        row.GetProperty("requirement").GetString().Should().Be(ShutdownStartReservationRequirement);
+        var candidate = activeRequirements.Single(item => item.Change == ShutdownStartReservationChange);
+        candidate.Capability.Should().Be(ShutdownStartReservationCapability);
+        candidate.Requirement.Should().Be(ShutdownStartReservationRequirement);
+        candidate.CapabilityKind.Should().Be(CapabilityKind.Modified);
+        candidate.Operation.ToString().ToUpperInvariant().Should().Be(row.GetProperty("successorOperation").GetString());
+        Sha256(candidate.Block).Should().Be(row.GetProperty("successorSha256").GetString());
+        var owners = activeRequirements.Where(item =>
+            item.Capability == candidate.Capability && item.Requirement == candidate.Requirement);
+        owners.Select(item => item.Change).Should().BeEquivalentTo(
+            row.GetProperty("predecessors").EnumerateArray().Select(item => item.GetString()!).Append(candidate.Change));
+        ValidateShutdownStartReservationApprovals(root);
+        var prior = BeforeShutdownStartReservationSync(root, canonicalRequirements);
+        Sha256(prior[candidate.Capability][candidate.Requirement].Block).Should().Be(row.GetProperty("canonicalSha256").GetString());
+        ClassifyProvenance(canonicalRequirements, candidate).State.Should().Be(ProvenanceState.Synchronized);
+        var task = ValidateTaskReference(root, new PostGateTaskReference(candidate.Change,
+            row.GetProperty("canonicalSyncTask").GetString()!, CompleteTaskState));
+        task.Should().Contain($"`{candidate.Capability}` (0)");
+        Sha256(NormalizeLineEndings(File.ReadAllText(Path.Combine(root,
+            ShutdownStartReservationArtifacts + "contract-review-text.md"))))
+            .Should().Be(row.GetProperty("numberedReviewTextSha256").GetString());
+        return candidate;
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>>
@@ -3745,7 +3870,7 @@ public sealed class OpenSpecCorpusGuards
         artifactRows.Select(row => row.Path).Should().Equal(Task73ActiveDocumentationPaths);
         foreach (var row in artifactRows)
         {
-            Sha256(documents[row.Path]).Should().Be(
+            Sha256(BeforeShutdownStartReservationSync(root, row.Path, documents[row.Path])).Should().Be(
                 EphemeralFailureSettlementReviewHistory.CurrentDocumentationHash(root, row.Path, row.Sha256),
                 $"Task 7.3 source '{row.Path}' must remain byte-equivalent after LF normalization");
         }
@@ -6979,6 +7104,19 @@ public sealed class OpenSpecCorpusGuards
         DeltaRequirement requirement,
         PostGateAmendmentCheckpoint checkpoint)
     {
+        if (requirement.Capability == ShutdownStartReservationCapability &&
+            requirement.Requirement == ShutdownStartReservationRequirement &&
+            requirement.Change is "add-ephemeral-host-shutdown" or "expose-ephemeral-failures-and-settlement")
+        {
+            var expected = requirement.Change == "add-ephemeral-host-shutdown"
+                ? "009db0deff82740ebecb0d5b92027d576b3686316d8a861493142d3eb8409fc9"
+                : "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d";
+            Sha256(requirement.Block).Should().Be(expected, "both original owner deltas remain immutable");
+            var current = canonicalRequirements[requirement.Capability][requirement.Requirement].Block;
+            Sha256(current).Should().Be("af76ed399e86348c0710be62a0bb71222f591e8caed5f0b23a8d7753939fba22");
+            return CreateProvenanceRow(requirement, ProvenanceState.SupersededByApprovedSuccessor, current);
+        }
+
         using var issue16 = ReadEphemeralFailureSettlementRegistry(root);
         foreach (var row in issue16.RootElement.GetProperty("proposedSuccessors").EnumerateArray())
         {
