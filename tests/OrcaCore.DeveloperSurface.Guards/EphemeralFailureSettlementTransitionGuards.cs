@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
@@ -22,8 +23,12 @@ public sealed class EphemeralFailureSettlementTransitionGuards
         typeof(WorkflowFailure).GetProperty("ExceptionType")!.SetMethod.Should().BeNull();
         typeof(WorkflowInstanceHandle).GetMethod("WaitForSettlementAsync")!.IsVirtual.Should().BeFalse();
         Git(root, ["diff", "--name-only", ContractVerdictCommit, "--",
-            "Directory.Build.props", "Directory.Packages.props", "global.json",
-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json"]).Trim().Should().BeEmpty();
+            "Directory.Build.props", "Directory.Packages.props", "global.json"]).Trim().Should().BeEmpty();
+        const string registryPath = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json";
+        var previous = JsonNode.Parse(Git(root, ["show", ContractVerdictCommit + ":" + registryPath]))!.AsObject();
+        var current = JsonNode.Parse(File.ReadAllText(Path.Combine(root, registryPath)))!.AsObject();
+        DagStreamIdentitySliceGuards.ProjectTask21RegistryExtension(previous, current);
+        JsonNode.DeepEquals(previous, current).Should().BeTrue("the independently reviewed DAG extension cannot change other registry entries");
     }
 
     [Fact]

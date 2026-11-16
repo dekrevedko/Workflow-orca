@@ -1,4 +1,6 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using OrcaCore.Durable.Hosting.Dag;
 using OrcaCore.Hosting;
 
 namespace OrcaCore.Dag.Hosting;
@@ -51,7 +53,10 @@ public static class OrcaCoreDagHostingServiceCollectionExtensions
         services.AddSingleton<DagDefinitionRegistry>();
         services.AddSingleton(provider => new DagCoordinator(
             provider.GetRequiredService<DagDefinitionRegistry>(),
-            provider.GetRequiredService<DagHostRegistration>().MaxConcurrentNodes));
+            provider.GetRequiredService<DurableDagRunBridge>(),
+            provider.GetRequiredService<DagHostRegistration>().MaxConcurrentNodes,
+            provider.GetRequiredService<TimeProvider>(), provider.GetRequiredService<ILogger<DagCoordinator>>()));
+        services.AddSingleton<IDurableDagReadySinkV1>(provider => provider.GetRequiredService<DagCoordinator>());
         return services;
     }
 

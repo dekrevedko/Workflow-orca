@@ -205,3 +205,30 @@ Carry-forward evidence binds the actual canonical transition chain and pins ever
 RC-3's byte-only Runtime.Protocol decoder cannot reconstruct its two fingerprint-valued records through internal-only OrcaCore constructors; provider/checkpoint loads and Durable.Hosting face the same seam. The [dated addendum](artifacts/task-2-1-fingerprint-contract-addendum-2026-10-14.md) inventories every path and proposes non-null canonical uppercase 64-character SHA-256 strings in DagRunBindingV1/DagRunValueV1. Existing friends retain all strong-value construction and runtime binding/byte verification. A replacement full catalog preserves 7/193/165=365 while replacing precisely six proposed keys; its proof compiles without friend access. Alternatives and all normative exclusions are explicit in that addendum.
 
 The post-gate fingerprint record is Proposed with null approval. Independent review/checkpoint and its sole evidence child precede source; no activation, canonical sync or source is part of this target. The following source target must bind the actual amendment checkpoint/tree/evidence/verdict before implementation. The three round-100 source findings stay queued there. Old RC-3 artifacts and dated decisions are unchanged.
+
+### 15. Task 2.3 implementation clarification (2026-11-13)
+
+The approved run contract's logical keys are not CLR type identifiers. On each
+boot, Dag.Hosting supplies the exact declared run-input `Type` from each locally
+installed typed plan to an internal Durable.Hosting catalog. A binding is keyed
+by definition ID and version and checked against the plan fingerprint and the
+computed `dag:…:run-input:…` shape key. Identical installs are idempotent;
+conflicting installs are rejected before changing the binding. No type name,
+plan, or mapper delegate is persisted or resolved from a storage string. An
+uninstalled plan is locally unavailable and may be rediscovered after install;
+a mismatch with an installed binding fails closed before decode. This does not
+alter the reviewed bridge signatures or introduce the public Task 8.6 install API.
+
+Child input and output records use `workflow:{definition-id}:{version}:input`
+and `workflow:{definition-id}:{version}:output`, respectively, not a digest of an
+assembly-qualified type name. The existing engine resolves the exact workflow
+binding and uses its declared input and output types for the fixed codec. A
+child's ordinary workflow checkpoint retains its own CLR schema identity;
+verify that identity against the installed output type separately from checking
+the DAG record's logical key, codec format, presence and committed-byte hash.
+Neither key is a substitute for the definition fingerprint. No fallback to the
+synthetic Task 2.2 type-hash keys is needed: no shipped path could create a DAG run.
+
+These details implement the existing key and restart rules, not a canonical or
+public API amendment. The combined review must verify restart rehydration, missing
+and conflicting installs, and wrong workflow role keys before enabling run creation.

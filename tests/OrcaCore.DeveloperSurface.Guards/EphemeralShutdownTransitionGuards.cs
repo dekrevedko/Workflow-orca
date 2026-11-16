@@ -87,6 +87,7 @@ public sealed class EphemeralShutdownTransitionGuards
             record["ownershipApprovalEvidencePath"] = null;
         }
         after["schemaVersion"] = 18;
+        DagStreamIdentitySliceGuards.ProjectTask21RegistryExtension(before, after);
         JsonNode.DeepEquals(before, after).Should().BeTrue("all earlier approval records remain exact");
         var records = current.GetProperty("shutdownPendingAmendments").EnumerateArray().ToArray();
         records.Select(x => S(x, "capability")).Should().Equal("developer-facing-surface", "management-and-querying");

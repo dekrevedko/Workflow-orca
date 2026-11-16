@@ -1,3 +1,5 @@
+using OrcaCore.Abstractions.Durable.Dag;
+using OrcaCore.Abstractions.Providers.Dag;
 using AwesomeAssertions;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -356,6 +358,50 @@ public sealed class R4DurableEngineFindingsTests
         IWorkflowStartIdempotencyStore,
         IWorkflowProjectionStore
     {
+        public Task<Option<DagRunCheckpointV1>> LoadDagRunCheckpointAsync(
+            WorkflowStreamId streamId, CancellationToken cancellationToken) =>
+            inner.LoadDagRunCheckpointAsync(streamId, cancellationToken);
+
+        public Task<Option<DagRunDiscoveryV1>> GetDagRunByStartKeyAsync(
+            DagRunStartKeyV1 startKey, CancellationToken cancellationToken) =>
+            inner.GetDagRunByStartKeyAsync(startKey, cancellationToken);
+
+        public Task<IReadOnlyList<DagRunRecordV1>> LoadDagRunTailAsync(
+            WorkflowStreamId streamId, StreamVersion afterVersion, CancellationToken cancellationToken) =>
+            inner.LoadDagRunTailAsync(streamId, afterVersion, cancellationToken);
+
+        public Task<DagRunLeaseResultV1> AcquireDagRunLeaseAsync(
+            DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+            inner.AcquireDagRunLeaseAsync(request, cancellationToken);
+
+        public Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(
+            DagRunLeaseRequestV1 request, CancellationToken cancellationToken) =>
+            inner.RenewDagRunLeaseAsync(request, cancellationToken);
+
+        public Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(
+            DagRunFenceV1 fence, CancellationToken cancellationToken) =>
+            inner.ReleaseDagRunLeaseAsync(fence, cancellationToken);
+
+        public Task CancelDagRunLeaseRequestAsync(
+            Guid runId, Guid ownerId, Guid requestId, CancellationToken cancellationToken) =>
+            inner.CancelDagRunLeaseRequestAsync(runId, ownerId, requestId, cancellationToken);
+
+        public Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(
+            DagRunDiscoveryRequestV1 request, CancellationToken cancellationToken) =>
+            inner.ListRecoverableDagRunsAsync(request, cancellationToken);
+
+        public Task<DagRunSubscribeResultV1> SubscribeDagRunAsync(
+            DagRunSubscriptionV1 subscription, CancellationToken cancellationToken) =>
+            inner.SubscribeDagRunAsync(subscription, cancellationToken);
+
+        public Task UnsubscribeDagRunAsync(Guid subscriptionId, Guid recipientHostId,
+            CancellationToken cancellationToken) =>
+            inner.UnsubscribeDagRunAsync(subscriptionId, recipientHostId, cancellationToken);
+
+        public Task<int> PruneExpiredDagRunObserversAsync(
+            int maxCount, CancellationToken cancellationToken) =>
+            inner.PruneExpiredDagRunObserversAsync(maxCount, cancellationToken);
+
         private readonly FakeWorkflowEventStore inner = new();
 
         internal bool AcquireAppendRejected { get; private set; }

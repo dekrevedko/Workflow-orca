@@ -94,7 +94,7 @@ public sealed class CodecMemberCorrectionGuards
                     if (!checkpointHashes.TryGetValue(file.Name, out var hash))
                     {
                         var contents = subsequentChanges.Contains(file.Name)
-                            ? Encoding.UTF8.GetBytes(Git(root, "show", HarnessCheckpoint + ":" + file.Name))
+                            ? GitBytes(root, "show", HarnessCheckpoint + ":" + file.Name)
                             : File.ReadAllBytes(Path.Combine(root, file.Name));
                         if (file.Name == ".github/workflows/ephemeral-native-support.yml")
                             contents = Encoding.UTF8.GetBytes(Encoding.UTF8.GetString(contents).Replace(
@@ -179,6 +179,20 @@ public sealed class CodecMemberCorrectionGuards
     }
 
     private static string Hash(byte[] bytes) => Convert.ToHexStringLower(SHA256.HashData(bytes));
+
+    private static byte[] GitBytes(string root, params string[] arguments)
+    {
+        var info = new ProcessStartInfo("git") { WorkingDirectory = root, RedirectStandardOutput = true,
+            RedirectStandardError = true, UseShellExecute = false, CreateNoWindow = true };
+        foreach (var argument in arguments) info.ArgumentList.Add(argument);
+        using var process = Process.Start(info)!;
+        var error = process.StandardError.ReadToEndAsync();
+        using var buffer = new MemoryStream();
+        process.StandardOutput.BaseStream.CopyTo(buffer);
+        process.WaitForExit();
+        process.ExitCode.Should().Be(0, error.GetAwaiter().GetResult());
+        return buffer.ToArray();
+    }
 
     private static string Git(string root, params string[] arguments)
     {

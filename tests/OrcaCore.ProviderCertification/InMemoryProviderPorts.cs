@@ -37,9 +37,10 @@ internal sealed class InMemoryProviderPorts : IDisposable
     internal IDurableResourceGovernanceStore ResourceGovernanceStore =>
         services.GetRequiredService<IDurableResourceGovernanceStore>();
 
-    internal static InMemoryProviderPorts Create()
+    internal static InMemoryProviderPorts Create(TimeProvider? clock = null)
     {
         var services = new ServiceCollection();
+        if (clock is not null) services.AddSingleton(clock);
         services.AddOrcaCoreInMemoryDurableProvider();
         return new InMemoryProviderPorts(services.BuildServiceProvider());
     }

@@ -72,3 +72,10 @@ Its own independent approval/checkpoint is still required. No source is claimed.
 ## Proposed fingerprint storage-boundary refinement (2026-10-14)
 
 The separate [fingerprint addendum](artifacts/task-2-1-fingerprint-contract-addendum-2026-10-14.md) proposes plain canonical fingerprint text in the two DAG storage records, following existing workflow protocol/provider precedent. Its replacement API catalog and standalone proof change exactly six proposed keys without a new friend, public factory or reflection. RC-3 and all earlier packets remain byte-exact; canonical/deltas/src/current public baselines are unchanged. This refinement requires its own independent review/checkpoint/evidence before the remaining Task 2.1 source work. No checkbox closes or activation is requested.
+
+## Task 2.3 implementation clarification (2026-11-13)
+
+The combined source target follows design §15: rebind the run-input type from
+locally installed plans after restart, and use the approved logical workflow role
+keys for child values. No new friend, canonical edit, public API or task activation
+is proposed. Approved contract packets remain byte-exact.

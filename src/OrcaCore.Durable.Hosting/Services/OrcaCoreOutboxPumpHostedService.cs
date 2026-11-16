@@ -52,7 +52,11 @@ internal sealed class OrcaCoreOutboxPumpHostedService(
                 // external dispatcher never delivers them to a transport.
                 KindSelector = OutboxKindSelector.Excluding(
                     OutboxKinds.Continue,
-                    OutboxKinds.WorkflowEvent)
+                    OutboxKinds.WorkflowEvent,
+                    "dag-child-start-v1",
+                    "dag-child-join-v1",
+                    "dag-child-cancel-v1",
+                    "dag-run-ready-v1")
             },
             stoppingToken);
     }

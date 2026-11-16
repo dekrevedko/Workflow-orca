@@ -1,0 +1,20 @@
+ M CLAUDE.md
+ M docs/durable-driver-lane-host.md
+ M docs/implementation/00-stack-decisions.md
+ M docs/implementation/01-solution-architecture.md
+ M docs/implementation/README.md
+ M docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+ M docs/project-technical-overview.md
+ M docs/specs/05-requirements-events-waits-timers.md
+ M docs/specs/06-requirements-durable-execution.md
+ M docs/specs/16-requirements-durable-driver.md
+ M openspec/changes/admit-durable-dag-run-progression/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-request-2026-11-15.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md

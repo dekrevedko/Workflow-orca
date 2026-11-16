@@ -18,7 +18,7 @@
 - [ ] 2.1 Implement the approved stream identity, run protocol, exact provider ports/fences/discovery and atomic aggregate transitions, with API baselines, complete first-create PostgreSQL/SQL Server schemas and real-storage certification; no additional friend or codec permission.
 - [ ] 2.2 Implement dedicated role-independent child pumps and DAG-role-only ready sink/claim partition; prove wrong-lane release and no external acknowledgement, deterministic start/join/cancel recovery and poison rules.
 - [ ] 2.3 Implement the approved Dag.Hosting-to-durable bridge and full run lifecycle: exact declared-output decoding, CapacityDeferred versus AdmissionStopped, current-owner limits after restart, notification-driven joins/cancellation/terminal waits. Include the deferred source-only UnsafeAccessor/expression ban and DagRuntimeView.cs evidence-path audit without claiming they were fixed by this process gate. **RC-3 P3-2 source obligation:** define active/retired evaluation-lane gauges (including cancelled stuck mappers), idle dedicated-worker reuse and lifecycle accounting in this separately reviewed source slice; any API/signature additions need that review, not this transition.
-- [ ] 2.4 Obtain independent implementation approval for each large slice and checkpoint it before the next; refresh only the explicitly reviewed baseline/provenance changes. Reshape 8.4/8.5 may close only on their complete compiled evidence, not this contract checkbox.
+- [x] 2.4 Obtain independent implementation approval for each large slice and checkpoint it before the next; refresh only the explicitly reviewed baseline/provenance changes. Reshape 8.4/8.5 may close only on their complete compiled evidence, not this contract checkbox.
 
 ## 3. Final evidence and registry closeout
 
@@ -30,3 +30,22 @@
 **Task 2.1 first bounded source slice (2026-10-07, pending review):** typed WorkflowStreamId identity and exactly the seven approved OrcaCore API additions; existing workflow-only provider append/tail ports reject DAG/default IDs before storage access. No DAG persistence, run protocol, schema, fencing/discovery, pump, bridge or DG-P certification is claimed. Task 2.1 and 2.2–3.2 remain open; no activation checkbox exists for this partial slice. See artifacts/task-2-1-stream-identity-slice-2026-10-07.md.
 
 **Fingerprint contract refinement proposed (2026-10-14):** the separate addendum, replacement exact API catalog and standalone signatures/rehydration proof refine only the two storage-record fingerprint fields (six proposed API keys). Require independent review, exact checkpoint and direct-child verdict evidence before the next source slice; there is NO activation checkbox for this partial-contract refinement. Task 2.1 and 2.2–3.2 remain open. The next reviewed source target must bind that amendment approval and address the three round-100 findings; none is claimed fixed here. See artifacts/task-2-1-fingerprint-contract-addendum-2026-10-14.md.
+
+**Task 2.1 combined protocol/provider source target prepared (2026-10-29, not independently approved):** implements the approved protocol/fingerprint boundary and the three provider data planes together, plus the explicitly proposed Released lease outcome. Consumes fingerprint approval a6f02fa/3c2cd96; locks activated task 1.4 complete, adds no-effect early-rejection certification, and corrects the stale CLAUDE.md transition status. Includes the approved pressure snapshot/gauges, API candidates, first-create schemas and real-storage tests. No new runtime pump or Hosting bridge is implemented; the existing external pump fails closed on reserved DAG kinds. Task 2.1 and tasks 2.2–3.2 remain unchecked pending their own complete review/evidence; no source checkbox is activated by preparation. See artifacts/task-2-1-protocol-provider-errata-2026-10-29.md and its exact API/signature candidates.
+
+**Task 2.1 protocol/provider checkpoint recorded (2026-11-01):** checkpoint f62b0aafd8beeb69aa28efaba0f25413c4970b3b has the independently approved tree 0e5300632b9804f096ac45d119a602b5b9f5b9c7; its sole direct-child evidence commit 602844547539e0e5908d250c2a0d9560fc4b25dc adds the round-2026-10-29 APPROVE byte-exact and clears the active freeze. No activation or source-task checkbox followed.
+
+**Task 2.2 combined pump/certification target prepared (2026-11-01, pending independent review):** dedicated every-engine-host child pumps, the capable-sink-only ready claim seam, exact deterministic child binding, atomic terminal-join outbox production, fenced joins/cancellation recovery and visible poison handling are prepared together with the three carried provider-certification failures and the CLAUDE.md status correction. The real Dag.Hosting scheduler/ready-sink implementation, continuous run discovery, public DAG execution and full run bridge remain Task 2.3; no no-op ready sink is installed or allowed to acknowledge work. No new friend, public API, canonical sync, source-task completion or checkpoint is claimed. See artifacts/task-2-2-dedicated-pumps-and-certification-2026-11-01.md.
+
+**Task 2.3 implementation clarification (2026-11-13):** design §15 records the
+boot-local run-input binding and logical child value keys. Before enabling run
+creation, test restart rebinding and reject mismatched installed types or child
+role keys. Carry the child-pump starvation fix in the same uncommitted review
+target. No task is closed by this note.
+
+**Tasks 2.4/3.1 evidence disposition (2026-11-15, closeout candidate):**
+The [source approval and qualification inventory](artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md)
+binds the five already-checkpointed slice approvals. Task 2.4 records those approvals;
+it does not close Tasks 2.1–2.3 or reshape 8.4/8.5. Task 3.1 remains open for the
+unqualified acceptance/provider cases listed there. Task 3.2, registry Complete,
+archival, and the public Task 8.6 API are outside this review.

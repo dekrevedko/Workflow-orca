@@ -83,6 +83,11 @@ internal sealed class DurableContinuationPump(
         var recordsByInstance = new Dictionary<InstanceId, List<OutboxRecordId>>();
         foreach (var record in records)
         {
+            if (!string.Equals(record.Kind, OutboxKinds.Continue, StringComparison.Ordinal))
+            {
+                await outboxStore.ReleaseAsync(record.OutboxRecordId, cancellationToken).ConfigureAwait(false);
+                continue;
+            }
             DurableContinuationSignal signal;
             try
             {

@@ -13,28 +13,28 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `3ca1378e1bf99d338743c6a282edd65f02f83d55b5f21a286abb2c6e701bc274` |
+| 1 | `CLAUDE.md` | `3a49fe6b981d14759a816ff9b7118b94bcc49568bac66541971a63ae03be0314` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0` |
 | 5 | `docs/ephemeral-engine-diagrams.md` | `3f4e32e272c0acb5c073bbc44be5af5315c50ec887721d433d0817d4f5add62d` |
-| 6 | `docs/implementation/00-stack-decisions.md` | `f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b` |
-| 7 | `docs/implementation/01-solution-architecture.md` | `d8fa1238a510b0abf656e922ec3ab8fd84e733d5b974eb587aebb552ada933fe` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `aa9f9416257e3d8bd980e0a92d5d0db76cad15518892458236af66df113cc0d8` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `bf3cfb6fd1cafa8fa98daf4b4ba3a22ccda6c7affbfa53cd340e5c329208df0e` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d` |
-| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `af8a3ccd4903915faf0fc5ff114f322048345379157f0656ad3efeeba1efa372` |
+| 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `d7ffed1592a748662805d039ac99f32e8f070eab7fc7d957cc83ee96342f572a` |
 | 10 | `docs/normative-source-map.md` | `4bbecd28e5ede36215e5a7c68b903fe617c60ee1830a696788c3ff0c07b1afdf` |
 | 11 | `docs/production-readiness.md` | `8d3ffb9b52ef4b6bfc282023abd27c753bcf530ddfd36bf53df1d25e74910929` |
-| 12 | `docs/project-technical-overview.md` | `9618296d1dda5760d12b9a86ade83b7d9df549a1aab2e1a2b73b553d7a4aa829` |
+| 12 | `docs/project-technical-overview.md` | `c2c837223cd25bdaffec8fcab999b6ba0c38c2171ee7673fe1f79c014103a5c4` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
 | 14 | `docs/specs/03-domain-model-and-glossary.md` | `f541785b062b14fd8b5231124cc50952da87c111fd9c0883093484ff8154a175` |
-| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `bad2a1512b89e3fd2a09cfc00ea37050e191d4e4147c59f8f6943b7e9e556142` |
-| 16 | `docs/specs/06-requirements-durable-execution.md` | `6446c249abb489dfb1f096aca5ff47339bdcbdcbc7ed8240c990c387b0f2c1d5` |
+| 15 | `docs/specs/05-requirements-events-waits-timers.md` | `c546e72793148ce5e34f0868b36170316e0ca9d34b830ad8bb2b73267df427f2` |
+| 16 | `docs/specs/06-requirements-durable-execution.md` | `c726bcc03d1e5ae8f7afc34b4a54ed50ef63da54f9c50f486779292197f00a08` |
 | 17 | `docs/specs/09-requirements-management-operations.md` | `c24a44983974023b20d6e59cee0162bf1caf48140ebe307942f006dc7eb5a738` |
 | 18 | `docs/specs/10-provider-model-and-extensibility.md` | `2e832b0068a3c31fd0e41db64db4624272dd2f90b224cc98078040e42f44acca` |
 | 19 | `docs/specs/12-acceptance-criteria.md` | `6fbd9b7716acfbd2fb4d9676e640d03eecd09d2e0380f3ddcb97c141304fc31b` |
 | 20 | `docs/specs/13-phasing-and-open-questions.md` | `9c5e51821dab5ed9b257d64c25d9639dcba23a15390746478d3cc4263495ae8f` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
-| 22 | `docs/specs/16-requirements-durable-driver.md` | `7462935c982e22d0ba8878968d9f117eff05219bea7e3831e181e759bb03fd3a` |
+| 22 | `docs/specs/16-requirements-durable-driver.md` | `2f7e9845b13d25c5e9cb11898d669c911368a08d4c87c9f2843a4ff56e258ffe` |
 
 ## Reconciled contract
 
@@ -187,3 +187,16 @@ source/candidate-package target. They describe implemented candidate behavior an
 all three owner/drain recipes, while explicitly retaining independent source review
 and publication gates. Historical verdicts and canonical approval evidence are
 unchanged. No released-package shutdown capability is inferred from source status.
+
+## DAG Task 2.2 pump source candidate (2026-11-01)
+
+Only row 1 changes: CLAUDE.md now records the independently checkpointed Task 2.1
+protocol/provider data plane and this pending Task 2.2 pump target. Mapping, the
+capable Dag.Hosting ready sink/scheduler and full run bridge remain Task 2.3.
+All other source rows and historical review records remain unchanged.
+
+## DAG Tasks 2.4/3.1 evidence closeout candidate (2026-11-15)
+
+Rows 1, 6, 7, 9, 12, 15, 16, 22 refresh only the current DAG source/evidence status in the
+edited numbered and guide documents. The previously reviewed requirements,
+API baselines, canonical sync, and expected-red dispositions are unchanged.

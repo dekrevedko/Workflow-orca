@@ -7,4 +7,8 @@
     <ProjectReference Include="..\OrcaCore.Abstractions\OrcaCore.csproj" />
     <ProjectReference Include="..\OrcaCore.Runtime.Protocol\OrcaCore.Runtime.Protocol.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- SDK-free private sources are compiled into the owning providers, not this contract assembly. -->
+    <Compile Remove="Dag\Internal\**\*.cs" />
+  </ItemGroup>
 </Project>

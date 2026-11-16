@@ -9,9 +9,9 @@
     "DeadOrDuplicate"
   ],
   "expectedCounts": {
-    "families": 24,
+    "families": 25,
     "physicallyDeletedPaths": 134,
-    "compileExcludedEntries": 1,
+    "compileExcludedEntries": 2,
     "orphanedProductionRoots": 0,
     "retiredPackageArtifacts": 5,
     "symbolInventories": 4
@@ -588,6 +588,26 @@
       "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/PackageConsumerGuards.cs#BrokerAdapterExamples_UseOnlyTheApplicationIngressAndDispatcherBoundary"],
       "compileRemoves": [
         {"project": "samples/OrcaCore.SampleHost/OrcaCore.SampleHost.csproj", "remove": "BrokerAdapters/**/*.cs"}
+      ]
+    },
+    {
+      "id": "dag-provider-private-source-ownership",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "repository-foundation::Package topology and ownership are exact",
+        "durable-persistence-and-outbox::First-release provider ownership and schemas are exact"
+      ],
+      "owner": "active:src/OrcaCore.Providers.InMemory",
+      "recoveryPaths": ["current:src/OrcaCore.Provider.Abstractions/Dag/Internal"],
+      "successorPaths": [
+        "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj",
+        "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
+        "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj"
+      ],
+      "symbolFamilies": ["SDK-free DAG provider-private transaction and state helpers, linked into owning providers rather than exported by the contract assembly"],
+      "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs#Task21ProtocolProviderCandidate_PreservesApprovedHistoryAndOnlyAddsReleased"],
+      "compileRemoves": [
+        {"project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj", "remove": "Dag/Internal/**/*.cs"}
       ]
     }
   ]

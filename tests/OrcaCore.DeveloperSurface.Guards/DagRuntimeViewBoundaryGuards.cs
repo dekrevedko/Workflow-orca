@@ -46,6 +46,36 @@ public sealed class DagRuntimeViewBoundaryGuards
     ];
 
     [Fact]
+    public void Hosting_ConsumesOnlyTheExactDurableBridgeCandidate()
+    {
+        var root = FixtureDefinitions.RepositoryRoot();
+        var hosting = typeof(OrcaCore.Dag.Hosting.DagHostOptions).Assembly.Location;
+        var durable = typeof(OrcaCore.Hosting.OrcaCoreDurableEngineServiceCollectionExtensions).Assembly.Location;
+        var references = Inspect(hosting, durable, "OrcaCore.Durable.Hosting");
+        AssertNoReflection(references.Reflection);
+        using var stream = File.OpenRead(hosting);
+        using var pe = new PEReader(stream);
+        var metadata = pe.GetMetadataReader();
+        var forbidden = metadata.TypeReferences.Select(handle => ReferenceType(metadata, handle))
+            .OfType<(string Assembly, string Name)>()
+            .Where(type => type.Name is "OrcaCore.Abstractions.Providers.IWorkflowEventStore" or
+                "OrcaCore.Abstractions.Providers.IWorkflowOutboxStore" ||
+                type.Assembly == "OrcaCore.Provider.Abstractions" ||
+                type.Assembly.StartsWith("OrcaCore.Providers.", StringComparison.Ordinal))
+            .ToArray();
+        forbidden.Should().BeEmpty("Dag.Hosting must never bypass the Durable.Hosting bridge through a provider port");
+        var actual = references.Types.Select(type => "type " + type)
+            .Concat(references.Members.Select(member => "member " + member)).ToArray();
+        var candidate = Path.Combine(root, "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-2-3-bridge-references.txt");
+        File.Exists(candidate).Should().BeTrue("the complete compiled inventory is:\n{0}", string.Join('\n', actual));
+        Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            File.ReadAllText(candidate).Replace("\r\n", "\n", StringComparison.Ordinal)))).Should()
+            .Be("bd7d2d52f25a3c09660c1eb45567ce8ef5e33b74bedce20906c4ad5e81b2ad4d");
+        actual.Should().Equal(File.ReadAllLines(candidate),
+            "each compiled type, overload and getter must be explicitly reviewable");
+    }
+
+    [Fact]
     public void Hosting_ConsumesExactlyTheThreeTypesAndFifteenReviewedSignatures()
     {
         var validation = File.ReadAllText(Path.Combine(FixtureDefinitions.RepositoryRoot(),
@@ -174,6 +204,25 @@ public sealed class DagRuntimeViewBoundaryGuards
                 "System.Type::GetProperty", "compiled private reflection must produce detectable metadata");
             Action validateReflection = () => AssertNoReflection(reflectionReferences.Reflection);
             validateReflection.Should().Throw<Exception>().WithMessage("*reflection bridge*");
+            File.WriteAllText(Path.Combine(client, "Probe.cs"), """
+                using System;
+                using System.Linq.Expressions;
+                using System.Runtime.CompilerServices;
+                using OrcaCore.Dag;
+                internal static class AccessProbe
+                {
+                    [UnsafeAccessor(UnsafeAccessorKind.Method, Name = "get_PlanToken")]
+                    internal static extern object Read(DagNodeRef node);
+                    internal static Func<int> Build() => ((Expression<Func<int>>)(() => 1)).Compile();
+                }
+                """);
+            var unsafeDll = Build(client, "OrcaCore.Dag.Hosting", false,
+                targetDll, typeof(OrcaCore.DefinitionId).Assembly.Location);
+            var unsafeReferences = Inspect(unsafeDll, targetDll);
+            unsafeReferences.Reflection.Should().Contain("System.Runtime.CompilerServices.UnsafeAccessorAttribute");
+            unsafeReferences.Reflection.Should().Contain(type => type.StartsWith("System.Linq.Expressions.", StringComparison.Ordinal));
+            Action validateUnsafe = () => AssertNoReflection(unsafeReferences.Reflection);
+            validateUnsafe.Should().Throw<Exception>().WithMessage("*reflection bridge*");
             File.WriteAllText(Path.Combine(client, "Probe.cs"),
                 "using OrcaCore.Dag; internal static class PublicProbe { internal static object Value(DagNodeRef node) => node.NodeId; }");
             var publicDll = Build(client, "OrcaCore.Dag.Hosting", false,
@@ -205,7 +254,8 @@ public sealed class DagRuntimeViewBoundaryGuards
         "System.Reflection.AssemblyVersionAttribute"
     ];
 
-    private static (string[] Types, string[] Members, string[] Reflection) Inspect(string clientPath, string targetPath)
+    private static (string[] Types, string[] Members, string[] Reflection) Inspect(string clientPath, string targetPath,
+        string targetAssembly = DagAssembly)
     {
         using var targetStream = File.OpenRead(targetPath);
         using var targetPe = new PEReader(targetStream);
@@ -220,10 +270,13 @@ public sealed class DagRuntimeViewBoundaryGuards
         foreach (var handle in client.TypeReferences)
         {
             var reference = ReferenceType(client, handle);
-            if (reference is not null && reference.Value.Name.StartsWith("System.Reflection.", StringComparison.Ordinal)
-                && !AssemblyAttributeTypes.Contains(reference.Value.Name, StringComparer.Ordinal))
+            if (reference is not null &&
+                (reference.Value.Name.StartsWith("System.Reflection.", StringComparison.Ordinal) &&
+                 !AssemblyAttributeTypes.Contains(reference.Value.Name, StringComparer.Ordinal) ||
+                 reference.Value.Name.StartsWith("System.Linq.Expressions.", StringComparison.Ordinal) ||
+                 reference.Value.Name == "System.Runtime.CompilerServices.UnsafeAccessorAttribute"))
                 reflection.Add(reference.Value.Name);
-            if (reference is null || reference.Value.Assembly != DagAssembly) continue;
+            if (reference is null || reference.Value.Assembly != targetAssembly) continue;
             definitions.ContainsKey(reference.Value.Name).Should().BeTrue("every external type must resolve");
             if (!Visible(target, definitions[reference.Value.Name])) types.Add(reference.Value.Name);
         }
@@ -241,7 +294,7 @@ public sealed class DagRuntimeViewBoundaryGuards
                  type.Value.Name == "System.Delegate" && memberName == "DynamicInvoke" ||
                  type.Value.Name == "System.Activator"))
                 reflection.Add($"{type.Value.Name}::{memberName}");
-            if (type is null || type.Value.Assembly != DagAssembly) continue;
+            if (type is null || type.Value.Assembly != targetAssembly) continue;
             definitions.ContainsKey(type.Value.Name).Should().BeTrue();
             var definitionHandle = definitions[type.Value.Name];
             var definition = target.GetTypeDefinition(definitionHandle);
@@ -252,7 +305,7 @@ public sealed class DagRuntimeViewBoundaryGuards
             {
                 var fieldType = member.DecodeFieldSignature(Signatures.Instance, null);
                 var field = definition.GetFields().Select(target.GetFieldDefinition).Single(field =>
-                    target.GetString(field.Name) == name && field.DecodeSignature(Signatures.Instance, null) == fieldType);
+                    target.GetString(field.Name) == name && field.DecodeSignature(new Signatures(targetAssembly), null) == fieldType);
                 if (!Visible(target, definitionHandle) || (field.Attributes & FieldAttributes.FieldAccessMask) != FieldAttributes.Public)
                     members.Add($"{type.Value.Name}::{name}:{fieldType}");
             }
@@ -260,7 +313,7 @@ public sealed class DagRuntimeViewBoundaryGuards
             {
                 var signature = MethodSignature(member.DecodeMethodSignature(Signatures.Instance, null));
                 var method = definition.GetMethods().Select(target.GetMethodDefinition).Single(method =>
-                    target.GetString(method.Name) == name && MethodSignature(method.DecodeSignature(Signatures.Instance, null)) == signature);
+                    target.GetString(method.Name) == name && MethodSignature(method.DecodeSignature(new Signatures(targetAssembly), null)) == signature);
                 if (!Visible(target, definitionHandle) || (method.Attributes & MethodAttributes.MemberAccessMask) != MethodAttributes.Public)
                     members.Add($"{type.Value.Name}::{name}{signature}");
             }
@@ -359,12 +412,12 @@ public sealed class DagRuntimeViewBoundaryGuards
         return (process.ExitCode, stdout.GetAwaiter().GetResult() + stderr.GetAwaiter().GetResult());
     }
 
-    private sealed class Signatures : ISignatureTypeProvider<string, object?>
+    private sealed class Signatures(string definitionAssembly) : ISignatureTypeProvider<string, object?>
     {
-        internal static readonly Signatures Instance = new();
+        internal static readonly Signatures Instance = new(DagAssembly);
         public string GetPrimitiveType(PrimitiveTypeCode code) => code.ToString();
         public string GetTypeFromDefinition(MetadataReader reader, TypeDefinitionHandle handle, byte kind) =>
-            $"[{DagAssembly}]{DefinitionName(reader, handle)}";
+            $"[{definitionAssembly}]{DefinitionName(reader, handle)}";
         public string GetTypeFromReference(MetadataReader reader, TypeReferenceHandle handle, byte kind)
         {
             var type = ReferenceType(reader, handle) ?? throw new InvalidDataException("Unresolved signature type.");

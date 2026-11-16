@@ -120,6 +120,11 @@ public sealed class StateAndCodecGreenGuards
             ["OrcaCore.Runtime.Protocol/ResourceGovernanceRecordJsonConverter.cs"] = 2,
             ["OrcaCore.Runtime.Protocol/Serialization/WorkflowEventCodec.cs"] = 2,
             ["OrcaCore.Provider.Abstractions/InboxRouteKeyJsonConverter.cs"] = 2,
+            // Closed DAG aggregate/checkpoint/receipt framing; never a business-value codec.
+            ["OrcaCore.Provider.Abstractions/Dag/Internal/DagRunStoreRules.cs"] = 3,
+            ["OrcaCore.Provider.Abstractions/Dag/Internal/DagRunSqlStore.cs"] = 7,
+            // Candidate Task 2.2 child signal/checkpoint framing, never mapped business values.
+            ["OrcaCore.Engine.Durable/Dag/DurableDagWire.cs"] = 6,
             ["OrcaCore.Engine.Durable/Outbox/DurableWorkflowOutboundEventCodec.cs"] = 2,
             ["OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs"] = 2,
             ["OrcaCore.Providers.PostgreSql/PostgreSqlResourcePoolStore.cs"] = 4,

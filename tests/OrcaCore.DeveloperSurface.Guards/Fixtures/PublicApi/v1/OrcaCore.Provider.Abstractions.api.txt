@@ -94,6 +94,141 @@ type public sealed class OrcaCore.Abstractions.Providers.CheckpointWrite interfa
   property [System.Private.CoreLib]System.String? ErrorSummary { get:public; init:public }
   property [System.Private.CoreLib]System.String? LastStepPath { get:public; init:public }
   property [System.Private.CoreLib]System.String? OutcomeName { get:public; init:public }
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.Guid OperationId, [System.Private.CoreLib]System.String! OperationFingerprint, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? Fence attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)], [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunRecordV1!]! Records, [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunCheckpointV1! Checkpoint)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1!
+  method public Deconstruct(out [System.Private.CoreLib]System.Guid OperationId, out [System.Private.CoreLib]System.String! OperationFingerprint, out [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? Fence attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)], out [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunRecordV1!]! Records, out [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunCheckpointV1! Checkpoint) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? Fence { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  property [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunCheckpointV1! Checkpoint { get:public; init:public }
+  property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunRecordV1!]! Records { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid OperationId { get:public; init:public }
+  property [System.Private.CoreLib]System.String! OperationFingerprint { get:public; init:public }
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.Int64 AfterCreationSequence, [System.Private.CoreLib]System.Int32 MaxCount)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1!
+  method public Deconstruct(out [System.Private.CoreLib]System.Int64 AfterCreationSequence, out [System.Private.CoreLib]System.Int32 MaxCount) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Int32 MaxCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 AfterCreationSequence { get:public; init:public }
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.Int64 CreationSequence, [System.Private.CoreLib]System.Guid RunId, [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion StreamVersion, [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunBindingV1! Definition, [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunStateV1 State)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1!
+  method public Deconstruct(out [System.Private.CoreLib]System.Int64 CreationSequence, out [System.Private.CoreLib]System.Guid RunId, out [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion StreamVersion, out [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunBindingV1! Definition, out [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunStateV1 State) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunBindingV1! Definition { get:public; init:public }
+  property [OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunStateV1 State { get:public; init:public }
+  property [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion StreamVersion { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RunId { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 CreationSequence { get:public; init:public }
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.Guid RunId, [System.Private.CoreLib]System.Guid OwnerId, [System.Private.CoreLib]System.Int64 Token, [System.Private.CoreLib]System.Guid RequestId)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1!
+  method public Deconstruct(out [System.Private.CoreLib]System.Guid RunId, out [System.Private.CoreLib]System.Guid OwnerId, out [System.Private.CoreLib]System.Int64 Token, out [System.Private.CoreLib]System.Guid RequestId) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Guid OwnerId { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RequestId { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RunId { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 Token { get:public; init:public }
+type public enum OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Granted = 0
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 NotFound = 4
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 OwnerBusy = 2
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Queued = 1
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Released = 6
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 StaleFence = 3
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Terminal = 5
+type public enum OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 Admission = 0
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 ChildJoin = 1
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 IntegrityReconciliation = 3
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 RunCancellation = 2
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.Guid RunId, [System.Private.CoreLib]System.Guid OwnerId, [System.Private.CoreLib]System.Guid RequestId, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 Purpose, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int64] ExpectedFence, [System.Private.CoreLib]System.TimeSpan LeaseDuration)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1!
+  method public Deconstruct(out [System.Private.CoreLib]System.Guid RunId, out [System.Private.CoreLib]System.Guid OwnerId, out [System.Private.CoreLib]System.Guid RequestId, out [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 Purpose, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int64] ExpectedFence, out [System.Private.CoreLib]System.TimeSpan LeaseDuration) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1 Purpose { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid OwnerId { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RequestId { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RunId { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int64] ExpectedFence { get:public; init:public }
+  property [System.Private.CoreLib]System.TimeSpan LeaseDuration { get:public; init:public }
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Outcome, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? Fence, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] ExpiresAt, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] HardDeadline, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int64] QueueSequence, [System.Private.CoreLib]System.Nullable`1[[OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion] CurrentVersion)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1!
+  method public Deconstruct(out [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Outcome, out [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? Fence, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] ExpiresAt, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] HardDeadline, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int64] QueueSequence, out [System.Private.CoreLib]System.Nullable`1[[OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion] CurrentVersion) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1? Fence { get:public; init:public }
+  property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseOutcomeV1 Outcome { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion] CurrentVersion { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] ExpiresAt { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] HardDeadline { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Int64] QueueSequence { get:public; init:public }
+type public enum OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 AlreadyChanged = 1
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 NotFound = 2
+  field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 Subscribed = 0
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 Outcome, [System.Private.CoreLib]System.Nullable`1[[OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion] CurrentVersion)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1!
+  method public Deconstruct(out [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 Outcome, out [System.Private.CoreLib]System.Nullable`1[[OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion] CurrentVersion) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeOutcomeV1 Outcome { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion] CurrentVersion { get:public; init:public }
+type public sealed class OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([System.Private.CoreLib]System.Guid SubscriptionId, [System.Private.CoreLib]System.Guid RecipientHostId, [System.Private.CoreLib]System.Guid RunId, [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion AfterVersion, [System.Private.CoreLib]System.TimeSpan LeaseDuration)
+  method public <Clone>$() -> [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1!
+  method public Deconstruct(out [System.Private.CoreLib]System.Guid SubscriptionId, out [System.Private.CoreLib]System.Guid RecipientHostId, out [System.Private.CoreLib]System.Guid RunId, out [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion AfterVersion, out [System.Private.CoreLib]System.TimeSpan LeaseDuration) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion AfterVersion { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RecipientHostId { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid RunId { get:public; init:public }
+  property [System.Private.CoreLib]System.Guid SubscriptionId { get:public; init:public }
+  property [System.Private.CoreLib]System.TimeSpan LeaseDuration { get:public; init:public }
 type public enum OrcaCore.Abstractions.Providers.DispatchResult : [System.Private.CoreLib]System.Int32
   field public [System.Private.CoreLib]System.Int32 value__
   field public const [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.DispatchResult PermanentFailure = 2
@@ -124,9 +259,20 @@ type public interface OrcaCore.Abstractions.Providers.ITimerScheduler
   method public abstract ReleaseAsync([OrcaCore]OrcaCore.Abstractions.Ids.TimerId timerId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task!
   method public abstract ScheduleAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.TimerScheduleRequest! request, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task!
 type public interface OrcaCore.Abstractions.Providers.IWorkflowEventStore
+  method public abstract AcquireDagRunLeaseAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1! request, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1!]!
   method public abstract AppendAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProviderCommitBatch! batch, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Result`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.AppendEventsResult!]]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0, 1])]
+  method public abstract CancelDagRunLeaseRequestAsync([System.Private.CoreLib]System.Guid runId, [System.Private.CoreLib]System.Guid ownerId, [System.Private.CoreLib]System.Guid requestId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task!
+  method public abstract GetDagRunByStartKeyAsync([OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunStartKeyV1! startKey, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1!]]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0, 1])]
+  method public abstract ListRecoverableDagRunsAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryRequestV1! request, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunDiscoveryV1!]!]!
   method public abstract LoadCheckpointAsync([OrcaCore]OrcaCore.InstanceId! instanceId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.CheckpointWrite!]]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0, 1])]
+  method public abstract LoadDagRunCheckpointAsync([OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId streamId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[[OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunCheckpointV1!]]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0, 1])]
+  method public abstract LoadDagRunTailAsync([OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId streamId, [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion afterVersion, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.Dag.DagRunRecordV1!]!]!
   method public abstract LoadTailAsync([OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId streamId, [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion afterVersion, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Runtime.Protocol]OrcaCore.Abstractions.Durable.WorkflowEvent!]!]!
+  method public abstract PruneExpiredDagRunObserversAsync([System.Private.CoreLib]System.Int32 maxCount, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[System.Private.CoreLib]System.Int32]!
+  method public abstract ReleaseDagRunLeaseAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunFenceV1! fence, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1!]!
+  method public abstract RenewDagRunLeaseAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseRequestV1! request, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunLeaseResultV1!]!
+  method public abstract SubscribeDagRunAsync([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscriptionV1! subscription, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunSubscribeResultV1!]!
+  method public abstract UnsubscribeDagRunAsync([System.Private.CoreLib]System.Guid subscriptionId, [System.Private.CoreLib]System.Guid recipientHostId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task!
 type public interface OrcaCore.Abstractions.Providers.IWorkflowInboxStore
   method public abstract GetAsync([OrcaCore]OrcaCore.InstanceId! instanceId, [OrcaCore]OrcaCore.EventId! eventId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.InboxRecord!]]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0, 1])]
   method public abstract GetByEventIdAsync([OrcaCore]OrcaCore.EventId! eventId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken) -> [System.Private.CoreLib]System.Threading.Tasks.Task`1[[OrcaCore]OrcaCore.Abstractions.Primitives.Option`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.InboxRecord!]]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0, 1])]
@@ -432,6 +578,7 @@ type public sealed class OrcaCore.Abstractions.Providers.OutboxClaimRequest inte
   property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.OutboxKindSelector? KindSelector { get:public; init:public }
   property [System.Private.CoreLib]System.DateTimeOffset ClaimedAt { get:public; init:public }
   property [System.Private.CoreLib]System.Int32 MaxCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Guid] RecipientHostId { get:public; init:public }
   property [System.Private.CoreLib]System.TimeSpan LeaseDuration { get:public; init:public }
 type public sealed class OrcaCore.Abstractions.Providers.OutboxDispatchSnapshot interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.OutboxDispatchSnapshot~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   ctor public .ctor([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.OutboxRecordState State)
@@ -482,6 +629,9 @@ type public sealed class OrcaCore.Abstractions.Providers.OutboxWrite interfaces 
   property [OrcaCore]OrcaCore.Abstractions.Ids.OutboxRecordId OutboxRecordId { get:public; init:public }
   property [System.Private.CoreLib]System.Byte[]! Payload { get:public; init:public }
   property [System.Private.CoreLib]System.Int32 DispatchAttempt { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Guid] DagRunOwner { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Guid] DagRunSubscriptionId { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.Guid] RecipientHostId { get:public; init:public }
   property [System.Private.CoreLib]System.String! Kind { get:public; init:public }
 type public sealed class OrcaCore.Abstractions.Providers.ProjectionHistoryWrite interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProjectionHistoryWrite~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   ctor public .ctor([System.Private.CoreLib]System.Guid HistoryId, [System.Private.CoreLib]System.DateTimeOffset RecordedAt, [System.Private.CoreLib]System.String! Kind, [System.Private.CoreLib]System.String! PayloadJson)
@@ -529,6 +679,7 @@ type public sealed class OrcaCore.Abstractions.Providers.ProviderCommitBatch int
   operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProviderCommitBatch? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProviderCommitBatch? right) -> [System.Private.CoreLib]System.Boolean
   operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProviderCommitBatch? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.ProviderCommitBatch? right) -> [System.Private.CoreLib]System.Boolean
   property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.CheckpointWrite? Checkpoint { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  property [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.Dag.DagRunAppendV1? DagRun { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
   property [OrcaCore]OrcaCore.Abstractions.Ids.StreamVersion ExpectedVersion { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.RequiredMemberAttribute()]
   property [OrcaCore]OrcaCore.Abstractions.Ids.WorkflowStreamId StreamId { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.RequiredMemberAttribute()]
   property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.InboxRouteMutation!]! InboxRouteMutations { get:public; init:public }
@@ -608,6 +759,8 @@ type public sealed class OrcaCore.Abstractions.Providers.WorkflowOperationalPres
   method public virtual sealed Equals([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.WorkflowOperationalPressure? other) -> [System.Private.CoreLib]System.Boolean
   operator public static op_Equality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.WorkflowOperationalPressure? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.WorkflowOperationalPressure? right) -> [System.Private.CoreLib]System.Boolean
   operator public static op_Inequality([OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.WorkflowOperationalPressure? left, [OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.WorkflowOperationalPressure? right) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Int64 ActiveDagObserverCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 ActiveDagRunCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ActiveInstanceCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ActiveWaitCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 CheckpointCount { get:public; init:public }
@@ -616,11 +769,24 @@ type public sealed class OrcaCore.Abstractions.Providers.WorkflowOperationalPres
   property [System.Private.CoreLib]System.Int64 ContinuationPendingCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ContinuationPoisonedCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ContinuationRetryableCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagObserverClaimedCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagObserverPendingCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagObserverPoisonedCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagObserverRetryableCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagRunCheckpointCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagRunCheckpointLag { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 DagRunStreamEventCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 ExpiredDagObserverCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ExternalOutboxClaimedCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ExternalOutboxPendingCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ExternalOutboxPoisonedCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 ExternalOutboxRetryableCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 InternalDagClaimedCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 InternalDagPendingCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 InternalDagPoisonedCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 InternalDagRetryableCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 StreamEventCount { get:public; init:public }
+  property [System.Private.CoreLib]System.Int64 StuckDagRunCount { get:public; init:public }
   property [System.Private.CoreLib]System.Int64 StuckInstanceCount { get:public; init:public }
 type public sealed class OrcaCore.Abstractions.Providers.WorkflowOperatorActiveWaitGroup interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Provider.Abstractions]OrcaCore.Abstractions.Providers.WorkflowOperatorActiveWaitGroup~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   ctor public .ctor([OrcaCore]OrcaCore.DefinitionId! DefinitionId, [OrcaCore]OrcaCore.EventName! EventName, [System.Private.CoreLib]System.Int64 Count)

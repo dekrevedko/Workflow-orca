@@ -1,0 +1,8 @@
+ M docs/implementation/00-stack-decisions.md
+ M openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-request-2026-11-15.md

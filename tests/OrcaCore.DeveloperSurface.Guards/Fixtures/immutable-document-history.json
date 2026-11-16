@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-fingerprint-contract-amendment-dirty-manifest-2026-10-14.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-dirty-manifest-2026-11-15.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2521,6 +2521,21 @@
       "sha256": "f54a6ba50a1ea1ce0d18d2f904a388a1ab91145d7ea59f65da1fb89acc70370c"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-dirty-manifest-2026-10-29.txt",
+      "bytes": 7059,
+      "sha256": "1934b1604357b5a5084ffffd701be38e131e2177bec5a0df696c80cd3aa29bf2"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-request-2026-10-29.md",
+      "bytes": 12529,
+      "sha256": "ae2bb9a543fed6fa6f899edaa016d697808a211d3fd068898a374495043fcf45"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-protocol-provider-independent-review-verdict-2026-10-29.md",
+      "bytes": 8809,
+      "sha256": "c971876e87d871f5fce5b48bc685a918f7d2e1dd8b6dd81869068c4bf9d5584b"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-dirty-manifest-2026-10-07.txt",
       "bytes": 3003,
       "sha256": "268d3728fddf4225e266af65fe3bd09d1aeaa93f5dd5cd14cd27a5239dc17a49"
@@ -2534,6 +2549,81 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-1-stream-identity-independent-review-verdict-2026-10-14.md",
       "bytes": 16156,
       "sha256": "d786d7ca7c00af25c147079d68ccf74875b28878364738c9c06198453c23cb39"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-dirty-manifest-2026-11-01.txt",
+      "bytes": 3057,
+      "sha256": "d17c81ba6d8cbced8106302b4bbdd003ceacc06678cbf0e5ee0d198b155fb8da"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-independent-review-request-2026-11-01.md",
+      "bytes": 14123,
+      "sha256": "79f39693b5e81625ae4ee60c6f15ba20c8536e5ab5613a7732db42bce7fd8767"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-independent-review-verdict-2026-11-01.md",
+      "bytes": 8396,
+      "sha256": "0107b814d79c36450fe1f2c6b866069114bd59adb7099763269d51a477889b7b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-dirty-manifest-2026-11-13.txt",
+      "bytes": 3795,
+      "sha256": "35a038698a856e488298a56e7190a8440b5a2e2f9dd0391f2061710792024939"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-independent-review-request-2026-11-13.md",
+      "bytes": 6691,
+      "sha256": "731e8f6c163f249630d817409be21c56e33403c6d8a14551d508311ec03cb46d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-bridge-scheduler-independent-review-verdict-2026-11-13.md",
+      "bytes": 11656,
+      "sha256": "0ab955ba8b37f91a0df32e740f6605e6f24de1c89630dec7d46480e884444103"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-dirty-manifest-2026-11-15.txt",
+      "bytes": 830,
+      "sha256": "508b40230f7c2239537929725518633388897e2e9e42ee6fe211e32f8b6f9ad6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-independent-review-request-2026-11-15.md",
+      "bytes": 5872,
+      "sha256": "34ae0fb3687ede977846e7e8dd702f0ebd43ddc85af5d5790cbb86a9f498d0b2"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-independent-review-verdict-2026-11-15.md",
+      "bytes": 7585,
+      "sha256": "953c02bd07e17ea0b378cba8a001306a9a23d53efd9f73de2f2e07f797f2a946"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-dirty-manifest-2026-11-15.txt",
+      "bytes": 1409,
+      "sha256": "b2c1fff19bb1dcad73a26d029763ce41f5c45cb29cc753c5161c2996f2efec49"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-request-2026-11-15.md",
+      "bytes": 4119,
+      "sha256": "243530d6fb37d282f0f7aa7baeb9f2700c7dd347026bc0262a31147b701fae49"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-verdict-2026-11-15.md",
+      "bytes": 8382,
+      "sha256": "8d84f68b617053fa0a8f45bbfe13c547d0ce99fa14c388d80b2f0e3912ca5a6c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-dirty-manifest-2026-11-15.txt",
+      "bytes": 787,
+      "sha256": "fafe860b2ebeed62b17c49502141c8e5a79e0f895c96d64649de043cdc4b87ff"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-request-2026-11-15.md",
+      "bytes": 2066,
+      "sha256": "6fbdbb009f2fbec8ab54f39f1bec921995ee61a198d878bc34ca0811edcc5b51"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-verdict-2026-11-15.md",
+      "bytes": 1872,
+      "sha256": "2e7c7a4b9a4cb4d434f97cb0d3e24a44f08df1972e2c3eda1fb1d210128e5504"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",

@@ -1,0 +1,42 @@
+ M CLAUDE.md
+ M openspec/changes/admit-durable-dag-run-progression/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs
+ M src/OrcaCore.Durable.Hosting/Services/WorkflowEventOutboxPump.cs
+ M src/OrcaCore.Engine.Durable/Definitions/DurableDefinitionRegistry.cs
+ M src/OrcaCore.Engine.Durable/Driver/DurableContinuationPump.cs
+ M src/OrcaCore.Engine.Durable/Execution/DurableCommitPipeline.cs
+ M src/OrcaCore.Engine.Durable/Outbox/DurableOutboxPump.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/StateAndCodecContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+ M tests/OrcaCore.Engine.Durable.Tests/Outbox/DurableOutboxTests.cs
+ M tests/OrcaCore.Hosting.Tests/SampleHostSmokeTests.cs
+ M tests/OrcaCore.ProviderCertification/DagRunCertification.cs
+ M tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-dirty-manifest-2026-11-01.txt
+?? docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-2-pumps-and-certification-independent-review-request-2026-11-01.md
+?? openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-2-dedicated-pumps-and-certification-2026-11-01.md
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagChildCoordinator.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagChildPump.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagPumpHostedService.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagPumpTelemetry.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagReadyPump.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagRunTurns.cs
+?? src/OrcaCore.Engine.Durable/Dag/DurableDagChildEngine.cs
+?? src/OrcaCore.Engine.Durable/Dag/DurableDagTerminalNotice.cs
+?? src/OrcaCore.Engine.Durable/Dag/DurableDagWire.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+?? tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.cs
+?? tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs
+?? tests/OrcaCore.Hosting.Tests/DagPumpRunFixture.cs

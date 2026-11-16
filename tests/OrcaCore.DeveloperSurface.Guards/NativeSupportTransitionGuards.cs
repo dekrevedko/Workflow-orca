@@ -96,6 +96,7 @@ public sealed class NativeSupportTransitionGuards
         current.Remove("nativeSupportContractEvidence");
         current.Remove("nativeSupportPendingAmendments");
         current["schemaVersion"] = 19;
+        DagStreamIdentitySliceGuards.ProjectTask21RegistryExtension(old!.AsObject(), current);
         JsonNode.DeepEquals(old, current).Should().BeTrue("only the two specifically validated native-support keys extend the prior registry");
         var evidence = root.GetProperty("nativeSupportContractEvidence");
         S(evidence, "stage").Should().Be(Stage);

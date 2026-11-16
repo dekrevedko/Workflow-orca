@@ -1,11 +1,112 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Providers.InMemory;
 using Xunit;
 
 namespace OrcaCore.ProviderCertification;
 
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
+    [Fact]
+    public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
+        DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
+            new ServiceCollection().AddOrcaCoreInMemoryDurableProvider(), TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public Task DagRetainedChild_DoesNotStarveHealthyRun(int batchSize) =>
+        DagRunCertification.RetainedChildDoesNotStarveHealthyRunAsync(
+            new ServiceCollection().AddOrcaCoreInMemoryDurableProvider(), batchSize, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task DagCreationAndReplay_PersistAnIndependentAggregate()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.CreationAndReplayAsync(provider.EventStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagFencedAppend_AtomicallyPersistsInputsAndAddressedNotices()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.FencedAppendAndObserversAsync(provider.EventStore, provider.OutboxStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagLeaseQueue_UsesFifoAndAnAbsoluteTurnDeadline()
+    {
+        var clock = new DagCertificationTimeProvider();
+        using var provider = InMemoryProviderPorts.Create(clock);
+        await DagRunCertification.LeaseQueueAsync(provider.EventStore, clock.GetUtcNow, clock.Advance, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagDeadWaiter_ExpiresWithoutBlockingTheLiveQueue()
+    {
+        var clock = new DagCertificationTimeProvider();
+        using var provider = InMemoryProviderPorts.Create(clock);
+        await DagRunCertification.DeadWaiterExpiresAsync(provider.EventStore, clock.Advance, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagTurnPurpose_RejectsForeignRecordsBeforeStorage()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.TurnPurposeRejectsForeignRecordsAsync(provider.EventStore, provider.OutboxStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagLastNode_RequiresAtomicRunClosure()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.LastNodeRequiresAtomicRunClosureAsync(provider.EventStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagFailureClosure_PreservesIndependentWorkAndDerivesTerminalOutcome()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.FailureClosureAndTerminalAsync(provider.EventStore, TestContext.Current.CancellationToken);
+    }
+
+    private sealed class DagCertificationTimeProvider : TimeProvider
+    {
+        private DateTimeOffset now = DateTimeOffset.UtcNow;
+        public override DateTimeOffset GetUtcNow() => now;
+        internal void Advance(TimeSpan duration) => now += duration;
+    }
+
+    [Fact]
+    public async Task DagObservers_CleanExpiredNoticesButRetainClaimsPoisonAndBusinessWork()
+    {
+        var clock = new DagCertificationTimeProvider();
+        using var provider = InMemoryProviderPorts.Create(clock);
+        await DagRunCertification.ObserverCleanupAsync(provider.EventStore, provider.OutboxStore, clock.GetUtcNow, clock.Advance, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagConcurrentLeaseRequests_AreSerialized()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.ConcurrentLeasesAsync(provider.EventStore, provider.EventStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagCancellationAndIntegrity_PreserveAdmissionsAndDeriveCancelledTerminal()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.CancellationAndIntegrityAsync(provider.EventStore, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagAndWorkflowIdentities_CannotOwnTheSameGuid()
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.CrossAggregateIdentityAsync(provider.EventStore, provider.OutboxStore, TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     [Trait("AC", "AC-108")]
     public Task DefinitionFanoutInbox_UsesAtomicStablePerTargetOwnership() =>

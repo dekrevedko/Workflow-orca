@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
@@ -51,6 +52,80 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         return new PostgreSqlProviderCertificationFixture(
             certificationStore ?? throw new InvalidOperationException("PostgreSQL certification store is not initialized."));
     }
+
+    [Fact]
+    public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
+        DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
+            new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+            TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(3)]
+    public Task DagRetainedChild_DoesNotStarveHealthyRun(int batchSize) =>
+        DagRunCertification.RetainedChildDoesNotStarveHealthyRunAsync(
+            new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(
+                new(container.GetConnectionString(), "public")), batchSize, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagCreationAndReplay_PersistAnIndependentAggregate() =>
+        DagRunCertification.CreationAndReplayAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFencedAppend_AtomicallyPersistsInputsAndAddressedNotices() =>
+        DagRunCertification.FencedAppendAndObserversAsync(certificationStore!, certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task DagLeaseQueue_UsesFifoAndAnAbsoluteTurnDeadline()
+    {
+        var time = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        certificationStore!.DagTransactionClock.TestUtcNow = () => time;
+        await DagRunCertification.LeaseQueueAsync(certificationStore, () => time, duration => time += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagDeadWaiter_ExpiresWithoutBlockingTheLiveQueue()
+    {
+        var time = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        certificationStore!.DagTransactionClock.TestUtcNow = () => time;
+        await DagRunCertification.DeadWaiterExpiresAsync(certificationStore, duration => time += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagTurnPurpose_RejectsForeignRecordsBeforeStorage() =>
+        DagRunCertification.TurnPurposeRejectsForeignRecordsAsync(certificationStore!, certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagLastNode_RequiresAtomicRunClosure() =>
+        DagRunCertification.LastNodeRequiresAtomicRunClosureAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFailureClosure_PreservesIndependentWorkAndDerivesTerminalOutcome() =>
+        DagRunCertification.FailureClosureAndTerminalAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public async Task DagObservers_CleanExpiredNoticesButRetainClaimsPoisonAndBusinessWork()
+    {
+        var time = new DateTimeOffset(2030, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        certificationStore!.DagTransactionClock.TestUtcNow = () => time;
+        await DagRunCertification.ObserverCleanupAsync(certificationStore, certificationStore, () => time, duration => time += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagConcurrentLeaseRequests_SerializeAcrossStoreInstances()
+    {
+        await using var other = new PostgreSqlWorkflowStore(container.GetConnectionString());
+        await other.InitializeAsync(TestContext.Current.CancellationToken);
+        await DagRunCertification.ConcurrentLeasesAsync(certificationStore!, other, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagCancellationAndIntegrity_PreserveAdmissionsAndDeriveCancelledTerminal() =>
+        DagRunCertification.CancellationAndIntegrityAsync(certificationStore!, TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagAndWorkflowIdentities_CannotOwnTheSameGuid() =>
+        DagRunCertification.CrossAggregateIdentityAsync(certificationStore!, certificationStore!, TestContext.Current.CancellationToken);
 
     [Fact]
     [Trait("AC", "AC-108")]
