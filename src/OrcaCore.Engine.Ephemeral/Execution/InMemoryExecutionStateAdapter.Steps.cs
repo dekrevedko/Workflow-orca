@@ -29,16 +29,27 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         var deadline = instruction.WaitTimeout.HasValue
             ? registeredAt.Add(instruction.WaitTimeout.Value)
             : (DateTimeOffset?)null;
-        var runtimeWait = instance.EnterWait(
-            eventContract,
-            correlationId,
-            BranchIdForFiber(plan, state, fiber),
-            registeredAt,
-            instruction.Path,
-            deadline,
-            (matched, resumeToken) => ResumeFiberAsync(fiber.Id, matched, resumeToken),
-            fiber.Id,
-            fiber.OwningScopeId);
+        RuntimeWaitRecord runtimeWait;
+        try
+        {
+            runtimeWait = instance.EnterWait(
+                eventContract,
+                correlationId,
+                BranchIdForFiber(plan, state, fiber),
+                registeredAt,
+                instruction.Path,
+                deadline,
+                (matched, resumeToken) => ResumeFiberAsync(fiber.Id, matched, resumeToken),
+                fiber.Id,
+                fiber.OwningScopeId);
+        }
+        catch (AmbiguousWaitRegistrationException exception) when (instance.Lifetime.IsAccepted)
+        {
+            // Commit an accepted workflow failure through the owning fiber.
+            // Throwing here would make event delivery restore a wait whose fiber already advanced.
+            FailExecutionBoundary(state, fiber, instruction, instance, exception);
+            return activeExecution!;
+        }
         waitsByFiber[fiber.Id] = runtimeWait;
         if (instruction.WaitTimeout is { } waitTimeout)
         {
