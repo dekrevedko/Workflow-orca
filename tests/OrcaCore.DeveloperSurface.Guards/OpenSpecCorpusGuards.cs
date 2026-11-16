@@ -137,7 +137,7 @@ public sealed class OpenSpecCorpusGuards
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-rc-3-review-remediation-2026-10-05.md", "6854085ef46e37b3fc699df3e5dc592618dac640518f3fffbdb80b858b3a9418"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md", "cff6f3a4b89e69dca3509785cc8eab4830aa2a43c89b9a0930b23c9a3afcd0ea"),
         ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-1-stream-identity-slice-2026-10-07.md", "64e20cbd84d5d00876ee762a981745f14ba5699bbfdbbee34c18db6793ed420d"),
-        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md", "56005e7497df9b47f868411bb32e2d65e63da3444be9365c29068a521c933556")
+        ("openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md", "80969ba6558643cb880251f4b3adb049a2386044f6b78fa6f69b5ae0f141780b")
     ];
     private static readonly (string Path, string Sha256)[] DagRunDocumentDispositionPins =
     [
@@ -151,7 +151,7 @@ public sealed class OpenSpecCorpusGuards
         ("docs/specs/12-acceptance-criteria.md", "5400b099abf38d2188663b7e713eb60f906b0dc08e38dba46881c4e88782196a"),
         ("docs/specs/16-requirements-durable-driver.md", "67c40b3abe4bf3ce6fa3ee307287bb8a01b4f6794f873d24a00aa1d21d39a413"),
         ("docs/specs/17-selected-mode-capability-matrix.md", "53eadff080b2b04c70897d7cdaec2ccda012c107fba6c53fd353447314ce8b17"),
-        ("docs/implementation/00-stack-decisions.md", "fcca94edabf4fd056534107e497921373529ee0237ff4f0dd2c608926c39ff88"),
+        ("docs/implementation/00-stack-decisions.md", "7411580f55b0c6195b5fc94f4ce88a56680d0171d5cdb7c6ea98263188907767"),
         ("docs/implementation/01-solution-architecture.md", "7f66897ee805d202262efffc519c83ae75c031e78eeeed27c74a693799ce0464"),
         ("docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md", "2341d850171fd2543bc6162cb8c10a1508908be1a2e31cd2f0652777a30377b3"),
         ("docs/implementation/README.md", "9d085edf18528253b7c582288de4f82a66d2c2091effd9c02abe4c720eb15dd1"),
@@ -512,7 +512,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "82d34c805eb461ba1d228b644d159afd2147f5b7839f824f49f9a65400534285";
+        "d3debf0b006f70227764063c721daf2791f9e6501fe772190294462c880bd1c4";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +

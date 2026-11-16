@@ -59,12 +59,12 @@ entry to the as-yet internal create/wait/cancel surface.
 | DG-P14 | Provider FIFO/deadline and out-of-turn mapper isolation. | A continuously renewing short I/O turn with a real remote child join behind it is not demonstrated as one end-to-end case. |
 | DG-P15 | Internal cancellation of a blocked run on each provider; role-free child cancellation/join is tested separately. | **Public DagRunHandle is Task 8.6.** Neither check substitutes for the two-host public cancellation scenario. |
 | DG-P16 | Provider fence/purpose rules, queue behavior and Hosting receipt deferral/cancellation. | No combined production-provider test of changing owner limits, idle release and stale captured-turn rejection. |
-| DG-P17 | Shared controlled-clock observer expiry/unsubscribe cleanup with claim, poison and progression preservation. | Does not establish process-death recovery for unaddressed progression hints. |
+| DG-P17 | Shared controlled-clock observer expiry pruning retains live claims, poisoned observer notices and retryable or poisoned child-start work. | Explicit unsubscribe purge and process-death recovery for unaddressed progression hints remain unqualified. |
 | DG-P18 | Shared compact transition, checkpoint/tail and atomic terminal cases; Core canonical codec validation. | Public Running projection and public snapshot shape remain unqualified. |
-| DG-P19 | Shipped scheduler leaves another run healthy beside a blocked mapper, and cancellation stops late admission. | No combined controlled >15-second provider-clock, terminating receipt survival and version/capacity churn case. |
+| DG-P19 | The shipped scheduler progresses a healthy run beside a blocked mapper. Cancellation reaches a terminal run with no committed node input while the mapper is still blocked. | The tests release the mapper after those assertions but do not check whether a late receipt is refused. Explicit post-release admission refusal and the controlled >15-second provider-clock, terminating receipt survival and version/capacity churn case remain unqualified. |
 | DG-P20 | Shared observer-pressure / retained-work assertions; compiled active/retired evaluation gauges and worker lifecycle in the approved scheduler source. | No full production pressure/gauge matrix including retirement while a cancelled mapper still runs. |
 | DG-P21 | Provider FIFO, concurrent owners and operation/purpose checks. | No full mixed-purpose local/remote queue saturation, coalescing and captured-limit matrix. |
-| DG-P22 | Shared scheduler admits 0 then 1 on all providers; round 106 adds deterministic one-slot independent roots and lower-ready invalidation on InMemory. | Two-host skewed mapper ordering and stale-rank qualification are not covered by that single-host evidence. |
+| DG-P22 | The shared scheduler executes a dependency chain on all three providers; its order is imposed by dependencies. Round 106 adds separate tests for one-slot authored order among ready roots and lower-ready receipt invalidation on InMemory only. | Simultaneous-ready authored-order qualification with skewed mappers remains open on PostgreSQL and SQL Server for both one and two hosts, as does production stale-rank qualification. |
 | DG-P23 | All three providers run the shipped scheduler with blocked/cancelled and healthy runs; one evaluation is observed. The approved code counts active/retired lanes and reuses the worker per run. | No exhaustive nonterminating-mapper/gauge and 10,000-node no-look-ahead qualification. |
 | DG-P24 | Hosting validates wake acceptance before acknowledgement; normal shipped discovery/wait execution. | No production-provider crash before/after acknowledgement and lost/poisoned-wake rediscovery matrix. |
 
@@ -83,7 +83,8 @@ DAG disposition. No exception is made to the other change's documentation pins.
 
 ## Status and review boundary
 
-- Task 2.4 records the five independently approved source/review slices.
+- Task 2.4 records the five independently approved source/review slices to date.
+  Any later slice needs its own independent approval, checkpoint and guard row.
   This candidate does not change the existing states of Tasks 2.1–2.3.
 - Task 3.1 remains open for the missing full acceptance/provider qualification.
   This inventory is reviewable now; outstanding cases stay obligations, not waivers.

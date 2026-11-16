@@ -223,7 +223,7 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 #### 2026-10-07 — canonical transition checkpoint and first source slice
 
-The dated 2026-10-05 entries above are retained unchanged as history. Current status: the four-block canonical transition is independently approved at 1770b2b, evidence 18bf865, activation 89e3b18. This first uncommitted Task 2.1 slice implements typed stream identity and fail-closed workflow-only access only; the remaining persistence/protocol/provider work, pumps and runtime bridge remain pending and independently review-gated. No new friend or exactly-once mapper promise.
+The DAG summary above has since been refreshed; it is not a verbatim copy of the 2026-10-05 wording. Status on 2026-10-07: the four-block canonical transition is independently approved at 1770b2b, evidence 18bf865, activation 89e3b18. This first uncommitted Task 2.1 slice implements typed stream identity and fail-closed workflow-only access only; the remaining persistence/protocol/provider work, pumps and runtime bridge remain pending and independently review-gated. No new friend or exactly-once mapper promise.
 
 #### 2026-11-15 — checkpointed internal slices and pending certification
 

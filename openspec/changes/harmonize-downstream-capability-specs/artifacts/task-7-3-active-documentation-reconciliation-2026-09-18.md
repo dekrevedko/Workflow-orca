@@ -18,7 +18,7 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 | 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
 | 4 | `docs/ephemeral-engine-developer-guide.md` | `4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0` |
 | 5 | `docs/ephemeral-engine-diagrams.md` | `3f4e32e272c0acb5c073bbc44be5af5315c50ec887721d433d0817d4f5add62d` |
-| 6 | `docs/implementation/00-stack-decisions.md` | `b6133b5ab5d9221c1aae4aa4c80fef165ad7b5c3e2cae0c33040fa3c9dfdff30` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `aa9f9416257e3d8bd980e0a92d5d0db76cad15518892458236af66df113cc0d8` |
 | 7 | `docs/implementation/01-solution-architecture.md` | `bf3cfb6fd1cafa8fa98daf4b4ba3a22ccda6c7affbfa53cd340e5c329208df0e` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `d7ffed1592a748662805d039ac99f32e8f070eab7fc7d957cc83ee96342f572a` |
