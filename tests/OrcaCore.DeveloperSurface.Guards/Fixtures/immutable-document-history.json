@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-dirty-manifest-2026-11-15.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-dirty-manifest-2026-11-15.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2594,6 +2594,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-3-review-followups-independent-review-verdict-2026-11-15.md",
       "bytes": 7585,
       "sha256": "953c02bd07e17ea0b378cba8a001306a9a23d53efd9f73de2f2e07f797f2a946"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-dirty-manifest-2026-11-15.txt",
+      "bytes": 1409,
+      "sha256": "b2c1fff19bb1dcad73a26d029763ce41f5c45cb29cc753c5161c2996f2efec49"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-request-2026-11-15.md",
+      "bytes": 4119,
+      "sha256": "243530d6fb37d282f0f7aa7baeb9f2700c7dd347026bc0262a31147b701fae49"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",

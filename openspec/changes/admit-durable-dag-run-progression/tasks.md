@@ -18,7 +18,7 @@
 - [ ] 2.1 Implement the approved stream identity, run protocol, exact provider ports/fences/discovery and atomic aggregate transitions, with API baselines, complete first-create PostgreSQL/SQL Server schemas and real-storage certification; no additional friend or codec permission.
 - [ ] 2.2 Implement dedicated role-independent child pumps and DAG-role-only ready sink/claim partition; prove wrong-lane release and no external acknowledgement, deterministic start/join/cancel recovery and poison rules.
 - [ ] 2.3 Implement the approved Dag.Hosting-to-durable bridge and full run lifecycle: exact declared-output decoding, CapacityDeferred versus AdmissionStopped, current-owner limits after restart, notification-driven joins/cancellation/terminal waits. Include the deferred source-only UnsafeAccessor/expression ban and DagRuntimeView.cs evidence-path audit without claiming they were fixed by this process gate. **RC-3 P3-2 source obligation:** define active/retired evaluation-lane gauges (including cancelled stuck mappers), idle dedicated-worker reuse and lifecycle accounting in this separately reviewed source slice; any API/signature additions need that review, not this transition.
-- [ ] 2.4 Obtain independent implementation approval for each large slice and checkpoint it before the next; refresh only the explicitly reviewed baseline/provenance changes. Reshape 8.4/8.5 may close only on their complete compiled evidence, not this contract checkbox.
+- [x] 2.4 Obtain independent implementation approval for each large slice and checkpoint it before the next; refresh only the explicitly reviewed baseline/provenance changes. Reshape 8.4/8.5 may close only on their complete compiled evidence, not this contract checkbox.
 
 ## 3. Final evidence and registry closeout
 
@@ -42,3 +42,10 @@ boot-local run-input binding and logical child value keys. Before enabling run
 creation, test restart rebinding and reject mismatched installed types or child
 role keys. Carry the child-pump starvation fix in the same uncommitted review
 target. No task is closed by this note.
+
+**Tasks 2.4/3.1 evidence disposition (2026-11-15, closeout candidate):**
+The [source approval and qualification inventory](artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md)
+binds the five already-checkpointed slice approvals. Task 2.4 records those approvals;
+it does not close Tasks 2.1–2.3 or reshape 8.4/8.5. Task 3.1 remains open for the
+unqualified acceptance/provider cases listed there. Task 3.2, registry Complete,
+archival, and the public Task 8.6 API are outside this review.
