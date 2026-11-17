@@ -57,7 +57,7 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
             if (installed.Fingerprint != node.Workflow.Fingerprint ||
                 node.InputContractKey != DurableDagWire.ChildInputKey(node.Workflow) ||
                 node.OutputContractKey != (installed.OutputType is null ? null : DurableDagWire.ChildOutputKey(node.Workflow)))
-                return Conflict();
+                throw new DurableDagDefinitionUnavailableException();
         }
 
         // All user value serialization happens before any append or lease.

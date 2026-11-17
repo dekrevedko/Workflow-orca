@@ -95,9 +95,6 @@ public static partial class DagRunCertification
             await host.StopAsync(stop.Token);
         }
 
-        // The pre-8.6 test entry points are internal; only this harness uses
-        // reflection. It invokes the shipped host, real storage and hosted pumps.
-
     }
 
     public static async Task RetainedChildDoesNotStarveHealthyRunAsync(IServiceCollection services, int batchSize, CancellationToken token)

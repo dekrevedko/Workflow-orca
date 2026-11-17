@@ -48,6 +48,30 @@ public static class DagFacadeWire
         return JsonSerializer.Deserialize<DagRunSnapshotV1>(doc.RootElement.GetProperty("snapshot"), Json)!;
     }
 
+    public static DagRunCheckpointV1 CorruptRunInput(DagRunCheckpointV1 checkpoint, string corruption)
+    {
+        using var doc = JsonDocument.Parse(checkpoint.Payload);
+        var snapshot = JsonSerializer.Deserialize<DagRunSnapshotV1>(doc.RootElement.GetProperty("snapshot"), Json)!;
+        // Prove this independent serializer exactly reproduces the canonical frame
+        // before changing its business value. JsonNode reserialization cannot do that.
+        byte[] Frame(DagRunSnapshotV1 value) => JsonSerializer.SerializeToUtf8Bytes(new
+        {
+            aggregateKind = "dag-run-v1", version = 1, runId = value.RunId,
+            streamVersion = value.StreamVersion.Value, snapshot = value
+        }, Json);
+        Frame(snapshot).Should().Equal(checkpoint.Payload, "the corruption must pass the existing canonical framing check");
+        var input = snapshot.RunInput;
+        var malformed = "{"u8.ToArray();
+        input = corruption switch
+        {
+            "key" => new(true, "wrong-recorded-key", input.CodecFormat, input.Bytes, input.Fingerprint),
+            "json" => new(true, input.ContractKey, input.CodecFormat, malformed, Convert.ToHexString(SHA256.HashData(malformed))),
+            _ => throw new ArgumentOutOfRangeException(nameof(corruption))
+        };
+        var bytes = Frame(snapshot with { RunInput = input });
+        return checkpoint with { Payload = bytes, Sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)) };
+    }
+
     private static ProviderCommitBatch Batch(DagRunSnapshotV1 after, IReadOnlyList<DagRunRecordV1> records,
         DagRunFenceV1? fence, IReadOnlyList<OutboxWrite> outbox)
     {

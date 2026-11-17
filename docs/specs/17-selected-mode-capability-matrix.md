@@ -1607,6 +1607,13 @@ they are not public `RunChild`/`RunChildren` authoring members. Host option
 durable resource pools. It counts every admitted nonterminal child instance, including one parked
 in a wait, delay, or lease queue, until that child becomes terminal.
 
+Registration installs the plan for recovery on this host. Registration does not certify that all
+referenced child workflows are configured in the durable engine. Before creating a run or
+accepting replay, start requires every child binding (identity, version, fingerprint and value
+contracts) to be installed on this host. A missing or incompatible child binding throws the
+public `InvalidOperationException` before any run append or start-key binding. It is a host
+configuration error, not stored-data corruption, and does not create a fourth result variant.
+
 Registration installs the plan for recovery on this host. The definition binding has four parts:
 identity, version, structural fingerprint and declared run-input contract. The durable side owns
 the fixed-codec shape key; Dag and Dag.Hosting do not compute it. A different fingerprint returns
@@ -1655,6 +1662,15 @@ same-named enum members. Run `StartedAt` is creation time.
 snapshot or throws `DagRunFaultedException` if the authoritative recheck observes `IntegrityFault`.
 This is level-triggered: a fault reconciled before recheck is not reported and the wait continues.
 Caller cancellation affects only the local wait.
+
+A structurally valid checkpoint in `IntegrityFault` is distinct from a corrupt stored run input.
+All authoritative run reads validate the input against its own graph and its recorded
+representation. Corruption throws `InvalidDataException` from reopen, replay, snapshots,
+output reads, terminal waits and cancellation; notification/scheduler reads and internal poison
+reconciliation fail closed as well. No mapper, cancellation, repair or fault record is committed
+by those reads. Poison reconciliation is not input-data repair; corrupt stored input requires
+restoration outside that operation before these APIs can proceed. A well-formed input that is
+merely incompatible with an installed CLR type remains the separately specified binding mismatch.
 
 A fault snapshot retains a nonterminal public status and null `CompletedAt`. Its status is
 `CancellationRequested` when any checkpoint node is `CancellationRequested` or `Cancelled`,

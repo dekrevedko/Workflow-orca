@@ -126,7 +126,8 @@ internal static class EphemeralFailureSettlementReviewHistory
                 expected = expected.TrimEnd('\n') + "\n\n" + block + "\n";
             }
         }
-        var current = DagFacadeReviewCandidate.PriorDocument(root, path);
+        var current = OpenSpecCorpusGuards.BeforeShutdownStartReservationSync(root, path,
+            DagFacadeReviewCandidate.PriorDocument(root, path));
         current.Should().Be(expected, "unowned text, order and preambles cannot change through the historical adapter");
         Hash(current).Should().Be(pin.GetProperty("afterSha256").GetString());
         return before;

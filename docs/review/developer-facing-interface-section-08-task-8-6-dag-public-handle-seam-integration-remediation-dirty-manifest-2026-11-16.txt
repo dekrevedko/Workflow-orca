@@ -1,0 +1,89 @@
+MM CLAUDE.md
+M  docs/durable-driver-lane-host.md
+M  docs/implementation/00-stack-decisions.md
+M  docs/implementation/01-solution-architecture.md
+M  docs/implementation/README.md
+M  docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md
+M  docs/project-technical-overview.md
+A  docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-dirty-manifest-2026-11-15.txt
+A  docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-request-2026-11-15.md
+A  docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-verdict-2026-11-15.md
+A  docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-dirty-manifest-2026-11-15.txt
+A  docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-request-2026-11-15.md
+A  docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-verdict-2026-11-15.md
+M  docs/specs/05-requirements-events-waits-timers.md
+M  docs/specs/06-requirements-durable-execution.md
+M  docs/specs/09-requirements-management-operations.md
+M  docs/specs/12-acceptance-criteria.md
+M  docs/specs/16-requirements-durable-driver.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/admit-dag-public-handle-seam/design.md
+ M openspec/changes/admit-dag-public-handle-seam/tasks.md
+A  openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md
+M  openspec/changes/admit-durable-dag-run-progression/tasks.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/.openspec.yaml
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/approved-sync-2026-11-15.json
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/contract-independent-review-verdict-2026-11-15.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/contract-review-text.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/process-independent-review-verdict-2026-11-15.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/process-openspec-provenance-2026-11-15.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/process-provenance-record-2026-11-15.tsv
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/proposed-successor-2026-11-15.json
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-independent-review-verdict-2026-11-15.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-provenance-record-2026-11-15.tsv
+A  openspec/changes/clarify-ephemeral-start-shutdown/design.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/proposal.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/specs/management-and-querying/spec.md
+A  openspec/changes/clarify-ephemeral-start-shutdown/tasks.md
+M  openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+MM openspec/changes/reshape-developer-facing-interfaces/tasks.md
+M  openspec/specs/management-and-querying/spec.md
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagFacade.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagRunStore.cs
+M  src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs
+M  src/OrcaCore.Engine.Ephemeral/Execution/EphemeralRoutingIndex.cs
+M  src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Steps.cs
+M  src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs
+M  src/OrcaCore.Engine.Ephemeral/Execution/RuntimeWaitRecord.cs
+M  src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs
+M  src/OrcaCore.Engine.Ephemeral/Facade/EphemeralDefinitionRuntime.cs
+M  src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs
+M  src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowFacade.cs
+M  tests/OrcaCore.Acceptance.Tests/OperationsAcceptanceTests.cs
+M  tests/OrcaCore.DeveloperSurface.Guards/CodecMemberCorrectionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
+M  tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+M  tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementSourceGuards.cs
+M  tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-review-candidate.json
+MM tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+MM tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+MM tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+M  tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
+MM tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+M  tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+M  tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs
+A  tests/OrcaCore.Engine.Ephemeral.Tests/Facade/ConcurrentStartTests.cs
+M  tests/OrcaCore.Engine.Ephemeral.Tests/Governance/HostGovernanceOptionsTests.cs
+M  tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/HostShutdownTests.cs
+ M tests/OrcaCore.Hosting.Tests/DagEventStoreProbe.cs
+ M tests/OrcaCore.Hosting.Tests/DagFacadeBindingTests.cs
+ M tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj
+ M tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
+ M tests/OrcaCore.ProviderCertification/DagRunCertification.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs
+ M tests/OrcaCore.TestSupport/DagFacadeWire.cs
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-dirty-manifest-2026-11-16.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-independent-review-request-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-review-record-2026-11-16.json
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-review-record-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/integration-byte-verification-2026-11-16.json
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/integration-candidate-openspec-provenance-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/integration-remediation-self-review-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/integration-remediation-validation-2026-11-16.json

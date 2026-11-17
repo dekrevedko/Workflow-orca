@@ -1,6 +1,5 @@
 using System.Security.Cryptography;
 using System.Text.Json;
-using System.Text.Json.Nodes;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -78,15 +77,12 @@ public static partial class DagRunCertification
             probe.RewriteCheckpoint = checkpoint =>
             {
                 if (checkpoint.RunId != run.RunId.Value) return checkpoint;
-                var doc = JsonNode.Parse(checkpoint.Payload)!;
-                doc["snapshot"]!["runInput"]!["contractKey"] = "wrong-recorded-key";
-                var bytes = JsonSerializer.SerializeToUtf8Bytes(doc);
-                return checkpoint with { Payload = bytes, Sha256 = Convert.ToHexStringLower(SHA256.HashData(bytes)) };
+                return OrcaCore.TestSupport.DagFacadeWire.CorruptRunInput(checkpoint, "key");
             };
             Func<Task> corruptReopen = () => a.GetRunAsync(run.RunId, token).AsTask();
             Func<Task> corruptReplay = () => a.StartOrGetAsync(17, key, token).AsTask();
-            await corruptReopen.Should().ThrowAsync<InvalidDataException>();
-            await corruptReplay.Should().ThrowAsync<InvalidDataException>();
+            (await corruptReopen.Should().ThrowAsync<InvalidDataException>()).Which.Message.Should().Be(DagCanonicalIntegrityAssertions.Error("key"));
+            (await corruptReplay.Should().ThrowAsync<InvalidDataException>()).Which.Message.Should().Be(DagCanonicalIntegrityAssertions.Error("key"));
             probe.RewriteCheckpoint = null;
 
             FacadeRedeployedInput.DropOnRead = false;
@@ -105,6 +101,24 @@ public static partial class DagRunCertification
             FacadeRedeployedInput.DropOnRead = false;
             await StopFacadeHost(second); await StopFacadeHost(first);
         }
+    }
+
+    public static async Task FacadeCanonicalIntegrityAsync(Func<IServiceCollection> provider, string corruption, CancellationToken token)
+    {
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromSeconds(90)); token = deadline.Token;
+        var probe = new DagEventStoreProbe(); var observer = new DagIntegrityObserver(); var maps = 0;
+        var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial).Init<int>(v => v).End(v => v.Value).Build();
+        var dag = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        dag.Node(DagNodeId.Create("real-node"), child.Reference).MapInput(v => { Interlocked.Increment(ref maps); return v.RunInput; });
+        var services = provider();
+        // Install the real logger factory before the engine adds its standalone null fallback.
+        services.AddLogging(); services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider>(observer);
+        using var host = FacadeHost(services, probe, child);
+        var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(dag.Build()).GetHandleOrThrow();
+        var key = StartIdempotencyKey.Create("cert-integrity-" + Guid.NewGuid().ToString("N"));
+        var run = (await definition.StartOrGetAsync(17, key, token)).GetHandleOrThrow();
+        await DagCanonicalIntegrityAssertions.RunAsync(host, probe, observer, definition, run, key, corruption, () => Volatile.Read(ref maps), token);
     }
 
     public static async Task FacadeFaultsAsync(Func<IServiceCollection> provider, CancellationToken token)

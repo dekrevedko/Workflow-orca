@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-dirty-manifest-2026-11-15.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-dirty-manifest-2026-11-16.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2596,6 +2596,36 @@
       "sha256": "953c02bd07e17ea0b378cba8a001306a9a23d53efd9f73de2f2e07f797f2a946"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-dirty-manifest-2026-11-15.txt",
+      "bytes": 1409,
+      "sha256": "b2c1fff19bb1dcad73a26d029763ce41f5c45cb29cc753c5161c2996f2efec49"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-request-2026-11-15.md",
+      "bytes": 4119,
+      "sha256": "243530d6fb37d282f0f7aa7baeb9f2700c7dd347026bc0262a31147b701fae49"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-2-4-3-1-source-evidence-closeout-independent-review-verdict-2026-11-15.md",
+      "bytes": 8382,
+      "sha256": "8d84f68b617053fa0a8f45bbfe13c547d0ce99fa14c388d80b2f0e3912ca5a6c"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-dirty-manifest-2026-11-15.txt",
+      "bytes": 787,
+      "sha256": "fafe860b2ebeed62b17c49502141c8e5a79e0f895c96d64649de043cdc4b87ff"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-request-2026-11-15.md",
+      "bytes": 2066,
+      "sha256": "6fbdbb009f2fbec8ab54f39f1bec921995ee61a198d878bc34ca0811edcc5b51"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-4-dag-run-task-3-1-evidence-precision-independent-review-verdict-2026-11-15.md",
+      "bytes": 1872,
+      "sha256": "2e7c7a4b9a4cb4d434f97cb0d3e24a44f08df1972e2c3eda1fb1d210128e5504"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-4-durable-dag-bridge-contract-br-remediation-dirty-manifest-2026-10-04.txt",
       "bytes": 1446,
       "sha256": "e6330a42bb0e1303e2676d6b72e4ce034f5a0e35d3921b4eabdc664f98923734"
@@ -2689,6 +2719,16 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-verdict-2026-11-16.md",
       "bytes": 14122,
       "sha256": "c64747716a1ddb35757919525cefb5aee509cde948c41d63c1f7fea899884600"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-dirty-manifest-2026-11-16.txt",
+      "bytes": 7160,
+      "sha256": "ab66354f7ab458a41a239efddafc64f132819a60fe0f2d27b0398f2d7bbcf665"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-independent-review-request-2026-11-16.md",
+      "bytes": 5369,
+      "sha256": "98a0c26d030f40257d32c1049290ad44bf9335dc668df13779696e700ed63f1f"
     },
     {
       "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-dirty-manifest-2026-11-15.txt",

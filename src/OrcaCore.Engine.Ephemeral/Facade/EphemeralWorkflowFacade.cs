@@ -14,7 +14,9 @@ namespace OrcaCore.Engine.Ephemeral;
 internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry, IDisposable
 {
     private readonly object gate;
-    private readonly SemaphoreSlim startGate = new(1, 1);
+    // Same-key starts wait for the in-flight owner of that key; unrelated
+    // starts never queue behind another workflow's run to first suspension.
+    private readonly Dictionary<string, TaskCompletionSource> pendingStarts = new(StringComparer.Ordinal);
     private readonly Dictionary<DefinitionKey, Registration> registrations = [];
     private readonly Dictionary<string, StartBinding> starts = new(StringComparer.Ordinal);
     private readonly Dictionary<InstanceId, InstanceBinding> instances = [];
@@ -271,53 +273,57 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         using var startOwnership = engine.HostLifetime.AdmitStart();
         var inputFingerprint = FacadeValueFactory.PayloadFingerprint(input);
 
-        await startGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+        TaskCompletionSource? reservation = null;
         LegacySnapshot? provisional = null;
         try
         {
-            StartCoreResult? replay = null;
-            EphemeralInstanceLifetime.WorkLease? replayPin = null;
-            lock (gate)
+            while (reservation is null)
             {
-                engine.HostLifetime.RequireOpen();
-                if (starts.TryGetValue(idempotencyKey.Value, out var existing))
+                StartCoreResult? replay = null;
+                EphemeralInstanceLifetime.WorkLease? replayPin = null;
+                Task? inFlight = null;
+                lock (gate)
                 {
-                    if (!engine.TryGetFacadeInstance(existing.InstanceId, out var retained) ||
-                        !retained!.Lifetime.TryPin(out replayPin))
+                    cancellationToken.ThrowIfCancellationRequested();
+                    engine.HostLifetime.RequireOpen();
+                    if (starts.TryGetValue(idempotencyKey.Value, out var existing))
                     {
-                        starts.Remove(idempotencyKey.Value);
-                        if (instances.Remove(existing.InstanceId, out var stale)) stale.Access.Release(retired: true);
+                        if (!engine.TryGetFacadeInstance(existing.InstanceId, out var retained) ||
+                            !retained!.Lifetime.TryPin(out replayPin))
+                        {
+                            starts.Remove(idempotencyKey.Value);
+                            if (instances.Remove(existing.InstanceId, out var stale)) stale.Access.Release(retired: true);
+                        }
+                        else if (existing.DefinitionId.Equals(definitionId) &&
+                            existing.DefinitionVersion.Equals(definitionVersion) &&
+                            existing.DefinitionFingerprint.Equals(definitionFingerprint) &&
+                            existing.InputFingerprint.Equals(inputFingerprint))
+                            replay = new StartCoreResult(instances[existing.InstanceId], true, null);
+                        else
+                            replay = new StartCoreResult(null, false, FacadeValueFactory.StartConflict(
+                                idempotencyKey, existing, definitionId, definitionVersion, definitionFingerprint, inputFingerprint));
                     }
-                    else if (existing.DefinitionId.Equals(definitionId) &&
-                        existing.DefinitionVersion.Equals(definitionVersion) &&
-                        existing.DefinitionFingerprint.Equals(definitionFingerprint) &&
-                        existing.InputFingerprint.Equals(inputFingerprint))
-                        replay = new StartCoreResult(instances[existing.InstanceId], true, null);
-                    else
-                        replay = new StartCoreResult(null, false, FacadeValueFactory.StartConflict(
-                            idempotencyKey, existing, definitionId, definitionVersion, definitionFingerprint, inputFingerprint));
+                    if (replay is null)
+                    {
+                        if (pendingStarts.TryGetValue(idempotencyKey.Value, out var owner)) inFlight = owner.Task;
+                        else
+                        {
+                            reservation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                            pendingStarts.Add(idempotencyKey.Value, reservation);
+                        }
+                    }
                 }
-            }
-            if (replay is not null)
-            {
-                using (replayPin) return replay;
+                if (replay is not null)
+                {
+                    using (replayPin) return replay;
+                }
+                if (inFlight is not null) await inFlight.WaitAsync(cancellationToken).ConfigureAwait(false);
             }
 
             IEphemeralDefinitionRuntime typedRuntime;
             lock (gate) typedRuntime = registrations[new DefinitionKey(definitionId, definitionVersion)].Runtime;
             var snapshot = await typedRuntime.StartAsync(definitionId, definitionVersion, input, cancellationToken).ConfigureAwait(false);
             provisional = snapshot;
-            var ambiguous = FindAmbiguousWait(definitionId, snapshot);
-            if (ambiguous is not null)
-            {
-                throw FacadeValueFactory.AmbiguousWait(
-                    definitionId,
-                    WorkflowEventContract.Create(
-                        EventName.Create(ambiguous.Value.EventName),
-                        new EventContractVersion(ambiguous.Value.EventContractVersion)),
-                    CorrelationId.Create(ambiguous.Value.CorrelationId));
-            }
-
             if (!engine.TryGetFacadeInstance(snapshot.InstanceId, out var runtime))
                 throw FacadeValueFactory.InstanceNotFound(snapshot.InstanceId);
             using var publicationOwnership = runtime!.Lifetime.Own();
@@ -363,7 +369,11 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         }
         finally
         {
-            startGate.Release();
+            if (reservation is not null)
+            {
+                lock (gate) pendingStarts.Remove(idempotencyKey.Value);
+                reservation.TrySetResult();
+            }
         }
     }
 
@@ -375,46 +385,6 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
             foreach (var key in starts.Where(pair => pair.Value.InstanceId.Equals(instanceId))
                          .Select(pair => pair.Key).ToArray()) starts.Remove(key);
         }
-    }
-
-    private (string EventName, int EventContractVersion, string CorrelationId)? FindAmbiguousWait(
-        DefinitionId definitionId,
-        LegacySnapshot candidate)
-    {
-        var candidatePairs = candidate.ActiveWaits
-            .Select(wait => (
-                wait.EventContract.EventName.Value,
-                wait.EventContract.Version.Value,
-                wait.CorrelationId.Value))
-            .ToArray();
-        var duplicateInsideCandidate = candidatePairs
-            .GroupBy(pair => pair)
-            .FirstOrDefault(group => group.Count() > 1);
-        if (duplicateInsideCandidate is not null)
-        {
-            return duplicateInsideCandidate.Key;
-        }
-
-        var activePairs = ListInstances()
-            .Where(binding => binding.DefinitionId.Equals(definitionId))
-            .Select(binding => engine.TryGetFacadeInstance(binding.InstanceId, out var runtime)
-                ? runtime!.GetPublishedSnapshot() : null)
-            .Where(snapshot => snapshot is not null)
-            .SelectMany(snapshot => snapshot!.ActiveWaits)
-            .Select(wait => (
-                wait.EventContract.EventName.Value,
-                wait.EventContract.Version.Value,
-                wait.CorrelationId.Value))
-            .ToHashSet();
-        foreach (var pair in candidatePairs)
-        {
-            if (activePairs.Contains(pair))
-            {
-                return pair;
-            }
-        }
-
-        return null;
     }
 
     private WorkflowInstanceHandle CreateInstanceHandle(InstanceBinding binding)

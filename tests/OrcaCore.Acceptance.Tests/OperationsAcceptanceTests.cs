@@ -59,6 +59,8 @@ public sealed class OperationsAcceptanceTests
 
         foreach (var started in instances)
         {
+            // A start returns once its instance is queued for pool capacity.
+            await started.GetHandleOrThrow().WaitForSettlementAsync(TestContext.Current.CancellationToken);
             var snapshot = await started.GetHandleOrThrow()
                 .GetSnapshotAsync(TestContext.Current.CancellationToken);
             snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);

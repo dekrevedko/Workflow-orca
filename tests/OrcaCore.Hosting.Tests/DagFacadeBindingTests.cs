@@ -290,10 +290,76 @@ public sealed partial class DagFacadeTests
 
     [Theory]
     [InlineData("key")]
+    [InlineData("json")]
+    public async Task CanonicalCorruptRunInput_ReachesIntegrityCheckBeforeReplayOrMapping(string corruption)
+    {
+        using var deadline = Deadline(90);
+        var token = deadline.Token;
+        var probe = new DagEventStoreProbe();
+        var observer = new DagIntegrityObserver();
+        var maps = 0;
+        var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial).Init<int>(v => v).End(v => v.Value).Build();
+        var dag = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        dag.Node(DagNodeId.Create("real-node"), child.Reference).MapInput(v => { Interlocked.Increment(ref maps); return v.RunInput; });
+        using var host = CreateHost(1, services =>
+        {
+            Decorate(services, probe);
+            services.AddSingleton<Microsoft.Extensions.Logging.ILoggerProvider>(observer);
+        }, child);
+        var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(dag.Build()).GetHandleOrThrow();
+        var key = StartIdempotencyKey.Create("canonical-corrupt-" + corruption);
+        var run = (await definition.StartOrGetAsync(17, key, token)).GetHandleOrThrow();
+        var mapping = host.Services.GetRequiredService<DurableDagMappingReader>();
+        var saved = (await host.Services.GetRequiredService<DurableDagRunStore>().ReadAsync(run.RunId.Value, token))!;
+        var checkpoint = (await probe.Inner.LoadDagRunCheckpointAsync(WorkflowStreamId.ForDagRun(run.RunId.Value), token)).Value;
+        var corrupt = OrcaCore.TestSupport.DagFacadeWire.CorruptRunInput(checkpoint, corruption);
+        using var document = System.Text.Json.JsonDocument.Parse(corrupt.Payload);
+        var json = new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web)
+        { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
+        var snapshot = System.Text.Json.JsonSerializer.Deserialize<DagRunSnapshotV1>(document.RootElement.GetProperty("snapshot"), json)!;
+        var node = new DurableDagNodeContractV1(new(run.RunId.Value, 0),
+            new(child.DefinitionId, child.DefinitionVersion, child.DefinitionFingerprint, typeof(int), typeof(int)), []);
+        Action inspect = () => mapping.Inspect(snapshot, node);
+        inspect.Should().Throw<InvalidDataException>().WithMessage(DagCanonicalIntegrityAssertions.Error(corruption));
+        probe.RewriteCheckpoint = _ => corrupt;
+        var lease = await probe.Inner.AcquireDagRunLeaseAsync(new(run.RunId.Value, Guid.NewGuid(), Guid.NewGuid(),
+            OrcaCore.Abstractions.Providers.Dag.DagRunLeasePurposeV1.IntegrityReconciliation, null, TimeSpan.FromSeconds(5)), token);
+        try
+        {
+            var error = await Record.ExceptionAsync(() => host.Services.GetRequiredService<IDurableDagRunBridgeV1>()
+                .ReconcilePoisonAsync(run.RunId.Value, Guid.NewGuid(), lease.Fence!, saved.StreamVersion, token).AsTask());
+            error.Should().BeOfType<InvalidDataException>().Which.Message.Should().Be(DagCanonicalIntegrityAssertions.Error(corruption));
+        }
+        finally { await probe.Inner.ReleaseDagRunLeaseAsync(lease.Fence!, token); probe.RewriteCheckpoint = null; }
+        await DagCanonicalIntegrityAssertions.RunAsync(host, probe, observer, definition, run, key, corruption, () => Volatile.Read(ref maps), token);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingOrMismatchedChildBinding_HasPublicConfigurationErrorWithoutStart(bool mismatched)
+    {
+        using var deadline = Deadline();
+        var token = deadline.Token;
+        var id = DefinitionId.New();
+        var installed = Workflow.Durable<int>(id, DefinitionVersion.Initial).Init<int>(v => v).End(v => v.Value).Build();
+        var referenced = Workflow.Durable<int>(id, DefinitionVersion.Initial).Init<int>(v => v).Then<Gate>().End(v => v.Value).Build();
+        using var host = mismatched ? CreateHost(1, _ => { }, installed) : CreateHost(1, _ => { });
+        var dag = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        dag.Node(DagNodeId.Create("child"), referenced.Reference).MapInput(v => v.RunInput);
+        var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(dag.Build()).GetHandleOrThrow();
+        var key = StartIdempotencyKey.Create("missing-child");
+        var error = await Record.ExceptionAsync(() => definition.StartOrGetAsync(17, key, token).AsTask());
+        error.Should().BeOfType<InvalidOperationException>().Which.Message.Should().Contain("child workflow");
+        (await host.Services.GetRequiredService<IWorkflowEventStore>().GetDagRunByStartKeyAsync(new(key.Value), token)).HasValue.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("key")]
     [InlineData("format")]
     [InlineData("fingerprint")]
     [InlineData("json")]
-    public async Task CorruptStoredInput_RemainsAnIntegrityError_OnReopenReplayAndMapping(string corruption)
+    public async Task InvalidCheckpointOrValue_IsRejectedOnReopenReplayAndRead(string corruption)
     {
         using var deadline = Deadline();
         var token = deadline.Token;

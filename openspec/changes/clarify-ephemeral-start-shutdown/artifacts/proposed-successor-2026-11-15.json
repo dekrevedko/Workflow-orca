@@ -1,0 +1,15 @@
+{
+  "stage": "Proposed",
+  "predecessors": [
+    "add-ephemeral-host-shutdown",
+    "expose-ephemeral-failures-and-settlement"
+  ],
+  "change": "clarify-ephemeral-start-shutdown",
+  "capability": "management-and-querying",
+  "requirement": "Ephemeral host shutdown closes admission atomically",
+  "successorOperation": "MODIFIED",
+  "canonicalSha256": "496fe273722960b7365d8ad578ccbd00e11b52ebf442784238f072b20a59b03d",
+  "successorSha256": "af76ed399e86348c0710be62a0bb71222f591e8caed5f0b23a8d7753939fba22",
+  "canonicalSyncTask": "1.2",
+  "numberedReviewTextSha256": "f523b448dab3e428a4d732f28b26bcf5f7be629c6ceea237069153ee0055d168"
+}

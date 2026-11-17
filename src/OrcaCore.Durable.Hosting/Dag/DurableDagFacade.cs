@@ -29,8 +29,16 @@ internal sealed class DurableDagFacade(DurableDagRunStore runs, DurableDagRunInp
     internal async ValueTask<DurableDagFacadeStart> StartOrGetAsync(DagRunGraphV1 graph, DefinitionFingerprint fingerprint,
         object? input, Type inputType, StartIdempotencyKey key, CancellationToken token)
     {
-        var created = await runs.CreateOrReopenAsync(
-            new(Guid.CreateVersion7(), new(key.Value), graph, input, inputType), token).ConfigureAwait(false);
+        DurableDagCreateResultV1 created;
+        try
+        {
+            created = await runs.CreateOrReopenAsync(
+                new(Guid.CreateVersion7(), new(key.Value), graph, input, inputType), token).ConfigureAwait(false);
+        }
+        catch (DurableDagDefinitionUnavailableException)
+        {
+            throw new InvalidOperationException("A referenced DAG child workflow is missing or incompatible on this host.");
+        }
         var saved = created.Snapshot ?? throw new InvalidDataException("The installed DAG start binding is inconsistent.");
         if (created.Outcome != DurableDagCreateOutcomeV1.BindingConflict)
             return new(saved.RunId, created.Outcome == DurableDagCreateOutcomeV1.Existing, null, false);

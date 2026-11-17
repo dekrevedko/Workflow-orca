@@ -287,3 +287,13 @@ The full provider suites and real process-restart certification exercise the pro
 ## Open Questions
 
 None. The owner accepted D1 and D2 on 2026-11-15. D3 follows from the grant. D4 and the submitted-input `NotSupportedException` outcome were accepted during the RV-3 review; RV-4 passed the pre-gate design review. Final independent implementation review remains pending.
+
+## 2026-11-16 implementation review follow-up
+
+Implementation checkpoint `b9dcdef7e611da45d7dc4f75946ee192fc83c37e` preserves reviewed tree `8ef5842bb8c7952f30f0f4184e97baf45ba986c0`. Its direct child `598c6d4fb61f7883e25f79f03001aa620dda0bf7` catalogues the byte-exact independent implementation verdict and clears the active freeze. The reviewer authored RV-1–RV-4 and explicitly excluded independent contract approval; the owner-approved RV-4 contract and owner-directed combined process authority remain the contract basis.
+
+F1 now uses an independently reconstructed typed frame, verifies exact equality before corruption, and checks the precise run-input integrity exception. It covers recorded-key mismatch and malformed JSON with a valid fingerprint on reopen, replay, public reads/cancellation/wait and a real Ready node observed by the scheduler. A separate white-box mapping check proves mapper refusal. Restoring the original readable bytes lets that same node complete. The earlier JsonNode tests are retained with a narrower name; they certify outer framing/value rejection only.
+
+F3 uses a public InvalidOperationException for a missing or incompatible installed child binding before any start effect; registration remains the plan-install point, without a new result variant. F4 explicitly records existing fail-closed behavior for corrupt stored input across all reads and poison reconciliation, distinct from a valid checkpoint in IntegrityFault. The five RV-4 delta blocks and public signatures are unchanged.
+
+F2 is a separate merge/remediation candidate with second parent `ba2b057d7898f516845e90323b4288fb0c1744d8`. Both sides' source and canonical changes are retained; the nine ephemeral source paths are separately checked against that exact reviewed mainline tip. No broad folder exclusion is permitted. Final promotion depends on review of this merge and the F1 evidence; no activation was part of the checkpoint/evidence chain.

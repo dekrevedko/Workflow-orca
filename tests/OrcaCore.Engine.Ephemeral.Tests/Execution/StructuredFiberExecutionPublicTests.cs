@@ -636,9 +636,10 @@ public sealed class StructuredFiberExecutionPublicTests
     }
 
     [Fact]
-    public async Task SelectedParallel_CeilingOneAdmitsAuthoredOrderAndUnscopedDeliveryUsesEarliestWait()
+    public async Task SelectedParallel_CeilingOneAdmitsAuthoredOrderWithDistinctWaits()
     {
         using var provider = CreateProvider(pathCeiling: 1);
+        var secondCorrelation = CorrelationId.Create("structured-wait-second");
         var definition = Workflow.Ephemeral<ParentState>(
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
@@ -655,7 +656,7 @@ public sealed class StructuredFiberExecutionPublicTests
                     AuthoredBranchId.Create("second"),
                     _ => new BranchState("second"),
                     branch => branch
-                        .Wait(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), _ => WaitCorrelation)
+                        .Wait(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), _ => secondCorrelation)
                         .Return(state => state.Value.Name)))
             .WhenAll((parent, results) => parent.Value with
             {
@@ -671,9 +672,8 @@ public sealed class StructuredFiberExecutionPublicTests
             WaitCorrelation,
             "ceiling-one-start");
         var bothWaiting = await WaitForStatusAsync(instance, WorkflowInstanceStatus.Waiting);
-        var authored = bothWaiting.ActiveWaits
-            .OrderBy(wait => wait.AuthoredLocation.Value, StringComparer.Ordinal)
-            .ToArray();
+        bothWaiting.ActiveWaits.Select(wait => wait.CorrelationId).Should().Equal(WaitCorrelation, secondCorrelation);
+        var secondWait = bothWaiting.ActiveWaits[1];
 
         var first = await DeliverAsync(
             provider,
@@ -687,17 +687,109 @@ public sealed class StructuredFiberExecutionPublicTests
         bothWaiting.ActiveWaits.Select(wait => wait.WaitId).Should().OnlyHaveUniqueItems();
         first.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         oneWaiting.ActiveWaits.Should().ContainSingle()
-            .Which.WaitId.Should().Be(authored[1].WaitId);
+            .Which.WaitId.Should().Be(secondWait.WaitId);
 
         var second = await DeliverAsync(
             provider,
             instance,
             Ready,
-            WaitCorrelation,
+            secondCorrelation,
             "ceiling-one-second");
         second.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
         (await WaitForStatusAsync(instance, WorkflowInstanceStatus.Completed))
             .Status.Should().Be(WorkflowInstanceStatus.Completed);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-107")]
+    public async Task DuplicateWaitAfterAcceptance_FailsBeforeParkingTheSecondWait(bool dynamicWait)
+    {
+        using var provider = CreateProvider(
+            services => services.AddSingleton<DuplicateReadyWaitStep>(),
+            pathCeiling: 1);
+        var ready = WorkflowEventContract.Create(Ready, EventContractVersion.Initial);
+        var definition = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new ParentState(value, []))
+            .Wait(WorkflowEventContract.Create(StartWork, EventContractVersion.Initial), _ => WaitCorrelation)
+            .Parallel<string>(branches => branches
+                .Branch<BranchState>(
+                    AuthoredBranchId.Create("first"),
+                    _ => new BranchState("first"),
+                    branch => branch.Wait(ready, _ => WaitCorrelation).Return(state => state.Value.Name))
+                .Branch<BranchState>(
+                    AuthoredBranchId.Create("second"),
+                    _ => new BranchState("second"),
+                    branch =>
+                    {
+                        if (dynamicWait)
+                            branch.Then<DuplicateReadyWaitStep>().Return(state => state.Value.Name);
+                        else
+                            branch.Wait(ready, _ => WaitCorrelation).Return(state => state.Value.Name);
+                    }))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .Build();
+        var instance = await StartAsync(provider, definition, "duplicate-after-acceptance");
+        var token = TestContext.Current.CancellationToken;
+        (await instance.GetSnapshotAsync(token)).ActiveWaits.Should().ContainSingle()
+            .Which.EventContract.EventName.Should().Be(StartWork);
+
+        var delivered = await DeliverAsync(provider, instance, StartWork, WaitCorrelation, "duplicate-trigger");
+        delivered.Status.Should().Be(EphemeralEventRouteStatus.Accepted);
+
+        var rejected = await instance.GetSnapshotAsync(token);
+        rejected.Status.Should().Be(WorkflowInstanceStatus.Failed);
+        rejected.Failure!.Code.Should().Be("WF-WAIT-AMBIGUOUS");
+        rejected.ActiveWaits.Should().BeEmpty();
+
+        var events = new ProcessLocalEventRouter(provider);
+        var released = await events.RouteByCorrelationAsync(
+            definition.DefinitionId,
+            ProcessLocalInboundEvent.Create(EventId.Create("duplicate-probe"), Ready, WaitCorrelation, DateTimeOffset.UtcNow),
+            token);
+        released.Status.Should().Be(ProcessLocalEventRouteStatus.NoActiveWait);
+        released.InstanceId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ConsumedWait_AllowsTheSameKeyToRegisterAndRouteAgain()
+    {
+        using var provider = CreateProvider(pathCeiling: 1);
+        var ready = WorkflowEventContract.Create(Ready, EventContractVersion.Initial);
+        var definition = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new ParentState(value, []))
+            .Wait(ready, _ => WaitCorrelation)
+            .Wait(ready, _ => WaitCorrelation)
+            .End()
+            .Build();
+        var instance = await StartAsync(provider, definition, "reuse-after-consumption");
+        var token = TestContext.Current.CancellationToken;
+        var first = (await instance.GetSnapshotAsync(token)).ActiveWaits.Should().ContainSingle().Which;
+        var events = new ProcessLocalEventRouter(provider);
+
+        (await Deliver("first-consumption")).Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        var second = (await instance.GetSnapshotAsync(token)).ActiveWaits.Should().ContainSingle().Which;
+        second.WaitId.Should().NotBe(first.WaitId);
+        second.CorrelationId.Should().Be(first.CorrelationId);
+        second.EventContract.Should().Be(first.EventContract);
+
+        (await Deliver("second-consumption")).Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        (await instance.GetSnapshotAsync(token)).Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await Deliver("after-consumption")).Status.Should().Be(ProcessLocalEventRouteStatus.NoActiveWait);
+
+        ValueTask<ProcessLocalEventRouteResult> Deliver(string eventId) =>
+            events.RouteByCorrelationAsync(
+                definition.DefinitionId,
+                ProcessLocalInboundEvent.Create(EventId.Create(eventId), Ready, WaitCorrelation, DateTimeOffset.UtcNow),
+                token);
+    }
+
+    private sealed class DuplicateReadyWaitStep : IStep<BranchState>
+    {
+        public ValueTask<StepResult> ExecuteAsync(StepContext<BranchState> context, CancellationToken cancellationToken) =>
+            ValueTask.FromResult<StepResult>(new StepResult.WaitForEvent(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), WaitCorrelation));
     }
 
     [Fact]

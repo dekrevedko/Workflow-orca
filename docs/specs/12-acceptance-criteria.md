@@ -580,8 +580,11 @@ first-release evidence for AC-512…517.
 - **AC-545** Barrier-held ApplicationStopping before hosted stop: Closed rejects
   starts/replays/registrations but permits accepted live queries, commands and ingress;
   no cancellation is queued, including delayed callback notification. [MG-066]
-- **AC-546** Queued pre-Init rejects at Closed; initialization admitted before Closed
-  finishes its first step and returns Accepted during drain. Race acceptance with
+- **AC-546** A caller waiting for an in-flight reservation rechecks admission
+  when the same key becomes available and receives host-stopping if Closed won,
+  without running Init or returning a replay or conflict. A queued pre-Init start
+  rejects at Closed. Initialization admitted before Closed finishes its first step
+  and returns Accepted during drain. Race acceptance with
   Stopping: only the still-unaccepted loser aborts, preserving original errors,
   immutable status and physical ownership in both policy modes. Include a Running
   pre-handle body and no close-caused host-stopping error after its effects. [MG-066]

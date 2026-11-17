@@ -81,7 +81,8 @@ public sealed class DagPumpSliceGuards
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        paths.Concat(facade).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Should().Equal(changed);
+        var ephemeralConcurrency = DagFacadeReviewCandidate.IntegratedSourcePaths(root);
+        paths.Concat(facade).Concat(ephemeralConcurrency).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Should().Equal(changed);
         paths.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Dag.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Durable.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Engine.Durable/", StringComparison.Ordinal));

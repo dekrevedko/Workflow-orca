@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 391,
-    "physicalDeclarations": 1635,
-    "activeFiles": 235,
-    "activeDeclarations": 947,
+    "physicalFiles": 392,
+    "physicalDeclarations": 1646,
+    "activeFiles": 236,
+    "activeDeclarations": 958,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1671,7 +1671,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 33
+      "declarations": 35
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionTests.cs",
@@ -1696,6 +1696,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/ConcurrentStartTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 5
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowCatalogTests.cs",
@@ -1905,7 +1911,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagFacadeBindingTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 9
+      "declarations": 11
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs",
@@ -2247,7 +2253,7 @@
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
       "status": "active",
-      "declarations": 45
+      "declarations": 46
     },
     {
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourcePoolStoreCertificationTests.cs",
@@ -2289,7 +2295,7 @@
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
       "status": "active",
-      "declarations": 19
+      "declarations": 20
     },
     {
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs",
