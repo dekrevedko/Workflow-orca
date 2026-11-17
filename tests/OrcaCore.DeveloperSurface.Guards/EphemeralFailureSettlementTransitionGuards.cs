@@ -132,21 +132,6 @@ internal static class EphemeralFailureSettlementReviewHistory
         return before;
     }
 
-    internal static string CurrentDocumentationHash(string root, string path, string historicalHash)
-    {
-        using var registry = ReadRegistry(root);
-        var rows = registry.RootElement.GetProperty("normativeDocumentationSuccessors").EnumerateArray()
-            .Where(row => row.GetProperty("path").GetString() == path).ToArray();
-        if (rows.Length == 0) return historicalHash;
-        rows.Should().ContainSingle();
-        var row = rows[0];
-        var before = Normalize(Git(root, "show", BeforeCommit + ":" + path));
-        Hash(before).Should().Be(historicalHash, "the original documentation approval pin remains intact");
-        historicalHash.Should().Be(row.GetProperty("beforeSha256").GetString());
-        return EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
-            root, path, row.GetProperty("afterSha256").GetString()!);
-    }
-
     private static string Block(string text, string title)
     {
         var match = Regex.Match(text,

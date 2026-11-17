@@ -204,3 +204,5 @@ API baselines, canonical sync, and expected-red dispositions are unchanged.
 ## DAG Task 8.6 Complete activation (2026-11-16)
 
 The maintained rows now pin actual current documents directly. The facade candidate's historical live-byte projection is retired in favor of immutable checkpoint blobs. The two real implementation/merge review chains and owner activation direction replace pending-review status; no other Section 8 completion is claimed.
+
+Row 1 refreshes the CLAUDE.md status edited in the activation target; rows 4, 6, 7, 10, 14, 17, 18, 19 and 20 consolidate the exact document bytes already reviewed at merge `1e960fc4bf67ad6d1a8c053602d4a58964b47d79`, previously reached through the retired live-byte adapters, rather than admitting new or unreviewed document edits.
