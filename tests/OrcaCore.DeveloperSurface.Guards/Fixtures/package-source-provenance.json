@@ -10,32 +10,32 @@
     {
       "id": "OrcaCore.Core",
       "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
-      "sourceSha256": "d49babba6fc1034f714a8344505ec6977e10b9b9786503f4b0ad3a5d91fd5425"
+      "sourceSha256": "f30810f40009f471d45691f504ec5781293ab57a823d3805987435944eaa80f4"
     },
     {
       "id": "OrcaCore.Dag",
       "project": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
-      "sourceSha256": "41f7d64bbf3e43cda0e836c3d19b03d38f69c0711eda738dce829ecbf28c7c6c"
+      "sourceSha256": "ec6bc82c27d941703453c84b8f05ac84b7d82d33c8bd363ccd389cbc089dc8cc"
     },
     {
       "id": "OrcaCore.Dag.Hosting",
       "project": "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj",
-      "sourceSha256": "2553d892a53dca2c410abf069d9e82b0a006885d7c81e885bc46f2c0b420b604"
+      "sourceSha256": "4c0a4e797d573c588b68b39cecf34cd8dad22ea8d3c3784fa3c4d6695a087a3f"
     },
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "b26addb6b34b56366ffa3d2f363676990174d6fd1bca444f758983bd2c722d96"
+      "sourceSha256": "0528234103fa486ed1322795a15b2bb0b8629d7c9e5e0c35c4ec11e308107fc4"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "8f960c72c32c8a959893cc45abf231dda1ed5a4a96913c4cba79acb60b99ffd3"
+      "sourceSha256": "edd37b1e606a16bda5058b4ccfedff3a69786b5f02731477d7b02533424a174b"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
       "project": "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj",
-      "sourceSha256": "40f375653aaa4cd5e6f511e7342c231aed641da557ff7375e1884d0294012b16"
+      "sourceSha256": "6fb1b79ec88a4c3c3d9d1f0379338f1fb66da8ef40b612af4d8971daf0452afb"
     },
     {
       "id": "OrcaCore.Provider.Abstractions",
@@ -50,7 +50,7 @@
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "e24a5b6ac6ee21039b4aac1b0aa1bbb5d2b9e903b46d7cebc63764e47635ce3d"
+      "sourceSha256": "8521984bc739e24e1bc5dea82c77a3e6a5192467a6ab9a20a33b4662ca0ca286"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",
@@ -60,7 +60,7 @@
     {
       "id": "OrcaCore.Runtime.Protocol",
       "project": "src/OrcaCore.Runtime.Protocol/OrcaCore.Runtime.Protocol.csproj",
-      "sourceSha256": "b112f43436c7a5bc44225d1b361bcda17d09485afd99d611e4cbf2faeeca75cc"
+      "sourceSha256": "80b9613792421398cceca97a72089e513df6deccffa0e78a908775e873eb135f"
     }
   ]
 }

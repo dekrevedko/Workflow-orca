@@ -465,3 +465,8 @@ and Stopping/Completed semantics remain unchanged. User-approved corrected check
 recipe. Released preview.2 and capabilities outside that recipe receive no new
 native support credit.
 [NF-034, AC-563, AC-571–574]
+
+## Runtime correctness clarification
+
+### CR-004a Unambiguous structural fields
+Compiler format 2 SHALL distinguish null (`null:`) from every non-null field. A non-null field SHALL encode its invariant-decimal UTF-16 code-unit length, `:`, and four uppercase hexadecimal digits for every code unit. This preserves punctuation, empty strings, supplementary pairs and accepted unpaired surrogates without UTF-8 replacement aliases. Numeric formatting SHALL be invariant; schema identities SHALL be sorted ordinally while authored ordering remains intact. Absent, literal named and opaque-selector outcomes SHALL remain distinct. Compiler format and the other existing binding/acceptance exclusions remain outside fingerprint inputs; fixed codec format remains included. Opaque code changes still require a new authored version. This completes unreleased format 2 and promises no legacy alias.

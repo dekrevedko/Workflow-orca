@@ -48,6 +48,7 @@ internal sealed class InstalledDagPlan(DagRunBindingV1 binding, string inputKey,
 {
     internal DagRunGraphV1 Graph { get; } = new(binding, inputKey, nodes.Select(node => node.ToStoredNode()).ToArray());
     internal Type InputType { get; } = inputType;
+    internal InstalledDagNode[] Nodes => nodes;
     internal DurableDagNodeContractV1 NodeContract(Guid runId, int ordinal) =>
         new(new(runId, ordinal), nodes[ordinal].Workflow, Array.AsReadOnly(nodes[ordinal].Dependencies.Select(dependency =>
             new DurableDagDependencyV1(new(runId, dependency), nodes[dependency].Workflow)).ToArray()));

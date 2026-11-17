@@ -2,6 +2,18 @@
 assembly OrcaCore.Dag
 type public static class OrcaCore.Dag.Dag
   method public static Define<TRunInput>([OrcaCore]OrcaCore.DefinitionId! definitionId, [OrcaCore]OrcaCore.DefinitionVersion! definitionVersion) -> [OrcaCore.Dag]OrcaCore.Dag.WorkflowDagBuilder`1[!!TRunInput?]! where [TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+type public enum OrcaCore.Dag.DagCancellationRequestStatus : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagCancellationRequestStatus AlreadyRequested = 1
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagCancellationRequestStatus AlreadyTerminal = 2
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagCancellationRequestStatus Requested = 0
+type public sealed class OrcaCore.Dag.DagDefinitionHandle`1 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  method public GetRunAsync([OrcaCore.Dag]OrcaCore.Dag.DagRunId! runId, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Dag]OrcaCore.Dag.DagRunHandle!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  method public StartOrGetAsync(!TRunInput? input, [OrcaCore]OrcaCore.StartIdempotencyKey! idempotencyKey, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Dag]OrcaCore.Dag.DagStartResult!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint { get:public }
+  property [OrcaCore]OrcaCore.DefinitionId! DefinitionId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion { get:public }
 type public sealed class OrcaCore.Dag.DagDefinitionRegistrationConflictException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore]OrcaCore.DefinitionRegistrationConflict! Conflict { get:public }
 type public sealed class OrcaCore.Dag.DagNodeBuilder`2 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
@@ -26,14 +38,162 @@ type public sealed class OrcaCore.Dag.DagNodeInputContext`1 attributes [[System.
   generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
   method public OutputOf<TDependencyOutput>([OrcaCore.Dag]OrcaCore.Dag.DagNodeRef`1[!!TDependencyOutput?]! dependency) -> !!TDependencyOutput? where [TDependencyOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
   property !TRunInput? RunInput { get:public }
+type public abstract class OrcaCore.Dag.DagNodeOutputResult`1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor protected .ctor([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]! original attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])])
+  method protected virtual PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public abstract <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected virtual }
+type public sealed class OrcaCore.Dag.DagNodeOutputResult`1+Available : [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  generic TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor public .ctor(!TOutput? Output)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out !TOutput? Output) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput?]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 1])]) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Available[!TOutput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property !TOutput? Output { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.Dag.DagNodeOutputResult`1+Unavailable : [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput~]~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  generic TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor public .ctor([OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Status, [OrcaCore]OrcaCore.WorkflowFailure? Failure)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Status, out [OrcaCore]OrcaCore.WorkflowFailure? Failure) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!TOutput?]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 1])]) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1+Unavailable[!TOutput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Status { get:public; init:public }
+  property [OrcaCore]OrcaCore.WorkflowFailure? Failure { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)]
 type public class OrcaCore.Dag.DagNodeRef attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore.Dag]OrcaCore.Dag.DagNodeId! NodeId { get:public }
 type public sealed class OrcaCore.Dag.DagNodeRef`1 : [OrcaCore.Dag]OrcaCore.Dag.DagNodeRef~
   generic TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+type public sealed class OrcaCore.Dag.DagNodeSnapshot interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Dag]OrcaCore.Dag.DagNodeId! NodeId attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)], [System.Private.CoreLib]System.Int32 AuthoredOrdinal, [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Status, [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeId!]! Dependencies attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)], [OrcaCore]OrcaCore.InstanceId? ChildInstanceId, [OrcaCore]OrcaCore.PayloadFingerprint? MappedInputFingerprint, [System.Private.CoreLib]System.Boolean OutputAvailable, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] ReadyAt, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] StartedAt, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] CompletedAt, [OrcaCore]OrcaCore.WorkflowFailure? Failure)
+  method public <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot!
+  method public Deconstruct(out [OrcaCore.Dag]OrcaCore.Dag.DagNodeId! NodeId attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)], out [System.Private.CoreLib]System.Int32 AuthoredOrdinal, out [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Status, out [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeId!]! Dependencies attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)], out [OrcaCore]OrcaCore.InstanceId? ChildInstanceId, out [OrcaCore]OrcaCore.PayloadFingerprint? MappedInputFingerprint, out [System.Private.CoreLib]System.Boolean OutputAvailable, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] ReadyAt, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] StartedAt, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] CompletedAt, out [OrcaCore]OrcaCore.WorkflowFailure? Failure) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot? left, [OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot? left, [OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Dag]OrcaCore.Dag.DagNodeId! NodeId { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Status { get:public; init:public }
+  property [OrcaCore]OrcaCore.InstanceId? ChildInstanceId { get:public; init:public }
+  property [OrcaCore]OrcaCore.PayloadFingerprint? MappedInputFingerprint { get:public; init:public }
+  property [OrcaCore]OrcaCore.WorkflowFailure? Failure { get:public; init:public }
+  property [System.Private.CoreLib]System.Boolean OutputAvailable { get:public; init:public }
+  property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeId!]! Dependencies { get:public; init:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(1)]
+  property [System.Private.CoreLib]System.Int32 AuthoredOrdinal { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] CompletedAt { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] ReadyAt { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] StartedAt { get:public; init:public }
+type public enum OrcaCore.Dag.DagNodeStatus : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus CancellationRequested = 3
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Cancelled = 6
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus DependencyBlocked = 7
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Failed = 5
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Pending = 0
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Ready = 1
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Running = 2
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus Succeeded = 4
+type public abstract class OrcaCore.Dag.DagRegistrationResult`1 interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor protected .ctor([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]! original attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])])
+  method protected virtual PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public GetHandleOrThrow() -> [OrcaCore.Dag]OrcaCore.Dag.DagDefinitionHandle`1[!TRunInput?]!
+  method public abstract <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected virtual }
+type public sealed class OrcaCore.Dag.DagRegistrationResult`1+Conflict : [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor public .ctor([OrcaCore]OrcaCore.DefinitionRegistrationConflict! Error)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore]OrcaCore.DefinitionRegistrationConflict! Error) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput?]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 1])]) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Conflict[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore]OrcaCore.DefinitionRegistrationConflict! Error { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.Dag.DagRegistrationResult`1+Registered : [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor public .ctor([OrcaCore.Dag]OrcaCore.Dag.DagDefinitionHandle`1[!TRunInput?]! Handle)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore.Dag]OrcaCore.Dag.DagDefinitionHandle`1[!TRunInput?]! Handle) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput?]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 1])]) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+Registered[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Dag]OrcaCore.Dag.DagDefinitionHandle`1[!TRunInput?]! Handle { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict : [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput~]~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  ctor public .ctor([OrcaCore]OrcaCore.DefinitionId! DefinitionId, [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion, [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint, [System.Private.CoreLib]System.Type! ExistingRunInputType, [System.Private.CoreLib]System.Type! AttemptedRunInputType)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore]OrcaCore.DefinitionId! DefinitionId, out [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion, out [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint, out [System.Private.CoreLib]System.Type! ExistingRunInputType, out [System.Private.CoreLib]System.Type! AttemptedRunInputType) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!TRunInput?]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 1])]) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]! return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([1, 0])]
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]? other attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]? left attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])], [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1+RunInputConflict[!TRunInput~]? right attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([2, 0])]) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionId! DefinitionId { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! AttemptedRunInputType { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+  property [System.Private.CoreLib]System.Type! ExistingRunInputType { get:public; init:public }
 type public sealed class OrcaCore.Dag.DagRunDefinitionMismatchException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! ActualDefinitionFingerprint { get:public }
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! ExpectedDefinitionFingerprint { get:public }
   property [OrcaCore]OrcaCore.DefinitionId! ActualDefinitionId { get:public }
   property [OrcaCore]OrcaCore.DefinitionId! ExpectedDefinitionId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! ActualDefinitionVersion { get:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! ExpectedDefinitionVersion { get:public }
+type public sealed class OrcaCore.Dag.DagRunFaultedException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
+type public sealed class OrcaCore.Dag.DagRunHandle attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public GetOutputAsync<TOutput>([OrcaCore.Dag]OrcaCore.Dag.DagNodeRef`1[!!TOutput?]! node, [System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeOutputResult`1[!!TOutput?]!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1, 1])] where [TOutput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
+  method public GetSnapshotAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  method public RequestCancellationAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Dag]OrcaCore.Dag.DagCancellationRequestStatus]
+  method public WaitForTerminalAsync([System.Private.CoreLib]System.Threading.CancellationToken cancellationToken = null) -> [System.Private.CoreLib]System.Threading.Tasks.ValueTask`1[[OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot!] return-attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute([0, 1])]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
 type public sealed class OrcaCore.Dag.DagRunId interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRunId~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
   method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
@@ -42,10 +202,103 @@ type public sealed class OrcaCore.Dag.DagRunId interfaces [[System.Private.CoreL
   method public static TryParse([System.Private.CoreLib]System.String? value, out [OrcaCore.Dag]OrcaCore.Dag.DagRunId? runId) -> [System.Private.CoreLib]System.Boolean
   method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRunId? other) -> [System.Private.CoreLib]System.Boolean
   property [System.Private.CoreLib]System.Guid Value { get:public }
+type public sealed class OrcaCore.Dag.DagRunInputContractMismatchException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId? RunId { get:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint { get:public }
+  property [OrcaCore]OrcaCore.DefinitionId! DefinitionId { get:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion { get:public }
+  property [System.Private.CoreLib]System.Type! AttemptedRunInputType { get:public }
+  property [System.Private.CoreLib]System.Type? ExistingRunInputType { get:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
 type public sealed class OrcaCore.Dag.DagRunNotFoundException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public }
+type public sealed class OrcaCore.Dag.DagRunSnapshot interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId, [OrcaCore]OrcaCore.DefinitionId! DefinitionId, [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion, [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint, [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Status, [System.Private.CoreLib]System.DateTimeOffset StartedAt, [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] CompletedAt, [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot!]! Nodes)
+  method public <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot!
+  method public Deconstruct(out [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId, out [OrcaCore]OrcaCore.DefinitionId! DefinitionId, out [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion, out [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint, out [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Status, out [System.Private.CoreLib]System.DateTimeOffset StartedAt, out [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] CompletedAt, out [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot!]! Nodes) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot? left, [OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot? left, [OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! RunId { get:public; init:public }
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Status { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionId! DefinitionId { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion { get:public; init:public }
+  property [System.Private.CoreLib]System.Collections.Generic.IReadOnlyList`1[[OrcaCore.Dag]OrcaCore.Dag.DagNodeSnapshot!]! Nodes { get:public; init:public }
+  property [System.Private.CoreLib]System.DateTimeOffset StartedAt { get:public; init:public }
+  property [System.Private.CoreLib]System.Nullable`1[[System.Private.CoreLib]System.DateTimeOffset] CompletedAt { get:public; init:public }
+type public enum OrcaCore.Dag.DagRunStatus : [System.Private.CoreLib]System.Int32
+  field public [System.Private.CoreLib]System.Int32 value__
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus CancellationRequested = 1
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Cancelled = 4
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Failed = 3
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Running = 0
+  field public const [OrcaCore.Dag]OrcaCore.Dag.DagRunStatus Succeeded = 2
 type public sealed class OrcaCore.Dag.DagStartIdempotencyConflictException : [OrcaCore]OrcaCore.OrcaCoreException~ attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   property [OrcaCore]OrcaCore.StartIdempotencyConflict! Conflict { get:public }
+type public abstract class OrcaCore.Dag.DagStartResult interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagStartResult~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor protected .ctor([OrcaCore.Dag]OrcaCore.Dag.DagStartResult! original)
+  method protected virtual PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public GetHandleOrThrow() -> [OrcaCore.Dag]OrcaCore.Dag.DagRunHandle!
+  method public abstract <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagStartResult!
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public virtual Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult? right) -> [System.Private.CoreLib]System.Boolean
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected virtual }
+type public sealed class OrcaCore.Dag.DagStartResult+Accepted : [OrcaCore.Dag]OrcaCore.Dag.DagStartResult~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Dag]OrcaCore.Dag.DagRunHandle! Handle, [System.Private.CoreLib]System.Boolean WasExisting)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore.Dag]OrcaCore.Dag.DagRunHandle! Handle, out [System.Private.CoreLib]System.Boolean WasExisting) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult? other) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted!
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Accepted? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunHandle! Handle { get:public; init:public }
+  property [System.Private.CoreLib]System.Boolean WasExisting { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.Dag.DagStartResult+Conflict : [OrcaCore.Dag]OrcaCore.Dag.DagStartResult~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore]OrcaCore.StartIdempotencyConflict! Error)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore]OrcaCore.StartIdempotencyConflict! Error) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult? other) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict!
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+Conflict? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore]OrcaCore.StartIdempotencyConflict! Error { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.Dag.DagStartResult+RunInputConflict : [OrcaCore.Dag]OrcaCore.Dag.DagStartResult~ interfaces [[System.Private.CoreLib]System.IEquatable`1[[OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict~]~] attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  ctor public .ctor([OrcaCore.Dag]OrcaCore.Dag.DagRunId! ExistingRunId, [OrcaCore]OrcaCore.DefinitionId! DefinitionId, [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion, [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint, [System.Private.CoreLib]System.Type! AttemptedRunInputType)
+  method protected override PrintMembers([System.Private.CoreLib]System.Text.StringBuilder! builder) -> [System.Private.CoreLib]System.Boolean
+  method public Deconstruct(out [OrcaCore.Dag]OrcaCore.Dag.DagRunId! ExistingRunId, out [OrcaCore]OrcaCore.DefinitionId! DefinitionId, out [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion, out [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint, out [System.Private.CoreLib]System.Type! AttemptedRunInputType) -> [System.Private.CoreLib]System.Void
+  method public override Equals([System.Private.CoreLib]System.Object? obj) -> [System.Private.CoreLib]System.Boolean
+  method public override GetHashCode() -> [System.Private.CoreLib]System.Int32
+  method public override ToString() -> [System.Private.CoreLib]System.String!
+  method public override sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult? other) -> [System.Private.CoreLib]System.Boolean
+  method public virtual <Clone>$() -> [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict!
+  method public virtual sealed Equals([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict? other) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Equality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict? right) -> [System.Private.CoreLib]System.Boolean
+  operator public static op_Inequality([OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict? left, [OrcaCore.Dag]OrcaCore.Dag.DagStartResult+RunInputConflict? right) -> [System.Private.CoreLib]System.Boolean
+  property [OrcaCore.Dag]OrcaCore.Dag.DagRunId! ExistingRunId { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionFingerprint! DefinitionFingerprint { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionId! DefinitionId { get:public; init:public }
+  property [OrcaCore]OrcaCore.DefinitionVersion! DefinitionVersion { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! AttemptedRunInputType { get:public; init:public }
+  property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public interface OrcaCore.Dag.IDagDefinitionRegistry
+  method public abstract Register<TRunInput>([OrcaCore.Dag]OrcaCore.Dag.WorkflowDagPlan`1[!!TRunInput?]! plan) -> [OrcaCore.Dag]OrcaCore.Dag.DagRegistrationResult`1[!!TRunInput?]! where [TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]]
 type public sealed class OrcaCore.Dag.WorkflowDagBuilder`1 attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   generic TRunInput : attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
   method public Build() -> [OrcaCore.Dag]OrcaCore.Dag.WorkflowDagPlan`1[!TRunInput?]!

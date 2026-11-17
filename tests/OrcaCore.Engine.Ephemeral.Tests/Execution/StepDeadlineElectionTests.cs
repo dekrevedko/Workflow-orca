@@ -6,6 +6,7 @@ using Xunit;
 
 namespace OrcaCore.Engine.Ephemeral.Tests.Execution;
 
+[Trait("AC", "AC-325")]
 public sealed class StepDeadlineElectionTests
 {
     private static readonly TimeSpan Guard = TimeSpan.FromSeconds(10);

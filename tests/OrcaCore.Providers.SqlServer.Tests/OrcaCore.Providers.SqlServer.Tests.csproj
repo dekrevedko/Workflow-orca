@@ -22,5 +22,6 @@
     <ProjectReference Include="..\..\src\OrcaCore.Providers.SqlServer\OrcaCore.Providers.SqlServer.csproj" />
     <ProjectReference Include="..\OrcaCore.ProviderCertification\OrcaCore.ProviderCertification.csproj" />
     <ProjectReference Include="..\OrcaCore.TestSupport\OrcaCore.TestSupport.csproj" />
+    <ProjectReference Include="..\OrcaCore.Dag.ProcessProbe\OrcaCore.Dag.ProcessProbe.csproj" />
   </ItemGroup>
 </Project>

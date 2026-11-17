@@ -1,0 +1,474 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-16",
+  "stage": "UncommittedActivationReviewCandidate",
+  "baseCommit": "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1",
+  "mergeCheckpoint": "1e960fc4bf67ad6d1a8c053602d4a58964b47d79",
+  "scope": "Task 3.2 only; product source, public API, canonical specs and five delta blocks unchanged from base.",
+  "builds": [
+    {
+      "path": "X:\\dag-seam-activation-20261116\\final-build-debug.log",
+      "bytes": 3896,
+      "sha256": "98ead3c52965c97561151d07999eae47ee20a83f7f069862eec2c508d83bc00d"
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\final-build-release.log",
+      "bytes": 3958,
+      "sha256": "5fa6c3105162f9ffc1b668d47b7cb79f7099f2b8bbd86326853dc9cd371b1613"
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\final-debug-followup.log",
+      "bytes": 3896,
+      "sha256": "000327bbe3446c6dbc0ee04a827242e01428b9b6e374ea35120acc57e6458e0d"
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\final-release-followup.log",
+      "bytes": 3958,
+      "sha256": "926e0bcbe2ccfb86e7fd560cad05710a2a204dc9b379a196c749cae5b3da558a"
+    }
+  ],
+  "buildResult": "Debug and Release solution rebuilds, warnings as errors: 0 warnings / 0 errors each.",
+  "ciUnitProjects": [
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-core.trx",
+      "bytes": 543012,
+      "sha256": "3ca7cc50489e3ac65d644693134eb847d5905b4961f1156fd295fb6e3d018899",
+      "counters": {
+        "total": "390",
+        "executed": "390",
+        "passed": "390",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-ephemeral.trx",
+      "bytes": 650142,
+      "sha256": "4d93cceec230a33e2139a916c3b64c8ddd31bbad84f4f0faa8937ee44eb35634",
+      "counters": {
+        "total": "414",
+        "executed": "414",
+        "passed": "414",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-durable.trx",
+      "bytes": 168472,
+      "sha256": "71d41110d55b896b579855a4a29fb1e8c4c40bcbac18f146cb5409d6a1a2c503",
+      "counters": {
+        "total": "113",
+        "executed": "113",
+        "passed": "113",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-acceptance.trx",
+      "bytes": 52433,
+      "sha256": "03b85689ce10c2aae4206e95a5f6d391a9899986652e8b812ed1b559daddc92b",
+      "counters": {
+        "total": "37",
+        "executed": "37",
+        "passed": "37",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-hosting.trx",
+      "bytes": 113278,
+      "sha256": "7af31a7e079373caac2e2fe0d4226b4870e05bb2631444a5f8ea168fa546d5b5",
+      "counters": {
+        "total": "79",
+        "executed": "79",
+        "passed": "79",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-certification.trx",
+      "bytes": 172169,
+      "sha256": "b27ab7ba6d7a3d5801a768213c19bfde1f186d2a8b16441009b0379c7f263e1e",
+      "counters": {
+        "total": "116",
+        "executed": "116",
+        "passed": "116",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "ciUnitTotal": 1149,
+  "integration": {
+    "path": "X:\\dag-seam-activation-20261116\\results\\activation-integration.trx",
+    "bytes": 18363,
+    "sha256": "f2d77ff7db8b58a7c2002303e22437452c2f05dee46409ddbff52c3bf9f5ec36",
+    "counters": {
+      "total": "11",
+      "executed": "11",
+      "passed": "11",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "benchmarkSmoke": {
+    "path": "X:\\dag-seam-activation-20261116\\benchmark-smoke.log",
+    "bytes": 49,
+    "sha256": "114698cfdb6ebd2353eda693a6e4e33b693a960b218ef94e85d7b4550d473b42"
+  },
+  "changedProviderCases": [
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-fault-postgres.trx",
+      "bytes": 4614,
+      "sha256": "11eafad3157b05f298421c8f5c943bcb93769c7e6048ea385f64c7b373c3db10",
+      "counters": {
+        "total": "2",
+        "executed": "2",
+        "passed": "2",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    },
+    {
+      "path": "X:\\dag-seam-activation-20261116\\results\\activation-fault-sqlserver.trx",
+      "bytes": 4590,
+      "sha256": "dbeccbe17a102177792e8e18dbf27bf771041f6211f855c97a6e31c19ef6c16a",
+      "counters": {
+        "total": "2",
+        "executed": "2",
+        "passed": "2",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      }
+    }
+  ],
+  "providerQualification": "Both real-container providers reran the two affected fault and four-process-restart tests. Full provider suites (PostgreSQL 123, SQL Server 94) are retained evidence of the independently reviewed merge, not fresh activation runs. Full in-memory unit lanes are fresh.",
+  "packages": {
+    "result": "9/9 Green consumers; exact current-source packed feed",
+    "evidence": {
+      "path": "X:\\dag-seam-activation-20261116\\package-consumers.log",
+      "bytes": 288,
+      "sha256": "bf8f25c9e8303ac53b44d0f6ee5b4970e9db00f0f5a70e5216fb9f1838b3673a"
+    }
+  },
+  "focusedGates": {
+    "path": "X:\\dag-seam-activation-20261116\\results\\activation-focused-gates-fixed.trx",
+    "bytes": 10736,
+    "sha256": "69069b622d514374c761f232a3be1f8e0518dac927f56362658095cc4b66b162",
+    "counters": {
+      "total": "6",
+      "executed": "6",
+      "passed": "6",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "mutations": [
+    {
+      "probe": "complete-stage",
+      "outcome": "killed",
+      "message": "Expected checkpoint.ProposedDagFacadeSeamSuccessors to be equal to\r\n{\r\n    OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards+PostGateProposedRunSuccessor\r\n    {\r\n        Capability = \"developer-facing-surface\",\r\n        Change = \"admit-dag-public-handle-seam\",\r\n        PredecessorBlockSha256 = \"3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a"
+    },
+    {
+      "probe": "complete-evidence",
+      "outcome": "killed",
+      "message": "Expected checkpoint.DagFacadeCompleteEvidence to be OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards+PostGateDagFacadeCompleteEvidence\r\n{\r\n    ImplementationCheckpoint = \"b9dcdef7e611da45d7dc4f75946ee192fc83c37e\",\r\n    ImplementationEvidenceCommit = \"598c6d4fb61f7883e25f79f03001aa620dda0bf7\",\r\n    MergeCheckpoint = \"1e960fc4bf67ad6d1a8c053602d"
+    },
+    {
+      "probe": "shutdown-rollback",
+      "outcome": "killed",
+      "message": "Expected current to be the same string, but they differ on line 60 and column 40 (index 4155):\r\n              ↓ (actual)\r\n  \"…nSnapshot` through the same notification/recheck,…\"\r\n  \"…nSnapshot`, or throw `DagRunFaultedException` when its…\"\r\n              ↑ (expected)."
+    },
+    {
+      "probe": "retired-live-source-pins",
+      "outcome": "accepted",
+      "message": null
+    },
+    {
+      "probe": "canonical-drift",
+      "outcome": "killed",
+      "message": "Expected string to be the same string because the independently reviewed facade blocks remain synchronized at Complete, but they differ on line 108 and column 155 (index 10597):\r\n                  ↓ (actual)\r\n  \"…DAG types and eighteen non-public DAG members, and no DAG…\"\r\n  \"…DAG types and seventeen non-public DAG members, and no DAG…\"\r\n          "
+    },
+    {
+      "probe": "unlisted-owner",
+      "outcome": "killed",
+      "message": "Expected active.Where(item => item.Capability == capability && item.Requirement == heading).Select(item => item.Change).Order(StringComparer.Ordinal) to be equal to {\"admit-dag-authoring-friend-boundary\", \"admit-dag-hosting-runtime-view\", \"admit-dag-public-handle-seam\", \"reshape-developer-facing-interfaces\"} because only the exact chain may own thi"
+    }
+  ],
+  "mutationAccounting": {
+    "killed": 5,
+    "survived": 0,
+    "timeout": 0,
+    "uncovered": 0,
+    "compileError": 0,
+    "ignored": 0,
+    "positiveBoundaryProbeAccepted": 1
+  },
+  "infrastructure": {
+    "path": "X:\\dag-seam-activation-20261116\\results\\activation-infrastructure.trx",
+    "bytes": 495700,
+    "sha256": "d9fef3ba21c3bbd65bee831f384cf660b33bb502a79ac9e9297acf5c615a9f52",
+    "counters": {
+      "total": "319",
+      "executed": "319",
+      "passed": "319",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "expectedRed": {
+    "path": "X:\\dag-seam-activation-20261116\\results\\activation-expected-red.trx",
+    "bytes": 54709,
+    "sha256": "359842269fd24bd8b33929f92d48c42fe2eafd1927b8cd7d9a7f361b12737ceb",
+    "counters": {
+      "total": "14",
+      "executed": "14",
+      "passed": "0",
+      "failed": "14",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "strictOpenSpec": {
+    "path": "X:\\dag-seam-activation-20261116\\openspec-strict-final.log",
+    "bytes": 1148,
+    "sha256": "688cf28ce112577ad2cc2ac23fc7f748839a567d7c8eab4f62fc69fc27d1fd0b"
+  },
+  "strictOpenSpecQualification": "28/28 structural validation only; no semantic approval inferred.",
+  "observedFailures": [
+    {
+      "evidence": {
+        "path": "X:\\dag-seam-activation-20261116\\results\\review-core-reproduction.trx",
+        "bytes": 6304,
+        "sha256": "409802c1748f848bdf0444bad516e765ddf4edff34cb61a07e247a20e0730ea0",
+        "counters": {
+          "total": "1",
+          "executed": "1",
+          "passed": "0",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      "resolution": "Reproduced unchanged Core guard; fixed all three poll sites without exemptions. Full Core 390/390 now passes."
+    },
+    {
+      "evidence": {
+        "path": "X:\\dag-seam-activation-20261116\\results\\activation-focused-gates.trx",
+        "bytes": 15308,
+        "sha256": "4ab88ccb722f9505b19bf9b5442d77a8b2ccd5d812bf3ca0dbeedf9c67dcbd0b",
+        "counters": {
+          "total": "6",
+          "executed": "6",
+          "passed": "5",
+          "failed": "1",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      "resolution": "One stale current CLAUDE status-block digest was found and repinned after status reconciliation; six focused gates now pass."
+    },
+    {
+      "evidence": {
+        "path": "X:\\dag-seam-activation-20261116\\activation-fault-inmemory.log",
+        "bytes": 535,
+        "sha256": "7838c653db2f0227e46f67fe97c6d03c0b80978b949c26a929167242a54ad5d5"
+      },
+      "resolution": "Provider-only filter matched no in-memory tests; this is no evidence. Full Hosting 79 and ProviderCertification 116 are the actual fresh in-memory lanes."
+    },
+    {
+      "evidence": {
+        "path": "X:\\dag-seam-activation-20261116\\results\\activation-infrastructure-initial.trx",
+        "bytes": 509403,
+        "sha256": "8fd94455df7f79139159e5fa2fc9b1aad8223d943bd7c59b4a2e5ed9c0c9908c",
+        "counters": {
+          "total": "319",
+          "executed": "319",
+          "passed": "315",
+          "failed": "4",
+          "error": "0",
+          "timeout": "0",
+          "aborted": "0",
+          "inconclusive": "0",
+          "passedButRunAborted": "0",
+          "notRunnable": "0",
+          "notExecuted": "0",
+          "disconnected": "0",
+          "warning": "0",
+          "completed": "0",
+          "inProgress": "0",
+          "pending": "0"
+        }
+      },
+      "resolution": "Fixed two stale schema-25 assertions, updated task accounting to 133 complete / 26 pending, and included merge additions in immutable-history Git queries. Exact prior-record comparisons remain. The committed merge packet itself reproduces the history-query regression."
+    }
+  ],
+  "reviewLimits": "Author self-review is not an independent verdict. Prior external reviewers exclude independent RV-1 through RV-4 contract review. This activation target awaits the next independent review and is not committed or pushed.",
+  "ciUnitQualification": "The full six-project CI unit list is run locally; this is not a hosted CI or coverage-collection claim.",
+  "expectedRedQualification": "14 known missing executable scenario drivers, all intentionally red; no passing-test or feature-completion credit.",
+  "reproductionCommands": [
+    "dotnet build OrcaCore.slnx --no-restore -warnaserror",
+    "dotnet build OrcaCore.slnx --no-restore -c Release -warnaserror",
+    "dotnet test <each CI unit project listed by ciUnitProjects> --no-build --no-restore -c Release --logger trx",
+    "tests/OrcaCore.DeveloperSurface.Guards/run-package-fixtures.ps1 -Disposition Green -CompletedSection 8 -CompletedTask 8.6",
+    "Set ORCACORE_PUBLIC_API_PACKAGE_FEED to the absolute artifacts/phase0-packages path; dotnet test tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj --no-build --no-restore -c Release --filter Disposition=Infrastructure --logger trx",
+    "dotnet test tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj --no-build --no-restore -c Release --filter Disposition=ExpectedRed --logger trx",
+    "openspec validate --all --strict"
+  ],
+  "validationClosure": "After the full infrastructure run, only this evidence record, author self-review, request/catalogue and manifest/content anchors are finalized. ReviewManifests and Task72 are rerun on that final freeze, with their TRX retained outside the target to avoid self-reference. Product, canonical, API and guard source remain the tested bytes."
+}

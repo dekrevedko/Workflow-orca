@@ -1,0 +1,208 @@
+{
+  "date": "2026-11-16",
+  "originalBase": "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1",
+  "originalTree": "e959997f48873c57d018e5990f75352766518f43",
+  "originalManifestSha256": "95bdb057358f6e5f3d26431b2bbcefadb2b8bd1756dcd53d9d71346804e62631",
+  "originalTargetPatch": {
+    "path": "X:\\ocv302\\openspec\\changes\\admit-dag-public-handle-seam\\artifacts\\task-3-2-original-29-path-target-2026-11-16.patch",
+    "bytes": 139694,
+    "sha256": "3d95954d36b0d322e489f3672ac881e9f37dad049e8aacdf9ae4117e6e3605b2"
+  },
+  "reviewIndependence": "Fresh adversarial review by the agent that authored the original activation target; not authorship-independent or a new independent contract approval.",
+  "finding": "P2: remaining historical source guards reject future source files and edits after Complete.",
+  "findingBefore": [
+    {
+      "name": "new-dag-source",
+      "phase": "before",
+      "exitCode": 1,
+      "counters": {
+        "total": "1",
+        "executed": "1",
+        "passed": "0",
+        "failed": "1",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "message": "Expected Git(root, \"diff\", \"--name-only\", baseCommit, \"--\",\"src/OrcaCore.Dag\", \"src/OrcaCore.Dag.Hosting\", \"openspec/changes/admit-durable-dag-run-progression/specs\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt\",\"tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt\").Split('\\n', StringSplitOptions.RemoveEmptyEntries).Concat(Git(root, \"ls-files\", \"--others\", \"--exclude-standard\", \"--\",\"src/OrcaCore.Dag\", \"src/OrcaCore.Dag.Hosting\", \"openspec/specs\").Split('\\n', StringSplitOptions.RemoveEmptyEntries)).Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal).Except(DagFacadeApprovedHistory.PublicApiPaths(root), StringComparer.Ordinal) to be empty, but found at least one item {\"src/OrcaCore.Dag.Hosting/CompletedHistoryReviewProbe.cs\"}."
+    },
+    {
+      "name": "existing-protocol-source",
+      "phase": "before",
+      "exitCode": 1,
+      "counters": {
+        "total": "1",
+        "executed": "1",
+        "passed": "0",
+        "failed": "1",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "message": "Expected Convert.ToBase64String(File.ReadAllBytes(Path.Combine(root, path))) to be the same string because only byte-exact independently approved DAG sources are excluded from earlier change scopes, but they differ at index 746:\r\n              ↓ (actual)\r\n  \"…ICAgfQp9CgovLyBUZW1wb3JhcnkgZnV0dXJlIGltcGxlbWVudG…\"\r\n  \"…ICAgfQp9Cg==\"\r\n              ↑ (expected)."
+    }
+  ],
+  "findingAfter": [
+    {
+      "name": "new-dag-source",
+      "phase": "after",
+      "exitCode": 0,
+      "counters": {
+        "total": "1",
+        "executed": "1",
+        "passed": "1",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "message": null
+    },
+    {
+      "name": "existing-protocol-source",
+      "phase": "after",
+      "exitCode": 0,
+      "counters": {
+        "total": "1",
+        "executed": "1",
+        "passed": "1",
+        "failed": "0",
+        "error": "0",
+        "timeout": "0",
+        "aborted": "0",
+        "inconclusive": "0",
+        "passedButRunAborted": "0",
+        "notRunnable": "0",
+        "notExecuted": "0",
+        "disconnected": "0",
+        "warning": "0",
+        "completed": "0",
+        "inProgress": "0",
+        "pending": "0"
+      },
+      "message": null
+    }
+  ],
+  "negativeHistoryProbe": {
+    "name": "historical-record-drift",
+    "outcome": "killed",
+    "counters": {
+      "total": "1",
+      "executed": "1",
+      "passed": "0",
+      "failed": "1",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    },
+    "message": "Expected File.ReadAllBytes(Path.Combine(root, RecordPath)) to be equal to {0x7B, 0x0A, 0x20, 0x20, 0x22, 0x73, 0x74, 0x61, 0x67, 0x65, 0x22, 0x3A, 0x20, 0x22, 0x4F, 0x77, 0x6E, 0x65, 0x72, 0x41, 0x75, 0x74, 0x68, 0x6F, 0x72, 0x69, 0x7A, 0x65, 0x64, 0x52, 0x65, 0x76, …7181 more…} because the retired draft record remains immutable history, but {0x7B, 0x0A, 0x20, 0x20, 0x22, 0x73, 0x74, 0x61, 0x67, 0x65, 0x22, 0x3A, 0x20, 0x22, 0x4F, 0x77, 0x6E, 0x65, 0x72, 0x41, 0x75, 0x74, 0x68, 0x6F, 0x72, 0x69, 0x7A, 0x65, 0x64, 0x52, 0x65, 0x76, …7181 more…} differs at index 60."
+  },
+  "mutationAccounting": {
+    "killed": 1,
+    "survived": 0,
+    "timeout": 0,
+    "uncovered": 0,
+    "compileError": 0,
+    "ignored": 0,
+    "positiveProbesAccepted": 2
+  },
+  "core": {
+    "path": "X:\\dag-seam-activation-review-20261116\\results\\review-core.trx",
+    "bytes": 543012,
+    "sha256": "9277f74bd0b60c8c468570d0c02787d497efe7ecb71ff9e52040afcb274077ab",
+    "counters": {
+      "total": "390",
+      "executed": "390",
+      "passed": "390",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "build": {
+    "path": "X:\\dag-seam-activation-review-20261116\\review-build.log",
+    "bytes": 3958,
+    "sha256": "7bdcefc4c0b923c7832285935c1474a5a01f35e09b55609e693295e6efbf1ca3"
+  },
+  "inheritedValidation": {
+    "path": "X:\\ocv302\\openspec\\changes\\admit-dag-public-handle-seam\\artifacts\\task-3-2-activation-validation-2026-11-16.json",
+    "bytes": 17589,
+    "sha256": "a523b8e09ff179be60459713a912aa7f08d34abb68e1e57a10440d903b8f91bb",
+    "scope": "Original 29-path target: full CI unit list 1149, Integration 11, package consumers 9, real-provider affected fault/restart cases 2 each, ExpectedRed 14. This remediation changes two guard files only, no runtime or test-harness behavior."
+  },
+  "infrastructure": {
+    "path": "X:\\dag-seam-activation-review-20261116\\results\\review-infrastructure.trx",
+    "bytes": 495700,
+    "sha256": "638eee1fb3e9007f20b1b0c0bb562e220a27bb2e5c63fea708165fc2dbf991f0",
+    "counters": {
+      "total": "319",
+      "executed": "319",
+      "passed": "319",
+      "failed": "0",
+      "error": "0",
+      "timeout": "0",
+      "aborted": "0",
+      "inconclusive": "0",
+      "passedButRunAborted": "0",
+      "notRunnable": "0",
+      "notExecuted": "0",
+      "disconnected": "0",
+      "warning": "0",
+      "completed": "0",
+      "inProgress": "0",
+      "pending": "0"
+    }
+  },
+  "strictOpenSpec": {
+    "path": "X:\\dag-seam-activation-review-20261116\\strict-openspec.log",
+    "bytes": 1148,
+    "sha256": "688cf28ce112577ad2cc2ac23fc7f748839a567d7c8eab4f62fc69fc27d1fd0b"
+  },
+  "validationClosure": "After attaching final counters, refreeze the evidence packet and rerun ReviewManifests and Task72. Preserve all original packet bytes. Checkpoint exactly the reviewed manifest paths, then add the review disposition and catalogue/freeze clearance in a direct child. Hosted CI is required before the authorized PR merge."
+}

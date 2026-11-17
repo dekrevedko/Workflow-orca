@@ -1,7 +1,7 @@
 ## 1. Contract and exact baselines
 
-- [ ] 1.1 Independently review the four additive deltas, exact numbered additions and bounded post-gate record; checkpoint the reviewed contract proposal. Existing source review is not normative admission.
-- [ ] 1.2 After contract approval and the merged DAG predecessor, synchronize `durable-runtime` (1), `durable-persistence-and-outbox` (1), `workflow-contracts` (1), and `quality-and-verification` (1); apply the reviewed additions to docs/specs 04, 06, 10, 12, 16 and 17; refresh the exact API/source/test inventories and provenance. Independently review and commit this coherent target.
+- [x] 1.1 Independently review the four additive deltas, exact numbered additions and bounded post-gate record; checkpoint the reviewed contract proposal. Existing source review is not normative admission.
+- [x] 1.2 After contract approval and the merged DAG predecessor, synchronize `durable-runtime` (1), `durable-persistence-and-outbox` (1), `workflow-contracts` (1), and `quality-and-verification` (1); apply the reviewed additions to docs/specs 04, 06, 10, 12, 16 and 17; refresh the exact API/source/test inventories and provenance. Independently review and commit this coherent target.
 
 ## 2. Provider qualification and closure
 

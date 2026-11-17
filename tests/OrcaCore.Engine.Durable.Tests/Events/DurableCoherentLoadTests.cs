@@ -193,6 +193,7 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-324")]
     public async Task UnchangedUnreconciledTailParksWithTheOffendingEventInItsDiagnostic()
     {
         using var store = new InMemoryWorkflowProvider();
@@ -220,6 +221,7 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-324")]
     public async Task RearmingAnUnreconciledPositionParksAgainWithoutReplacingItsCheckpoint()
     {
         using var store = new InMemoryWorkflowProvider();

@@ -250,3 +250,12 @@ The four canonical blocks and ApprovedPending registry are prepared together for
 independent 1.3/1.4 review; they are not yet checkpointed and source is pending.
 The new transition addendum records mandatory discard and safe continuous
 discovery without editing the approved RC-3 packet or the dated decisions above.
+
+- 2026-11-15: **Decision 22 public handle seam combined candidate** — The owner authorized completing
+  `admit-dag-public-handle-seam` as one uncommitted target, with self-review after major steps and
+  final independent review afterwards. RV-4 supplies the baseline contract: the same ninth friend,
+  three non-public DAG types and seventeen exact members (fifteen runtime-view members plus two
+  handle constructors). D1, D2, D4 and the run-input-only losslessness rule are implemented without
+  compatibility shims; the project is greenfield. This records execution authority, not a new
+  external verdict, checkpoint, evidence commit or Complete activation. Earlier dated decisions
+  remain byte-exact history.

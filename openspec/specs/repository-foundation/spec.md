@@ -14,7 +14,7 @@ The repository SHALL organize source and tests around the exact first-release pa
 ### Requirement: Dependency direction remains one-way
 The allowed direct OrcaCore package references SHALL be exhaustive: `OrcaCore.Core -> OrcaCore`; `OrcaCore.Engine.Ephemeral -> OrcaCore + OrcaCore.Core`; `OrcaCore.Runtime.Protocol -> OrcaCore`; `OrcaCore.Provider.Abstractions -> OrcaCore + OrcaCore.Runtime.Protocol`; `OrcaCore.Engine.Durable -> OrcaCore + OrcaCore.Core + OrcaCore.Runtime.Protocol + OrcaCore.Provider.Abstractions`; `OrcaCore.Durable.Hosting -> OrcaCore + OrcaCore.Engine.Durable + OrcaCore.Provider.Abstractions`; each provider adapter -> `OrcaCore + OrcaCore.Runtime.Protocol + OrcaCore.Provider.Abstractions`; `OrcaCore.Dag -> OrcaCore`; and `OrcaCore.Dag.Hosting -> OrcaCore.Dag + OrcaCore.Durable.Hosting`. Product friends SHALL be exactly `OrcaCore -> OrcaCore.Core`, `OrcaCore -> OrcaCore.Engine.Ephemeral`, `OrcaCore -> OrcaCore.Engine.Durable`, `OrcaCore -> OrcaCore.Dag`, `OrcaCore.Core -> OrcaCore.Engine.Ephemeral`, `OrcaCore.Core -> OrcaCore.Engine.Durable`, `OrcaCore.Engine.Durable -> OrcaCore.Durable.Hosting`, `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting`, and `OrcaCore.Dag -> OrcaCore.Dag.Hosting`. The four application-owned grants provide compile-checked internal authoring/runtime contracts without creating reverse package references; the `OrcaCore -> OrcaCore.Dag` authoring grant is limited by compiled-metadata evidence to the exact authoring constructors and canonical hash operation named in the `developer-facing-surface` requirement. Owning white-box test friends SHALL be exactly `OrcaCore.Core -> OrcaCore.Core.Tests`, `OrcaCore.Engine.Ephemeral -> OrcaCore.Engine.Ephemeral.Tests`, `OrcaCore.Engine.Durable -> OrcaCore.Engine.Durable.Tests`, `OrcaCore.Durable.Hosting -> OrcaCore.Hosting.Tests`, `OrcaCore.Providers.PostgreSql -> OrcaCore.Providers.PostgreSql.Tests`, and `OrcaCore.Providers.SqlServer -> OrcaCore.Providers.SqlServer.Tests`; the sole cross-package test friend SHALL remain `OrcaCore.Engine.Durable -> OrcaCore.ProviderCertification` for deterministic resource-governance barrier certification. `OrcaCore.Dag.Hosting` SHALL be the only DAG-to-durable product bridge and SHALL consume one named versioned internal child-start/join contract through its exact friend edge, never a public child API. No package SHALL reference an engine implementation except the owning hosting package, no OrcaCore package SHALL reference a companion integration, and acceptance, behavior-scenario, compile-fixture, integration, provider-certification (apart from the named barrier edge), and other test assemblies SHALL receive no friend access. Architecture checks SHALL reject every other edge or friend assembly.
 
-The `OrcaCore.Dag -> OrcaCore.Dag.Hosting` runtime-view product friend SHALL be limited by exact type-and-member metadata evidence to `DagRuntimeView<TRunInput>`, `DagRuntimeNodeDescriptor`, `DagMappedInputResult`, and only the fifteen internal method/getter signatures enumerated below. It SHALL NOT authorize their constructors, raw delegates, mutable drafts, or any additional internal type/member/overload. It SHALL NOT add a direct package reference, a test friend, a Core-to-DAG edge, or codec access to Dag. `OrcaCore.Dag.Hosting -> OrcaCore.Dag + OrcaCore.Durable.Hosting` SHALL remain its complete direct OrcaCore dependency set. The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` durable bridge SHALL decode committed dependency outputs before evaluation and own fixed-codec normalization, committed bytes and child-start/join; no child-start access SHALL cross the `OrcaCore -> OrcaCore.Dag` authoring friend. Dag.Hosting-level behavior SHALL verify the runtime view without additional assembly friendship.
+The `OrcaCore.Dag -> OrcaCore.Dag.Hosting` runtime-view product friend SHALL be limited by exact type-and-member metadata evidence to `DagRuntimeView<TRunInput>`, `DagRuntimeNodeDescriptor`, `DagMappedInputResult`, and only the fifteen internal method/getter signatures enumerated below. It SHALL NOT authorize their constructors, raw delegates, mutable drafts, or any additional internal type/member/overload other than the two facade-handle constructors named below. It SHALL NOT add a direct package reference, a test friend, a Core-to-DAG edge, or codec access to Dag. `OrcaCore.Dag.Hosting -> OrcaCore.Dag + OrcaCore.Durable.Hosting` SHALL remain its complete direct OrcaCore dependency set. The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` durable bridge SHALL decode committed dependency outputs before evaluation and own fixed-codec normalization, committed bytes and child-start/join; no child-start access SHALL cross the `OrcaCore -> OrcaCore.Dag` authoring friend. Dag.Hosting-level behavior SHALL verify the runtime view without additional assembly friendship.
 
 The exhaustive proposed signature contract SHALL be exactly the following, with no additional type or member access:
 
@@ -54,6 +54,44 @@ internal sealed class DagMappedInputResult
 
 Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCanceledException`, SHALL become `DAG_INPUT_MAPPING_INVALID`, except `OutOfMemoryException`, `StackOverflowException`, and `AccessViolationException`, which SHALL NOT be converted. Host/run cancellation observed outside mapper evaluation SHALL retain the runtime cancellation outcome. Before invoking the evaluator, an ordinary declared-type output decode/materialization failure SHALL fail the node as `DAG_INPUT_MAPPING_INVALID`, without invoking its mapper, committing input, or starting a child; protocol-integrity or storage failures SHALL remain runtime failures and SHALL NOT be disguised as mapper failures.
 
+The same `OrcaCore.Dag -> OrcaCore.Dag.Hosting` product friend SHALL additionally carry a facade-handle grant limited by exact member metadata evidence to one internal constructor on the public `DagDefinitionHandle<TRunInput>` and one on the public `DagRunHandle`, with the signatures below. The grant SHALL add no non-public type reference, friend assembly, direct package reference, test friend, or reverse edge: product friends SHALL remain exactly the nine named above, and `OrcaCore.Dag.Hosting -> OrcaCore.Dag + OrcaCore.Durable.Hosting` SHALL remain its complete direct OrcaCore dependency set. Application-contract values with non-public constructors SHALL be created by `OrcaCore.Engine.Durable` and SHALL reach the DAG facade only as opaque public values supplied through the existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` bridge; neither DAG package SHALL become a friend of `OrcaCore` for facade construction, and the `OrcaCore -> OrcaCore.Dag` authoring grant SHALL keep its six-signature allowlist.
+
+The exhaustive facade-handle signature contract SHALL be exactly the following, with no additional non-public type or member access:
+
+```csharp
+// Facade-handle grant: the only two non-public constructors Dag.Hosting may call.
+public sealed class DagDefinitionHandle<TRunInput>
+{
+    internal DagDefinitionHandle(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        Func<TRunInput, StartIdempotencyKey, CancellationToken, ValueTask<DagStartResult>> startOrGet,
+        Func<DagRunId, CancellationToken, ValueTask<(
+            DagRunHandle? Run,
+            DefinitionId? ActualDefinitionId,
+            DefinitionVersion? ActualDefinitionVersion,
+            DefinitionFingerprint? ActualDefinitionFingerprint,
+            bool RunInputContractDiffers)>> getRun);
+}
+
+public sealed class DagRunHandle
+{
+    internal DagRunHandle(
+        DagRunId runId,
+        IReadOnlyList<DagNodeRef> planNodes,
+        Func<CancellationToken, ValueTask<DagRunSnapshot>> getSnapshot,
+        Func<DagNodeRef, CancellationToken, ValueTask<(
+            DagNodeStatus Status,
+            bool HasOutput,
+            object? Output,
+            WorkflowFailure? Failure)>> getOutput,
+        // null from either delegate: the run is in the integrity-fault state
+        Func<CancellationToken, ValueTask<DagRunSnapshot?>> waitForTerminal,
+        Func<CancellationToken, ValueTask<DagCancellationRequestStatus?>> requestCancellation);
+}
+```
+
 #### Scenario: New project reference is added
 - **WHEN** a contributor wires a new project dependency
 - **THEN** verification rejects any direct edge absent from the exhaustive manifest, including reverse application, protocol-to-provider, provider-to-engine, core-to-advanced, DAG reverse, and companion-integration edges
@@ -77,6 +115,10 @@ Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCa
 #### Scenario: Host consumes internal DAG runtime structure
 - **WHEN** the runtime adapter evaluates a ready node from a validated DAG plan
 - **THEN** only the exact Dag-to-Dag.Hosting runtime-view types and members are referenced, all existing direct package edges stay unchanged, and the existing durable bridge owns codec and child-start work
+
+#### Scenario: DAG facade handles are created by the host
+- **WHEN** compiled product metadata is compared with the exact package and friend manifest after the DAG facade ships
+- **THEN** the nine product friends and every direct package edge are unchanged, `OrcaCore.Dag.Hosting` references exactly three non-public DAG types and seventeen non-public DAG members, and no DAG package holds a facade-construction grant on `OrcaCore`
 
 ### Requirement: Build and test workflow is root-driven
 The repository SHALL target .NET 10 and SHALL support building and testing the full workspace from the repository root through `dotnet build OrcaCore.slnx` and `dotnet test OrcaCore.slnx`.

@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 384,
-    "physicalDeclarations": 1622,
-    "activeFiles": 228,
-    "activeDeclarations": 934,
+    "physicalFiles": 398,
+    "physicalDeclarations": 1677,
+    "activeFiles": 242,
+    "activeDeclarations": 989,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -268,6 +268,12 @@
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 33
+    },
+    {
+      "source": "tests/OrcaCore.Core.Tests/Compilation/OutcomeFingerprintTests.cs",
+      "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
+      "status": "active",
+      "declarations": 5
     },
     {
       "source": "tests/OrcaCore.Core.Tests/Compilation/PublicDefinitionCompilerContractTests.cs",
@@ -558,6 +564,12 @@
       "declarations": 2
     },
     {
+      "source": "tests/OrcaCore.Dag.ProcessProbe/Program.cs",
+      "ownerProject": "tests/OrcaCore.Dag.ProcessProbe/OrcaCore.Dag.ProcessProbe.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.BehaviorContracts/AssemblyInfo.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.BehaviorContracts/OrcaCore.DeveloperSurface.BehaviorContracts.csproj",
       "status": "active",
@@ -778,6 +790,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 4
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 0
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/DagInternalMemberReferenceGuards.cs",
@@ -1038,6 +1056,12 @@
       "declarations": 2
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/RuntimeCorrectnessDeclarationGuards.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/Section7BSemanticValueGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
@@ -1270,6 +1294,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Durable.Tests/Events/DurableCoherentLoadTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
+      "status": "active",
+      "declarations": 11
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Events/DurableInboxTests.cs",
@@ -1656,6 +1686,12 @@
       "declarations": 6
     },
     {
+      "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StepDeadlineElectionTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+      "status": "active",
+      "declarations": 5
+    },
+    {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
@@ -1890,6 +1926,24 @@
       "declarations": 10
     },
     {
+      "source": "tests/OrcaCore.Hosting.Tests/DagEventStoreProbe.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/DagFacadeBindingTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 11
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 5
+    },
+    {
       "source": "tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
@@ -1924,6 +1978,12 @@
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 2
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/EngineRegistrationProfileTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/OperationalTelemetryAndMaintenanceTests.cs",
@@ -2118,6 +2178,18 @@
       "declarations": 1
     },
     {
+      "source": "tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.ProviderCertification/DagProcessRestartCertification.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.ProviderCertification/DagRunCertification.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
@@ -2184,6 +2256,12 @@
       "declarations": 4
     },
     {
+      "source": "tests/OrcaCore.ProviderCertification/RuntimePositionCertification.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.ProviderCertification/Section7GovernanceScenarioHost.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
@@ -2211,7 +2289,7 @@
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
       "status": "active",
-      "declarations": 42
+      "declarations": 48
     },
     {
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourcePoolStoreCertificationTests.cs",
@@ -2253,7 +2331,7 @@
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
       "status": "active",
-      "declarations": 16
+      "declarations": 22
     },
     {
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs",
@@ -2293,6 +2371,12 @@
     },
     {
       "source": "tests/OrcaCore.TestSupport/Clock.cs",
+      "ownerProject": "tests/OrcaCore.TestSupport/OrcaCore.TestSupport.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.TestSupport/DagFacadeWire.cs",
       "ownerProject": "tests/OrcaCore.TestSupport/OrcaCore.TestSupport.csproj",
       "status": "active",
       "declarations": 0

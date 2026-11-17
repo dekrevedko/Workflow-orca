@@ -3,6 +3,7 @@ using System.Globalization;
 
 namespace OrcaCore.Core.Tests.Compilation;
 
+[Trait("AC", "AC-326")]
 public sealed class OutcomeFingerprintTests
 {
     [Theory]
@@ -60,6 +61,37 @@ public sealed class OutcomeFingerprintTests
             : Workflow.Ephemeral<State>(id, DefinitionVersion.Initial).Init<int>(v => new State(v)).End(s => s.Value.Value, WorkflowOutcomeName.Create("unnamed")).Build().DefinitionFingerprint;
         Assert.NotEqual(unnamed, named);
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void SchemaOrderingIsOrdinalAcrossCultures(bool durable)
+    {
+        var original = CultureInfo.CurrentCulture;
+        var id = DefinitionId.New();
+        var names = new[] { typeof(ZSchema).AssemblyQualifiedName!, typeof(ÖSchema).AssemblyQualifiedName! };
+        // The fixture must actually reverse the old culture-sensitive schema ordering.
+        Assert.NotEqual(
+            Math.Sign(CultureInfo.InvariantCulture.CompareInfo.Compare(names[0], names[1])),
+            Math.Sign(CultureInfo.GetCultureInfo("sv-SE").CompareInfo.Compare(names[0], names[1])));
+        try
+        {
+            CultureInfo.CurrentCulture = CultureInfo.InvariantCulture;
+            var expected = Fingerprint();
+            CultureInfo.CurrentCulture = CultureInfo.GetCultureInfo("sv-SE");
+            Assert.Equal(expected, Fingerprint());
+        }
+        finally { CultureInfo.CurrentCulture = original; }
+
+        DefinitionFingerprint Fingerprint() => durable
+            ? Workflow.Durable<ZSchema>(id, DefinitionVersion.Initial)
+                .Init<ÖSchema>(v => new ZSchema(v.Value)).End().Build().DefinitionFingerprint
+            : Workflow.Ephemeral<ZSchema>(id, DefinitionVersion.Initial)
+                .Init<ÖSchema>(v => new ZSchema(v.Value)).End().Build().DefinitionFingerprint;
+    }
+
+    public sealed record ZSchema(int Value);
+    public sealed record ÖSchema(int Value);
 
     public sealed record State(int Value);
 

@@ -1,0 +1,130 @@
+ M CLAUDE.md
+ M OrcaCore.slnx
+ M docs/implementation/00-stack-decisions.md
+ M docs/implementation/01-solution-architecture.md
+ M docs/specs/08-requirements-composition.md
+ M docs/specs/09-requirements-management-operations.md
+ M docs/specs/10-provider-model-and-extensibility.md
+ M docs/specs/12-acceptance-criteria.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M openspec/specs/developer-facing-surface/spec.md
+ M openspec/specs/management-and-querying/spec.md
+ M openspec/specs/repository-foundation/spec.md
+ M src/OrcaCore.Dag.Hosting/DagCoordinator.cs
+ M src/OrcaCore.Dag.Hosting/DagHostingServices.cs
+ M src/OrcaCore.Dag.Hosting/OrcaCoreDagHostingServiceCollectionExtensions.cs
+ M src/OrcaCore.Dag/DagFailureContracts.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagMappingReader.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagRunCancellation.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagRunInputCatalog.cs
+ M src/OrcaCore.Durable.Hosting/Dag/DurableDagRunStore.cs
+ M src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs
+ M src/OrcaCore.Engine.Durable/Dag/DurableDagValues.cs
+ M src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql
+ M src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json
+ M tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/Program.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs
+ M tests/OrcaCore.Hosting.Tests/DagRunCreationTests.cs
+ M tests/OrcaCore.Hosting.Tests/DagRunInputBindingTests.cs
+ M tests/OrcaCore.Hosting.Tests/DagSchedulerTests.cs
+ M tests/OrcaCore.ProviderCertification/DagRunCertification.cs
+ M tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj
+ M tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlEventStoreTests.cs
+ M tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs
+ M tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj
+ M tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-independent-review-request-2026-11-15.md
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-1-remediation-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-1-remediation-independent-review-request-2026-11-15.md
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-2-remediation-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-2-remediation-independent-review-request-2026-11-15.md
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-3-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-3-independent-review-request-2026-11-15.md
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-4-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-4-independent-review-request-2026-11-15.md
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-request-2026-11-15.md
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-independent-review-request-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/.openspec.yaml
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-candidate-openspec-provenance-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-self-review-log-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-test-results-2026-11-15.json
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-validation-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/process-openspec-provenance-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/delta-developer-facing-surface.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/delta-repository-foundation.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/design.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/proposal.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/tasks.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/delta-developer-facing-surface.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/delta-management-and-querying.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/delta-repository-foundation.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/design.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/proposal.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/tasks.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/delta-developer-facing-surface.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/delta-management-and-querying.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/delta-repository-foundation.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/design.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/proposal.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/tasks.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/delta-developer-facing-surface.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/delta-management-and-querying.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/delta-repository-foundation.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/design.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/proposal.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/task-1-1-public-handle-seam-prototype-evidence-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/tasks.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-0-1-process-gate-execution-plan-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-0-1-process-gate-validation-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-current-documentation-reconciliation-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-proof-dag-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-proof-hosting-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-prototype-evidence-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-1-proof-dag-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-1-proof-hosting-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-2-proof-dag-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-2-proof-hosting-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/design.md
+?? openspec/changes/admit-dag-public-handle-seam/proposal.md
+?? openspec/changes/admit-dag-public-handle-seam/specs/developer-facing-surface/spec.md
+?? openspec/changes/admit-dag-public-handle-seam/specs/management-and-querying/spec.md
+?? openspec/changes/admit-dag-public-handle-seam/specs/repository-foundation/spec.md
+?? openspec/changes/admit-dag-public-handle-seam/tasks.md
+?? src/OrcaCore.Dag.Hosting/DagFacadeRegistry.cs
+?? src/OrcaCore.Dag/DagFacade.cs
+?? src/OrcaCore.Durable.Hosting/Dag/DurableDagFacade.cs
+?? tests/OrcaCore.Dag.ProcessProbe/OrcaCore.Dag.ProcessProbe.csproj
+?? tests/OrcaCore.Dag.ProcessProbe/Program.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-bridge-references.txt
+?? tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-review-candidate.json
+?? tests/OrcaCore.Hosting.Tests/DagEventStoreProbe.cs
+?? tests/OrcaCore.Hosting.Tests/DagFacadeBindingTests.cs
+?? tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs
+?? tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
+?? tests/OrcaCore.ProviderCertification/DagProcessRestartCertification.cs
+?? tests/OrcaCore.TestSupport/DagFacadeWire.cs

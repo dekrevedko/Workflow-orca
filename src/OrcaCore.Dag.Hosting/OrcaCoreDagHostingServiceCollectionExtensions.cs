@@ -55,7 +55,10 @@ public static class OrcaCoreDagHostingServiceCollectionExtensions
             provider.GetRequiredService<DagDefinitionRegistry>(),
             provider.GetRequiredService<DurableDagRunBridge>(),
             provider.GetRequiredService<DagHostRegistration>().MaxConcurrentNodes,
-            provider.GetRequiredService<TimeProvider>(), provider.GetRequiredService<ILogger<DagCoordinator>>()));
+            provider.GetRequiredService<TimeProvider>(), provider.GetRequiredService<ILogger<DagCoordinator>>(),
+            provider.GetRequiredService<DurableDagFacade>()));
+        services.AddSingleton<IDagDefinitionRegistry>(provider => new DagFacadeRegistry(
+            provider.GetRequiredService<DagDefinitionRegistry>(), provider.GetRequiredService<DurableDagFacade>()));
         services.AddSingleton<IDurableDagReadySinkV1>(provider => provider.GetRequiredService<DagCoordinator>());
         return services;
     }

@@ -1,6 +1,7 @@
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using AwesomeAssertions;
 
@@ -106,6 +107,13 @@ public sealed class RuntimeCorrectnessDeclarationGuards
             Hash(evidence).Should().Be(qualification.GetProperty("sha256").GetString());
             evidence.Should().Contain("PostgreSQL").And.Contain("SQL Server");
         }
+    }
+
+    // Older approval snapshots predate this separately validated additive registry pointer.
+    internal static void ProjectRegistryExtension(JsonObject current)
+    {
+        current["runtimeCorrectnessAmendment"]!.GetValue<string>().Should().Be(RecordPath);
+        current.Remove("runtimeCorrectnessAmendment");
     }
 
     // Strip only this exact admitted addition before older, independently pinned projections.

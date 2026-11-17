@@ -68,7 +68,9 @@ internal sealed class DurableDagMappingReader(DurableDagRunStore store,
         if (node.DirectDependencies.Count != target.DirectDependencies.Count)
             throw new InvalidDataException("DAG mapping dependency set differs from the persisted plan.");
         var runType = catalog.Resolve(run.Graph) ?? throw new DurableDagDefinitionUnavailableException();
-        var runBytes = DurableDagValues.VerifiedBytes(run.RunInput, run.Graph.RunInputContractKey);
+        if (!catalog.Matches(run, run.Graph.RunInputContractKey, runType))
+            throw new DurableDagDefinitionUnavailableException();
+        var runBytes = DurableDagValues.VerifiedRunInput(run.RunInput, run.Graph.RunInputContractKey);
         var values = new List<OutputBytes>();
         var dependencies = new Dictionary<int, DurableDagDependencyV1>();
         foreach (var item in node.DirectDependencies)

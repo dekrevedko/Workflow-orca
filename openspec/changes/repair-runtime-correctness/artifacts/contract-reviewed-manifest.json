@@ -1,0 +1,65 @@
+{
+  "base": "2fe5b9c62ac1d770093826c88b6465c90585840a",
+  "files": [
+    {
+      "path": "openspec/changes/repair-runtime-correctness/.openspec.yaml",
+      "sha256": "b75d296d3b54880b00a14fd17257d690f593cd5d3db17201d597c19528a9f905"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/amendment.json",
+      "sha256": "e390869e05063c09ad8f754d396b17baad088421df8a865a26e7c68f51f0751b"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/numbered-additions.json",
+      "sha256": "27428c6094149d6f474894c00c89d799b876742c7723da0550bb6b2e9570cd88"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/proposed-openspec-provenance-2026-11-16.md",
+      "sha256": "64767fcef038d42e14ce53d153a6e6c5ffc4dd6434b12f4a166bddb0d8ac6acc"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/design.md",
+      "sha256": "1dd13bb05e8941aeecfd2e96479cf4ba8af81835c1d4f422316dea696e2afebb"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/proposal.md",
+      "sha256": "eedd0fb83d67bb1d890357e9a2aaf8e237be608193e95d66c6b23e83789bde99"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/specs/durable-persistence-and-outbox/spec.md",
+      "sha256": "a1f97b166d55fd6e6bbbc47bc5a05f591166c0bd3cfeff5f29b666206b8e9a74"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/specs/durable-runtime/spec.md",
+      "sha256": "49f4de85a64fdf8dadaba2115e5ab2c4efb7de1f51b440876cb643d8626de71e"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/specs/quality-and-verification/spec.md",
+      "sha256": "7735ca7c2f5c2042c9427281c4b6a0fef39fb0092a3ea66141df2a838a69ac59"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/specs/workflow-contracts/spec.md",
+      "sha256": "5559a3ea843c44ee1ab11d98da93a1cb5464553e4e434dc48f4bb1d0d944098a"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/tasks.md",
+      "sha256": "c0d0d12b03977429285fe1fc10cac1cbd785ff4e26e9fcf4b832913f0346e337"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
+      "sha256": "8465b84470e77475fa0436d12ed3ef59606d8749146cbb37a03764238d114005"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json",
+      "sha256": "3a2d78b9c91035275fba03f57c45c6ef3c1a377d4a7e7ce685aa6b391927992e"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+      "sha256": "8cebbc13ec9c842c68243686170645cbbaa70953a8bc2dfbf865af85833073d4"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/RuntimeCorrectnessDeclarationGuards.cs",
+      "sha256": "bdee232e1681cfec10534afb329231761c7cab35178f7e818f415da7eaa4620c"
+    }
+  ]
+}

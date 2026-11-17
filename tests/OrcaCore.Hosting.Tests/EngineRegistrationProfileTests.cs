@@ -5,6 +5,7 @@ using Xunit;
 
 namespace OrcaCore.Hosting.Tests;
 
+[Trait("AC", "AC-326")]
 public sealed class EngineRegistrationProfileTests
 {
     [Theory]

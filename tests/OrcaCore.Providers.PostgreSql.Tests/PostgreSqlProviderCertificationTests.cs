@@ -53,6 +53,50 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             certificationStore ?? throw new InvalidOperationException("PostgreSQL certification store is not initialized."));
     }
 
+    [Theory]
+    [InlineData("key")]
+    [InlineData("json")]
+    public Task DagFacade_CanonicalInputIntegrity(string corruption)
+    {
+        return DagRunCertification.FacadeCanonicalIntegrityAsync(() => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")), corruption, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFacade_RealProcessRestart() => DagProcessRestartCertification.RunAsync(
+        "postgres", container.GetConnectionString(), "public", TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_BindingAndLosslessness() => DagRunCertification.FacadeBindingsAsync(
+        () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+        TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_LevelTriggeredFaults() => DagRunCertification.FacadeFaultsAsync(
+        () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+        TestContext.Current.CancellationToken);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-322")]
+    public async Task PositionOnlyCommitRejectsASecondHostAtTheOldVersion(bool fiberFailure)
+    {
+        await using var other = await CreateStoreAsync();
+        await RuntimePositionCertification.PositionOnlyCommitRejectsASecondHostAtTheOldVersion(
+            certificationStore!, other, fiberFailure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-323")]
+    public async Task InterleavedCheckpointLoadMustNotCommitPublishTwice(bool afterTail)
+    {
+        await using var other = await CreateStoreAsync();
+        await RuntimePositionCertification.InterleavedCheckpointLoadMustNotCommitPublishTwice(
+            certificationStore!, other, certificationStore!, afterTail);
+    }
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
