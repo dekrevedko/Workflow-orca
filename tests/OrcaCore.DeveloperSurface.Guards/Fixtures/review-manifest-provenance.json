@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-dag-public-handle-seam-implementation-8.6",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-request-2026-11-15.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-dirty-manifest-2026-11-15.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "da1a4729ea2cdb9474eb219eb507760574f83dcb",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 20431,
-    "contentRecordSha256": "ea32c51127e79f1523edc2dd6adb84f3bdc9549cc9cc948b00b2234494edd97a"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",

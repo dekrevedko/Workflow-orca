@@ -2686,6 +2686,11 @@
       "sha256": "75ead35729684cdeff6ba76b62778511d7bb4a998d3583642802e8808460e76a"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-verdict-2026-11-16.md",
+      "bytes": 14122,
+      "sha256": "c64747716a1ddb35757919525cefb5aee509cde948c41d63c1f7fea899884600"
+    },
+    {
       "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-dirty-manifest-2026-11-15.txt",
       "bytes": 6639,
       "sha256": "fcdc9e3aaa4e47c870c81240a53ae851ef19be9436f3dea8b9478e9ba5a813b6"
