@@ -96,7 +96,8 @@ internal sealed class DurableWorkflowDriver(
                 {
                     var summary = $"Execution-position integrity failure: unchanged checkpoint and tail cannot reconcile " +
                         $"'{loaded.EventRequiringReload!.GetType().Name}' ({loaded.EventRequiringReload.EventId}) " +
-                        $"at stream version {aggregate.StreamVersion}. Repair the checkpoint before explicitly re-arming.";
+                        $"at stream version {aggregate.StreamVersion}. No supported checkpoint repair exists; " +
+                        "re-arming will park again. This indicates an engine or provider defect.";
                     var parked = await ParkAsync(instanceId, DurableParkReason.Poison, summary,
                         checkpointOption.HasValue ? checkpointOption.Value.StreamVersion : null,
                         aggregate.StreamVersion, cancellationToken).ConfigureAwait(false);

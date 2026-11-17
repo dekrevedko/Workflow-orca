@@ -203,29 +203,113 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
         runtime.RegisterDefinition(definition);
         var started = await runtime.StartOrGetAsync<string, State>("unreconciled", definition.DefinitionId,
             definition.DefinitionVersion, "value", TestContext.Current.CancellationToken);
-        var checkpoint = (await store.LoadCheckpointAsync(started.InstanceId, TestContext.Current.CancellationToken)).Value;
-        // Deliberately emulate a faulty future writer that forgets the position checkpoint.
-        var append = await store.AppendAsync(new ProviderCommitBatch
-        {
-            StreamId = new WorkflowStreamId(started.InstanceId), ExpectedVersion = checkpoint.StreamVersion,
-            Events = [new WorkflowExecutionPositionChangedEvent
-            {
-                EventId = EventId.Create("orphan-position"), InstanceId = started.InstanceId,
-                CommandId = CommandId.New(), CausationId = CausationId.New(),
-                OccurredAt = DateTimeOffset.UtcNow
-            }]
-        }, TestContext.Current.CancellationToken);
-        Assert.True(append.IsSuccess);
+        await AppendUncheckpointedPositionAsync(store, started.InstanceId);
         var result = await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken);
         Assert.Equal(DurableSegmentOutcome.Parked, result.Outcome);
         var parked = await new DurableAggregateLoader(store).LoadAsync(started.InstanceId, TestContext.Current.CancellationToken);
         Assert.Equal(DurableParkReason.Poison, parked.ParkReason);
         Assert.Contains(nameof(WorkflowExecutionPositionChangedEvent), parked.ErrorSummary);
+        Assert.Contains("No supported checkpoint repair exists", parked.ErrorSummary);
+        Assert.Contains("re-arming will park again", parked.ErrorSummary);
+        Assert.Contains("engine or provider defect", parked.ErrorSummary);
         var version = parked.StreamVersion;
         Assert.Equal(DurableSegmentOutcome.Parked,
             (await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken)).Outcome);
         Assert.Equal(version, (await new DurableAggregateLoader(store).LoadAsync(started.InstanceId,
             TestContext.Current.CancellationToken)).StreamVersion);
+    }
+
+    [Fact]
+    public async Task RearmingAnUnreconciledPositionParksAgainWithoutReplacingItsCheckpoint()
+    {
+        using var store = new InMemoryWorkflowProvider();
+        var runtime = new DurableWorkflowRuntime(new DurableCommandProcessor(store), new DurableDefinitionRegistry(), TimeProvider.System);
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(v => new State(v)).Delay(TimeSpan.FromDays(1)).End().Build();
+        runtime.RegisterDefinition(definition);
+        var started = await runtime.StartOrGetAsync<string, State>("repark", definition.DefinitionId,
+            definition.DefinitionVersion, "value", TestContext.Current.CancellationToken);
+        var checkpoint = await AppendUncheckpointedPositionAsync(store, started.InstanceId);
+        Assert.Equal(DurableSegmentOutcome.Parked,
+            (await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken)).Outcome);
+        var parked = await new DurableAggregateLoader(store).LoadAsync(started.InstanceId, TestContext.Current.CancellationToken);
+
+        var rearmed = await runtime.RearmAsync(started.InstanceId,
+            new DurableRearmRequest(parked.StreamVersion, AcknowledgePoison: true), TestContext.Current.CancellationToken);
+        Assert.Equal(DurableCommandOutcome.Committed, rearmed.Outcome);
+        Assert.Null((await new DurableAggregateLoader(store).LoadAsync(started.InstanceId,
+            TestContext.Current.CancellationToken)).ParkReason);
+        Assert.Equal(DurableSegmentOutcome.Parked,
+            (await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken)).Outcome);
+
+        var reparked = await new DurableAggregateLoader(store).LoadAsync(started.InstanceId, TestContext.Current.CancellationToken);
+        Assert.Equal(DurableParkReason.Poison, reparked.ParkReason);
+        Assert.Contains(nameof(WorkflowExecutionPositionChangedEvent), reparked.ErrorSummary);
+        var unchanged = (await store.LoadCheckpointAsync(started.InstanceId, TestContext.Current.CancellationToken)).Value;
+        Assert.Equal(checkpoint.StreamVersion, unchanged.StreamVersion);
+        Assert.Equal(checkpoint.ContentType, unchanged.ContentType);
+        Assert.Equal(checkpoint.Payload, unchanged.Payload);
+        var tail = await store.LoadTailAsync(new WorkflowStreamId(started.InstanceId), checkpoint.StreamVersion,
+            TestContext.Current.CancellationToken);
+        Assert.Collection(tail,
+            item => Assert.IsType<WorkflowExecutionPositionChangedEvent>(item),
+            item => Assert.IsType<WorkflowParkedEvent>(item),
+            item => Assert.IsType<WorkflowUnparkedEvent>(item),
+            item => Assert.IsType<WorkflowParkedEvent>(item));
+    }
+
+    [Fact]
+    public async Task ParkAppendConflictReloadsAndHonorsTheConcurrentCommit()
+    {
+        using var store = new InMemoryWorkflowProvider();
+        var otherHost = new DurableCommandProcessor(store);
+        var wrapped = new InterleavingStore(store, _ => Task.CompletedTask)
+        {
+            BeforeParkAppend = async batch =>
+            {
+                var cancelled = await otherHost.ProcessAsync(new CancelWorkflowCommand
+                {
+                    CommandId = CommandId.New(), InstanceId = batch.StreamId.InstanceId, RequestedAt = DateTimeOffset.UtcNow
+                }, TestContext.Current.CancellationToken);
+                Assert.Equal(DurableCommandOutcome.Committed, cancelled.Outcome);
+            }
+        };
+        var runtime = new DurableWorkflowRuntime(new DurableCommandProcessor(wrapped), new DurableDefinitionRegistry(), TimeProvider.System);
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(v => new State(v)).Delay(TimeSpan.FromDays(1)).End().Build();
+        runtime.RegisterDefinition(definition);
+        var started = await runtime.StartOrGetAsync<string, State>("park-conflict", definition.DefinitionId,
+            definition.DefinitionVersion, "value", TestContext.Current.CancellationToken);
+        await AppendUncheckpointedPositionAsync(store, started.InstanceId);
+
+        var result = await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken);
+
+        Assert.False(Assert.Single(wrapped.ParkAppendResults).IsSuccess);
+        Assert.Equal(DurableSegmentOutcome.Terminal, result.Outcome);
+        var current = await new DurableAggregateLoader(store).LoadAsync(started.InstanceId, TestContext.Current.CancellationToken);
+        Assert.Equal(WorkflowInstanceStatus.Cancelled, current.Status);
+        Assert.Null(current.ParkReason);
+        var events = await store.LoadTailAsync(new WorkflowStreamId(started.InstanceId), StreamVersion.Empty,
+            TestContext.Current.CancellationToken);
+        Assert.DoesNotContain(events, item => item is WorkflowParkedEvent);
+        Assert.Single(events.OfType<WorkflowCancellationRequestedEvent>());
+    }
+
+    private static async Task<CheckpointWrite> AppendUncheckpointedPositionAsync(InMemoryWorkflowProvider store, InstanceId instanceId)
+    {
+        var checkpoint = (await store.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken)).Value;
+        // Emulate a faulty writer that commits a position fact without its checkpoint.
+        var append = await store.AppendAsync(new ProviderCommitBatch
+        {
+            StreamId = new WorkflowStreamId(instanceId), ExpectedVersion = checkpoint.StreamVersion,
+            Events = [new WorkflowExecutionPositionChangedEvent
+            {
+                EventId = EventId.Create("orphan-position"), InstanceId = instanceId,
+                CommandId = CommandId.New(), CausationId = CausationId.New(), OccurredAt = DateTimeOffset.UtcNow
+            }]
+        }, TestContext.Current.CancellationToken);
+        Assert.True(append.IsSuccess);
+        return checkpoint;
     }
 
     [Theory]
@@ -374,6 +458,8 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
         internal int AdvanceOnCheckpointRead { get; init; } = 1;
         internal bool RepeatOnEveryCheckpointRead { get; init; }
         internal Func<Task>? AfterCancellationCommitted { get; init; }
+        internal Func<ProviderCommitBatch, Task>? BeforeParkAppend { get; init; }
+        internal List<Result<AppendEventsResult>> ParkAppendResults { get; } = [];
         internal CheckpointWrite? ForcedCheckpoint { get; init; }
         internal int CheckpointReads { get; private set; }
         internal List<ProviderCommitBatch> Batches { get; } = [];
@@ -436,7 +522,10 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
         public async Task<Result<AppendEventsResult>> AppendAsync(ProviderCommitBatch batch, CancellationToken cancellationToken)
         {
             Batches.Add(batch);
+            var parking = batch.Events.Any(item => item is WorkflowParkedEvent);
+            if (parking && BeforeParkAppend is { } beforePark) await beforePark(batch);
             var result = await inner.AppendAsync(batch, cancellationToken);
+            if (parking) ParkAppendResults.Add(result);
             if (AfterCancellationCommitted is { } after && batch.Events.Any(item => item is WorkflowCancellationRequestedEvent))
                 await after();
             return result;
