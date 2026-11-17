@@ -1,17 +1,6 @@
 {
   "schemaVersion": 11,
-  "activeFreeze": {
-    "task": "reshape-dag-public-handle-seam-task-3.2-complete-activation",
-    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-review-request-2026-11-16.md",
-    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-dirty-manifest-2026-11-16.txt",
-    "disposition": "RawGitOrder",
-    "baseCommit": "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1",
-    "contentRecordExcludedPaths": [
-      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
-    ],
-    "contentRecordBytes": 5249,
-    "contentRecordSha256": "dd84549bbd754f961544ab153a7c19d96f4807cfd8b221e32a79c9c50d359fb4"
-  },
+  "activeFreeze": null,
   "rejectedFreezes": [
     {
       "id": "7.1-initial-rejected",

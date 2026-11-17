@@ -2766,6 +2766,11 @@
       "sha256": "020397b35a52109561f87347ae8de361ba8ca87b9b96625a93d3a101845c540b"
     },
     {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-review-verdict-2026-11-16.md",
+      "bytes": 3119,
+      "sha256": "844d0767cd1c3b49a212f261eaddf6e08beadcff8aa3be03c8fcaaa798872f75"
+    },
+    {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",
       "bytes": 2101,
       "sha256": "f83199de37f7f8c4537316efa0a7ef50a44834930abd8611c31410a79be6637e"
