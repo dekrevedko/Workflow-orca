@@ -1,6 +1,6 @@
 {
   "change": "repair-runtime-correctness",
-  "stage": "ApprovedPending",
+  "stage": "Complete",
   "contractReviewTask": "1.1",
   "canonicalSyncTask": "1.2",
   "providerTask": "2.1",
@@ -75,5 +75,17 @@
       }
     ]
   },
-  "providerQualification": null
+  "providerQualification": {
+    "path": "openspec/changes/repair-runtime-correctness/artifacts/phase-a-qualification-2026-11-17.md",
+    "sha256": "c99456711773d32c71d3e8e387547e0235dd43546206739cf747055a0a152d6a",
+    "sourceCheckpoint": "edf464f1c83d76d70121252bff81f51a9dae9708",
+    "sourceTree": "b56068a8cd3bdb1306b3c118bb42bb2978e7390d"
+  },
+  "integrationApproval": {
+    "checkpointCommit": "edf464f1c83d76d70121252bff81f51a9dae9708",
+    "verdictPath": "openspec/changes/repair-runtime-correctness/artifacts/integrated-independent-review.md",
+    "verdictSha256": "fd65fd4af14a1e1630a4ec9b61a5d6f8c3d21921d5c3f3e7a71bdbb572eb3b3a",
+    "manifestPath": "openspec/changes/repair-runtime-correctness/artifacts/integrated-reviewed-manifest.json",
+    "manifestSha256": "b882b0c1ca8ba9b41a174702bc1a7714c4028b0c33f32574c6f6fb343feca42e"
+  }
 }
