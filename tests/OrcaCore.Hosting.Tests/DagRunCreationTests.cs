@@ -38,7 +38,13 @@ public sealed class DagRunCreationTests
         var rebuilt = request with { Graph = graph with { Nodes = graph.Nodes.Select(n => n with { DirectDependencies = n.DirectDependencies.ToArray() }).ToArray() } };
         (await store.CreateOrReopenAsync(rebuilt, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Existing);
         (await store.CreateOrReopenAsync(request with { Input = "" }, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.BindingConflict);
-        (await store.CreateOrReopenAsync(request with { RunId = Guid.NewGuid() }, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.BindingConflict);
+        var replay = await store.CreateOrReopenAsync(request with { RunId = Guid.NewGuid() }, token);
+        replay.Outcome.Should().Be(DurableDagCreateOutcomeV1.Existing);
+        replay.Snapshot!.RunId.Should().Be(request.RunId);
+        var other = await store.CreateOrReopenAsync(request with { RunId = Guid.NewGuid(), StartKey = new("other-owner") }, token);
+        other.Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+        (await store.CreateOrReopenAsync(request with { RunId = other.Snapshot!.RunId }, token)).Outcome
+            .Should().Be(DurableDagCreateOutcomeV1.BindingConflict, "the explicit run-id collision is independent of replay by key");
         (await store.CreateOrReopenAsync(request with { StartKey = new("other-key") }, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.BindingConflict);
         (await services.GetRequiredService<IWorkflowEventStore>()
             .LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(request.RunId), StreamVersion.Empty, token)).Should().ContainSingle();

@@ -1,0 +1,31 @@
+{
+  "checkpoint": "b9dcdef7e611da45d7dc4f75946ee192fc83c37e",
+  "evidence": "598c6d4fb61f7883e25f79f03001aa620dda0bf7",
+  "integrationParent": "ba2b057d7898f516845e90323b4288fb0c1744d8",
+  "immutableRecordsVerified": 158,
+  "unchangedDeltaFiles": 3,
+  "exactIntegratedSourceFiles": 9,
+  "canonicalBlocksRetained": [
+    [
+      "openspec/specs/developer-facing-surface/spec.md",
+      "Closed registration and start results retain a cast-free success path"
+    ],
+    [
+      "openspec/specs/developer-facing-surface/spec.md",
+      "Completion waits are notification-driven and race-free"
+    ],
+    [
+      "openspec/specs/developer-facing-surface/spec.md",
+      "Implementation package boundaries use exact internal friends"
+    ],
+    [
+      "openspec/specs/management-and-querying/spec.md",
+      "DAG terminal waiting is notification-driven"
+    ],
+    [
+      "openspec/specs/repository-foundation/spec.md",
+      "Dependency direction remains one-way"
+    ]
+  ],
+  "unmergedEntries": 0
+}

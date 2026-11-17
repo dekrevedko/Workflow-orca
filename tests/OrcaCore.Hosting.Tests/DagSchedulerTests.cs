@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Reflection;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -44,11 +43,9 @@ public sealed class DagSchedulerTests
         try
         {
             var bridge = host.Services.GetRequiredService<DurableDagRunBridge>();
-            var slow = Guid.NewGuid();
-            var fast = Guid.NewGuid();
-            (await CreateRunAsync(host, compiled, slow, 7, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            var slow = (await CreateRunAsync(host, compiled, 7, token)).RunId.Value;
             await entered.Task.WaitAsync(token);
-            (await CreateRunAsync(host, compiled, fast, 42, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            var fast = (await CreateRunAsync(host, compiled, 42, token)).RunId.Value;
             var finished = await bridge.WaitForTerminalAsync(fast, token);
             finished.State.Should().Be(DagRunStateV1.Succeeded);
             finished.Nodes[0].Output!.Bytes.Should().Equal("42"u8.ToArray());
@@ -92,8 +89,7 @@ public sealed class DagSchedulerTests
         await host.StartAsync(token);
         try
         {
-            var id = Guid.NewGuid();
-            (await CreateRunAsync(host, plan.Build(), id, 42, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            var id = (await CreateRunAsync(host, plan.Build(), 42, token)).RunId.Value;
             (await firstMapped.Task.WaitAsync(token)).Should().Be(0, "the first free slot belongs to the lowest ready ordinal");
             var final = await host.Services.GetRequiredService<DurableDagRunBridge>().WaitForTerminalAsync(id, token);
             final.State.Should().Be(DagRunStateV1.Succeeded);
@@ -146,8 +142,7 @@ public sealed class DagSchedulerTests
         await host.StartAsync(token);
         try
         {
-            var id = Guid.NewGuid();
-            (await CreateRunAsync(host, plan.Build(), id, 40, token)).Outcome.Should().Be(DurableDagCreateOutcomeV1.Created);
+            var id = (await CreateRunAsync(host, plan.Build(), 40, token)).RunId.Value;
             await higherEntered.Task.WaitAsync(token);
             var bridge = host.Services.GetRequiredService<DurableDagRunBridge>();
             var admitted = (await bridge.ReadAsync(id, token))!;
@@ -200,17 +195,13 @@ public sealed class DagSchedulerTests
             configure?.Invoke(services);
         }).Build();
 
-    private static ValueTask<DurableDagCreateResultV1> CreateRunAsync(IHost host, WorkflowDagPlan<int> plan,
-        Guid id, int input, CancellationToken token)
+    private static async ValueTask<DagRunHandle> CreateRunAsync(IHost host, WorkflowDagPlan<int> plan,
+        int input, CancellationToken token)
     {
-        // Only the test reaches the unshipped Task 8.6 entry point. The
-        // scheduler, provider, mappers and all runtime dispatch are real.
-        var coordinatorType = typeof(DagHostOptions).Assembly
-            .GetType("OrcaCore.Dag.Hosting.DagCoordinator", throwOnError: true)!;
-        var create = coordinatorType.GetMethod("CreateOrReopenAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .MakeGenericMethod(typeof(int));
-        return (ValueTask<DurableDagCreateResultV1>)create.Invoke(host.Services.GetRequiredService(coordinatorType),
-            [plan, id, id.ToString("D"), input, token])!;
+        var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(plan).GetHandleOrThrow();
+        var result = await definition.StartOrGetAsync(input, StartIdempotencyKey.Create(Guid.NewGuid().ToString("D")), token);
+        result.Should().BeOfType<DagStartResult.Accepted>().Which.WasExisting.Should().BeFalse();
+        return result.GetHandleOrThrow();
     }
 
     private static async Task<int[]> ReadAdmissionOrderAsync(IHost host, Guid id, CancellationToken token)

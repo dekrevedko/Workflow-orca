@@ -3,7 +3,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Diagnostics.Metrics;
-using System.Reflection;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -23,7 +22,7 @@ namespace OrcaCore.ProviderCertification;
 
 // Independent wire builders deliberately do not call the providers' private reducer,
 // checkpoint writer, operation hash, clock or lease implementation.
-public static class DagRunCertification
+public static partial class DagRunCertification
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web)
     {
@@ -51,7 +50,7 @@ public static class DagRunCertification
             }
             return input.RunInput;
         });
-        authored.Node(DagNodeId.Create("second"), child.Reference).DependsOn(first)
+        var second = authored.Node(DagNodeId.Create("second"), child.Reference).DependsOn(first)
             .MapInput(input => input.OutputOf(first) + 1);
         var plan = authored.Build();
         services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
@@ -70,31 +69,21 @@ public static class DagRunCertification
         await host.StartAsync(token);
         try
         {
-            var coordinatorType = typeof(DagHostOptions).Assembly.GetType("OrcaCore.Dag.Hosting.DagCoordinator", true)!;
-            var coordinator = host.Services.GetRequiredService(coordinatorType);
-            var create = coordinatorType.GetMethod("CreateOrReopenAsync", BindingFlags.Instance | BindingFlags.NonPublic)!
-                .MakeGenericMethod(typeof(int));
-            var bridgeType = typeof(OrcaCoreDurableEngineServiceCollectionExtensions).Assembly
-                .GetType("OrcaCore.Durable.Hosting.Dag.DurableDagRunBridge", true)!;
-            var bridge = host.Services.GetRequiredService(bridgeType);
-            var wait = bridgeType.GetMethod("WaitForTerminalAsync")!;
-            var cancel = bridgeType.GetMethod("RequestRunCancellationAsync")!;
-            var slow = Guid.NewGuid();
-            var healthy = Guid.NewGuid();
-            await InvokeAsync(create, coordinator, plan, slow, slow.ToString("D"), 7, token);
+            var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(plan).GetHandleOrThrow();
+            var slow = (await definition.StartOrGetAsync(7, StartIdempotencyKey.Create(Guid.NewGuid().ToString("D")), token)).GetHandleOrThrow();
             await entered.Task.WaitAsync(token);
-            await InvokeAsync(create, coordinator, plan, healthy, healthy.ToString("D"), 42, token);
-            var completed = await (ValueTask<DagRunSnapshotV1>)wait.Invoke(bridge, [healthy, token])!;
-            completed.State.Should().Be(DagRunStateV1.Succeeded);
-            completed.Nodes[1].Output!.Bytes.Should().Equal("43"u8.ToArray());
+            var healthy = (await definition.StartOrGetAsync(42, StartIdempotencyKey.Create(Guid.NewGuid().ToString("D")), token)).GetHandleOrThrow();
+            var completed = await healthy.WaitForTerminalAsync(token);
+            completed.Status.Should().Be(DagRunStatus.Succeeded);
+            (await healthy.GetOutputAsync(second, token)).Should().BeOfType<DagNodeOutputResult<int>.Available>().Which.Output.Should().Be(43);
             var tail = await host.Services.GetRequiredService<IWorkflowEventStore>()
-                .LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(healthy), StreamVersion.Empty, token);
+                .LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(healthy.RunId.Value), StreamVersion.Empty, token);
             tail.Where(record => record.Kind == DagRunRecordKindV1.InputAdmitted)
                 .Select(record => record.ChangedNodes.Single().Ordinal).Should().Equal(0, 1);
-            await InvokeAsync(cancel, bridge, slow, token);
-            var cancelled = await (ValueTask<DagRunSnapshotV1>)wait.Invoke(bridge, [slow, token])!;
-            cancelled.State.Should().Be(DagRunStateV1.Cancelled);
-            cancelled.Nodes.Should().OnlyContain(node => node.Input == null);
+            (await slow.RequestCancellationAsync(token)).Should().Be(DagCancellationRequestStatus.Requested);
+            var cancelled = await slow.WaitForTerminalAsync(token);
+            cancelled.Status.Should().Be(DagRunStatus.Cancelled);
+            cancelled.Nodes.Should().OnlyContain(node => node.MappedInputFingerprint == null);
             Volatile.Read(ref evaluationCount).Should().Be(1);
             release.Set();
             await exited.Task.WaitAsync(token);
@@ -106,13 +95,6 @@ public static class DagRunCertification
             await host.StopAsync(stop.Token);
         }
 
-        // The pre-8.6 test entry points are internal; only this harness uses
-        // reflection. It invokes the shipped host, real storage and hosted pumps.
-        static Task InvokeAsync(MethodInfo method, object target, params object[] args)
-        {
-            var result = method.Invoke(target, args)!;
-            return (Task)result.GetType().GetMethod("AsTask")!.Invoke(result, null)!;
-        }
     }
 
     public static async Task RetainedChildDoesNotStarveHealthyRunAsync(IServiceCollection services, int batchSize, CancellationToken token)

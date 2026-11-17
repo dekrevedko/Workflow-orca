@@ -57,8 +57,12 @@ Queries return immutable detached snapshots/copies; commands return closed outco
 never live query values or mutable runtime authority. MG-071 permits only the
 separate ephemeral exception carrier, which is not a query value or disposal proof.
 `DagRunHandle.WaitForTerminalAsync` SHALL return
-one committed terminal `DagRunSnapshot` through the same notification/recheck, no-poll,
-caller-cancellation-local contract.
+one committed terminal `DagRunSnapshot`, or throw `DagRunFaultedException` when its authoritative
+recheck observes a nonterminal integrity fault, through the same notification/recheck, no-poll,
+caller-cancellation-local contract. A fault reconciled before recheck is not reported. Fault
+snapshots retain Running or CancellationRequested as derived from checkpoint nodes; cancellation
+while faulted returns AlreadyRequested only for a committed request, otherwise throws without
+committing. See doc 17 §17.2.6 for run-input binding and integrity classifications.
 
 ## 9.2 First-release commands and deferred operations
 

@@ -15,22 +15,22 @@
     {
       "id": "OrcaCore.Dag",
       "project": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
-      "sourceSha256": "41f7d64bbf3e43cda0e836c3d19b03d38f69c0711eda738dce829ecbf28c7c6c"
+      "sourceSha256": "ec6bc82c27d941703453c84b8f05ac84b7d82d33c8bd363ccd389cbc089dc8cc"
     },
     {
       "id": "OrcaCore.Dag.Hosting",
       "project": "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj",
-      "sourceSha256": "2553d892a53dca2c410abf069d9e82b0a006885d7c81e885bc46f2c0b420b604"
+      "sourceSha256": "4c0a4e797d573c588b68b39cecf34cd8dad22ea8d3c3784fa3c4d6695a087a3f"
     },
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "b26addb6b34b56366ffa3d2f363676990174d6fd1bca444f758983bd2c722d96"
+      "sourceSha256": "7a149476d878b4c878c80d3f7e7580d4752890643209a1432b78fa3b0e29ae51"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "8f960c72c32c8a959893cc45abf231dda1ed5a4a96913c4cba79acb60b99ffd3"
+      "sourceSha256": "124c4b15708f17a5b1f727d0693c1fa6c6f3182eb768993c3bca5b890ddfc6dd"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
@@ -50,7 +50,7 @@
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "e24a5b6ac6ee21039b4aac1b0aa1bbb5d2b9e903b46d7cebc63764e47635ce3d"
+      "sourceSha256": "8521984bc739e24e1bc5dea82c77a3e6a5192467a6ab9a20a33b4662ca0ca286"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",

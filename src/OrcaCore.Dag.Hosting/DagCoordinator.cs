@@ -13,6 +13,7 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
     internal const int DagEvaluationParallelismPerRun = 1;
     private const int DiscoveryPageSize = 100;
     private readonly DurableDagRunBridge bridge;
+    private readonly DurableDagFacade facade;
     private readonly TimeProvider time;
     private readonly ILogger<DagCoordinator> logger;
     private readonly ConcurrentDictionary<Guid, Lane> lanes = new();
@@ -27,8 +28,9 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
     private int retiredWorkers;
 
     internal DagCoordinator(DagDefinitionRegistry definitions, DurableDagRunBridge bridge, int maxConcurrentNodes,
-        TimeProvider time, ILogger<DagCoordinator> logger)
+        TimeProvider time, ILogger<DagCoordinator> logger, DurableDagFacade facade)
     {
+        this.facade = facade;
         Definitions = definitions;
         this.bridge = bridge;
         this.time = time;
@@ -40,13 +42,6 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
 
     internal DagDefinitionRegistry Definitions { get; }
     internal int MaxConcurrentNodes { get; }
-
-    internal ValueTask<DurableDagCreateResultV1> CreateOrReopenAsync<TRunInput>(WorkflowDagPlan<TRunInput> plan,
-        Guid runId, string startKey, TRunInput input, CancellationToken token)
-    {
-        var installed = Definitions.Install(plan);
-        return bridge.CreateOrReopenAsync(new(runId, new(startKey), installed.Graph, input, installed.InputType), token);
-    }
 
     ValueTask IDurableDagReadySinkV1.HandleAsync(DurableDagReadyNoticeV1 notice, CancellationToken cancellationToken)
     {
@@ -141,6 +136,13 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
         if (run?.State != DagRunStateV1.Running || Definitions.Find(run.Graph.Definition) is not { } plan)
         {
             if (lanes.TryGetValue(runId, out var old)) Retire(runId, old);
+            return;
+        }
+        // Unavailable input bindings prevent new mapping/admission only. Committed
+        // child work remains owned by the role-independent durable pumps.
+        if (!facade.MatchesRunInput(run, plan.Graph, plan.InputType))
+        {
+            if (lanes.TryGetValue(runId, out var foreign)) Retire(runId, foreign);
             return;
         }
         if (!bridge.MatchesInstalledGraph(run.Graph, plan.Graph))

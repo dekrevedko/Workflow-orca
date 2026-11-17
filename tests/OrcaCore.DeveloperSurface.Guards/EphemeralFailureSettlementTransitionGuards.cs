@@ -27,6 +27,7 @@ public sealed class EphemeralFailureSettlementTransitionGuards
         const string registryPath = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json";
         var previous = JsonNode.Parse(Git(root, ["show", ContractVerdictCommit + ":" + registryPath]))!.AsObject();
         var current = JsonNode.Parse(File.ReadAllText(Path.Combine(root, registryPath)))!.AsObject();
+        OpenSpecCorpusGuards.ProjectDagFacadeSeamRegistryExtension(current);
         DagStreamIdentitySliceGuards.ProjectTask21RegistryExtension(previous, current);
         JsonNode.DeepEquals(previous, current).Should().BeTrue("the independently reviewed DAG extension cannot change other registry entries");
     }
@@ -125,26 +126,10 @@ internal static class EphemeralFailureSettlementReviewHistory
                 expected = expected.TrimEnd('\n') + "\n\n" + block + "\n";
             }
         }
-        var current = OpenSpecCorpusGuards.BeforeShutdownStartReservationSync(root, path,
-            Normalize(File.ReadAllText(Path.Combine(root, path))));
+        var current = DagFacadeApprovedHistory.PriorDocument(root, path);
         current.Should().Be(expected, "unowned text, order and preambles cannot change through the historical adapter");
         Hash(current).Should().Be(pin.GetProperty("afterSha256").GetString());
         return before;
-    }
-
-    internal static string CurrentDocumentationHash(string root, string path, string historicalHash)
-    {
-        using var registry = ReadRegistry(root);
-        var rows = registry.RootElement.GetProperty("normativeDocumentationSuccessors").EnumerateArray()
-            .Where(row => row.GetProperty("path").GetString() == path).ToArray();
-        if (rows.Length == 0) return historicalHash;
-        rows.Should().ContainSingle();
-        var row = rows[0];
-        var before = Normalize(Git(root, "show", BeforeCommit + ":" + path));
-        Hash(before).Should().Be(historicalHash, "the original documentation approval pin remains intact");
-        historicalHash.Should().Be(row.GetProperty("beforeSha256").GetString());
-        return EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
-            root, path, row.GetProperty("afterSha256").GetString()!);
     }
 
     private static string Block(string text, string title)

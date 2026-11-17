@@ -34,6 +34,37 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             certificationStore
             ?? throw new InvalidOperationException("SQL Server certification store is not initialized."));
 
+    [Theory]
+    [InlineData("key")]
+    [InlineData("json")]
+    public Task DagFacade_CanonicalInputIntegrity(string corruption)
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeCanonicalIntegrityAsync(() => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)), corruption, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFacade_RealProcessRestart() => DagProcessRestartCertification.RunAsync(
+        "sqlserver", container.ConnectionString, SqlServerContainerFixture.CreateSchemaName(), TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_BindingAndLosslessness()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeBindingsAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFacade_LevelTriggeredFaults()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeFaultsAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            TestContext.Current.CancellationToken);
+    }
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
