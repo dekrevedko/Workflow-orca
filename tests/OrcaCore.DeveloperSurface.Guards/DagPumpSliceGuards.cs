@@ -76,17 +76,18 @@ public sealed class DagPumpSliceGuards
         Hash(record).Should().Be(Task23SourceRecordSha256, "the unapproved Task 2.3 candidate cannot broaden its scope silently");
         var rows = record.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(row => row.Split('\t')).ToArray();
         var paths = rows.Select(row => row[0]).ToArray();
+        var facade = DagFacadeReviewCandidate.SourcePaths(root);
         var changed = Git(root, "diff", "--name-only", Task23Base, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
             .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        paths.Should().Equal(changed);
+        paths.Concat(facade).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Should().Equal(changed);
         paths.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Dag.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Durable.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Engine.Durable/", StringComparison.Ordinal));
         foreach (var row in rows)
-            Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(Path.Combine(root, row[0])))).Should().Be(row[1]);
-        return paths;
+            Convert.ToHexStringLower(SHA256.HashData(DagFacadeReviewCandidate.PriorSourceBytes(root, row[0]))).Should().Be(row[1]);
+        return paths.Concat(facade).Distinct(StringComparer.Ordinal).ToArray();
     }
 
     private static string Hash(string text) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(text)));

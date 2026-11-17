@@ -28,10 +28,8 @@ public sealed class DagRunInputBindingTests
 
         var conflict = () => restarted.Install(binding, typeof(long));
         conflict.Should().Throw<InvalidOperationException>();
-        var wrongShape = () => restarted.Resolve(graph with { RunInputContractKey = key + "-other" });
-        wrongShape.Should().Throw<InvalidDataException>();
-        var wrongDefinition = () => restarted.Resolve(graph with { Definition = binding with { Fingerprint = new string('B', 64) } });
-        wrongDefinition.Should().Throw<InvalidDataException>();
+        restarted.Resolve(graph with { RunInputContractKey = key + "-other" }).Should().BeNull();
+        restarted.Resolve(graph with { Definition = binding with { Fingerprint = new string('B', 64) } }).Should().BeNull();
         restarted.Resolve(graph).Should().Be(typeof(int));
     }
 

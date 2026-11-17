@@ -1269,6 +1269,18 @@ decode/normalization/commit remains a separate unimplemented reviewed target.
 Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCanceledException`, SHALL become `DAG_INPUT_MAPPING_INVALID`, except `OutOfMemoryException`, `StackOverflowException`, and `AccessViolationException`, which SHALL NOT be converted. Host/run cancellation observed outside mapper evaluation SHALL retain the runtime cancellation outcome. Before invoking the evaluator, an ordinary declared-type output decode/materialization failure SHALL fail the node as `DAG_INPUT_MAPPING_INVALID`, without invoking its mapper, committing input, or starting a child; protocol-integrity or storage failures SHALL remain runtime failures and SHALL NOT be disguised as mapper failures.
 <!-- runtime-view-contract:end -->
 
+<!-- dag-public-handle-seam:current -->
+The owner-authorized combined Task 8.6 candidate extends this same friend by exactly the two
+internal public-handle constructors listed in §17.2.6. The compiled boundary remains three
+non-public types and becomes seventeen members: the fifteen runtime-view members plus those
+constructors. Dag owns typed throws and node/output type checks; Dag.Hosting wires handles,
+closed public results, snapshots and enum projections; the durable side owns codec/binding
+decisions and opaque conflict, failure and fingerprint creation. No friend or package edge is
+added. Final independent implementation review is pending; earlier approved checkpoints remain
+historical evidence for their original scope.
+<!-- dag-public-handle-seam:current:end -->
+
+
 ```csharp
 public static class Dag
 {
@@ -1361,10 +1373,38 @@ public sealed class DagRunDefinitionMismatchException : OrcaCoreException
     internal DagRunDefinitionMismatchException(
         DagRunId runId,
         DefinitionId expectedDefinitionId,
-        DefinitionId actualDefinitionId);
+        DefinitionId actualDefinitionId,
+        DefinitionVersion expectedDefinitionVersion,
+        DefinitionVersion actualDefinitionVersion,
+        DefinitionFingerprint expectedDefinitionFingerprint,
+        DefinitionFingerprint actualDefinitionFingerprint);
+    public DefinitionVersion ExpectedDefinitionVersion { get; }
+    public DefinitionVersion ActualDefinitionVersion { get; }
+    public DefinitionFingerprint ExpectedDefinitionFingerprint { get; }
+    public DefinitionFingerprint ActualDefinitionFingerprint { get; }
     public DagRunId RunId { get; }
     public DefinitionId ExpectedDefinitionId { get; }
     public DefinitionId ActualDefinitionId { get; }
+}
+
+public sealed class DagRunFaultedException : OrcaCoreException
+{
+    internal DagRunFaultedException(DagRunId runId);
+    public DagRunId RunId { get; }
+}
+
+public sealed class DagRunInputContractMismatchException : OrcaCoreException
+{
+    internal DagRunInputContractMismatchException(
+        DefinitionId definitionId, DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint, Type attemptedRunInputType,
+        Type? existingRunInputType, DagRunId? runId);
+    public DefinitionId DefinitionId { get; }
+    public DefinitionVersion DefinitionVersion { get; }
+    public DefinitionFingerprint DefinitionFingerprint { get; }
+    public Type AttemptedRunInputType { get; }
+    public Type? ExistingRunInputType { get; }
+    public DagRunId? RunId { get; }
 }
 
 public sealed class DagDefinitionRegistrationConflictException : OrcaCoreException
@@ -1442,6 +1482,10 @@ public abstract record DagRegistrationResult<TRunInput>
         DagDefinitionHandle<TRunInput> Handle) : DagRegistrationResult<TRunInput>;
     public sealed record Conflict(
         DefinitionRegistrationConflict Error) : DagRegistrationResult<TRunInput>;
+    public sealed record RunInputConflict(
+        DefinitionId DefinitionId, DefinitionVersion DefinitionVersion,
+        DefinitionFingerprint DefinitionFingerprint, Type ExistingRunInputType,
+        Type AttemptedRunInputType) : DagRegistrationResult<TRunInput>;
 }
 
 public abstract record DagStartResult
@@ -1453,6 +1497,9 @@ public abstract record DagStartResult
         bool WasExisting) : DagStartResult;
     public sealed record Conflict(
         StartIdempotencyConflict Error) : DagStartResult;
+    public sealed record RunInputConflict(
+        DagRunId ExistingRunId, DefinitionId DefinitionId, DefinitionVersion DefinitionVersion,
+        DefinitionFingerprint DefinitionFingerprint, Type AttemptedRunInputType) : DagStartResult;
 }
 
 public enum DagCancellationRequestStatus
@@ -1470,7 +1517,17 @@ public interface IDagDefinitionRegistry
 
 public sealed class DagDefinitionHandle<TRunInput>
 {
-    internal DagDefinitionHandle();
+    internal DagDefinitionHandle(
+        DefinitionId definitionId,
+        DefinitionVersion definitionVersion,
+        DefinitionFingerprint definitionFingerprint,
+        Func<TRunInput, StartIdempotencyKey, CancellationToken, ValueTask<DagStartResult>> startOrGet,
+        Func<DagRunId, CancellationToken, ValueTask<(
+            DagRunHandle? Run,
+            DefinitionId? ActualDefinitionId,
+            DefinitionVersion? ActualDefinitionVersion,
+            DefinitionFingerprint? ActualDefinitionFingerprint,
+            bool RunInputContractDiffers)>> getRun);
     public DefinitionId DefinitionId { get; }
     public DefinitionVersion DefinitionVersion { get; }
     public DefinitionFingerprint DefinitionFingerprint { get; }
@@ -1487,7 +1544,14 @@ public sealed class DagDefinitionHandle<TRunInput>
 
 public sealed class DagRunHandle
 {
-    internal DagRunHandle(DagRunId runId);
+    internal DagRunHandle(
+        DagRunId runId,
+        IReadOnlyList<DagNodeRef> planNodes,
+        Func<CancellationToken, ValueTask<DagRunSnapshot>> getSnapshot,
+        Func<DagNodeRef, CancellationToken,
+            ValueTask<(DagNodeStatus Status, bool HasOutput, object? Output, WorkflowFailure? Failure)>> getOutput,
+        Func<CancellationToken, ValueTask<DagRunSnapshot?>> waitForTerminal,
+        Func<CancellationToken, ValueTask<DagCancellationRequestStatus?>> requestCancellation);
     public DagRunId RunId { get; }
 
     public ValueTask<DagRunSnapshot> GetSnapshotAsync(
@@ -1543,25 +1607,73 @@ they are not public `RunChild`/`RunChildren` authoring members. Host option
 durable resource pools. It counts every admitted nonterminal child instance, including one parked
 in a wait, delay, or lease queue, until that child becomes terminal.
 
-Registration is explicit. `Registered` returns the only start-capable typed definition handle;
-same identity/version with a different structural fingerprint returns
-`DefinitionRegistrationConflict`. `StartOrGetAsync` binds definition identity/version/fingerprint
-plus deterministic serialized run input to `StartIdempotencyKey`; compatible reuse returns
-`Accepted` with the same `DagRunId` and `WasExisting = true`, while changed input or definition
-identity returns typed `StartIdempotencyConflict`. A run handle cannot start arbitrary
-children or inspect child state. Its snapshot preserves authored node order, and node output is
-available only after that declared node succeeds; pending, failed, cancelled, or
-dependency-blocked nodes return the typed unavailable variant. A node reference from another
-plan is rejected before querying. Returned outputs/snapshots are detached.
-`GetRunAsync` reopens only a run belonging to the typed DAG definition; absence and mismatch use
-`DagRunNotFoundException` and `DagRunDefinitionMismatchException`. The closed registration/start
-unions remain available for conflict inspection and `WasExisting`; their `GetHandleOrThrow()`
-helpers return the successful handle or throw the corresponding typed exception carrying that
-same conflict value, so ordinary code needs no cast.
+Registration installs the plan for recovery on this host. The definition binding has four parts:
+identity, version, structural fingerprint and declared run-input contract. The durable side owns
+the fixed-codec shape key; Dag and Dag.Hosting do not compute it. A different fingerprint returns
+`Conflict(DefinitionRegistrationConflict)` first. An equal triple with another CLR `Type` or key
+returns `RunInputConflict`; same-host idempotence requires both Type identity and equal key. A
+conflict leaves the earlier registration intact. Unsupported declared codec types are rejected
+before installation. Applications register their plans again at every host startup.
 
-`WaitForTerminalAsync` is a notification-driven, race-free wait that returns a detached terminal
-snapshot. It uses subscribe-then-recheck around the committed notification boundary and never
-polls. Caller cancellation cancels only the local wait, not the DAG run.
+Before creating a run or accepting a replay, the durable side encodes the submitted run input,
+decodes it with its declared type and requires byte-identical re-encoding. A value that fails
+throws `NotSupportedException` before a run is committed or a start key is bound. This rule covers
+the DAG run input only; mapped node inputs, child outputs and ordinary workflow inputs retain
+their existing rules. Byte equality protects representation, not meaning; changed semantics
+require a definition-version bump.
+
+`StartOrGetAsync` resolves the authoritative start-key owner, including after a competing create.
+An equal triple, contract key and validated input bytes returns `Accepted` with that owner's
+run id and `WasExisting = true`. An equal triple with another key returns the closed
+`RunInputConflict` carrying the owner's run id. Every other difference, including equal keys
+with different validated bytes, returns `Conflict(StartIdempotencyConflict)`. Storage failures,
+integrity failures and caller cancellation still propagate. The separate internal explicit
+run-id collision check is retained.
+
+Before reopen or mapping, recorded input is checked against its own stored graph key, codec
+format and fingerprint. Disagreement or malformed storage retains its integrity classification,
+including when inspecting a start-key owner during replay. A valid graph key differing from the
+installed plan, or well-formed bytes that fail decode-and-identical-re-encode with the installed
+type, makes the run locally unavailable. The immutable-input verdict can be cached per run and
+installed type. Recovery skips new mapping/admission without mutation, mapping failure or fault;
+already committed child start, join and cancellation work still runs on any durable host.
+
+`GetRunAsync` checks the definition triple before input compatibility. Absence throws
+`DagRunNotFoundException`; another triple throws `DagRunDefinitionMismatchException` with expected
+and actual identity, version and fingerprint; input incompatibility throws
+`DagRunInputContractMismatchException` with the run id. Both closed `RunInputConflict` helpers
+throw the latter exception. Its existing Type is present for registration and null for an
+on-disk binding; its run id is null for registration and the owner's id for start.
+
+Snapshots and outputs are detached. Nodes remain in authored order; a foreign-plan node is
+rejected before querying. Output is available only for a successful resultful node, including a
+valid null output. Pending, failed, cancelled and dependency-blocked nodes return `Unavailable`.
+The public node projection maps `StartAuthorized` to `Running` and other states to their
+same-named enum members. Run `StartedAt` is creation time.
+
+`WaitForTerminalAsync` uses subscribe-then-recheck without polling. It returns a detached terminal
+snapshot or throws `DagRunFaultedException` if the authoritative recheck observes `IntegrityFault`.
+This is level-triggered: a fault reconciled before recheck is not reported and the wait continues.
+Caller cancellation affects only the local wait.
+
+A fault snapshot retains a nonterminal public status and null `CompletedAt`. Its status is
+`CancellationRequested` when any checkpoint node is `CancellationRequested` or `Cancelled`,
+otherwise `Running`. While faulted, cancellation returns `AlreadyRequested` for a previously
+committed request; otherwise it throws `DagRunFaultedException` and commits nothing. The same
+rule applies after process restart; no new public status member is introduced.
+
+Node failures are durable-created values with `ExceptionType = null`, empty causes,
+`FailureOccurrence.Root` and location `dag:$/dag-node:<eight-digit zero-based ordinal>`.
+Only Failed and DependencyBlocked nodes carry a failure. Messages are fixed:
+
+| Code | Message |
+|---|---|
+| `DAG_INPUT_MAPPING_INVALID` | The node input mapping was invalid. |
+| `CHILD_FAILED` | The node child workflow failed. |
+| `CHILD_TIMED_OUT` | The node child workflow timed out. |
+| `CHILD_TERMINATED` | The node child workflow was terminated. |
+| `CHILD_CANCELLED` | The node child workflow was cancelled without a run cancellation request. |
+| `DEPENDENCY_BLOCKED` | A dependency of the node did not succeed. |
 
 The ordinary success path therefore needs neither casts nor polling:
 
@@ -1720,10 +1832,13 @@ All public `OrcaCoreException` codes and runtime failure projection codes are fi
 | `SFE-JOIN-FAILED` | ordered multiple-branch/item aggregate failure |
 | `DAG-RUN-NOT-FOUND` | `DagRunNotFoundException` |
 | `DAG-RUN-DEFINITION-MISMATCH` | `DagRunDefinitionMismatchException` |
+| `DAG-RUN-FAULTED` | `DagRunFaultedException` |
+| `DAG-RUN-INPUT-CONTRACT-MISMATCH` | `DagRunInputContractMismatchException` |
 | `DAG-DEFINITION-REGISTRATION-CONFLICT` | `DagDefinitionRegistrationConflictException` |
 | `DAG-START-IDEMPOTENCY-CONFLICT` | `DagStartIdempotencyConflictException` |
 | `DAG_INPUT_MAPPING_INVALID` | opaque mapper access/projector failure before child start |
 | `CHILD_FAILED`, `CHILD_TIMED_OUT`, `CHILD_TERMINATED`, `CHILD_CANCELLED` | normalized DAG child terminal failure |
+| `DEPENDENCY_BLOCKED` | normalized DAG dependency-blocked failure |
 
 `OrcaCoreException` validates a nonblank invariant code containing only uppercase ASCII letters,
 digits, hyphen, or underscore. Built-in subclasses bind exactly one code above. Application-derived
@@ -2161,6 +2276,18 @@ freezes remaining metadata until disposal. Exact corrected catalogue:
 Source task 3.3 alone updates executable API/compile/package baselines with source.
 
 ## 17.5 Package and integration boundary
+
+<!-- dag-public-handle-seam:current -->
+The owner-authorized combined Task 8.6 candidate extends this same friend by exactly the two
+internal public-handle constructors listed in §17.2.6. The compiled boundary remains three
+non-public types and becomes seventeen members: the fifteen runtime-view members plus those
+constructors. Dag owns typed throws and node/output type checks; Dag.Hosting wires handles,
+closed public results, snapshots and enum projections; the durable side owns codec/binding
+decisions and opaque conflict, failure and fingerprint creation. No friend or package edge is
+added. Final independent implementation review is pending; earlier approved checkpoints remain
+historical evidence for their original scope.
+<!-- dag-public-handle-seam:current:end -->
+
 
 `OrcaCore` is the primary application contracts/authoring package and assembly, not a
 dependency-only meta-package. The exhaustive first-release manifest is:

@@ -213,6 +213,9 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             provider.GetRequiredService<DurableFacadeNotificationHub>(), provider.GetRequiredService<DurableDagChildCoordinator>(),
             provider.GetRequiredService<DurableDagIntegrity>()));
         services.TryAddSingleton<IDurableDagRunBridgeV1>(provider => provider.GetRequiredService<DurableDagRunBridge>());
+        services.TryAddSingleton(provider => new DurableDagFacade(
+            provider.GetRequiredService<DurableDagRunStore>(), provider.GetRequiredService<DurableDagRunInputCatalog>(),
+            provider.GetRequiredService<DurableDagNotifications>(), provider.GetRequiredService<DurableDagRunCancellation>()));
         services.TryAddSingleton(provider => new DurableDagRunTurns(
             provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<DurableDagHostIdentity>(),
             provider.GetRequiredService<TimeProvider>()));

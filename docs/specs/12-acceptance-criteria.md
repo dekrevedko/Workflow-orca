@@ -732,8 +732,11 @@ either criterion.
   timestamps, and failure fields; ready ties use the same ordinal. [CP-027]
 - **AC-618** *DAG terminal wait is reactive* — `DagRunHandle.WaitForTerminalAsync` observes a
   terminal commit before/during/after notification registration through subscribe/recheck,
-  returns one authoritative terminal snapshot without polling, and caller cancellation cancels
-  only the local wait rather than the DAG or children. [CR-016, MG-005]
+  returns one authoritative terminal snapshot without polling, or throws `DagRunFaultedException`
+  when recheck observes an integrity-fault checkpoint. A fault reconciled before recheck is not
+  reported; a barrier test holds the waiter across both commits. Caller cancellation cancels only
+  the local wait rather than the DAG or children. Fault status derivation and stored-input
+  verification are exercised after a real process restart. [CR-016, MG-005]
 
 <!-- dag-run-contract-proposal:start -->
 #### Approved durable DAG run contract; source pending (2026-10-05)

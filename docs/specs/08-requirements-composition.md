@@ -122,6 +122,14 @@ but retains its physical step-throttle/transient slot until it returns.
 ## 8.3 Typed DAG planning and execution
 
 ### CP-020 Separate package and dependency direction
+
+Current Task 8.6 extension: doc 17 §17.2.6 adds exactly two internal public-handle constructors
+to the existing fifteen runtime-view members (three non-public types, seventeen members, no new
+friend). Typed validation stays in Dag, projection in Dag.Hosting, and run-input losslessness,
+stored binding/integrity verification and opaque values on the durable side. The owner authorized
+one combined uncommitted implementation target for final independent review. Earlier dated
+runtime-view approvals below retain their original scope.
+
 `OrcaCore.Dag` SHALL be a separate project/package whose sole direct OrcaCore dependency is
 `OrcaCore`; its workflow references remain public contracts. The post-gate
 `admit-dag-authoring-friend-boundary` contract approves one authoring-only

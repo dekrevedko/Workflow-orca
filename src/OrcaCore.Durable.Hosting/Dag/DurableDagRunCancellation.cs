@@ -6,7 +6,7 @@ using OrcaCore.Engine.Durable.Dag;
 
 namespace OrcaCore.Durable.Hosting.Dag;
 
-internal enum DurableDagCancelOutcomeV1 { Requested, AlreadyRequested, AlreadyTerminal, NotFound }
+internal enum DurableDagCancelOutcomeV1 { Requested, AlreadyRequested, AlreadyTerminal, NotFound, Faulted }
 internal sealed record DurableDagCancelResultV1(DurableDagCancelOutcomeV1 Outcome, StreamVersion? Version);
 
 internal sealed class DurableDagRunCancellation(IWorkflowEventStore events, DurableDagRunStore store,
@@ -71,7 +71,8 @@ internal sealed class DurableDagRunCancellation(IWorkflowEventStore events, Dura
         DagRunStateV1.CancellationRequested => new(DurableDagCancelOutcomeV1.AlreadyRequested, run.StreamVersion),
         DagRunStateV1.Cancelled or DagRunStateV1.Succeeded or DagRunStateV1.Failed =>
             new(DurableDagCancelOutcomeV1.AlreadyTerminal, run.StreamVersion),
-        DagRunStateV1.IntegrityFault => throw new InvalidDataException("A faulted DAG run requires reconciliation before cancellation."),
+        DagRunStateV1.IntegrityFault => new(DurableDagFacade.PublicState(run) == DagRunStateV1.CancellationRequested
+            ? DurableDagCancelOutcomeV1.AlreadyRequested : DurableDagCancelOutcomeV1.Faulted, run.StreamVersion),
         _ => null
     };
 }

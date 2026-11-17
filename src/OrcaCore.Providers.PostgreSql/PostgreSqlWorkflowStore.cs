@@ -123,7 +123,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
                    error_summary,
                    outcome_name,
                    continue_as_new_generation,
-                   runtime_state
+                   runtime_state,
+                   parent_instance_id,
+                   root_instance_id
             from orcacore_checkpoints
             where instance_id = @instance_id;
             """,
@@ -151,7 +153,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
             ErrorSummary = reader.IsDBNull(7) ? null : reader.GetString(7),
             OutcomeName = reader.IsDBNull(8) ? null : reader.GetString(8),
             ContinueAsNewGeneration = reader.GetInt32(9),
-            RuntimeState = ReadRuntimeState(reader, 10)
+            RuntimeState = ReadRuntimeState(reader, 10),
+            ParentInstanceId = reader.IsDBNull(11) ? null : InstanceId.Parse(reader.GetGuid(11).ToString()),
+            RootInstanceId = reader.IsDBNull(12) ? null : InstanceId.Parse(reader.GetGuid(12).ToString())
         });
     }
 
@@ -2267,7 +2271,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 error_summary,
                 outcome_name,
                 continue_as_new_generation,
-                runtime_state)
+                runtime_state,
+                parent_instance_id,
+                root_instance_id)
             values (
                 @instance_id,
                 @stream_version,
@@ -2280,7 +2286,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 @error_summary,
                 @outcome_name,
                 @continue_as_new_generation,
-                @runtime_state)
+                @runtime_state,
+                @parent_instance_id,
+                @root_instance_id)
             on conflict (instance_id) do update set
                 stream_version = excluded.stream_version,
                 content_type = excluded.content_type,
@@ -2292,7 +2300,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 error_summary = excluded.error_summary,
                 outcome_name = excluded.outcome_name,
                 continue_as_new_generation = excluded.continue_as_new_generation,
-                runtime_state = excluded.runtime_state;
+                runtime_state = excluded.runtime_state,
+                parent_instance_id = excluded.parent_instance_id,
+                root_instance_id = excluded.root_instance_id;
             """,
             connection,
             transaction);
@@ -2308,6 +2318,10 @@ internal sealed partial class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("error_summary", (object?)checkpoint.ErrorSummary ?? DBNull.Value);
         command.Parameters.AddWithValue("outcome_name", (object?)checkpoint.OutcomeName ?? DBNull.Value);
         command.Parameters.AddWithValue("continue_as_new_generation", checkpoint.ContinueAsNewGeneration);
+        command.Parameters.Add("parent_instance_id", NpgsqlDbType.Uuid).Value =
+            (object?)checkpoint.ParentInstanceId?.Value ?? DBNull.Value;
+        command.Parameters.Add("root_instance_id", NpgsqlDbType.Uuid).Value =
+            (object?)checkpoint.RootInstanceId?.Value ?? DBNull.Value;
         command.Parameters.Add("runtime_state", NpgsqlDbType.Jsonb).Value = JsonSerializer.Serialize(
             checkpoint.RuntimeState,
             PostgreSqlJsonSerializerContext.Default.WorkflowRuntimeCheckpointState);

@@ -54,6 +54,20 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Fact]
+    public Task DagFacade_RealProcessRestart() => DagProcessRestartCertification.RunAsync(
+        "postgres", container.GetConnectionString(), "public", TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_BindingAndLosslessness() => DagRunCertification.FacadeBindingsAsync(
+        () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+        TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_LevelTriggeredFaults() => DagRunCertification.FacadeFaultsAsync(
+        () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+        TestContext.Current.CancellationToken);
+
+    [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
             new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),

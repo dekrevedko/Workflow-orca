@@ -71,6 +71,8 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
         var instanceId = InstanceIdValue(1);
         var checkpoint = new CheckpointWrite(instanceId, new StreamVersion(1), "application/octet-stream", [1, 2, 3])
         {
+            ParentInstanceId = InstanceIdValue(2),
+            RootInstanceId = InstanceIdValue(3),
             DefinitionId = DefinitionIdValue(1),
             DefinitionVersion = new DefinitionVersion(7),
             Status = WorkflowStatus.Waiting,
@@ -92,6 +94,13 @@ public sealed class PostgreSqlEventStoreTests : IAsyncLifetime
 
         loaded.HasValue.Should().BeTrue();
         loaded.Value.Should().BeEquivalentTo(checkpoint);
+
+        var updated = checkpoint with { StreamVersion = new(2), ParentInstanceId = null, RootInstanceId = null };
+        (await store.AppendAsync(new ProviderCommitBatch
+        {
+            StreamId = new(instanceId), ExpectedVersion = new(1), Events = [StepCompletedEvent(instanceId)], Checkpoint = updated
+        }, TestContext.Current.CancellationToken)).IsSuccess.Should().BeTrue();
+        (await store.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken)).Value.Should().BeEquivalentTo(updated);
     }
 
     [Fact]

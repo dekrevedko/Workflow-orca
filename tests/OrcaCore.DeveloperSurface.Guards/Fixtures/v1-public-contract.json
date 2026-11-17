@@ -49,9 +49,9 @@
     "WF-DEFINITION-HOST-INCOMPATIBLE",
     "WF-DEFINITION-REGISTRATION-CONFLICT", "WF-START-IDEMPOTENCY-CONFLICT",
     "WF-OUTPUT-UNAVAILABLE", "WF-STEP-UNHANDLED", "SFE-JOIN-FAILED", "DAG-RUN-NOT-FOUND",
-    "DAG-RUN-DEFINITION-MISMATCH", "DAG-DEFINITION-REGISTRATION-CONFLICT",
+    "DAG-RUN-DEFINITION-MISMATCH", "DAG-RUN-INPUT-CONTRACT-MISMATCH", "DAG-RUN-FAULTED", "DAG-DEFINITION-REGISTRATION-CONFLICT",
     "DAG-START-IDEMPOTENCY-CONFLICT", "DAG_INPUT_MAPPING_INVALID", "CHILD_FAILED",
-    "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED",
+    "CHILD_TIMED_OUT", "CHILD_TERMINATED", "CHILD_CANCELLED", "DEPENDENCY_BLOCKED",
     "WF-EPHEMERAL-HOST-STOPPING", "WF-EPHEMERAL-SHUTDOWN-INCOMPLETE"
   ],
   "allowedFriends": [
@@ -125,10 +125,12 @@
     {"code":"WF-START-IDEMPOTENCY-CONFLICT","owner":"`WorkflowStartIdempotencyConflictException`"}, {"code":"WF-OUTPUT-UNAVAILABLE","owner":"`WorkflowOutputUnavailableException`"},
     {"code":"WF-STEP-UNHANDLED","owner":"normalized non-`OrcaCoreException` step failure"}, {"code":"SFE-JOIN-FAILED","owner":"ordered multiple-branch/item aggregate failure"},
     {"code":"DAG-RUN-NOT-FOUND","owner":"`DagRunNotFoundException`"}, {"code":"DAG-RUN-DEFINITION-MISMATCH","owner":"`DagRunDefinitionMismatchException`"},
+    {"code":"DAG-RUN-INPUT-CONTRACT-MISMATCH","owner":"`DagRunInputContractMismatchException`"}, {"code":"DAG-RUN-FAULTED","owner":"`DagRunFaultedException`"},
     {"code":"DAG-DEFINITION-REGISTRATION-CONFLICT","owner":"`DagDefinitionRegistrationConflictException`"}, {"code":"DAG-START-IDEMPOTENCY-CONFLICT","owner":"`DagStartIdempotencyConflictException`"},
     {"code":"DAG_INPUT_MAPPING_INVALID","owner":"opaque mapper access/projector failure before child start"},
     {"code":"CHILD_FAILED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_TIMED_OUT","owner":"normalized DAG child terminal failure"},
     {"code":"CHILD_TERMINATED","owner":"normalized DAG child terminal failure"}, {"code":"CHILD_CANCELLED","owner":"normalized DAG child terminal failure"},
+    {"code":"DEPENDENCY_BLOCKED","owner":"normalized DAG dependency-blocked failure"},
     {"code":"WF-EPHEMERAL-HOST-STOPPING","owner":"`EphemeralHostStoppingException`"},
     {"code":"WF-EPHEMERAL-SHUTDOWN-INCOMPLETE","owner":"`EphemeralHostShutdownIncompleteException`"}
   ],

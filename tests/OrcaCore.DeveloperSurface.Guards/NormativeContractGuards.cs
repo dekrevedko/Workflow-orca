@@ -58,7 +58,7 @@ public sealed partial class NormativeContractInfrastructureGuards
         Contract.RuntimeCreatedValues.Should().HaveCount(5).And.OnlyHaveUniqueItems();
         Contract.WorkflowDiagnostics.Should().HaveCount(28).And.OnlyHaveUniqueItems();
         Contract.DagDiagnostics.Should().HaveCount(7).And.OnlyHaveUniqueItems();
-        Contract.FailureCodes.Should().HaveCount(28).And.OnlyHaveUniqueItems();
+        Contract.FailureCodes.Should().HaveCount(31).And.OnlyHaveUniqueItems();
         Contract.AllowedFriends.Should().Equal(
             "OrcaCore->OrcaCore.Core",
             "OrcaCore->OrcaCore.Dag",

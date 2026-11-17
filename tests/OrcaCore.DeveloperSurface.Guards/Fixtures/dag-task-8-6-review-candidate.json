@@ -1,0 +1,147 @@
+{
+  "stage": "OwnerAuthorizedReviewCandidate",
+  "parent": "da1a4729ea2cdb9474eb219eb507760574f83dcb",
+  "ownerDirectionPath": "openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md",
+  "ownerDirectionSha256": "fb10d511af22c90adc1edf9cb6835c0acf9e1fc83d4f197cc4f9b806139d9fe7",
+  "sources": [
+    {
+      "path": "src/OrcaCore.Dag.Hosting/DagCoordinator.cs",
+      "beforeSha256": "3dbe5c478803af6eb99d89f3581e05f5f30d1e670ec0b5d4b2191606dd786613",
+      "afterSha256": "923ebcd059ca8d5ba3b08fe0c04f1ce7dace88727337ff0b262d8598f0146893"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/DagFacadeRegistry.cs",
+      "beforeSha256": null,
+      "afterSha256": "23d4195a89ecd2d302b1dc5a6c34ddf3634d70c56c3417f0dfff3e1f8dad0cab"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/DagHostingServices.cs",
+      "beforeSha256": "486ad9d1032bf20b462fbcd0ae519433361111f7cb5cad24aa008c7ae7474ae2",
+      "afterSha256": "832106e7106f271d1ca4deec6a27f96ab691ec02308a84b463fc73d532456d0f"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/OrcaCoreDagHostingServiceCollectionExtensions.cs",
+      "beforeSha256": "6dc314a020034f4465748d614f0f3b8e5711f7cf5e87d1926018a5eafa1e8a10",
+      "afterSha256": "fbb9220bef9d8fb099687a47b455443befb41c243f3204738b572d6943782a6d"
+    },
+    {
+      "path": "src/OrcaCore.Dag/DagFacade.cs",
+      "beforeSha256": null,
+      "afterSha256": "b62b4663b25a1236ebcfb1bd700b5de008cb9a1e1fd302616da58457054ab40f"
+    },
+    {
+      "path": "src/OrcaCore.Dag/DagFailureContracts.cs",
+      "beforeSha256": "5e07250d9b0bf0227e2408a9a6ad788b8db6f4cddaacdbf074bad6e0134375fb",
+      "afterSha256": "2bacc01d5b5a0b3164993c6614a40f58d62335aca0314972671e30e424dfe03a"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagFacade.cs",
+      "beforeSha256": null,
+      "afterSha256": "7be17245a8cfc7d5aef8f8a6c630acea75403dd0468b8edbbdfca214f0f903df"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagMappingReader.cs",
+      "beforeSha256": "a18cb05f9bb3c3fa471204dad7a2d572f4b1de5583b206c0c9269ad51aad5b11",
+      "afterSha256": "ca6531a303c1be943e24f4fde6b0a1332c190b810b47bba94a10fd87d3f364d0"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunCancellation.cs",
+      "beforeSha256": "d21d385015b2b9cd772752171570522e7e47b2b18b4814854789c3308af51b49",
+      "afterSha256": "9cdbd7e472838809271cc3d71d9a19649fd7b9e97b7c5373e5b35b6483278be4"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunInputCatalog.cs",
+      "beforeSha256": "6c46ed73771d1cc416cf8b41bd43f06394eb193f427771740414ea430729cbc4",
+      "afterSha256": "8012f560fa84f204b5894e65a9fb5bbc42be8087a032f90529ea334f3374745c"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunStore.cs",
+      "beforeSha256": "2f0e1a4cae71f6748bba94d171f74a86109874c2ca3a60b458429676da0bc4cd",
+      "afterSha256": "4277213b4bdcec5f3ada80d0adf0caeeb2318a2469120d4d23b222052ac7e56b"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs",
+      "beforeSha256": "5bad0d0a99130c2b9e2379133b1d9907f18a4fd98c3325faf3256858b5e66d5b",
+      "afterSha256": "260f41360a1dac12ed51a4b065a5a6d7de35b94f7ba58fd2b90df524be4298aa"
+    },
+    {
+      "path": "src/OrcaCore.Engine.Durable/Dag/DurableDagValues.cs",
+      "beforeSha256": "6a251d62406311864b1da277e69bc4f6c57d5cf0df7fa4abb414dcc04fff7566",
+      "afterSha256": "91ee5744e9e61043b802b0533c489d547a2af67dbaac1fb448fadca349689543"
+    },
+    {
+      "path": "src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql",
+      "beforeSha256": "4c0f17529a7bfc59d707301179a55933938b39d69aad1343df8b1f0bdebd7f41",
+      "afterSha256": "0da6637bb208a74ed57197f85b98e76a407df549319cc83b22d284752d632bd9"
+    },
+    {
+      "path": "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs",
+      "beforeSha256": "1828594608353f57fc3b062eed1f10a174e4a3329dbd516184bd8f87edf8beb3",
+      "afterSha256": "0c02cf44af5b930a42c9dbbac86383a74dab1033de65bb63b5f9ddd779bb5440"
+    }
+  ],
+  "documents": [
+    {
+      "path": "CLAUDE.md",
+      "beforeSha256": "8e81a531e4370811f7479bd1d7ec6ea4e2340c7e31ecc7920de1fee9b6f02ea7",
+      "afterSha256": "7dc4cbe0252f2a7c0a83e761c9c99f3c81175c690c62b7442520f212580f3cfc"
+    },
+    {
+      "path": "docs/implementation/00-stack-decisions.md",
+      "beforeSha256": "f1cf2bf9a3e810801571cdeee55e0510ac185f880800c94cb0b41af9b01d187b",
+      "afterSha256": "902e1abae6ac3d661c717eb537e4ac3b9305d130473982c6725fda609b6bdd02"
+    },
+    {
+      "path": "docs/implementation/01-solution-architecture.md",
+      "beforeSha256": "d8fa1238a510b0abf656e922ec3ab8fd84e733d5b974eb587aebb552ada933fe",
+      "afterSha256": "e2bf644f7caa53a4b81d745281877afdc6b96a92c8cd7bc2523a5254cfc49f84"
+    },
+    {
+      "path": "docs/specs/08-requirements-composition.md",
+      "beforeSha256": "6abb679e3691a47666d27607da4f543d2a75223da47e634bd00da9fa53b67bf9",
+      "afterSha256": "e2a4f23bd62ba9bd162a4eef537e3f5101f34e5b3f002ee6eab18b4761bc40a3"
+    },
+    {
+      "path": "docs/specs/09-requirements-management-operations.md",
+      "beforeSha256": "f3d29bb2942c273a06ac263567366b882ead8b0c04233ef857727dfaef7f9705",
+      "afterSha256": "0ed0d54cff64da5a556ace1f979f51af0be383ae66963b33373b71d2ede9d26f"
+    },
+    {
+      "path": "docs/specs/10-provider-model-and-extensibility.md",
+      "beforeSha256": "2451bc8bc6fa96182948a1c745b7cc93bcba8709296e2ff21944f08ecbae4389",
+      "afterSha256": "3fb89caac6345f6acc9c9f48be738b13aa29b9923fa8ae7bc63618026ef89dde"
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "568ba469524110af0a1c3b91040cdfaf06e057ae2e7b0773a4dcf3b28153d830",
+      "afterSha256": "152eca34d28c9df301c4b9347e7cc256f88d01c26b1c95995228effad511f835"
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "beforeSha256": "efcaae57972fbbd38cd070f33386483eb4debea1d51e589e1b1bf0a6b58fa88c",
+      "afterSha256": "c9a7ec3a14f5d0a062684f87d33698a32cb89dee01173ac05fc1bcac1823affc"
+    },
+    {
+      "path": "openspec/specs/developer-facing-surface/spec.md",
+      "beforeSha256": "acb2d03660e081cd9b8e20982cf1074ebeaa88b3f067da41d6e009c07d6127a1",
+      "afterSha256": "a689f95e3ee229af0799c0a2a734f90661cbb9978603f49d4687f3ef2a6c5bb0"
+    },
+    {
+      "path": "openspec/specs/management-and-querying/spec.md",
+      "beforeSha256": "244031ed3ee641d57ed467bcb0a3d2741e5300e705b4b8356dcde2967a9ec4f7",
+      "afterSha256": "3ccd3b281976e5be1111dc103b628a1813db7182331f176a7dfdd36648f7ffe5"
+    },
+    {
+      "path": "openspec/specs/repository-foundation/spec.md",
+      "beforeSha256": "4baa0211862fb910a256f1ab99ca4a2ccf9fc4fdae5c6064ee9a909755aac89d",
+      "afterSha256": "2c1704b36100e21cf8245628e1d67b5105597926fff31fb026e61d83ff5fd2df"
+    }
+  ],
+  "publicApi": [
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
+      "beforeSha256": "795109bf53389dfd7b2cf648ddadf18fd1a6668db5f81b40f409903797b6d491",
+      "afterSha256": "9f44d4e813934a52ec0c8af8705b03681b61a6cd073d68ce22cdd32450578eeb"
+    }
+  ]
+}

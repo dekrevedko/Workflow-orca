@@ -35,6 +35,28 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             ?? throw new InvalidOperationException("SQL Server certification store is not initialized."));
 
     [Fact]
+    public Task DagFacade_RealProcessRestart() => DagProcessRestartCertification.RunAsync(
+        "sqlserver", container.ConnectionString, SqlServerContainerFixture.CreateSchemaName(), TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_BindingAndLosslessness()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeBindingsAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFacade_LevelTriggeredFaults()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeFaultsAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
             new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(

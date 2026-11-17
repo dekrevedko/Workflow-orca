@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 24,
+  "schemaVersion": 25,
   "requiredStages": [
     "amendment-approval",
     "canonical-open-spec",
@@ -1091,5 +1091,73 @@
       "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
       "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt"
     ]
+  },
+  "proposedDagFacadeSeamSuccessors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "change": "admit-dag-public-handle-seam",
+      "predecessorChange": "admit-dag-hosting-runtime-view",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab",
+      "proposedBlockSha256": "a55739a1ab663d7d5f3671d7c0bf1360273f708be9871c8d001fe9a861de02f0"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Dependency direction remains one-way",
+      "change": "admit-dag-public-handle-seam",
+      "predecessorChange": "admit-dag-hosting-runtime-view",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8",
+      "proposedBlockSha256": "96d1b6248ced6c4e5682d980b108abdca86de0d82961310ec06a63f9d4b89892"
+    },
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Completion waits are notification-driven and race-free",
+      "change": "admit-dag-public-handle-seam",
+      "predecessorChange": "expose-ephemeral-failures-and-settlement",
+      "predecessorOperation": "MODIFIED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1",
+      "proposedBlockSha256": "14f49ff22a1fb51f913ce431dadb15d9f77557fdb30cfdce5dfa4c9d6791b07a"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "DAG terminal waiting is notification-driven",
+      "change": "admit-dag-public-handle-seam",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "0e00b3bc7ae11980a67c0f5878577473c8e237e66c9769c2ad9b7425b547924e",
+      "proposedBlockSha256": "02fb7fe339c68c23604c07aeede15d7e6ba1791425bc2d138abae582525c642e"
+    },
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Closed registration and start results retain a cast-free success path",
+      "change": "admit-dag-public-handle-seam",
+      "predecessorChange": "reshape-developer-facing-interfaces",
+      "predecessorOperation": "ADDED",
+      "successorOperation": "MODIFIED",
+      "stage": "Proposed",
+      "turnsGreenTask": "1.3",
+      "predecessorBlockSha256": "5afa82ae478b50c595c572d9fb99157e4e76105606847d35ad402b09f3d3441e",
+      "proposedBlockSha256": "d14accd6a3fdfe38f6f6bfdffa60783aeb1e7ef9492850a7cc5340676295ffce"
+    }
+  ],
+  "ownerAuthorizedDagFacadeCandidate": {
+    "stage": "OwnerAuthorizedReviewCandidate",
+    "ownerDirectionPath": "openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md",
+    "parent": "da1a4729ea2cdb9474eb219eb507760574f83dcb",
+    "independentReviewPending": true
   }
 }

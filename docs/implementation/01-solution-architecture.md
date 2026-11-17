@@ -91,7 +91,7 @@ friend is compiled in the independently approved Task 8.2 checkpoint
   `InternalsVisibleTo("OrcaCore.Dag.Hosting")`. The seam is same-solution/release-train internals,
   not a public workflow or provider SPI; no second DAG-to-durable product bridge is permitted
   without a matrix amendment. The independently approved ninth `OrcaCore.Dag -> OrcaCore.Dag.Hosting`
-  runtime-view friend lets the source-approved adapter consume only three internal types and fifteen
+  runtime-view friend lets the source-approved adapter consume three internal types and fifteen
   exact method/getter signatures. Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`, changes no package edge,
   and exposes no mapper delegate, draft, constructor, codec or child API.
 - The companion scheduler depends outward on `OrcaCore.Dag.Hosting` plus documented public
@@ -292,3 +292,13 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+## Task 8.6 public handle seam candidate (2026-11-15)
+
+The existing Dag-to-Dag.Hosting friend now additionally permits the two internal constructors
+of the public definition/run handles in doc 17 §17.2.6: three non-public types, seventeen exact
+members, unchanged package edges. Dag owns typed validation/throws; Dag.Hosting projects public
+results/snapshots; Durable.Hosting and Engine.Durable own recorded facts, codecs, verification,
+start-key ownership and opaque values. Registration installs recovery plans; incompatible input
+bindings prevent only new mapping/admission, leaving committed child work role-independent.
+The owner authorized one uncommitted implementation candidate; final independent review remains pending.

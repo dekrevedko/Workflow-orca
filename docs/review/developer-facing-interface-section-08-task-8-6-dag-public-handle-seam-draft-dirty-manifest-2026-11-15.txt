@@ -1,0 +1,10 @@
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-dirty-manifest-2026-11-15.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-independent-review-request-2026-11-15.md
+?? openspec/changes/admit-dag-public-handle-seam/.openspec.yaml
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-proof-dag-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-proof-hosting-2026-11-15.cs
+?? openspec/changes/admit-dag-public-handle-seam/design.md
+?? openspec/changes/admit-dag-public-handle-seam/proposal.md
+?? openspec/changes/admit-dag-public-handle-seam/specs/developer-facing-surface/spec.md
+?? openspec/changes/admit-dag-public-handle-seam/specs/repository-foundation/spec.md
+?? openspec/changes/admit-dag-public-handle-seam/tasks.md

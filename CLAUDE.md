@@ -108,7 +108,10 @@ guards constrain the compiled friend and shared fingerprint operation. It grants
 or child-start access; further runtime seams require a separate approved amendment.
 The independently approved `admit-dag-hosting-runtime-view` contract specifies a ninth product
 friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtime-view types
-and fifteen exact method/getter signatures, not delegates, drafts, codec, or child access.
+and fifteen exact method/getter signatures. The owner-authorized Task 8.6 candidate adds only
+the two public-handle constructors in doc 17 §17.2.6, for three non-public types and seventeen
+members; it adds no delegates, drafts, codec, child access or friend. Final independent
+implementation review of that extension remains pending.
 Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
 outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
 The contract, atomic canonical/registry transition and runtime-view source are independently approved and checkpointed. Complete promotion is independently approved and checkpointed at `3270678409593c9af0a7c1810f3c4be329b133fd`, with evidence `496f30ccd91fbe63b8fd099c546d36864c440a4d` and checkbox-only activation `c85fd0f301f110db691a026bcdd0c0e35c6b26c1`; durable bridge work is not authorized by runtime-view approval.

@@ -133,7 +133,11 @@ public sealed class DagRunDefinitionMismatchException : OrcaCoreException
     internal DagRunDefinitionMismatchException(
         DagRunId runId,
         DefinitionId expectedDefinitionId,
-        DefinitionId actualDefinitionId)
+        DefinitionId actualDefinitionId,
+        DefinitionVersion expectedDefinitionVersion,
+        DefinitionVersion actualDefinitionVersion,
+        DefinitionFingerprint expectedDefinitionFingerprint,
+        DefinitionFingerprint actualDefinitionFingerprint)
         : base(
             "DAG-RUN-DEFINITION-MISMATCH",
             $"DAG run '{runId}' belongs to definition '{actualDefinitionId}', not '{expectedDefinitionId}'.")
@@ -141,7 +145,16 @@ public sealed class DagRunDefinitionMismatchException : OrcaCoreException
         RunId = runId;
         ExpectedDefinitionId = expectedDefinitionId;
         ActualDefinitionId = actualDefinitionId;
+        ExpectedDefinitionVersion = expectedDefinitionVersion;
+        ActualDefinitionVersion = actualDefinitionVersion;
+        ExpectedDefinitionFingerprint = expectedDefinitionFingerprint;
+        ActualDefinitionFingerprint = actualDefinitionFingerprint;
     }
+
+    public DefinitionVersion ExpectedDefinitionVersion { get; }
+    public DefinitionVersion ActualDefinitionVersion { get; }
+    public DefinitionFingerprint ExpectedDefinitionFingerprint { get; }
+    public DefinitionFingerprint ActualDefinitionFingerprint { get; }
 
     public DagRunId RunId { get; }
 
