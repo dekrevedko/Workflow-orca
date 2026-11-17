@@ -42,17 +42,12 @@ internal sealed class DurableWorkflowDriver(
         CancellationToken cancellationToken)
     {
         var conflictRetries = 0;
+        DurableLoadedExecutionState? previousUnreconciled = null;
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
             var loaded = await aggregateLoader.LoadExecutionStateAsync(instanceId, cancellationToken).ConfigureAwait(false);
-            if (loaded.NeedsPositionReload)
-            {
-                if (conflictRetries++ < MaxConflictRetries) continue;
-                return new DurableSegmentResult(DurableSegmentOutcome.Conflict,
-                    "Execution position changed while loading its checkpoint and tail.");
-            }
             var checkpointOption = loaded.Checkpoint;
             var aggregate = loaded.Aggregate;
             if (aggregate.Status is null)
@@ -94,6 +89,27 @@ internal sealed class DurableWorkflowDriver(
             {
                 return new DurableSegmentResult(DurableSegmentOutcome.Parked, aggregate.ErrorSummary);
             }
+
+            if (loaded.NeedsPositionReload)
+            {
+                if (previousUnreconciled is not null && loaded.HasSameUnreconciledPositionAs(previousUnreconciled))
+                {
+                    var summary = $"Execution-position integrity failure: unchanged checkpoint and tail cannot reconcile " +
+                        $"'{loaded.EventRequiringReload!.GetType().Name}' ({loaded.EventRequiringReload.EventId}) " +
+                        $"at stream version {aggregate.StreamVersion}. Repair the checkpoint before explicitly re-arming.";
+                    var parked = await ParkAsync(instanceId, DurableParkReason.Poison, summary,
+                        checkpointOption.HasValue ? checkpointOption.Value.StreamVersion : null,
+                        aggregate.StreamVersion, cancellationToken).ConfigureAwait(false);
+                    if (parked.Outcome == DurableCommandOutcome.Committed)
+                        return new DurableSegmentResult(DurableSegmentOutcome.Parked, summary);
+                    previousUnreconciled = null; // A concurrent commit invalidated this parking attempt.
+                }
+                else previousUnreconciled = loaded;
+                if (conflictRetries++ < MaxConflictRetries) continue;
+                return new DurableSegmentResult(DurableSegmentOutcome.Conflict,
+                    "Execution position changed while loading its checkpoint and tail.");
+            }
+            previousUnreconciled = null;
 
             if (aggregate.ContinuationRetryNotBefore is { } notBefore && notBefore > timeProvider.GetUtcNow())
             {
@@ -360,7 +376,7 @@ internal sealed class DurableWorkflowDriver(
             "then explicitly re-arm the instance.";
     }
 
-    private async Task ParkAsync(
+    private Task<DurableCommandResult> ParkAsync(
         InstanceId instanceId,
         DurableParkReason reason,
         string errorSummary,
@@ -368,7 +384,7 @@ internal sealed class DurableWorkflowDriver(
         StreamVersion expectedStreamVersion,
         CancellationToken cancellationToken)
     {
-        await processor
+        return processor
             .ProcessAsync(
                 new DurableParkCommand(
                     CommandId.New(),
@@ -381,7 +397,6 @@ internal sealed class DurableWorkflowDriver(
                 {
                     ExpectedStreamVersion = expectedStreamVersion
                 },
-                cancellationToken)
-            .ConfigureAwait(false);
+                cancellationToken);
     }
 }

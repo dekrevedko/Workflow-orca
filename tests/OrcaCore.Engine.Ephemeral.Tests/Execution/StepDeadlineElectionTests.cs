@@ -11,6 +11,48 @@ public sealed class StepDeadlineElectionTests
     private static readonly TimeSpan Guard = TimeSpan.FromSeconds(10);
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ElectedTimeoutSurvivesWrapperFailureBeforeDecisionPublication(bool cancelled)
+    {
+        var clock = new FakeTimeProvider();
+        var elected = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var release = new ManualResetEventSlim();
+        var decision = new StepAttemptDecision(clock, clock.GetUtcNow(), () =>
+        {
+            elected.TrySetResult();
+            Assert.True(release.Wait(Guard), "The test must release timeout publication.");
+        });
+        var timer = Task.Run(() => decision.OnTimer(), TestContext.Current.CancellationToken);
+        Task<bool>? pending = null;
+        try
+        {
+            await elected.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
+            var attempt = cancelled ? Task.FromCanceled(new CancellationToken(true))
+                : Task.FromException(new InvalidOperationException("Wrapper failure after timeout election."));
+            pending = decision.WaitForResultAsync(attempt);
+            Assert.False(pending.IsCompleted);
+        }
+        finally { release.Set(); }
+        await timer.WaitAsync(Guard, TestContext.Current.CancellationToken);
+        Assert.False(await pending!.WaitAsync(Guard, TestContext.Current.CancellationToken));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task WrapperFailureBeforeObservationDoesNotNeedATimerCallback(bool cancelled)
+    {
+        var clock = new FakeTimeProvider();
+        var decision = new StepAttemptDecision(clock, clock.GetUtcNow().AddMinutes(1), () => Assert.Fail("No timeout is due."));
+        var failure = new InvalidOperationException("The ownership wrapper failed before invoking user code.");
+        var attempt = cancelled ? Task.FromCanceled(new CancellationToken(true)) : Task.FromException(failure);
+        var pending = decision.WaitForResultAsync(attempt).WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+        if (cancelled) await Assert.ThrowsAnyAsync<OperationCanceledException>(() => pending);
+        else Assert.Same(failure, await Assert.ThrowsAsync<InvalidOperationException>(() => pending));
+    }
+
+    [Theory]
     [InlineData("root", 10_000_000, false)]
     [InlineData("branch", 10_000_000, false)]
     [InlineData("item", 10_000_000, false)]

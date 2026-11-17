@@ -154,7 +154,7 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
     }
 
     [Fact]
-    public async Task RepeatedStaleCheckpointsKeepTheContinuationRetryable()
+    public async Task ContinuouslyAdvancingCheckpointsKeepTheContinuationRetryable()
     {
         using var store = new InMemoryWorkflowProvider();
         var first = new DurableCommandProcessor(store);
@@ -168,7 +168,14 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
         await first.ProcessAsync(new DurableYieldCommand(CommandId.New(), start.InstanceId, DateTimeOffset.UtcNow,
             "root/position", new DurableCheckpointPayload { ContentType = checkpoint.ContentType, Payload = checkpoint.Payload })
             { ExpectedStreamVersion = checkpoint.StreamVersion }, TestContext.Current.CancellationToken);
-        var wrapped = new InterleavingStore(store, _ => Task.CompletedTask) { ForcedCheckpoint = checkpoint };
+        var wrapped = new InterleavingStore(store, async id =>
+        {
+            var latest = (await store.LoadCheckpointAsync(id, TestContext.Current.CancellationToken)).Value;
+            var next = await first.ProcessAsync(new DurableYieldCommand(CommandId.New(), id, DateTimeOffset.UtcNow,
+                "root/moving", new DurableCheckpointPayload { ContentType = latest.ContentType, Payload = latest.Payload })
+                { ExpectedStreamVersion = latest.StreamVersion }, TestContext.Current.CancellationToken);
+            Assert.Equal(DurableCommandOutcome.Committed, next.Outcome);
+        }) { RepeatOnEveryCheckpointRead = true };
         var second = new DurableCommandProcessor(wrapped);
         var replacement = new DurableWorkflowRuntime(second, new DurableDefinitionRegistry(), TimeProvider.System);
         replacement.RegisterDefinition(definition);
@@ -183,6 +190,42 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
             { KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue) }, TestContext.Current.CancellationToken);
         Assert.NotEmpty(retryable);
         Assert.Empty(wrapped.Batches);
+    }
+
+    [Fact]
+    public async Task UnchangedUnreconciledTailParksWithTheOffendingEventInItsDiagnostic()
+    {
+        using var store = new InMemoryWorkflowProvider();
+        var processor = new DurableCommandProcessor(store);
+        var runtime = new DurableWorkflowRuntime(processor, new DurableDefinitionRegistry(), TimeProvider.System);
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(v => new State(v)).Delay(TimeSpan.FromDays(1)).End().Build();
+        runtime.RegisterDefinition(definition);
+        var started = await runtime.StartOrGetAsync<string, State>("unreconciled", definition.DefinitionId,
+            definition.DefinitionVersion, "value", TestContext.Current.CancellationToken);
+        var checkpoint = (await store.LoadCheckpointAsync(started.InstanceId, TestContext.Current.CancellationToken)).Value;
+        // Deliberately emulate a faulty future writer that forgets the position checkpoint.
+        var append = await store.AppendAsync(new ProviderCommitBatch
+        {
+            StreamId = new WorkflowStreamId(started.InstanceId), ExpectedVersion = checkpoint.StreamVersion,
+            Events = [new WorkflowExecutionPositionChangedEvent
+            {
+                EventId = EventId.Create("orphan-position"), InstanceId = started.InstanceId,
+                CommandId = CommandId.New(), CausationId = CausationId.New(),
+                OccurredAt = DateTimeOffset.UtcNow
+            }]
+        }, TestContext.Current.CancellationToken);
+        Assert.True(append.IsSuccess);
+        var result = await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken);
+        Assert.Equal(DurableSegmentOutcome.Parked, result.Outcome);
+        var parked = await new DurableAggregateLoader(store).LoadAsync(started.InstanceId, TestContext.Current.CancellationToken);
+        Assert.Equal(DurableParkReason.Poison, parked.ParkReason);
+        Assert.Contains(nameof(WorkflowExecutionPositionChangedEvent), parked.ErrorSummary);
+        var version = parked.StreamVersion;
+        Assert.Equal(DurableSegmentOutcome.Parked,
+            (await runtime.DriveAsync(started.InstanceId, TestContext.Current.CancellationToken)).Outcome);
+        Assert.Equal(version, (await new DurableAggregateLoader(store).LoadAsync(started.InstanceId,
+            TestContext.Current.CancellationToken)).StreamVersion);
     }
 
     [Theory]
@@ -329,6 +372,7 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
     {
         internal bool AdvanceAfterTail { get; init; }
         internal int AdvanceOnCheckpointRead { get; init; } = 1;
+        internal bool RepeatOnEveryCheckpointRead { get; init; }
         internal Func<Task>? AfterCancellationCommitted { get; init; }
         internal CheckpointWrite? ForcedCheckpoint { get; init; }
         internal int CheckpointReads { get; private set; }
@@ -384,7 +428,8 @@ public sealed class DurableCoherentLoadTests(ITestOutputHelper output)
             if (ForcedCheckpoint is { } forced) return Option<CheckpointWrite>.Some(forced);
             var captured = await inner.LoadCheckpointAsync(instanceId, cancellationToken);
             var tail = await inner.LoadTailAsync(new WorkflowStreamId(instanceId), StreamVersion.Empty, cancellationToken);
-            if (!AdvanceAfterTail && CheckpointReads >= AdvanceOnCheckpointRead && tail.Count > 0 && Interlocked.Exchange(ref armed, 0) == 1)
+            if (!AdvanceAfterTail && CheckpointReads >= AdvanceOnCheckpointRead && tail.Count > 0 &&
+                (RepeatOnEveryCheckpointRead || Interlocked.Exchange(ref armed, 0) == 1))
                 await advanceOtherHost(instanceId);
             return captured;
         }

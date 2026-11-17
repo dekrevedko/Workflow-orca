@@ -492,7 +492,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
                     () => timeoutCancellation.RunAsync(() => ObserveAsync(() => InvokeBusinessStepAsync(
                         () => rootStep.ExecuteAsync(stepContext, executionToken).AsTask()))));
-                if (decision is not null && !await decision.ResultWins.ConfigureAwait(false))
+                if (decision is not null && !await decision.WaitForResultAsync(physicalAttempt).ConfigureAwait(false))
                 {
                     _ = instance.Lifetime.RunAsync(EphemeralWorkKind.CapacityRelease,
                         () => ownedGovernanceLease.RetainUntil(physicalAttempt));
@@ -541,7 +541,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     resourceLease: null,
                     cancellationToken: executionToken, wrapExceptions: false,
                     stepFailure: static error => new BusinessStepException(error)).AsTask())));
-                if (decision is not null && !await decision.ResultWins.ConfigureAwait(false))
+                if (decision is not null && !await decision.WaitForResultAsync(physicalAttempt).ConfigureAwait(false))
                 {
                     _ = instance.Lifetime.RunAsync(EphemeralWorkKind.CapacityRelease,
                         () => ownedGovernanceLease.RetainUntil(physicalAttempt));

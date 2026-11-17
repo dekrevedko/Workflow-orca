@@ -7,7 +7,16 @@ internal sealed class StepAttemptDecision(TimeProvider clock, DateTimeOffset dea
     private readonly TaskCompletionSource<bool> decision = new(TaskCreationOptions.RunContinuationsAsynchronously);
     private int winner; // 0: undecided, 1: result, 2: deadline
 
-    internal Task<bool> ResultWins => decision.Task;
+    internal async Task<bool> WaitForResultAsync(Task attempt)
+    {
+        await Task.WhenAny(decision.Task, attempt).ConfigureAwait(false);
+        // A lifetime/cancellation wrapper can fail before ObserveAsync is entered.
+        // Elect its result under the same gate: a timeout may already be elected
+        // while its callback is still running, before decision.Task is published.
+        if (!decision.Task.IsCompleted && Elect(resultAvailable: true, out _))
+            await attempt.ConfigureAwait(false);
+        return await decision.Task.ConfigureAwait(false);
+    }
 
     internal TimeSpan? OnTimer()
     {

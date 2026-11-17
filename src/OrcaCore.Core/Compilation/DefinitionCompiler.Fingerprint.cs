@@ -8,6 +8,21 @@ namespace OrcaCore.Core.Compilation;
 
 internal static partial class DefinitionCompiler
 {
+    // A field is either null or a UTF-16-length-prefixed value encoded as hex code
+    // units. This preserves even unpaired surrogates through the later UTF-8 hash,
+    // and caller-supplied names cannot become fingerprint structure.
+    private static StringBuilder AppendField(this StringBuilder builder, object? value)
+    {
+        if (value is null) return builder.Append("null:");
+        var text = value is IFormattable formatted
+            ? formatted.ToString(null, CultureInfo.InvariantCulture)
+            : value.ToString()!;
+        builder.Append(text.Length.ToString(CultureInfo.InvariantCulture)).Append(':');
+        foreach (var codeUnit in text)
+            builder.Append(((int)codeUnit).ToString("X4", CultureInfo.InvariantCulture));
+        return builder;
+    }
+
     private static string DescribeSequence<TState>(IReadOnlyList<SelectedAuthoringNode<TState>> nodes)
     {
         var builder = new StringBuilder();
@@ -30,35 +45,34 @@ internal static partial class DefinitionCompiler
                     break;
                 case SelectedStepAuthoringNode<TState> step:
                     builder.Append('<')
-                        .Append(step.StepType?.AssemblyQualifiedName ?? "inline").Append(':')
+                        .AppendField(step.StepType?.AssemblyQualifiedName).Append(':')
                         .Append(DescribePolicy(step.Policies)).Append('>');
                     break;
                 case SelectedWaitAuthoringNode<TState> wait:
                     builder.Append('<')
-                        .Append(wait.EventContract.EventName.Value).Append(':')
-                        .Append(wait.EventContract.Version.Value).Append(':')
-                        .Append(wait.Mode).Append(':')
-                        .Append(wait.Timeout?.Ticks).Append(':')
+                        .AppendField(wait.EventContract.EventName.Value).Append(':')
+                        .AppendField(wait.EventContract.Version.Value).Append(':')
+                        .AppendField(wait.Mode).Append(':')
+                        .AppendField(wait.Timeout?.Ticks).Append(':')
                         .Append("opaque>");
                     break;
                 case SelectedPublishAuthoringNode<TState> publish:
                     builder.Append('<')
-                        .Append(publish.EventContract.EventName.Value).Append(':')
-                        .Append(publish.EventContract.Version.Value).Append(':')
-                        .Append(publish.PayloadType?.AssemblyQualifiedName).Append(':')
+                        .AppendField(publish.EventContract.EventName.Value).Append(':')
+                        .AppendField(publish.EventContract.Version.Value).Append(':')
+                        .AppendField(publish.PayloadType?.AssemblyQualifiedName).Append(':')
                         .Append("opaque>");
                     break;
                 case SelectedDelayAuthoringNode<TState> delay:
-                    builder.Append('<').Append(delay.Duration.Ticks).Append('>');
+                    builder.Append('<').AppendField(delay.Duration.Ticks).Append('>');
                     break;
                 case SelectedEndAuthoringNode<TState> end:
                     builder.Append('<');
                     if (end.OutcomeName is { } name)
-                        builder.Append("named:").Append(name.Length.ToString(CultureInfo.InvariantCulture))
-                            .Append(':').Append(name);
+                        builder.Append("named:").AppendField(name);
                     else
                         builder.Append(end.OutcomeSelector is null ? "absent" : "selector:opaque");
-                    builder.Append(':').Append(end.OutputType?.AssemblyQualifiedName).Append('>');
+                    builder.Append(':').AppendField(end.OutputType?.AssemblyQualifiedName).Append('>');
                     break;
                 case SelectedIfAuthoringNode<TState> conditional:
                     builder.Append("<opaque>");
@@ -78,19 +92,19 @@ internal static partial class DefinitionCompiler
                     break;
                 case SelectedStructuredScopeAuthoringNode<TState> scope:
                     builder.Append('<')
-                        .Append(scope.ResultType.AssemblyQualifiedName).Append('>');
+                        .AppendField(scope.ResultType.AssemblyQualifiedName).Append('>');
                     DescribeBranches(scope.Branches, builder);
                     break;
                 case SelectedForEachAuthoringNode<TState> forEach:
                     builder.Append('<')
-                        .Append(forEach.ItemType.AssemblyQualifiedName).Append(':')
-                        .Append(forEach.ItemStateType.AssemblyQualifiedName).Append(':')
-                        .Append(forEach.ResultType.AssemblyQualifiedName).Append(':')
-                        .Append(forEach.JoinPolicy).Append(':')
-                        .Append(forEach.FailurePolicy).Append(':')
-                        .Append(forEach.MaxItems).Append(':')
-                        .Append(forEach.MaxConcurrency).Append(':')
-                        .Append(PartitionerIdentity(forEach.Partitioner)).Append('>');
+                        .AppendField(forEach.ItemType.AssemblyQualifiedName).Append(':')
+                        .AppendField(forEach.ItemStateType.AssemblyQualifiedName).Append(':')
+                        .AppendField(forEach.ResultType.AssemblyQualifiedName).Append(':')
+                        .AppendField(forEach.JoinPolicy).Append(':')
+                        .AppendField(forEach.FailurePolicy).Append(':')
+                        .AppendField(forEach.MaxItems).Append(':')
+                        .AppendField(forEach.MaxConcurrency).Append(':')
+                        .AppendField(PartitionerIdentity(forEach.Partitioner)).Append('>');
                     DescribeBranchInstructions(forEach.Body, builder);
                     break;
             }
@@ -108,8 +122,8 @@ internal static partial class DefinitionCompiler
         foreach (var branch in branches)
         {
             builder.Append('{')
-                .Append(branch.BranchId).Append(':')
-                .Append(branch.BranchStateType.AssemblyQualifiedName).Append(':');
+                .AppendField(branch.BranchId).Append(':')
+                .AppendField(branch.BranchStateType.AssemblyQualifiedName).Append(':');
             DescribeBranchInstructions(branch.Instructions, builder);
             builder.Append('}');
         }
@@ -125,34 +139,34 @@ internal static partial class DefinitionCompiler
             {
                 case BranchStepAuthoringInstruction branchStep:
                     builder.Append("Step<")
-                        .Append(branchStep.StepType?.AssemblyQualifiedName ?? "inline").Append(':')
+                        .AppendField(branchStep.StepType?.AssemblyQualifiedName).Append(':')
                         .Append(DescribePolicy(branchStep.Policies)).Append('>');
                     break;
                 case BranchWaitAuthoringInstruction wait:
                     builder.Append("Wait<")
-                        .Append(wait.EventContract.EventName.Value).Append(':')
-                        .Append(wait.EventContract.Version.Value).Append(':')
-                        .Append(wait.Mode).Append(':')
-                        .Append(wait.Timeout?.Ticks).Append('>');
+                        .AppendField(wait.EventContract.EventName.Value).Append(':')
+                        .AppendField(wait.EventContract.Version.Value).Append(':')
+                        .AppendField(wait.Mode).Append(':')
+                        .AppendField(wait.Timeout?.Ticks).Append('>');
                     break;
                 case BranchPublishAuthoringInstruction publish:
                     builder.Append("Publish<")
-                        .Append(publish.EventContract.EventName.Value).Append(':')
-                        .Append(publish.EventContract.Version.Value).Append(':')
-                        .Append(publish.PayloadType?.AssemblyQualifiedName).Append(':')
+                        .AppendField(publish.EventContract.EventName.Value).Append(':')
+                        .AppendField(publish.EventContract.Version.Value).Append(':')
+                        .AppendField(publish.PayloadType?.AssemblyQualifiedName).Append(':')
                         .Append("opaque>");
                     break;
                 case BranchDelayAuthoringInstruction delay:
-                    builder.Append("Delay<").Append(delay.Duration.Ticks).Append('>');
+                    builder.Append("Delay<").AppendField(delay.Duration.Ticks).Append('>');
                     break;
                 case BranchReturnAuthoringInstruction:
                     builder.Append("Return<opaque>");
                     break;
                 case BranchStructuredScopeAuthoringInstruction nested:
                     builder.Append("Scope<")
-                        .Append(nested.ScopeKind).Append(':')
-                        .Append(nested.ParentStateType.AssemblyQualifiedName).Append(':')
-                        .Append(nested.ResultType.AssemblyQualifiedName).Append('>');
+                        .AppendField(nested.ScopeKind).Append(':')
+                        .AppendField(nested.ParentStateType.AssemblyQualifiedName).Append(':')
+                        .AppendField(nested.ResultType.AssemblyQualifiedName).Append('>');
                     DescribeBranches(nested.Branches, builder);
                     break;
                 case BranchIfAuthoringInstruction conditional:
@@ -189,11 +203,9 @@ internal static partial class DefinitionCompiler
             builder.Append("static:");
             foreach (var requirement in staticRequest.Requirements)
             {
-                builder.Append(requirement.Pool.Value.Length.ToString(CultureInfo.InvariantCulture))
-                    .Append(':')
-                    .Append(requirement.Pool.Value)
+                builder.AppendField(requirement.Pool.Value)
                     .Append('=')
-                    .Append(requirement.Units.ToString(CultureInfo.InvariantCulture))
+                    .AppendField(requirement.Units)
                     .Append(',');
             }
         }
@@ -203,13 +215,12 @@ internal static partial class DefinitionCompiler
 
     private static string DescribePolicy(WorkflowPolicySet policy)
     {
-        return string.Join(
-            ':',
-            policy.Retry?.MaxAttempts,
-            policy.Retry?.Backoff.Ticks,
-            policy.Timeout?.Duration.Ticks,
-            policy.Cancellation,
-            policy.PoolKey);
+        return new StringBuilder()
+            .AppendField(policy.Retry?.MaxAttempts)
+            .AppendField(policy.Retry?.Backoff.Ticks)
+            .AppendField(policy.Timeout?.Duration.Ticks)
+            .AppendField(policy.Cancellation)
+            .AppendField(policy.PoolKey).ToString();
     }
 
     private static string PartitionerIdentity(object partitioner)
@@ -226,16 +237,16 @@ internal static partial class DefinitionCompiler
     private static string LegacyPartitionerIdentity(object partitioner)
     {
         var type = partitioner.GetType();
-        var builder = new StringBuilder(type.AssemblyQualifiedName);
+        var builder = new StringBuilder().AppendField(type.AssemblyQualifiedName);
         foreach (var property in type
                      .GetProperties(BindingFlags.Instance | BindingFlags.Public)
                      .OrderBy(property => property.Name, StringComparer.Ordinal))
         {
             var value = property.GetValue(partitioner);
-            builder.Append('|').Append(property.Name).Append('=');
-            builder.Append(value switch
+            builder.Append('|').AppendField(property.Name).Append('=').AppendField(value?.GetType().AssemblyQualifiedName);
+            builder.AppendField(value switch
             {
-                null => "null",
+                null => null,
                 Delegate => "opaque",
                 IFormattable formatted => formatted.ToString(null, CultureInfo.InvariantCulture),
                 _ => value.ToString()
