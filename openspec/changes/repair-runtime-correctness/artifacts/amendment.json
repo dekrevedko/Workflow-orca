@@ -1,0 +1,39 @@
+{
+  "change": "repair-runtime-correctness",
+  "stage": "Proposed",
+  "contractReviewTask": "1.1",
+  "canonicalSyncTask": "1.2",
+  "providerTask": "2.1",
+  "closeoutTask": "2.2",
+  "contracts": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Position-only workflow commits have an explicit protocol fact",
+      "operation": "ADDED",
+      "sha256": "5bf02c4ed322cf24b13d65a1bb9840e206c28b0348ef1daeec8402ef4e1b86c7"
+    },
+    {
+      "capability": "durable-runtime",
+      "requirement": "Coherent execution loads bind versioned checkpoint positions",
+      "operation": "ADDED",
+      "sha256": "e448ab8509d317520e36a3c42aa1a8f275e3c511fae23cefb7ff778dda838ff9"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Runtime concurrency and identity invariants have adversarial coverage",
+      "operation": "ADDED",
+      "sha256": "ef95a59216cb1c0ed9aa79bb9ea6c5ccb64b6a00d6e151caa7ca7dbe45674c81"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Structural fingerprint fields have unambiguous encoding",
+      "operation": "ADDED",
+      "sha256": "94c197286ed2600a09311074db1090f6b04de326ba82e4a99f5c9f5111d472b6"
+    }
+  ],
+  "numberedAdditions": "openspec/changes/repair-runtime-correctness/artifacts/numbered-additions.json",
+  "numberedAdditionsSha256": "27428c6094149d6f474894c00c89d799b876742c7723da0550bb6b2e9570cd88",
+  "contractApproval": null,
+  "synchronization": null,
+  "providerQualification": null
+}

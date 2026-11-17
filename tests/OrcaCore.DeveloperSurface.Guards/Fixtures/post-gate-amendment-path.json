@@ -1091,5 +1091,6 @@
       "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
       "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.api.txt"
     ]
-  }
+  },
+  "runtimeCorrectnessAmendment": "openspec/changes/repair-runtime-correctness/artifacts/amendment.json"
 }

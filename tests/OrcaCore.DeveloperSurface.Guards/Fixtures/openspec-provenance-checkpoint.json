@@ -1,11 +1,36 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 219,
-  "recordBytes": 58330,
-  "recordSha256": "ea6857b640976c03516b484cd438d8a78dcbdfff2a45fee185582cb38563d348",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 223,
+  "recordBytes": 59170,
+  "recordSha256": "846a9c20816b71bbeb3ea16ce5ddddfe4b162fc74c50f97829e6f58c095f4898",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "count": 1,
+      "turnsGreenChange": "repair-runtime-correctness",
+      "turnsGreenTask": "1.2"
+    },
+    {
+      "capability": "durable-runtime",
+      "count": 1,
+      "turnsGreenChange": "repair-runtime-correctness",
+      "turnsGreenTask": "1.2"
+    },
+    {
+      "capability": "quality-and-verification",
+      "count": 1,
+      "turnsGreenChange": "repair-runtime-correctness",
+      "turnsGreenTask": "1.2"
+    },
+    {
+      "capability": "workflow-contracts",
+      "count": 1,
+      "turnsGreenChange": "repair-runtime-correctness",
+      "turnsGreenTask": "1.2"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,11 +197,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 37,
-  "capabilityDirectoryBytes": 3035,
-  "capabilityDirectorySha256": "33d3b2dc68ff3c7507aa6612b8d1be3cd205593e072ed057ce781ed714a78c47",
-  "artifactPath": "openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md",
-  "artifactNormalizedSha256": "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043",
+  "capabilityDirectoryCount": 41,
+  "capabilityDirectoryBytes": 3330,
+  "capabilityDirectorySha256": "8e51cdfcd607e1f0479f7c3adba7aa6543020b6da081028f590aa63fc741adbe",
+  "artifactPath": "openspec/changes/repair-runtime-correctness/artifacts/proposed-openspec-provenance-2026-11-16.md",
+  "artifactNormalizedSha256": "64767fcef038d42e14ce53d153a6e6c5ffc4dd6434b12f4a166bddb0d8ac6acc",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
