@@ -139,6 +139,8 @@ internal static class DurableLifecycleCommandHandler
             [],
             []);
 
+        events.Add(PositionChanged(aggregate, command.CommandId, command.InstanceId, command.RequestedAt));
+
         return new DurableDecision(
             events,
             CreateEnvelopeCheckpoint(aggregate, command.InstanceId, events, command.Envelope, command.StepPath));
@@ -286,6 +288,7 @@ internal static class DurableLifecycleCommandHandler
         {
             events.RemoveAll(workflowEvent => workflowEvent is WorkflowResourcePoolReleasedEvent);
         }
+        events.Add(PositionChanged(aggregate, command.CommandId, command.InstanceId, command.RequestedAt));
         return new DurableDecision(
             events,
             CreateEnvelopeCheckpoint(
@@ -774,6 +777,18 @@ internal static class DurableLifecycleCommandHandler
             aggregate.TimerState.ActiveTimers.Select(timer => timer.TimerId).ToArray());
         events.AddRange(aggregate.ReleaseEvents(commandId, instanceId, requestedAt));
     }
+
+    private static WorkflowExecutionPositionChangedEvent PositionChanged(
+        DurableWorkflowAggregate aggregate, CommandId commandId, InstanceId instanceId, DateTimeOffset occurredAt) => new()
+    {
+        EventId = EventId.Create(Guid.CreateVersion7().ToString()),
+        InstanceId = instanceId,
+        CommandId = commandId,
+        CausationId = DurableWorkflowAggregate.ToCausationId(commandId),
+        OccurredAt = occurredAt,
+        ParentInstanceId = aggregate.ParentInstanceId,
+        RootInstanceId = aggregate.RootInstanceId ?? instanceId
+    };
 
     /// <summary>
     /// Creates the driver checkpoint for one advancement commit: the versioned envelope becomes

@@ -52,9 +52,13 @@ internal static partial class DefinitionCompiler
                     builder.Append('<').Append(delay.Duration.Ticks).Append('>');
                     break;
                 case SelectedEndAuthoringNode<TState> end:
-                    builder.Append('<')
-                        .Append(end.OutcomeName ?? (end.OutcomeSelector is null ? "unnamed" : "dynamic")).Append(':')
-                        .Append(end.OutputType?.AssemblyQualifiedName).Append('>');
+                    builder.Append('<');
+                    if (end.OutcomeName is { } name)
+                        builder.Append("named:").Append(name.Length.ToString(CultureInfo.InvariantCulture))
+                            .Append(':').Append(name);
+                    else
+                        builder.Append(end.OutcomeSelector is null ? "absent" : "selector:opaque");
+                    builder.Append(':').Append(end.OutputType?.AssemblyQualifiedName).Append('>');
                     break;
                 case SelectedIfAuthoringNode<TState> conditional:
                     builder.Append("<opaque>");

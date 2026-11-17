@@ -22,6 +22,7 @@ public sealed class WorkflowEventCodecTests
             ["WorkflowContinuedAsNewEvent"] = "WorkflowContinuedAsNewEvent",
             ["WorkflowStepCompletedEvent"] = "WorkflowStepCompletedEvent",
             ["WorkflowStepFailedEvent"] = "WorkflowStepFailedEvent",
+            ["WorkflowExecutionPositionChangedEvent"] = "WorkflowExecutionPositionChangedEvent",
             ["WorkflowWaitRegisteredEvent"] = "WorkflowWaitRegisteredEvent",
             ["WorkflowWaitMatchedEvent"] = "WorkflowWaitMatchedEvent",
             ["WorkflowWaitCancelledEvent"] = "WorkflowWaitCancelledEvent",
@@ -60,6 +61,16 @@ public sealed class WorkflowEventCodecTests
             var events = new TheoryData<DurableWorkflowEvent>();
 
             events.Add(Started(1));
+            events.Add(new WorkflowExecutionPositionChangedEvent
+            {
+                EventId = EventIdValue(31),
+                InstanceId = InstanceIdValue(31),
+                CommandId = CommandIdValue(31),
+                CausationId = CausationIdValue(31),
+                OccurredAt = Timestamp(31),
+                ParentInstanceId = InstanceIdValue(32),
+                RootInstanceId = InstanceIdValue(33)
+            });
             events.Add(new WorkflowContinuedAsNewEvent
             {
                 EventId = EventIdValue(2),

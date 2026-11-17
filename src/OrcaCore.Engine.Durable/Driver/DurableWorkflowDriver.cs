@@ -46,10 +46,15 @@ internal sealed class DurableWorkflowDriver(
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            var checkpointOption = await processor.EventStore
-                .LoadCheckpointAsync(instanceId, cancellationToken)
-                .ConfigureAwait(false);
-            var aggregate = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
+            var loaded = await aggregateLoader.LoadExecutionStateAsync(instanceId, cancellationToken).ConfigureAwait(false);
+            if (loaded.NeedsPositionReload)
+            {
+                if (conflictRetries++ < MaxConflictRetries) continue;
+                return new DurableSegmentResult(DurableSegmentOutcome.Conflict,
+                    "Execution position changed while loading its checkpoint and tail.");
+            }
+            var checkpointOption = loaded.Checkpoint;
+            var aggregate = loaded.Aggregate;
             if (aggregate.Status is null)
             {
                 return new DurableSegmentResult(
@@ -88,6 +93,14 @@ internal sealed class DurableWorkflowDriver(
             if (aggregate.ParkReason is not null)
             {
                 return new DurableSegmentResult(DurableSegmentOutcome.Parked, aggregate.ErrorSummary);
+            }
+
+            if (aggregate.ContinuationRetryNotBefore is { } notBefore && notBefore > timeProvider.GetUtcNow())
+            {
+                // A competing host can record a failure after the pump's preliminary
+                // check. Keep its wake retryable until this loaded backoff expires.
+                return new DurableSegmentResult(DurableSegmentOutcome.BudgetExhausted,
+                    "Continuation retry is not due yet.", CommittedProgress: false);
             }
 
             var executor = ResolveExecutor(aggregate, checkpointOption);
