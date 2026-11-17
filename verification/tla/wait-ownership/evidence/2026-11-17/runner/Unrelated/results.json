@@ -1,0 +1,47 @@
+{
+  "sourceRevision": "323d741d4c33178430250729b4fa34f1eeb61703",
+  "dirtyDiffSha256": "E3B0C44298FC1C149AFBF4C8996FB92427AE41E4649B934CA495991B7852B855",
+  "sourceManifest": "source-manifest.json",
+  "javaVersion": "openjdk version \"21.0.9\" 2025-10-21 LTS\r\nOpenJDK Runtime Environment Temurin-21.0.9+10 (build 21.0.9+10-LTS)\r\nOpenJDK 64-Bit Server VM Temurin-21.0.9+10 (build 21.0.9+10-LTS, mixed mode, sharing)",
+  "tlcRelease": "v1.7.4",
+  "jarSha256": "936A262061C914694DFD669A543BE24573C45D5AA0FF20A8B96B23D01E050E88",
+  "results": [
+    {
+      "profile": "Unrelated",
+      "kind": "mutation",
+      "expected": "DifferentProperty",
+      "status": "failed",
+      "reason": "Unexpected checker outcome.",
+      "exitCode": 12,
+      "elapsedSeconds": 0.744,
+      "timeoutSeconds": 20,
+      "heapMb": 1024,
+      "command": [
+        "C:\\Users\\Denis\\.codex\\worktrees\\tla-wait-ownership\\Workflow-orca\\.codex-run\\tla-tools\\jdk-21.0.9+10-jre\\bin\\java.exe",
+        "-Xmx1024m",
+        "-XX:+UseParallelGC",
+        "-cp",
+        "C:\\Users\\Denis\\.codex\\worktrees\\tla-wait-ownership\\Workflow-orca\\.codex-run\\tla-tools\\tla2tools.jar",
+        "tlc2.TLC",
+        "-workers",
+        "1",
+        "-seed",
+        "1",
+        "-fp",
+        "0",
+        "-metadir",
+        "C:\\Users\\Denis\\.codex\\worktrees\\tla-wait-ownership\\Workflow-orca\\.codex-run\\pilot-runner-reviewed\\Unrelated\\Unrelated\\states",
+        "-config",
+        "Check.cfg",
+        "EphemeralWaitOwnership.tla"
+      ],
+      "configSha256": "27DD4B4E92FE8C4CC8757D17959ECFE810032D91EA7CCC40DC22853D9F0C441B",
+      "stateCounts": "2 states generated, 2 distinct states found, 0 states left on queue",
+      "violatedProperties": [
+        "Check"
+      ],
+      "temporalViolation": false,
+      "log": "Unrelated/tlc.log"
+    }
+  ]
+}

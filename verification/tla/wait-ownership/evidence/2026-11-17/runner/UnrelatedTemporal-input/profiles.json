@@ -1,0 +1,8 @@
+[
+  {
+    "expected": "Expected",
+    "config": "Check.cfg",
+    "name": "UnrelatedTemporal",
+    "kind": "assumption"
+  }
+]

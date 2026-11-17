@@ -1,0 +1,75 @@
+name: Wait ownership pilot
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'verification/tla/wait-ownership/**'
+      - 'scripts/verification/**'
+      - '.github/workflows/wait-ownership.yml'
+      - 'src/OrcaCore.Engine.Ephemeral/**'
+      - 'src/OrcaCore.Core/**'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/**'
+      - 'tests/OrcaCore.TestSupport/**'
+      - 'openspec/specs/event-routing-and-waits/**'
+      - 'openspec/specs/wait-ownership-model-verification/**'
+      - 'openspec/changes/verify-ephemeral-wait-ownership-with-tla/**'
+      - 'docs/specs/05-requirements-events-waits-timers.md'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - 'verification/tla/wait-ownership/**'
+      - 'scripts/verification/**'
+      - '.github/workflows/wait-ownership.yml'
+      - 'src/OrcaCore.Engine.Ephemeral/**'
+      - 'src/OrcaCore.Core/**'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/**'
+      - 'tests/OrcaCore.TestSupport/**'
+      - 'openspec/specs/event-routing-and-waits/**'
+      - 'openspec/specs/wait-ownership-model-verification/**'
+      - 'openspec/changes/verify-ephemeral-wait-ownership-with-tla/**'
+      - 'docs/specs/05-requirements-events-waits-timers.md'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Qualify runner result handling
+        run: ./scripts/verification/Test-WaitOwnershipRunner.ps1 -OutputDirectory .codex-run/runner-tests
+      - name: Check source protocol and qualification controls
+        if: ${{ !cancelled() }}
+        run: ./scripts/verification/Invoke-WaitOwnershipModelCheck.ps1 -OutputDirectory .codex-run/model
+      - name: Verify executable implementation schedules
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj -c Release --logger "trx;LogFileName=ephemeral.trx" --results-directory .codex-run/tests
+      - name: Retain evidence, including failed or inconclusive results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: wait-ownership-evidence
+          include-hidden-files: true
+          path: |
+            .codex-run/**/results.json
+            .codex-run/**/source-manifest.json
+            .codex-run/**/self-test-results.json
+            .codex-run/**/*.log
+            .codex-run/**/*.cfg
+            .codex-run/**/*.tla
+            .codex-run/**/*.trx

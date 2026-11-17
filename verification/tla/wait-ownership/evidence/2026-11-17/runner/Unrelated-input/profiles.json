@@ -1,0 +1,8 @@
+[
+  {
+    "expected": "DifferentProperty",
+    "config": "Check.cfg",
+    "name": "Unrelated",
+    "kind": "mutation"
+  }
+]

@@ -1,0 +1,852 @@
+[
+  {
+    "path": "ephemeral.trx",
+    "bytes": 713986,
+    "sha256": "dfec2aa8e54954b46872863b82cf80bf13cf7d56d1406fb34b53245a54c653f5"
+  },
+  {
+    "path": "guards.trx",
+    "bytes": 30227,
+    "sha256": "db6325ae3ede2b63ba61f923c2b5ac5f911d5f87c16edd04c00a04564c8b9f65"
+  },
+  {
+    "path": "model/Control-NoReturn/Control-NoReturn.cfg",
+    "bytes": 181,
+    "sha256": "2593df1e37679f803e3c936f1d6af2e965303fedf130017af0c855e2b95c16b5"
+  },
+  {
+    "path": "model/Control-NoReturn/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Control-NoReturn/tlc.log",
+    "bytes": 3205,
+    "sha256": "4a68ce9867e355ca85f73805d294469804f28e199bc4ed6c9af4f332e138965a"
+  },
+  {
+    "path": "model/Control-NoReturn/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Control-NoScheduling/Control-NoScheduling.cfg",
+    "bytes": 185,
+    "sha256": "6d323f89da2e2cae1ef7a5e59a659cfda7df3162a9e0444811ed727f1088592c"
+  },
+  {
+    "path": "model/Control-NoScheduling/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Control-NoScheduling/tlc.log",
+    "bytes": 6004,
+    "sha256": "8e5dc9f4caaab1a21ddc4275f762ba0f35f88f572f8dac56d35999d778915274"
+  },
+  {
+    "path": "model/Control-NoScheduling/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Control-Progress/Control-Progress.cfg",
+    "bytes": 188,
+    "sha256": "0568708ca3e7b1f013cc249a65164fe885896f06678eeb08b91d1e0dbb21d738"
+  },
+  {
+    "path": "model/Control-Progress/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Control-Progress/tlc.log",
+    "bytes": 2132,
+    "sha256": "ae8c9c77dc37255e5d1b760e3dae2f7ae3d95b2a3ed7191e108c88b95fffeb06"
+  },
+  {
+    "path": "model/Control-Progress/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Mutant-ConsumeOnFailure/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Mutant-ConsumeOnFailure/Mutant-ConsumeOnFailure.cfg",
+    "bytes": 174,
+    "sha256": "ce57e41002599e21b6e5e7cf32f6059e01bc7d1017f9f8c06d94556688a15a65"
+  },
+  {
+    "path": "model/Mutant-ConsumeOnFailure/tlc.log",
+    "bytes": 12769,
+    "sha256": "411a3be22fd39b5c7f2af7245b473b25d7fc8e6c6d1a8838875b1473965d4730"
+  },
+  {
+    "path": "model/Mutant-ConsumeOnFailure/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Mutant-DualWinner/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Mutant-DualWinner/Mutant-DualWinner.cfg",
+    "bytes": 164,
+    "sha256": "00dee4983871a4875e5101eac99b80f508273196eb27024bf98b8c79610139a8"
+  },
+  {
+    "path": "model/Mutant-DualWinner/tlc.log",
+    "bytes": 15529,
+    "sha256": "860b4a1a5d82e4d15e1d1e8bff84eab21124c3c55c8aa9b482a3d5d01824cf60"
+  },
+  {
+    "path": "model/Mutant-DualWinner/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Mutant-EraseSuccessor/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Mutant-EraseSuccessor/Mutant-EraseSuccessor.cfg",
+    "bytes": 164,
+    "sha256": "66e99b448185afefb977b77b23dc61e0ed89e41530a3a1e3918de326d5308f65"
+  },
+  {
+    "path": "model/Mutant-EraseSuccessor/tlc.log",
+    "bytes": 15588,
+    "sha256": "e67b16f999d25a9d4df94b89ef8e9a5ffaf60c7cc5ceea4a7f4766b89af1cc92"
+  },
+  {
+    "path": "model/Mutant-EraseSuccessor/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Mutant-MissingActiveGuard/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Mutant-MissingActiveGuard/Mutant-MissingActiveGuard.cfg",
+    "bytes": 166,
+    "sha256": "4eb60e84802e56f85678c7c042d865209c02448357041d810b273447e93a4c9c"
+  },
+  {
+    "path": "model/Mutant-MissingActiveGuard/tlc.log",
+    "bytes": 5783,
+    "sha256": "7fc33bcbd2641d65f75638001f106e9ba41927f1c3d7da7ec192f9902beb04db"
+  },
+  {
+    "path": "model/Mutant-MissingActiveGuard/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Mutant-PrematureRelease/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Mutant-PrematureRelease/Mutant-PrematureRelease.cfg",
+    "bytes": 170,
+    "sha256": "eca53abeefae92b82c958ad9fc388efe34077eda765b4282f645de90e0f335d7"
+  },
+  {
+    "path": "model/Mutant-PrematureRelease/tlc.log",
+    "bytes": 9974,
+    "sha256": "3e353fa05fdc96cd55fe15c5677c109d95c4591bf9673d385b87aab025c27041"
+  },
+  {
+    "path": "model/Mutant-PrematureRelease/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Mutant-StaleCallback/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Mutant-StaleCallback/Mutant-StaleCallback.cfg",
+    "bytes": 174,
+    "sha256": "b6a807e893e45f3c8102a2d31f71366623937a6a6fd22085ef7a6153aecf1b0f"
+  },
+  {
+    "path": "model/Mutant-StaleCallback/tlc.log",
+    "bytes": 19233,
+    "sha256": "86f17b94e27a932dbba219a07c89f32dcea2d0104cb7e571abf5df93f1205872"
+  },
+  {
+    "path": "model/Mutant-StaleCallback/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/ProgressSmall/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/ProgressSmall/ProgressSmall.cfg",
+    "bytes": 302,
+    "sha256": "c1b3bb01f534b7375d26e10e09f246722771f8fcd8f056e23a2045cc6fc7c2f9"
+  },
+  {
+    "path": "model/ProgressSmall/tlc.log",
+    "bytes": 14600,
+    "sha256": "7444b08013f83810717f24e7944fb2dfac9f1f470dcd985dd56d0145f3eb9568"
+  },
+  {
+    "path": "model/ProgressSmall/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/results.json",
+    "bytes": 40936,
+    "sha256": "d65b7035690ed12fd5d18d10625a9b194f5d06458f8d155fb69945356723ed3d"
+  },
+  {
+    "path": "model/SafetyIsolation-correlation/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/SafetyIsolation-correlation/SafetyIsolation-correlation.cfg",
+    "bytes": 251,
+    "sha256": "993192965bf652981a469cd67058a11145a49d3fa2d4e559b09c588130b1a6a5"
+  },
+  {
+    "path": "model/SafetyIsolation-correlation/tlc.log",
+    "bytes": 14626,
+    "sha256": "02cf4446aa2c732f18b6ef7b23887e01ee0257f41c4687a0d558ae4825a46b3c"
+  },
+  {
+    "path": "model/SafetyIsolation-correlation/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/SafetyIsolation-definition/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/SafetyIsolation-definition/SafetyIsolation-definition.cfg",
+    "bytes": 250,
+    "sha256": "43833930f34dc408f7e584d7dee9c0d90345b76bfcfb9baa4a6e435763bb6d76"
+  },
+  {
+    "path": "model/SafetyIsolation-definition/tlc.log",
+    "bytes": 14623,
+    "sha256": "b106387e234e8101b436db7fccde601e98f3d49ec6fad62f141b52f0129e4375"
+  },
+  {
+    "path": "model/SafetyIsolation-definition/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/SafetyIsolation-name/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/SafetyIsolation-name/SafetyIsolation-name.cfg",
+    "bytes": 244,
+    "sha256": "7e3667be16c3038315ed2afa8a20e30b25de550684a0abac8cbe76cf4a3c3030"
+  },
+  {
+    "path": "model/SafetyIsolation-name/tlc.log",
+    "bytes": 14611,
+    "sha256": "c3f308bf783a55e87ff4eb79f39a206181e5ab2ee695885e024f354f1d903210"
+  },
+  {
+    "path": "model/SafetyIsolation-name/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/SafetyIsolation-version/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/SafetyIsolation-version/SafetyIsolation-version.cfg",
+    "bytes": 247,
+    "sha256": "fa4f5b162e1910061fe0f1f1b2bc1cf237d4151828d7977c0f35d1360c9b7672"
+  },
+  {
+    "path": "model/SafetyIsolation-version/tlc.log",
+    "bytes": 14617,
+    "sha256": "d605a5de83af1a5a6f080b6395bd21408e4a19a5b3e0594764f23236fe875769"
+  },
+  {
+    "path": "model/SafetyIsolation-version/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/SafetySmall/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/SafetySmall/SafetySmall.cfg",
+    "bytes": 244,
+    "sha256": "cb968aa714cc220e720b515382997f989f7ee26823f5d71f392921840815df4d"
+  },
+  {
+    "path": "model/SafetySmall/tlc.log",
+    "bytes": 14178,
+    "sha256": "5a86c017b9feba9634eacc9fba3725cc759e53e76d130c505ca4a820349bbc97"
+  },
+  {
+    "path": "model/SafetySmall/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/source-manifest.json",
+    "bytes": 40608,
+    "sha256": "d1703a7e54eea352a98c488d140c6dcca4417b10470d342aacc82150de2d563c"
+  },
+  {
+    "path": "model/Witness-cancel-before/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-cancel-before/tlc.log",
+    "bytes": 7169,
+    "sha256": "56c84f3f1a765d8d7078a67897890debecbf07873cca3b5aa38d7be009c4eef4"
+  },
+  {
+    "path": "model/Witness-cancel-before/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-cancel-before/Witness-cancel-before.cfg",
+    "bytes": 150,
+    "sha256": "e0b1c94f26a93dbe7bced911170a39fd9a51cd074af78ddd3acf65fe0386f89d"
+  },
+  {
+    "path": "model/Witness-cancel-during/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-cancel-during/tlc.log",
+    "bytes": 12837,
+    "sha256": "506318af8a96ecb5b5139141652204f0f7dab60b41aa55b1a64f0b81e2bb9ec4"
+  },
+  {
+    "path": "model/Witness-cancel-during/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-cancel-during/Witness-cancel-during.cfg",
+    "bytes": 150,
+    "sha256": "326e91d3d1fc579843038093f516a5534462c4783a18bd8767f4ae244c550022"
+  },
+  {
+    "path": "model/Witness-contention/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-contention/tlc.log",
+    "bytes": 5745,
+    "sha256": "190923039d2877348237060896c57bc3d5b48fe65e4f3601478f2716f4f41fba"
+  },
+  {
+    "path": "model/Witness-contention/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-contention/Witness-contention.cfg",
+    "bytes": 147,
+    "sha256": "38c878601d60ebb34a227d85ac9e9d759ca208a1a8d7d60745d3441a70d1634c"
+  },
+  {
+    "path": "model/Witness-ControlComplete/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-ControlComplete/tlc.log",
+    "bytes": 7160,
+    "sha256": "a09f07817a248ebe4bfc60bd3cd7ab68945d6b1405b9ca317fdc1e5a08ab688b"
+  },
+  {
+    "path": "model/Witness-ControlComplete/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-ControlComplete/Witness-ControlComplete.cfg",
+    "bytes": 174,
+    "sha256": "49ac4269504a715210fdae8eea59dea5195c4361c5d7c6c314195aebc4700629"
+  },
+  {
+    "path": "model/Witness-duplicate/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-duplicate/tlc.log",
+    "bytes": 19883,
+    "sha256": "ac452024c3f82bcf237418d9db3ac4d7a4a531b98f5072c7e62273d791fa4ac8"
+  },
+  {
+    "path": "model/Witness-duplicate/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-duplicate/Witness-duplicate.cfg",
+    "bytes": 146,
+    "sha256": "7a93e08d428133a6e40cef06854b811f068dbf8343ad53ab54776827f4530272"
+  },
+  {
+    "path": "model/Witness-event-first/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-event-first/tlc.log",
+    "bytes": 17564,
+    "sha256": "ff67823ce2ada84736f725ee25c0a509e5a0ad25f0a712a32fdfb0749e97b7a1"
+  },
+  {
+    "path": "model/Witness-event-first/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-event-first/Witness-event-first.cfg",
+    "bytes": 148,
+    "sha256": "50bb477a747583d872592fe707fbd9540143d2afed170bf659072bf486869314"
+  },
+  {
+    "path": "model/Witness-handover/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-handover/tlc.log",
+    "bytes": 11360,
+    "sha256": "4ee7c72b16b5a8107ae484fb0fb1a5250b42110d2690a2748871c0df9370ab79"
+  },
+  {
+    "path": "model/Witness-handover/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-handover/Witness-handover.cfg",
+    "bytes": 145,
+    "sha256": "da049464f30f5cd207ef51327818067020b9e6e774bcb61ecb8e7b7c0d8616cd"
+  },
+  {
+    "path": "model/Witness-isolation/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-isolation/tlc.log",
+    "bytes": 5897,
+    "sha256": "c26393ee9254502e962e5afc56ecdf9e68d195bcc3697c2c12bc4d4f225d7b39"
+  },
+  {
+    "path": "model/Witness-isolation/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-isolation/Witness-isolation.cfg",
+    "bytes": 152,
+    "sha256": "e4f39fe0a95f04ad6d475bf16644e2afdc4702bba65796cfb963d5a563c644b3"
+  },
+  {
+    "path": "model/Witness-reuse/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-reuse/tlc.log",
+    "bytes": 8527,
+    "sha256": "509c58a524e860079f073160a3b7906c1f1551bad0640af9fbd483568b693f89"
+  },
+  {
+    "path": "model/Witness-reuse/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-reuse/Witness-reuse.cfg",
+    "bytes": 142,
+    "sha256": "3c61044e79baf6e081c9c9f5f18be6bc551151bb867ee0abef3fc6a3682ba30d"
+  },
+  {
+    "path": "model/Witness-rollback/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-rollback/tlc.log",
+    "bytes": 9984,
+    "sha256": "27d3425b009b631a7d24dc5ccee3a5a1aa5551e6247275d5bd992a0cf12f5ce8"
+  },
+  {
+    "path": "model/Witness-rollback/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-rollback/Witness-rollback.cfg",
+    "bytes": 145,
+    "sha256": "33d2552e5ce0409ccfbdf8ad8b19b2940fd582672bf2ef0b8685229177e547c7"
+  },
+  {
+    "path": "model/Witness-same-instance/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-same-instance/tlc.log",
+    "bytes": 5752,
+    "sha256": "12032b6ece7a86f2502bd46105a339cf678903c430dc61bcf1feeca25693de86"
+  },
+  {
+    "path": "model/Witness-same-instance/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-same-instance/Witness-same-instance.cfg",
+    "bytes": 150,
+    "sha256": "61a25e45976f6918942bf1e9c8310e0675c28f12b078a8d8555b9eeca35182f9"
+  },
+  {
+    "path": "model/Witness-stale-timer/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-stale-timer/tlc.log",
+    "bytes": 19207,
+    "sha256": "e3b14028301c42b9f4ec02bd3d4acf2b5a4b64ad23eccbf2e92970ec773385fe"
+  },
+  {
+    "path": "model/Witness-stale-timer/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-stale-timer/Witness-stale-timer.cfg",
+    "bytes": 148,
+    "sha256": "385d2ec02bb39cadec9ce6010a221ddb0b3e21e45b7e9c95763a0151e3c09736"
+  },
+  {
+    "path": "model/Witness-successor-failure/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-successor-failure/tlc.log",
+    "bytes": 14199,
+    "sha256": "0df09864fb3823c30c0a1948d42235d88a1426fd1b5c5153414a12241f052fc4"
+  },
+  {
+    "path": "model/Witness-successor-failure/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-successor-failure/Witness-successor-failure.cfg",
+    "bytes": 154,
+    "sha256": "0753bb60dfecf3340ce9d433bcba227880b65d7ce14ffca11896ed872e2f17b4"
+  },
+  {
+    "path": "model/Witness-timer-first/EphemeralWaitOwnership.tla",
+    "bytes": 10794,
+    "sha256": "2b3c284f639f7fe2761a7f198cc7cdac8f70b75330e5a0a763434858c15dbfb5"
+  },
+  {
+    "path": "model/Witness-timer-first/tlc.log",
+    "bytes": 17055,
+    "sha256": "f2f9e13cb9df591360c2e638bfdfdc3b7ea404c4d40b7dff64dbb97cbdf596b4"
+  },
+  {
+    "path": "model/Witness-timer-first/WaitOwnershipContract.tla",
+    "bytes": 1547,
+    "sha256": "73bd304b59bbdebc0417eb47c4b27404474e4401eb7b23ca8b47df3eafbe5c68"
+  },
+  {
+    "path": "model/Witness-timer-first/Witness-timer-first.cfg",
+    "bytes": 148,
+    "sha256": "bb93aae6cee91c17006ffe0518cebfe66806c98a0215bef463508ae979470ecd"
+  },
+  {
+    "path": "provenance-record.tsv",
+    "bytes": 59782,
+    "sha256": "4368f1c82992ed19bcbcf1baae61ad51ca66f764fa4d390cb4de6b501a44cb93"
+  },
+  {
+    "path": "runner/Expected/Expected/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Expected/Expected/EphemeralWaitOwnership.tla",
+    "bytes": 301,
+    "sha256": "684d273821643c8d097cdaa5291de15cfb7ce430ca397dc4a56fd74c536e4273"
+  },
+  {
+    "path": "runner/Expected/Expected/tlc.log",
+    "bytes": 1118,
+    "sha256": "0095fff1102d4509e797df4bd98bed9db16569713eb2f10b435c2d330620cee0"
+  },
+  {
+    "path": "runner/Expected/results.json",
+    "bytes": 1882,
+    "sha256": "8b390455f1fbc477b7ca0e65c6ac7e437e152bd61c6a72360cfd42ccd3a7563c"
+  },
+  {
+    "path": "runner/Expected-input/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Expected-input/EphemeralWaitOwnership.tla",
+    "bytes": 301,
+    "sha256": "684d273821643c8d097cdaa5291de15cfb7ce430ca397dc4a56fd74c536e4273"
+  },
+  {
+    "path": "runner/Expected-input/profiles.json",
+    "bytes": 119,
+    "sha256": "ceb922eb7605b0013d066941aa25803514a205e5cd93787979e6a89136b28da6"
+  },
+  {
+    "path": "runner/Expected.log",
+    "bytes": 177,
+    "sha256": "2e930eb166034eba356bd8e516b03dbde7cd9b498ac3277372d55e03ec8604ee"
+  },
+  {
+    "path": "runner/ParseError/ParseError/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/ParseError/ParseError/EphemeralWaitOwnership.tla",
+    "bytes": 289,
+    "sha256": "0f3204ca141182a26bd5789d338c62bd9bb00b584eda7c80af6b02330197c8f3"
+  },
+  {
+    "path": "runner/ParseError/ParseError/tlc.log",
+    "bytes": 1013,
+    "sha256": "81f777daae1a100d08ab6b4dba25378e0d67a88b20c17022f54ae564d4dc43de"
+  },
+  {
+    "path": "runner/ParseError/results.json",
+    "bytes": 1794,
+    "sha256": "843d449b25b1647f764489e2babb99af09fb9394e6b79a6577583420b0376566"
+  },
+  {
+    "path": "runner/ParseError-input/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/ParseError-input/EphemeralWaitOwnership.tla",
+    "bytes": 289,
+    "sha256": "0f3204ca141182a26bd5789d338c62bd9bb00b584eda7c80af6b02330197c8f3"
+  },
+  {
+    "path": "runner/ParseError-input/profiles.json",
+    "bytes": 121,
+    "sha256": "37742051341e756f2921bcb5f76205ab3a7f30c437561bf15d2550370e37f23f"
+  },
+  {
+    "path": "runner/ParseError.log",
+    "bytes": 176,
+    "sha256": "124e222f9a10a1371e0fdde14b95a87cbb7fd3b4ff84180038760d8a5b9f9468"
+  },
+  {
+    "path": "runner/Passing/Passing/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Passing/Passing/EphemeralWaitOwnership.tla",
+    "bytes": 302,
+    "sha256": "9cb2b868d0e26dd01ca0f9a64139469f30dd67ccafd0c547b274a5b79e92c9f5"
+  },
+  {
+    "path": "runner/Passing/Passing/tlc.log",
+    "bytes": 1252,
+    "sha256": "76fdcfbc019826b2bd589e528f62c9432250e7e5dfd9279f4ca6d97dc3d528c6"
+  },
+  {
+    "path": "runner/Passing/results.json",
+    "bytes": 1868,
+    "sha256": "a96f22f5f34757b086cd3ad47e819f26ae10cb9e5ec289f6964dc1449200f663"
+  },
+  {
+    "path": "runner/Passing-input/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Passing-input/EphemeralWaitOwnership.tla",
+    "bytes": 302,
+    "sha256": "9cb2b868d0e26dd01ca0f9a64139469f30dd67ccafd0c547b274a5b79e92c9f5"
+  },
+  {
+    "path": "runner/Passing-input/profiles.json",
+    "bytes": 111,
+    "sha256": "0a61d6b200e096c8b5920d83ecf4b021984207451bf60cc3fb5f7388328f248d"
+  },
+  {
+    "path": "runner/Passing.log",
+    "bytes": 198,
+    "sha256": "bcb2ef6c6271ea0cca2eb2b0e6b3c3805ebf345f57131606314da0609d2b9be3"
+  },
+  {
+    "path": "runner/self-test-results.json",
+    "bytes": 518,
+    "sha256": "e88fb33256a7651e5cc4dab3a43ce82b971b247660d1c2ae71464246581ba5ba"
+  },
+  {
+    "path": "runner/Timeout/results.json",
+    "bytes": 1784,
+    "sha256": "4b1fba7fabef241df67db6da03364a054f30027789cb618e990e37b3afb16f64"
+  },
+  {
+    "path": "runner/Timeout/Timeout/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Timeout/Timeout/EphemeralWaitOwnership.tla",
+    "bytes": 280,
+    "sha256": "93ca8c6c2497d28a1700ee6c2b2320052dcc9ab326e4c195872980ce0a05a77f"
+  },
+  {
+    "path": "runner/Timeout/Timeout/tlc.log",
+    "bytes": 748,
+    "sha256": "919a24d7c4fa998076767c564543203a6e93f89e89cc767a83da0bbd7feb52a5"
+  },
+  {
+    "path": "runner/Timeout-input/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Timeout-input/EphemeralWaitOwnership.tla",
+    "bytes": 280,
+    "sha256": "93ca8c6c2497d28a1700ee6c2b2320052dcc9ab326e4c195872980ce0a05a77f"
+  },
+  {
+    "path": "runner/Timeout-input/profiles.json",
+    "bytes": 111,
+    "sha256": "bd72b1168ef03d9098f2f66ee6704b0a3d436ebf1bcfb6755769ad72dbee78e7"
+  },
+  {
+    "path": "runner/Timeout.log",
+    "bytes": 181,
+    "sha256": "e8f4d4a80c187c03c8fe50c8aa4752dec975cf1e9079c501a4b7384fa55777ea"
+  },
+  {
+    "path": "runner/Unrelated/results.json",
+    "bytes": 1893,
+    "sha256": "0823fb7fe38df5df0cf666ab89fcda281b112782096ae93d31bfde66c2c1bca7"
+  },
+  {
+    "path": "runner/Unrelated/Unrelated/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Unrelated/Unrelated/EphemeralWaitOwnership.tla",
+    "bytes": 275,
+    "sha256": "f086f66329cebeb8c1de779cb355bed489dae9386fefb2878e16d6940f81c682"
+  },
+  {
+    "path": "runner/Unrelated/Unrelated/tlc.log",
+    "bytes": 1121,
+    "sha256": "7d342e8e96658116f1aef135350f4891dde00cc73b6e8c74ca7c1d53edf13b8b"
+  },
+  {
+    "path": "runner/Unrelated-input/Check.cfg",
+    "bytes": 36,
+    "sha256": "27dd4b4e92fe8c4cc8757d17959ecfe810032d91ea7ccc40dc22853d9f0c441b"
+  },
+  {
+    "path": "runner/Unrelated-input/EphemeralWaitOwnership.tla",
+    "bytes": 275,
+    "sha256": "f086f66329cebeb8c1de779cb355bed489dae9386fefb2878e16d6940f81c682"
+  },
+  {
+    "path": "runner/Unrelated-input/profiles.json",
+    "bytes": 132,
+    "sha256": "377dd19e915319d75b9934a3dd5a54b55d3eaaf16860a88772905b47dd983416"
+  },
+  {
+    "path": "runner/Unrelated.log",
+    "bytes": 174,
+    "sha256": "08a7c9b3953a38e01d987f3a53d09c7b87ff72a531e223107487a6adf2056115"
+  },
+  {
+    "path": "runner/UnrelatedTemporal/results.json",
+    "bytes": 1964,
+    "sha256": "91df5144ebf1031d6d24cd7434afd0944f5d35f1642dba8f9f14580b074af37e"
+  },
+  {
+    "path": "runner/UnrelatedTemporal/UnrelatedTemporal/Check.cfg",
+    "bytes": 50,
+    "sha256": "04109f3f428afea54bcb6575bad2b5abab468eb71556f0976a27b4c9fadaad67"
+  },
+  {
+    "path": "runner/UnrelatedTemporal/UnrelatedTemporal/EphemeralWaitOwnership.tla",
+    "bytes": 275,
+    "sha256": "61e8d833b1b5d28329e9fd0cbd4c604d84d0c93e867973481b4eb31b27358a12"
+  },
+  {
+    "path": "runner/UnrelatedTemporal/UnrelatedTemporal/tlc.log",
+    "bytes": 1400,
+    "sha256": "4f7007ba472a0f25aea27ec8b7be75cb6a410706efe893687eebad2a2b93c04b"
+  },
+  {
+    "path": "runner/UnrelatedTemporal-input/Check.cfg",
+    "bytes": 50,
+    "sha256": "04109f3f428afea54bcb6575bad2b5abab468eb71556f0976a27b4c9fadaad67"
+  },
+  {
+    "path": "runner/UnrelatedTemporal-input/EphemeralWaitOwnership.tla",
+    "bytes": 275,
+    "sha256": "61e8d833b1b5d28329e9fd0cbd4c604d84d0c93e867973481b4eb31b27358a12"
+  },
+  {
+    "path": "runner/UnrelatedTemporal-input/profiles.json",
+    "bytes": 133,
+    "sha256": "5890985c0ceafb3073f995825d416cdb83b338a71f80e4d9b309add3415e6135"
+  },
+  {
+    "path": "runner/UnrelatedTemporal.log",
+    "bytes": 262,
+    "sha256": "f95770f3728ca6775a6966f6f81f80f2b2370be4e391495c62143f63e834aade"
+  }
+]

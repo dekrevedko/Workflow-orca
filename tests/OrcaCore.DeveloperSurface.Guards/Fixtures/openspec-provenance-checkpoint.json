@@ -1,9 +1,9 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 219,
-  "recordBytes": 58330,
-  "recordSha256": "ea6857b640976c03516b484cd438d8a78dcbdfff2a45fee185582cb38563d348",
+  "recordCount": 225,
+  "recordBytes": 59782,
+  "recordSha256": "4368f1c82992ed19bcbcf1baae61ad51ca66f764fa4d390cb4de6b501a44cb93",
   "semanticApprovalEligible": true,
   "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
@@ -12,6 +12,12 @@
       "count": 3,
       "disposition": "Planning-only bootstrap capability intentionally outside canonical product specs",
       "evidence": "openspec/changes/bootstrap-orcacore-spec-baseline/proposal.md"
+    },
+    {
+      "capability": "wait-ownership-model-verification",
+      "count": 6,
+      "disposition": "Development-only bounded pilot remains an active delta; failed runtime qualification does not synchronize or approve product behavior",
+      "evidence": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/proposal.md"
     }
   ],
   "activeNewCapabilitiesAlreadyCanonical": [
@@ -172,11 +178,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 37,
-  "capabilityDirectoryBytes": 3035,
-  "capabilityDirectorySha256": "33d3b2dc68ff3c7507aa6612b8d1be3cd205593e072ed057ce781ed714a78c47",
-  "artifactPath": "openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md",
-  "artifactNormalizedSha256": "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043",
+  "capabilityDirectoryCount": 38,
+  "capabilityDirectoryBytes": 3134,
+  "capabilityDirectorySha256": "cdd01b00b72a22734c4ef0d159834437a88526c35fbeb0ec2810ca064264deac",
+  "artifactPath": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/artifacts/pilot-openspec-provenance-2026-11-17.md",
+  "artifactNormalizedSha256": "2997d9fe247ed66419a30d83ff10881de9aec4a7c5bfd8271961fa8941a989d9",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",

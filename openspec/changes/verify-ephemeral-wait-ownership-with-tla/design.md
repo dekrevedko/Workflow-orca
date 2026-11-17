@@ -1,6 +1,6 @@
 ## Context
 
-This is a planning-only change based on `origin/master` at `ba2b057d7898f516845e90323b4288fb0c1744d8`. No model-checking result or new runtime certification is claimed. The pilot will bind its eventual evidence to the actual implementation revision tested.
+The original proposal was based on `origin/master` at `ba2b057d7898f516845e90323b4288fb0c1744d8`. Implementation evidence is recorded under `verification/tla/wait-ownership/`; see its verification report for the current verdict. The design does not itself grant runtime certification.
 
 The existing contract rejects a second active wait for one `(DefinitionId, event contract name/version, CorrelationId)`, including within one instance, while allowing sequential reuse after consumption. `EphemeralRoutingIndex.Reserve` separately retains matched reservations until continuation completion and counts overlapping old/new reservations belonging to the same instance. `WorkflowInstance.EnterWait` supplies the same-instance active-wait check that the index alone does not provide. These are distinct obligations.
 
@@ -141,3 +141,7 @@ No production migration is required. Implement model and crosswalk first, qualif
 - Does the existing test access expose enough reservation/lane detail for every mandatory witness without new hooks? Resolve in Task 1; propose any additional internal seam explicitly.
 - Which versioned TLC/Java pair meets the runner needs, and do the chosen finite profiles fit the initial budgets? Resolve before CI qualification.
 - Would the measured benefit justify a separate durable wait/handoff model? Decide only after the pilot verdict; it is outside this change.
+
+## Implementation review adjustments (2026-11-17)
+
+The source model and a deterministic compiled regression both exposed WOP-F001: caller cancellation after successor registration restores two active same-key waits. Normal source configurations retain the failing invariant and report failed qualification. The scoped runtime correction and passing rerun remain open. `WaitMatchingTests.cs` was found excluded from compilation; new compiled tests and the crosswalk replace that proposed coverage credit. Independent review added a stale-callback identity action, mutation, and witness; strengthened race/cancellation witnesses to completed outcomes; and added control-specific fairness with a positive progress control and completion witness. Tooling review added a regression rejecting unrelated temporal-property failures. These additions qualify the diagnostic checks and do not change production requirements or hide the source defect.
