@@ -305,8 +305,8 @@ public sealed class DagStreamIdentitySliceGuards
             "no seventh API key or direct provider-port signature may change in this contract refinement");
         var baseCommit = amendment.GetProperty("baseCommit").GetString()!;
         // The fingerprint contract is now independently checkpointed and evidenced.
-        // The separately bounded Task 2.3 candidate cannot change the historical
-        // Task 2.1 scope, public API baselines, or the approved deltas.
+        // Later reviewed checkpoints cannot rewrite the historical Task 2.1
+        // scope, public API baselines, or approved deltas.
         Git(root, "diff", "--name-only", baseCommit, "f62b0aafd8beeb69aa28efaba0f25413c4970b3b", "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting",
             "openspec/changes/admit-durable-dag-run-progression/specs",
@@ -322,11 +322,11 @@ public sealed class DagStreamIdentitySliceGuards
             ["structured-fiber-execution"] = ["support-ephemeral-native-aot"],
             ["workflow-contracts"] = ["support-ephemeral-native-aot"]
         };
-        Git(root, "diff", "--name-only", baseCommit, "--", "openspec/specs")
+        Git(root, "diff", "--name-only", baseCommit, DagFacadeApprovedHistory.Merge, "--", "openspec/specs")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(
                 layers.Keys.Append("repository-foundation").Select(cap => "openspec/specs/" + cap + "/spec.md").Order(StringComparer.Ordinal));
         // The only new capability changed by this exact source-pinned candidate.
-        DagFacadeReviewCandidate.PriorDocument(root, "openspec/specs/repository-foundation/spec.md")
+        DagFacadeApprovedHistory.PriorDocument(root, "openspec/specs/repository-foundation/spec.md")
             .Should().Be(Normalize(Git(root, "show", baseCommit + ":openspec/specs/repository-foundation/spec.md")));
         foreach (var (capability, changes) in layers)
         {
@@ -342,16 +342,14 @@ public sealed class DagStreamIdentitySliceGuards
             EphemeralFailureSettlementReviewHistory.CanonicalBefore(root, path).Should().Be(expected,
                 "only the exact reviewed layers extend this canonical target; native-support guards pin its Git-approved deltas");
         }
-        Git(root, "diff", "--name-only", baseCommit, "--",
+        Git(root, "diff", "--name-only", baseCommit, DagFacadeApprovedHistory.Merge, "--",
             "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/changes/admit-durable-dag-run-progression/specs",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.Hosting.api.txt")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--",
-                "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs")
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal)
-            .Except(DagFacadeReviewCandidate.PublicApiPaths(root), StringComparer.Ordinal).Should().BeEmpty();
+            .Except(DagFacadeApprovedHistory.PublicApiPaths(root), StringComparer.Ordinal).Should().BeEmpty(
+                "historical scope is bound to the reviewed merge, not future source or API changes");
     }
 
     private static HashSet<string> CatalogApiKeys(string text)

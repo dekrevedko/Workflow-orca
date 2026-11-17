@@ -142,8 +142,6 @@ public static partial class DagRunCertification
         {
             var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(authored.Build()).GetHandleOrThrow();
             var run = (await definition.StartOrGetAsync(17, StartIdempotencyKey.Create(Guid.NewGuid().ToString("N")), token)).GetHandleOrThrow();
-            while ((await run.GetSnapshotAsync(token)).Nodes[0].Status != DagNodeStatus.Running)
-                await Task.Delay(25, token);
             await childGate.Entered.Task.WaitAsync(token);
             var admitted = await FacadeReadAsync(probe.Inner, run.RunId.Value, token);
             var childCheckpoint = (await probe.Inner.LoadCheckpointAsync(admitted.Nodes[0].ChildInstanceId!, token)).Value;

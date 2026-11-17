@@ -1,6 +1,6 @@
-## Current delivery scope (2026-11-15)
+## Current completion scope (2026-11-16)
 
-The owner has authorized completing this change in one uncommitted target for final review, including contract/document reconciliation, canonical synchronization, source and verification. See `artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md`. Earlier draft and per-stage approval statements below remain historical context; no independent verdict or checkpoint is claimed by this authorization. The RV-4 contract remains the implementation baseline.
+The implementation/canonical sync is independently approved at `b9dcdef7` / `598c6d4`; its reviewed main merge/remediation is checkpointed at `1e960fc4` / `94e9aca5`. The owner authorizes the remaining review fixes and Task 3.2 Complete activation after validation. The reviewers authored RV-1–RV-4 and expressly excluded independent contract approval; owner-approved RV-4 remains the unchanged five-block contract. This activation closes only the facade seam and reshape 8.6, not the DAG run change or the rest of Section 8. Earlier dated draft and process statements below are historical context. See `artifacts/task-3-2-owner-authority-2026-11-16.md`.
 
 ## Context
 
@@ -286,7 +286,7 @@ The full provider suites and real process-restart certification exercise the pro
 
 ## Open Questions
 
-None. The owner accepted D1 and D2 on 2026-11-15. D3 follows from the grant. D4 and the submitted-input `NotSupportedException` outcome were accepted during the RV-3 review; RV-4 passed the pre-gate design review. Final independent implementation review remains pending.
+None. The owner accepted D1 and D2 on 2026-11-15. D3 follows from the grant. D4 and the submitted-input `NotSupportedException` outcome were accepted during the RV-3 review; RV-4 passed the pre-gate design review. Implementation/canonical sync and merge/remediation reviews are approved; Task 3.2 records the owner-authorized closeout.
 
 ## 2026-11-16 implementation review follow-up
 
@@ -297,3 +297,9 @@ F1 now uses an independently reconstructed typed frame, verifies exact equality 
 F3 uses a public InvalidOperationException for a missing or incompatible installed child binding before any start effect; registration remains the plan-install point, without a new result variant. F4 explicitly records existing fail-closed behavior for corrupt stored input across all reads and poison reconciliation, distinct from a valid checkpoint in IntegrityFault. The five RV-4 delta blocks and public signatures are unchanged.
 
 F2 is a separate merge/remediation candidate with second parent `ba2b057d7898f516845e90323b4288fb0c1744d8`. Both sides' source and canonical changes are retained; the nine ephemeral source paths are separately checked against that exact reviewed mainline tip. No broad folder exclusion is permitted. Final promotion depends on review of this merge and the F1 evidence; no activation was part of the checkpoint/evidence chain.
+
+## Task 3.2 finding resolution (2026-11-16)
+
+The Core.Tests wall-clock guard is retained unchanged. Admission is observed through the real child gate; the redundant snapshot poll is removed; test-only lease contention retries are bounded by the provider's five-second lease and fifteen-second maximum turn. A timeout cancels the queued test request. Full CI unit lanes now include Core.Tests and ProviderCertification, with provider process-restart evidence rerun.
+
+The missing/incompatible child-binding InvalidOperationException is explicitly documented as host-configuration behavior outside the five seam requirements, not a fourth closed comparison result. No delta or canonical block changes. The historical guard now checks committed implementation/merge blobs and real direct-child evidence, not live source/doc bytes against the old draft. Current canonical, API and maintained documentation checks remain active; the three shutdown-sync document checks strictly require their reviewed merged after-state.

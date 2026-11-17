@@ -65,29 +65,28 @@ public sealed class DagPumpSliceGuards
             .Split('\n', StringSplitOptions.RemoveEmptyEntries);
         var candidate = Task23CandidatePaths(root);
         foreach (var path in paths.Except(candidate, StringComparer.Ordinal))
-            Convert.ToBase64String(File.ReadAllBytes(Path.Combine(root, path))).Should().Be(GitBytes(root, Checkpoint, path),
-                "only byte-exact independently approved DAG sources are excluded from earlier change scopes");
+            GitBytes(root, DagFacadeApprovedHistory.Merge, path).Should().Be(GitBytes(root, Checkpoint, path),
+                "the reviewed merge must preserve earlier approved DAG sources; later source belongs to its own review");
         return paths.Concat(candidate).Distinct(StringComparer.Ordinal).ToArray();
     }
 
     internal static string[] Task23CandidatePaths(string root)
     {
         var record = File.ReadAllText(Path.Combine(root, Task23SourceRecord)).Replace("\r\n", "\n", StringComparison.Ordinal);
-        Hash(record).Should().Be(Task23SourceRecordSha256, "the unapproved Task 2.3 candidate cannot broaden its scope silently");
+        Hash(record).Should().Be(Task23SourceRecordSha256, "the historical Task 2.3 source record cannot broaden its reviewed scope");
         var rows = record.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(row => row.Split('\t')).ToArray();
         var paths = rows.Select(row => row[0]).ToArray();
-        var facade = DagFacadeReviewCandidate.SourcePaths(root);
-        var changed = Git(root, "diff", "--name-only", Task23Base, "--", "src")
+        var facade = DagFacadeApprovedHistory.SourcePaths(root);
+        var changed = Git(root, "diff", "--name-only", Task23Base, DagFacadeApprovedHistory.Merge, "--", "src")
             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
-            .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
-        var ephemeralConcurrency = DagFacadeReviewCandidate.IntegratedSourcePaths(root);
+        var ephemeralConcurrency = DagFacadeApprovedHistory.IntegratedSourcePaths(root);
         paths.Concat(facade).Concat(ephemeralConcurrency).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Should().Equal(changed);
         paths.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Dag.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Durable.Hosting/", StringComparison.Ordinal) ||
             path.StartsWith("src/OrcaCore.Engine.Durable/", StringComparison.Ordinal));
         foreach (var row in rows)
-            Convert.ToHexStringLower(SHA256.HashData(DagFacadeReviewCandidate.PriorSourceBytes(root, row[0]))).Should().Be(row[1]);
+            Convert.ToHexStringLower(SHA256.HashData(DagFacadeApprovedHistory.PriorSourceBytes(root, row[0]))).Should().Be(row[1]);
         return paths.Concat(facade).Distinct(StringComparer.Ordinal).ToArray();
     }
 

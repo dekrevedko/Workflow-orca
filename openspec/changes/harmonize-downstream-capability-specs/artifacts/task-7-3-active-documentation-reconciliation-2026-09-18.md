@@ -13,26 +13,26 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
 
 | # | Active source | Normalized SHA-256 |
 |---:|---|---|
-| 1 | `CLAUDE.md` | `3a49fe6b981d14759a816ff9b7118b94bcc49568bac66541971a63ae03be0314` |
+| 1 | `CLAUDE.md` | `2ed3489d3479d03003d39096c0da8b864d73a7fd913f6385448c8a57097bf0c4` |
 | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
 | 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
-| 4 | `docs/ephemeral-engine-developer-guide.md` | `4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0` |
+| 4 | `docs/ephemeral-engine-developer-guide.md` | `091ac6a1fe608e65433c3f7355d4b327f0a2ed049b9ef7b09781da1fa8c78786` |
 | 5 | `docs/ephemeral-engine-diagrams.md` | `3f4e32e272c0acb5c073bbc44be5af5315c50ec887721d433d0817d4f5add62d` |
-| 6 | `docs/implementation/00-stack-decisions.md` | `aa9f9416257e3d8bd980e0a92d5d0db76cad15518892458236af66df113cc0d8` |
-| 7 | `docs/implementation/01-solution-architecture.md` | `bf3cfb6fd1cafa8fa98daf4b4ba3a22ccda6c7affbfa53cd340e5c329208df0e` |
+| 6 | `docs/implementation/00-stack-decisions.md` | `1b39a38f880bc6f37d1ce8fd3fbf46361f9f4d1cdde1ff3f78e5c648bedc4471` |
+| 7 | `docs/implementation/01-solution-architecture.md` | `79307afab283a4e0afd4a750800f9c83f6eeadf6e62fbb5c5b04916f9428131e` |
 | 8 | `docs/implementation/02-engineering-conventions.md` | `44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d` |
 | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `d7ffed1592a748662805d039ac99f32e8f070eab7fc7d957cc83ee96342f572a` |
-| 10 | `docs/normative-source-map.md` | `4bbecd28e5ede36215e5a7c68b903fe617c60ee1830a696788c3ff0c07b1afdf` |
+| 10 | `docs/normative-source-map.md` | `7cb1cf7d4678bc897198627ab261e2e50c6040b83a310cf87ce7758e07e2ac40` |
 | 11 | `docs/production-readiness.md` | `8d3ffb9b52ef4b6bfc282023abd27c753bcf530ddfd36bf53df1d25e74910929` |
 | 12 | `docs/project-technical-overview.md` | `c2c837223cd25bdaffec8fcab999b6ba0c38c2171ee7673fe1f79c014103a5c4` |
 | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
-| 14 | `docs/specs/03-domain-model-and-glossary.md` | `f541785b062b14fd8b5231124cc50952da87c111fd9c0883093484ff8154a175` |
+| 14 | `docs/specs/03-domain-model-and-glossary.md` | `5750f167b24f5d3b66368583690c011372c706d9f3ad26dbafb3520571ef09bc` |
 | 15 | `docs/specs/05-requirements-events-waits-timers.md` | `c546e72793148ce5e34f0868b36170316e0ca9d34b830ad8bb2b73267df427f2` |
 | 16 | `docs/specs/06-requirements-durable-execution.md` | `c726bcc03d1e5ae8f7afc34b4a54ed50ef63da54f9c50f486779292197f00a08` |
-| 17 | `docs/specs/09-requirements-management-operations.md` | `c24a44983974023b20d6e59cee0162bf1caf48140ebe307942f006dc7eb5a738` |
-| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `2e832b0068a3c31fd0e41db64db4624272dd2f90b224cc98078040e42f44acca` |
-| 19 | `docs/specs/12-acceptance-criteria.md` | `6fbd9b7716acfbd2fb4d9676e640d03eecd09d2e0380f3ddcb97c141304fc31b` |
-| 20 | `docs/specs/13-phasing-and-open-questions.md` | `9c5e51821dab5ed9b257d64c25d9639dcba23a15390746478d3cc4263495ae8f` |
+| 17 | `docs/specs/09-requirements-management-operations.md` | `faa6626fb9dddd964ae412a63adf5005766f597674dc757167c4b9f3432ce274` |
+| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `3fb89caac6345f6acc9c9f48be738b13aa29b9923fa8ae7bc63618026ef89dde` |
+| 19 | `docs/specs/12-acceptance-criteria.md` | `46e576a1102919383c2647323275e4534da45334c9408011add9d8674cb834aa` |
+| 20 | `docs/specs/13-phasing-and-open-questions.md` | `6d018a7e3b6806956bbc4199568dc7474064a779334b583385df873ff3b48a08` |
 | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
 | 22 | `docs/specs/16-requirements-durable-driver.md` | `2f7e9845b13d25c5e9cb11898d669c911368a08d4c87c9f2843a4ff56e258ffe` |
 
@@ -200,3 +200,7 @@ All other source rows and historical review records remain unchanged.
 Rows 1, 6, 7, 9, 12, 15, 16, 22 refresh only the current DAG source/evidence status in the
 edited numbered and guide documents. The previously reviewed requirements,
 API baselines, canonical sync, and expected-red dispositions are unchanged.
+
+## DAG Task 8.6 Complete activation (2026-11-16)
+
+The maintained rows now pin actual current documents directly. The facade candidate's historical live-byte projection is retired in favor of immutable checkpoint blobs. The two real implementation/merge review chains and owner activation direction replace pending-review status; no other Section 8 completion is claimed.

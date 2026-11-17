@@ -16,7 +16,7 @@
       "purpose": "active review template"
     }
   ],
-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-dirty-manifest-2026-11-16.txt",
+  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-dirty-manifest-2026-11-16.txt",
   "records": [
     {
       "path": "docs/archive/architecture/README.md",
@@ -2744,6 +2744,26 @@
       "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-independent-review-request-2026-11-15.md",
       "bytes": 7784,
       "sha256": "7949969baef963abe83f795211cbfeed9acff5c6ec9f9050e7bad267aade8e36"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt",
+      "bytes": 2341,
+      "sha256": "95bdb057358f6e5f3d26431b2bbcefadb2b8bd1756dcd53d9d71346804e62631"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md",
+      "bytes": 4167,
+      "sha256": "c4f6e0e71b2d48801b03d131c45928d73509133f41557525e3e03e160bf4f38e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-dirty-manifest-2026-11-16.txt",
+      "bytes": 2999,
+      "sha256": "e6c00a2fe71f839fe187325e6293115ca2cc6dbabcbcd17fd63e1d7671c4d5fa"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-review-request-2026-11-16.md",
+      "bytes": 2181,
+      "sha256": "020397b35a52109561f87347ae8de361ba8ca87b9b96625a93d3a101845c540b"
     },
     {
       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",

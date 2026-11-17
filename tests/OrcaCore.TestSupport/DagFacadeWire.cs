@@ -20,14 +20,20 @@ public static class DagFacadeWire
     public static async Task FacadeTransitionAsync(IWorkflowEventStore events, Guid id, bool fault, CancellationToken token)
     {
         var request = Request(id) with { Purpose = DagRunLeasePurposeV1.IntegrityReconciliation };
-        DagRunLeaseResultV1 granted;
-        do
-        {
-            granted = await events.AcquireDagRunLeaseAsync(request, token);
-            if (granted.Fence is null) await Task.Delay(25, token);
-        } while (granted.Fence is null);
+        DagRunLeaseResultV1? granted = null;
         try
         {
+            // Providers cap a lease at five seconds and an owner's renewed turn at
+            // fifteen seconds. Retry at lease-expiry boundaries, never a 25ms poll;
+            // a fourth failed acquire is a test failure, not an unbounded wait.
+            for (var attempt = 0; attempt < 4; attempt++)
+            {
+                granted = await events.AcquireDagRunLeaseAsync(request, token);
+                if (granted.Fence is not null) break;
+                granted.Outcome.Should().Be(DagRunLeaseOutcomeV1.Queued);
+                if (attempt < 3) await Task.Delay(TimeSpan.FromSeconds(5), TimeProvider.System, token);
+            }
+            granted!.Fence.Should().NotBeNull("the queued test transition must acquire within the provider's maximum turn");
             var before = await FacadeReadAsync(events, id, token);
             var state = fault ? DagRunStateV1.IntegrityFault : before.Nodes.Any(node => node.State is
                 DagNodeStateV1.Cancelled or DagNodeStateV1.CancellationRequested) ? DagRunStateV1.CancellationRequested : DagRunStateV1.Running;
@@ -38,7 +44,12 @@ public static class DagFacadeWire
             var result = await events.AppendAsync(Batch(after, [record], granted.Fence, []), token);
             result.IsSuccess.Should().BeTrue(result.IsFailure ? result.Error.ToString() : "the injected transition is valid");
         }
-        finally { await events.ReleaseDagRunLeaseAsync(granted.Fence, token); }
+        finally
+        {
+            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            if (granted?.Fence is { } fence) await events.ReleaseDagRunLeaseAsync(fence, cleanup.Token);
+            else await events.CancelDagRunLeaseRequestAsync(id, request.OwnerId, request.RequestId, cleanup.Token);
+        }
     }
 
     public static async Task<DagRunSnapshotV1> FacadeReadAsync(IWorkflowEventStore events, Guid id, CancellationToken token)

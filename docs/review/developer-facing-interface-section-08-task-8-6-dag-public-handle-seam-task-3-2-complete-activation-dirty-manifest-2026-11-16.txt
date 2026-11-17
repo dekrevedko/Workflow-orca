@@ -1,0 +1,29 @@
+ M CLAUDE.md
+ M docs/specs/17-selected-mode-capability-matrix.md
+ M openspec/changes/admit-dag-public-handle-seam/design.md
+ M openspec/changes/admit-dag-public-handle-seam/proposal.md
+ M openspec/changes/admit-dag-public-handle-seam/tasks.md
+ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+ M openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
+ M tests/OrcaCore.Dag.ProcessProbe/Program.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+ M tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+ M tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
+ M tests/OrcaCore.TestSupport/DagFacadeWire.cs
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt
+?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-validation-2026-11-16.json
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-author-self-review-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md
+?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md

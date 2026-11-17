@@ -1270,14 +1270,16 @@ Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCa
 <!-- runtime-view-contract:end -->
 
 <!-- dag-public-handle-seam:current -->
-The owner-authorized combined Task 8.6 candidate extends this same friend by exactly the two
+The independently implementation-reviewed Task 8.6 facade extends this same friend by exactly the two
 internal public-handle constructors listed in §17.2.6. The compiled boundary remains three
 non-public types and becomes seventeen members: the fifteen runtime-view members plus those
 constructors. Dag owns typed throws and node/output type checks; Dag.Hosting wires handles,
 closed public results, snapshots and enum projections; the durable side owns codec/binding
 decisions and opaque conflict, failure and fingerprint creation. No friend or package edge is
-added. Final independent implementation review is pending; earlier approved checkpoints remain
-historical evidence for their original scope.
+added. Implementation and canonical synchronization are approved at `b9dcdef7` / `598c6d4`;
+the main merge and remediations are approved at `1e960fc4` / `94e9aca5`. Owner-authorized Task 3.2
+records Complete activation after the remaining review findings are verified. Earlier approvals
+retain their original scope; no independent contract verdict is inferred.
 <!-- dag-public-handle-seam:current:end -->
 
 
@@ -1607,8 +1609,8 @@ they are not public `RunChild`/`RunChildren` authoring members. Host option
 durable resource pools. It counts every admitted nonterminal child instance, including one parked
 in a wait, delay, or lease queue, until that child becomes terminal.
 
-Registration installs the plan for recovery on this host. Registration does not certify that all
-referenced child workflows are configured in the durable engine. Before creating a run or
+Host-configuration behavior outside the five facade-seam requirements: registration installs
+the plan for recovery but does not certify that all referenced child workflows are configured in the durable engine. Before creating a run or
 accepting replay, start requires every child binding (identity, version, fingerprint and value
 contracts) to be installed on this host. A missing or incompatible child binding throws the
 public `InvalidOperationException` before any run append or start-key binding. It is a host
@@ -2294,14 +2296,16 @@ Source task 3.3 alone updates executable API/compile/package baselines with sour
 ## 17.5 Package and integration boundary
 
 <!-- dag-public-handle-seam:current -->
-The owner-authorized combined Task 8.6 candidate extends this same friend by exactly the two
+The independently implementation-reviewed Task 8.6 facade extends this same friend by exactly the two
 internal public-handle constructors listed in §17.2.6. The compiled boundary remains three
 non-public types and becomes seventeen members: the fifteen runtime-view members plus those
 constructors. Dag owns typed throws and node/output type checks; Dag.Hosting wires handles,
 closed public results, snapshots and enum projections; the durable side owns codec/binding
 decisions and opaque conflict, failure and fingerprint creation. No friend or package edge is
-added. Final independent implementation review is pending; earlier approved checkpoints remain
-historical evidence for their original scope.
+added. Implementation and canonical synchronization are approved at `b9dcdef7` / `598c6d4`;
+the main merge and remediations are approved at `1e960fc4` / `94e9aca5`. Owner-authorized Task 3.2
+records Complete activation after the remaining review findings are verified. Earlier approvals
+retain their original scope; no independent contract verdict is inferred.
 <!-- dag-public-handle-seam:current:end -->
 
 

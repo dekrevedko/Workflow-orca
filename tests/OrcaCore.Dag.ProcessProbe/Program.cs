@@ -49,7 +49,7 @@ internal static class Program
         {
             await host.StartAsync(token);
             var run = (await definition.StartOrGetAsync(new() { Value = 17 }, StartIdempotencyKey.Create("restart"), token)).GetHandleOrThrow();
-            while ((await run.GetSnapshotAsync(token)).Nodes[0].Status != DagNodeStatus.Running) await Task.Delay(25, token);
+            await host.Services.GetRequiredService<Gate>().Entered.Task.WaitAsync(token);
             await DagFacadeWire.FacadeTransitionAsync(events, run.RunId.Value, true, token);
             (await run.GetSnapshotAsync(token)).Status.Should().Be(DagRunStatus.Running);
             await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(new RestartState(run.RunId.ToString(), Environment.ProcessId)), token);
@@ -97,7 +97,8 @@ internal static class Program
     }
     private sealed class Gate : IStep<int>
     {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async ValueTask<StepResult> ExecuteAsync(StepContext<int> context, CancellationToken token)
-        { await Task.Delay(Timeout.Infinite, token); return new StepResult.Completed(); }
+        { Entered.TrySetResult(); await Task.Delay(Timeout.Infinite, token); return new StepResult.Completed(); }
     }
 }

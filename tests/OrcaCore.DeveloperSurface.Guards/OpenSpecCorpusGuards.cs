@@ -113,30 +113,31 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewCloseoutArtifact = "openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-3-2-runtime-view-closeout-2026-10-04.md";
     private const string RuntimeViewCloseoutSha256 = "8a2eb6b3e860fb45031fb55115911570d2478a26e7fad5aaeb12d24188753a9d";
     private const string DagFacadeSeamChange = "admit-dag-public-handle-seam";
-    private static readonly PostGateDagFacadeCandidate ExactOwnerAuthorizedDagFacadeCandidate = new(
-        "OwnerAuthorizedReviewCandidate",
-        "openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md",
-        DagFacadeReviewCandidate.Parent, true);
+    private static readonly PostGateDagFacadeCompleteEvidence ExactDagFacadeCompleteEvidence = new(
+        CompletePostGateStage, DagFacadeApprovedHistory.Implementation, DagFacadeApprovedHistory.ImplementationEvidence,
+        DagFacadeApprovedHistory.Merge, DagFacadeApprovedHistory.MergeEvidence,
+        "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md",
+        "5ebb2522aa95ee2a38e240991ba3299e2075391551806754a8672772abf41655");
     private static readonly PostGateProposedRunSuccessor[] ExactProposedDagFacadeSeamSuccessors =
     [
         new("developer-facing-surface", "Implementation package boundaries use exact internal friends", DagFacadeSeamChange,
-            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
+            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", CompletePostGateStage, "1.3",
             "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab",
             "a55739a1ab663d7d5f3671d7c0bf1360273f708be9871c8d001fe9a861de02f0"),
         new("repository-foundation", "Dependency direction remains one-way", DagFacadeSeamChange,
-            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
+            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", CompletePostGateStage, "1.3",
             "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8",
             "96d1b6248ced6c4e5682d980b108abdca86de0d82961310ec06a63f9d4b89892"),
         new("developer-facing-surface", "Completion waits are notification-driven and race-free", DagFacadeSeamChange,
-            "expose-ephemeral-failures-and-settlement", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
+            "expose-ephemeral-failures-and-settlement", "MODIFIED", "MODIFIED", CompletePostGateStage, "1.3",
             "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1",
             "14f49ff22a1fb51f913ce431dadb15d9f77557fdb30cfdce5dfa4c9d6791b07a"),
         new("management-and-querying", "DAG terminal waiting is notification-driven", DagFacadeSeamChange,
-            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", ProposedPostGateStage, "1.3",
+            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", CompletePostGateStage, "1.3",
             "0e00b3bc7ae11980a67c0f5878577473c8e237e66c9769c2ad9b7425b547924e",
             "02fb7fe339c68c23604c07aeede15d7e6ba1791425bc2d138abae582525c642e"),
         new("developer-facing-surface", "Closed registration and start results retain a cast-free success path", DagFacadeSeamChange,
-            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", ProposedPostGateStage, "1.3",
+            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", CompletePostGateStage, "1.3",
             "5afa82ae478b50c595c572d9fb99157e4e76105606847d35ad402b09f3d3441e",
             "d14accd6a3fdfe38f6f6bfdffa60783aeb1e7ef9492850a7cc5340676295ffce")
     ];
@@ -171,7 +172,7 @@ public sealed class OpenSpecCorpusGuards
     ];
     private static readonly (string Path, string Sha256)[] DagRunDocumentDispositionPins =
     [
-        ("CLAUDE.md", "898e9ad977b9b8745baeeefa9c3f966670bd7db34fb300dcb3f884a2eca144af"),
+        ("CLAUDE.md", "3a899dfecf99a7fe3a12cb76b10a2bfafd07bea5947e09ce8a32f478e5092fe7"),
         ("docs/specs/03-domain-model-and-glossary.md", "45cb3a43f1a755118c3e18b55ee1d7e8ed519d5cf166d2cca24dc76cb3879adb"),
         ("docs/specs/04-requirements-core-runtime.md", "ef4f53846c69a29ad60d7f51ee7bb04ebec92c33af1d0be51151d2c05d8ef0bc"),
         ("docs/specs/05-requirements-events-waits-timers.md", "f1ea64fd27156d81d5f37c3759c3af2ca6616c4b7b1f05c10d0567fe6913da95"),
@@ -305,7 +306,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4";
+        "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -326,7 +327,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
         "task-8-0-section-8-requirement-gate-2026-09-26.md";
     private const string Task80RequirementGateSha256 =
-        "b953ba4c6cd85a7e5d09c67e082072f44e81e0b949cb390c237e4cc3d1cfb0e6";
+        "52d0f179016832fb541ca52567a57eca23a22594830dbbc2a0f5708f0fff8543";
     private const string MissingApprovalReviewState = "MissingApproval";
     private const string RejectedReviewState = "Rejected";
     private const string ApprovalAwaitingEvidenceCommitReviewState =
@@ -350,9 +351,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 33;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 34;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "9ba1fe78cdf1a9558811a3d8b1e6797847e645d9ae52f2e3092742b442b04dc6";
+        "4e80db80c5d70f78c24af9aae1e1d8c81e25c2a2041dc185acf1f1132614d7ee";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -421,7 +422,9 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-candidate-openspec-provenance-2026-11-15.md",
                 "253b87d542f75f07fa7ba9d32144b3b2935f07ccaac9b60a9aa6e1c9372b60bb"),
             ("openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md",
-                "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043")
+                "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043"),
+            ("openspec/changes/admit-dag-public-handle-seam/artifacts/integration-candidate-openspec-provenance-2026-11-16.md",
+                "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -541,7 +544,7 @@ public sealed class OpenSpecCorpusGuards
         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
     private const string Task73DocumentationArtifactSha256 =
-        "d3debf0b006f70227764063c721daf2791f9e6501fe772190294462c880bd1c4";
+        "e6245fefd2c86d261664a350df3f31ba2858d441a8a566583a2b8e99f864e5fb";
     private const string Task73PinRefreshDecision =
         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
@@ -1738,7 +1741,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyCollection<DeltaRequirement> activeRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(25);
+        checkpoint.SchemaVersion.Should().Be(26);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
@@ -1804,18 +1807,15 @@ public sealed class OpenSpecCorpusGuards
 
     internal static void ProjectDagFacadeSeamRegistryExtension(JsonObject current)
     {
-        current["schemaVersion"]!.GetValue<int>().Should().Be(25);
-        var exactRows = JsonSerializer.SerializeToNode(ExactProposedDagFacadeSeamSuccessors,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
-        JsonNode.DeepEquals(current["proposedDagFacadeSeamSuccessors"], exactRows).Should().BeTrue(
-            "historical registry comparisons may project only the exact five Proposed facade rows");
+        current["schemaVersion"]!.GetValue<int>().Should().Be(26);
+        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
+        JsonNode.DeepEquals(current["proposedDagFacadeSeamSuccessors"], JsonSerializer.SerializeToNode(
+            ExactProposedDagFacadeSeamSuccessors, options)).Should().BeTrue("only the five exact Complete rows may be projected");
+        JsonNode.DeepEquals(current["dagFacadeCompleteEvidence"], JsonSerializer.SerializeToNode(
+            ExactDagFacadeCompleteEvidence, options)).Should().BeTrue("Complete requires both real approval chains and owner activation authority");
+        current.ContainsKey("ownerAuthorizedDagFacadeCandidate").Should().BeFalse("the draft execution marker must retire");
         current.Remove("proposedDagFacadeSeamSuccessors");
-        if (current["ownerAuthorizedDagFacadeCandidate"] is { } candidate)
-        {
-            JsonNode.DeepEquals(candidate, JsonSerializer.SerializeToNode(ExactOwnerAuthorizedDagFacadeCandidate,
-                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })).Should().BeTrue();
-            current.Remove("ownerAuthorizedDagFacadeCandidate");
-        }
+        current.Remove("dagFacadeCompleteEvidence");
         current["schemaVersion"] = 24;
     }
 
@@ -1826,22 +1826,19 @@ public sealed class OpenSpecCorpusGuards
         PostGateAmendmentCheckpoint checkpoint)
     {
         checkpoint.ProposedDagFacadeSeamSuccessors.Should().Equal(ExactProposedDagFacadeSeamSuccessors,
-            "only five source-pinned Proposed facade successors may coexist with their exact predecessor chains");
-        // Proposed rows remain immutable process history. This separate candidate is owner
-        // execution authority only; it never invents approval evidence or Complete status.
-        var candidate = checkpoint.OwnerAuthorizedDagFacadeCandidate;
-        if (candidate is not null)
-        {
-            candidate.Should().Be(ExactOwnerAuthorizedDagFacadeCandidate);
-            _ = DagFacadeReviewCandidate.SourcePaths(root);
-        }
-        ValidateTaskReference(root, new PostGateTaskReference(DagFacadeSeamChange, "1.3",
-            candidate is null ? OpenTaskState : CompleteTaskState));
+            "only five source-pinned Complete facade successors may coexist with their exact predecessor chains");
+        checkpoint.DagFacadeCompleteEvidence.Should().Be(ExactDagFacadeCompleteEvidence);
+        Sha256(File.ReadAllBytes(Path.Combine(root, ExactDagFacadeCompleteEvidence.OwnerDirectionPath)))
+            .Should().Be(ExactDagFacadeCompleteEvidence.OwnerDirectionSha256);
+        _ = DagFacadeApprovedHistory.SourcePaths(root);
+        foreach (var task in new[] { "0.2", "1.2", "1.3", "2.7", "3.2" })
+            ValidateTaskReference(root, new PostGateTaskReference(DagFacadeSeamChange, task, CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference("reshape-developer-facing-interfaces", "8.6", CompleteTaskState));
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var successor in checkpoint.ProposedDagFacadeSeamSuccessors)
         {
             keys.Add($"{successor.Capability}\0{successor.Requirement}").Should().BeTrue();
-            successor.Stage.Should().Be(ProposedPostGateStage);
+            successor.Stage.Should().Be(CompletePostGateStage);
             var predecessor = ReadResolvedPostGateOwner(root, successor.PredecessorChange,
                 successor.Capability, successor.Requirement);
             var proposed = ReadResolvedPostGateOwner(root, successor.Change,
@@ -1850,13 +1847,12 @@ public sealed class OpenSpecCorpusGuards
             proposed.Operation.ToString().ToUpperInvariant().Should().Be(successor.SuccessorOperation);
             proposed.CapabilityKind.Should().Be(CapabilityKind.Modified);
             Sha256(predecessor.Block).Should().Be(successor.PredecessorBlockSha256,
-                "the immediate predecessor remains unchanged while the facade contract is Proposed");
+                "the immediate predecessor remains unchanged after facade Complete promotion");
             Sha256(proposed.Block).Should().Be(successor.ProposedBlockSha256,
                 "fixture-only re-pinning cannot change a proposed facade block");
             var canonical = canonicalRequirements[successor.Capability][successor.Requirement];
-            canonical.Block.Should().Be(candidate is null ? predecessor.Block : proposed.Block,
-                "only the exact owner-authorized candidate permits these five synchronized blocks");
-            if (candidate is null) proposed.Block.Should().NotBe(canonical.Block);
+            canonical.Block.Should().Be(proposed.Block,
+                "the independently reviewed facade blocks remain synchronized at Complete");
             string[] chain = successor.PredecessorChange switch
             {
                 RuntimeViewChange => ["reshape-developer-facing-interfaces", "admit-dag-authoring-friend-boundary", RuntimeViewChange, DagFacadeSeamChange],
@@ -1938,7 +1934,7 @@ public sealed class OpenSpecCorpusGuards
             var path = row.GetProperty("path").GetString()!;
             Sha256(NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, verdictCommit, path))))
                 .Should().Be(row.GetProperty("beforeSha256").GetString());
-            Sha256(BeforeShutdownStartReservationSync(root, path, DagFacadeReviewCandidate.PriorDocument(root, path)))
+            Sha256(DagFacadeApprovedHistory.PriorDocument(root, path))
                 .Should().Be(EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
                     root, path, row.GetProperty("afterSha256").GetString()!));
         }
@@ -1965,7 +1961,7 @@ public sealed class OpenSpecCorpusGuards
             {
                 facadeSuccessor.Should().Be(ExactProposedDagFacadeSeamSuccessors.Single(item =>
                     item.Capability == capability && item.Requirement == requirement));
-                facadeSuccessor.Stage.Should().Be(ProposedPostGateStage);
+                facadeSuccessor.Stage.Should().Be(CompletePostGateStage);
                 facadeSuccessor.PredecessorChange.Should().Be(change);
                 ValidateResolvedPostGateOwnerChain(root, activeRequirements, capability, requirement,
                     ["reshape-developer-facing-interfaces", change, DagFacadeSeamChange]);
@@ -2039,11 +2035,12 @@ public sealed class OpenSpecCorpusGuards
         using var registry = ReadApprovedShutdownSpecSync(root);
         var row = registry.RootElement.GetProperty("documents").EnumerateArray()
             .Single(item => item.GetProperty("path").GetString() == path);
-        if (Sha256(current) == row.GetProperty("beforeSha256").GetString()) return current;
-        if (Sha256(current) != row.GetProperty("afterSha256").GetString())
-            current = DagFacadeReviewCandidate.IntegratedDocumentBeforeFacade(root, path, current);
-        Sha256(current).Should().Be(row.GetProperty("afterSha256").GetString(),
-            $"the current text of {path} must match the exact approved projection");
+        // The live after-state must be the exact merged document. Pre-sync text
+        // is accepted only by explicit commit-based historical readers, never here.
+        current.Should().Be(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
+        current.Should().Be(DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.Merge, path));
+        var integrated = DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.IntegrationTip, path);
+        Sha256(integrated).Should().Be(row.GetProperty("afterSha256").GetString());
         var baseline = registry.RootElement.GetProperty("contractApproval").GetString()!;
         var prior = NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, baseline, path)));
         Sha256(prior).Should().Be(row.GetProperty("beforeSha256").GetString());
@@ -2054,12 +2051,18 @@ public sealed class OpenSpecCorpusGuards
     {
         using var registry = ReadApprovedShutdownSpecSync(root);
         var row = registry.RootElement;
+        foreach (var document in row.GetProperty("documents").EnumerateArray())
+        {
+            var path = document.GetProperty("path").GetString()!;
+            _ = BeforeShutdownStartReservationSync(root, path,
+                NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
+        }
         row.GetProperty("stage").GetString().Should().Be("ContractApprovedCanonicalPrepared");
         var process = row.GetProperty("processApproval").GetString()!;
         var contract = row.GetProperty("contractApproval").GetString()!;
         VerifyVerdict(process, row.GetProperty("processCheckpoint").GetString()!, "process", "processVerdictSha256");
         VerifyVerdict(contract, process, "contract", "contractVerdictSha256");
-        var ancestry = RunGit(root, "merge-base", "--is-ancestor", contract, DagFacadeReviewCandidate.IntegrationAncestry(root));
+        var ancestry = RunGit(root, "merge-base", "--is-ancestor", contract, "HEAD");
         ancestry.ExitCode.Should().Be(0, "the exact contract approval must be in the synchronization's ancestry");
 
         void VerifyVerdict(string commit, string parent, string kind, string shaField)
@@ -2188,7 +2191,7 @@ public sealed class OpenSpecCorpusGuards
         ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "2.4", CompleteTaskState));
         foreach (var task in new[] { "2.1", "2.2", "2.3", "3.1", "3.2" })
             ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, task, OpenTaskState));
-        foreach (var task in new[] { "8.4", "8.5", "8.6" })
+        foreach (var task in new[] { "8.4", "8.5" })
             ValidateTaskReference(root, new PostGateTaskReference("reshape-developer-facing-interfaces", task, OpenTaskState));
 
         var keys = new HashSet<string>(StringComparer.Ordinal);
@@ -2452,7 +2455,7 @@ public sealed class OpenSpecCorpusGuards
         {
             facadeSuccessor.Should().Be(ExactProposedDagFacadeSeamSuccessors.Single(item =>
                 item.Capability == capability && item.Requirement == heading));
-            facadeSuccessor.Stage.Should().Be(ProposedPostGateStage);
+            facadeSuccessor.Stage.Should().Be(CompletePostGateStage);
             facadeSuccessor.PredecessorChange.Should().Be(RuntimeViewChange);
             chain = [.. chain, DagFacadeSeamChange];
         }
@@ -2575,7 +2578,7 @@ public sealed class OpenSpecCorpusGuards
             signature.Should().ContainSingle("every normative owner defines all fifteen exact runtime-view signatures");
             Sha256(signature[0].Groups[1].Value).Should().Be(RuntimeViewSignatureContractSha256);
         }
-        var composition = DagFacadeReviewCandidate.PriorDocument(root, "docs/specs/08-requirements-composition.md");
+        var composition = DagFacadeApprovedHistory.PriorDocument(root, "docs/specs/08-requirements-composition.md");
         var compositionBlocks = new List<string>();
         foreach (var heading in new[]
                  { "CP-020 Separate package and dependency direction", "CP-022 Direct-dependency input mapping" })
@@ -4003,8 +4006,7 @@ public sealed class OpenSpecCorpusGuards
         foreach (var row in artifactRows)
         {
             Sha256(documents[row.Path]).Should().Be(
-                DagFacadeReviewCandidate.CurrentDocumentationHash(root, row.Path,
-                    EphemeralFailureSettlementReviewHistory.CurrentDocumentationHash(root, row.Path, row.Sha256)),
+                row.Sha256,
                 $"Task 7.3 source '{row.Path}' must remain byte-equivalent after LF normalization");
         }
 
@@ -4500,6 +4502,7 @@ public sealed class OpenSpecCorpusGuards
             root,
             "log",
             "--full-history",
+            "-m", // Include records first introduced by a merge checkpoint.
             "--diff-filter=A",
             "--name-only",
             "--format=",
@@ -4534,6 +4537,7 @@ public sealed class OpenSpecCorpusGuards
                 root,
                 "log",
                 "--full-history",
+                "-m",
                 "--diff-filter=A",
                 "--format=%H",
                 "--reverse",
@@ -4542,7 +4546,9 @@ public sealed class OpenSpecCorpusGuards
                 entry.Path);
             history.ExitCode.Should().Be(0, history.StandardError);
             var introductionCommits = NormalizeLineEndings(history.StandardOutput)
-                .Split('\n', StringSplitOptions.RemoveEmptyEntries);
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+                .Distinct(StringComparer.Ordinal)
+                .ToArray();
             if (introductionCommits.Length == 0)
             {
                 activeFreezePaths ??= ReadNormalizedReviewManifestPaths(
@@ -5267,7 +5273,7 @@ public sealed class OpenSpecCorpusGuards
         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
         PostGateAmendmentCheckpoint checkpoint)
     {
-        checkpoint.SchemaVersion.Should().Be(25);
+        checkpoint.SchemaVersion.Should().Be(26);
         checkpoint.ProposedRequirementSuccessors.Should().Equal(
             ExactProposedDagSuccessors,
             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
@@ -7237,8 +7243,7 @@ public sealed class OpenSpecCorpusGuards
             IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonical,
             PostGateAmendmentCheckpoint checkpoint)
     {
-        if (checkpoint.OwnerAuthorizedDagFacadeCandidate is null) return canonical;
-        checkpoint.OwnerAuthorizedDagFacadeCandidate.Should().Be(ExactOwnerAuthorizedDagFacadeCandidate);
+        checkpoint.DagFacadeCompleteEvidence.Should().Be(ExactDagFacadeCompleteEvidence);
         var result = canonical.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
         foreach (var row in checkpoint.ProposedDagFacadeSeamSuccessors)
         {
@@ -7260,14 +7265,14 @@ public sealed class OpenSpecCorpusGuards
     {
         var facade = checkpoint.ProposedDagFacadeSeamSuccessors.SingleOrDefault(row =>
             row.Capability == requirement.Capability && row.Requirement == requirement.Requirement);
-        if (facade is not null && checkpoint.OwnerAuthorizedDagFacadeCandidate is not null &&
+        if (facade is not null && checkpoint.DagFacadeCompleteEvidence is not null &&
             Sha256(canonicalRequirements[facade.Capability][facade.Requirement].Block) == facade.ProposedBlockSha256)
         {
             if (requirement.Change == DagFacadeSeamChange) return ClassifyProvenance(canonicalRequirements, requirement);
             var prior = PriorDagFacadeCanonicalBlocks(root, canonicalRequirements, checkpoint);
             var historical = ClassifyPostGateProvenance(root, prior, requirement, checkpoint);
             historical.State.Should().BeOneOf(ProvenanceState.Synchronized, ProvenanceState.SupersededByApprovedSuccessor);
-            return CreateProvenanceRow(requirement, ProvenanceState.SupersededByOwnerAuthorizedCandidate,
+            return CreateProvenanceRow(requirement, ProvenanceState.SupersededByApprovedSuccessor,
                 canonicalRequirements[facade.Capability][facade.Requirement].Block);
         }
         if (requirement.Capability == ShutdownStartReservationCapability &&
@@ -7408,7 +7413,9 @@ public sealed class OpenSpecCorpusGuards
         string Block);
 
     private sealed record CanonicalRequirement(string Requirement, string Block);
-    private sealed record PostGateDagFacadeCandidate(string Stage, string OwnerDirectionPath, string Parent, bool IndependentReviewPending);
+    private sealed record PostGateDagFacadeCompleteEvidence(string Stage, string ImplementationCheckpoint,
+        string ImplementationEvidenceCommit, string MergeCheckpoint, string MergeEvidenceCommit,
+        string OwnerDirectionPath, string OwnerDirectionSha256);
 
     private sealed record DeltaRequirement(
         string Change,
@@ -7499,7 +7506,7 @@ public sealed class OpenSpecCorpusGuards
         string RuntimeViewActivationCommit,
         PostGateProposedRunSuccessor[] ProposedDagRunSuccessors,
         PostGateProposedRunSuccessor[] ProposedDagFacadeSeamSuccessors,
-        PostGateDagFacadeCandidate? OwnerAuthorizedDagFacadeCandidate,
+        PostGateDagFacadeCompleteEvidence DagFacadeCompleteEvidence,
         PostGateApprovedRunSuccessor[] ApprovedDagRunSuccessors,
         PostGateSupersededPredecessor[] SupersededDagRunPredecessors,
         PostGateRunApprovalEvidence ApprovedDagRunEvidence,

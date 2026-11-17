@@ -36,8 +36,8 @@ public sealed partial class TaskAccountingGuards
         var pending = entries.Length - completed;
 
         entries.Should().HaveCount(159);
-        completed.Should().Be(132);
-        pending.Should().Be(27);
+        completed.Should().Be(133);
+        pending.Should().Be(26);
     }
 
     [Fact]

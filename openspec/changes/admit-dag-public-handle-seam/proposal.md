@@ -1,6 +1,6 @@
-## Current delivery scope (2026-11-15)
+## Current completion scope (2026-11-16)
 
-The owner has authorized completing this change in one uncommitted target for final review, including contract/document reconciliation, canonical synchronization, source and verification. See `artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md`. Earlier draft and per-stage approval statements below remain historical context; no independent verdict or checkpoint is claimed by this authorization. The RV-4 contract remains the implementation baseline.
+The implementation/canonical sync is independently approved at `b9dcdef7` / `598c6d4`; its reviewed main merge/remediation is checkpointed at `1e960fc4` / `94e9aca5`. The owner authorizes the remaining review fixes and Task 3.2 Complete activation after validation. The reviewers authored RV-1–RV-4 and expressly excluded independent contract approval; owner-approved RV-4 remains the unchanged five-block contract. This activation closes only the facade seam and reshape 8.6, not the DAG run change or the rest of Section 8. Earlier dated draft and process statements below are historical context. See `artifacts/task-3-2-owner-authority-2026-11-16.md`.
 
 ## Why
 
@@ -38,7 +38,7 @@ None.
 
 The implementation affects `OrcaCore.Dag` (public facade types, two internal constructors, two new public exceptions, one extended exception, two new union variants), `OrcaCore.Dag.Hosting` (registry, handle wiring, snapshot projection), `OrcaCore.Durable.Hosting` and `OrcaCore.Engine.Durable` (run facts and the four opaque values behind the existing bridge, start-key owner resolution), the `DagRuntimeViewBoundaryGuards` allowlist, the durable-bridge reference fixture, API baselines and package-consumer fixtures.
 
-Task 0.1 admitted the five exact Proposed successors with stage-aware guards and a process provenance checkpoint. The owner's subsequent combined-delivery direction authorizes the source, current-document reconciliation and five-block canonical synchronization in this uncommitted candidate. The registry retains Proposed history and an explicit owner-authorized candidate marker; no external verdict, evidence commit or Complete status is invented.
+Task 0.1 admitted the five exact Proposed successors with stage-aware guards and a process provenance checkpoint. The owner's subsequent combined-delivery direction authorizes the source, current-document reconciliation and five-block canonical synchronization in this uncommitted candidate. That Proposed stage is retained in the reviewed commits. Task 3.2 promotes the five current rows to Complete using both actual review/checkpoint/evidence chains and the owner activation instruction; the draft marker retires.
 
 Provider execution also exposed PostgreSQL checkpoint lineage loss. The provider now persists parent/root instance ids on insert and update; its initial greenfield schema includes those columns. No provider-port or lease-protocol signature changes. The candidate adds in-memory behavior tests, both complete database-provider suites and a separate-process restart fixture. Validation and self-review are recorded in the artifacts directory.
 
@@ -75,3 +75,9 @@ RV-2 (projected tree `5f1a184d4e6c1667729cf67134e199e4a9b038c5`) was returned wi
 RV-3 (projected tree `f53f2935285a3d22ea58d9bb22c8174328edf8fa`) resolved the RV-2 blocker. The review accepted D4 and `NotSupportedException`, and held Task 0.1 for a correction to the friends delta. RV-3's request and manifest stay byte-exact; its seven changed files are preserved under `artifacts/superseded-rv-3-draft-2026-11-15/`. This revision: uses the reopen flag for reopen only and routes a start with different contract keys through `DagStartResult.RunInputConflict`; names the two key comparisons (value key versus own graph is integrity, graph key versus installed plan is binding mismatch) and preserves storage, integrity and cancellation exceptions; narrows the prototype evidence claim to the suites that passed and the paths the shared normalizer covers; and makes committed cancellation on an incompatible host explicit. Only the friends delta and the evidence record changed besides these notes.
 
 No signature changed, so the RV-2 proof remains the current proof. The current two-assembly proof (`artifacts/task-1-1-public-handle-seam-rv-2-proof-*.cs`) compiles with warnings as errors against the real `OrcaCore` and `OrcaCore.Dag`. It proves signature sufficiency only; its bridge is a stand-in.
+
+## Task 3.2 finding resolution (2026-11-16)
+
+The Core.Tests wall-clock guard is retained unchanged. Admission is observed through the real child gate; the redundant snapshot poll is removed; test-only lease contention retries are bounded by the provider's five-second lease and fifteen-second maximum turn. A timeout cancels the queued test request. Full CI unit lanes now include Core.Tests and ProviderCertification, with provider process-restart evidence rerun.
+
+The missing/incompatible child-binding InvalidOperationException is explicitly documented as host-configuration behavior outside the five seam requirements, not a fourth closed comparison result. No delta or canonical block changes. The historical guard now checks committed implementation/merge blobs and real direct-child evidence, not live source/doc bytes against the old draft. Current canonical, API and maintained documentation checks remain active; the three shutdown-sync document checks strictly require their reviewed merged after-state.

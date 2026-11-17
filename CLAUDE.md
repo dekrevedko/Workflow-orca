@@ -35,8 +35,8 @@ dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Test
 # Integration gate (requires Docker via Testcontainers)
 dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build
 
-# Integration smoke gate (E2E + Hosting only — fastest)
-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E|FullyQualifiedName~OrcaCore.Integration.Tests.Hosting"
+# Integration smoke gate (currently compiled CurrentSurface tests)
+dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.CurrentSurface"
 
 # Run the console examples
 dotnet run --project samples/OrcaCore.Examples/OrcaCore.Examples.csproj
@@ -108,13 +108,17 @@ guards constrain the compiled friend and shared fingerprint operation. It grants
 or child-start access; further runtime seams require a separate approved amendment.
 The independently approved `admit-dag-hosting-runtime-view` contract specifies a ninth product
 friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtime-view types
-and fifteen exact method/getter signatures. The owner-authorized Task 8.6 candidate adds only
-the two public-handle constructors in doc 17 §17.2.6, for three non-public types and seventeen
-members; it exposes no mapper delegates or drafts and adds no codec, child access or friend. Final independent
-implementation review of that extension remains pending.
-Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
+and fifteen exact method/getter signatures.
+The runtime-view contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
 outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
 The contract, atomic canonical/registry transition and runtime-view source are independently approved and checkpointed. Complete promotion is independently approved and checkpointed at `3270678409593c9af0a7c1810f3c4be329b133fd`, with evidence `496f30ccd91fbe63b8fd099c546d36864c440a4d` and checkbox-only activation `c85fd0f301f110db691a026bcdd0c0e35c6b26c1`; durable bridge work is not authorized by runtime-view approval.
+Task 8.6 extends that same friend with exactly the two internal public-handle constructors
+listed in doc 17 §17.2.6: three non-public types and seventeen members. It exposes no mapper
+delegates or drafts and adds no codec, child access or friend. The implementation and its
+canonical sync were independently approved at `b9dcdef7` / `598c6d4`; the integrated remediation
+was independently approved at `1e960fc4` / `94e9aca5`. Task 3.2 records owner-authorized Complete
+activation after the review findings and full CI unit lanes are verified; it does not complete
+the remaining DAG run certification or reshape Section 8 obligations.
 The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
 DAG-to-durable *runtime* bridge.
 
@@ -320,5 +324,5 @@ RC-3 approved contract (2026-10-05): MaxConcurrentNodes remains ONLY the PER-RUN
 Transition addendum: [1.3/1.4 P3 dispositions](openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 
-Checkpointed internal slices: typed identity and provider persistence (c93411e, f62b0aaf), pumps (2fd7a7d), bridge/scheduler (e955f3a) and scheduler/schema follow-up (3f6d11bf). The registry remains ApprovedPending: full certification and public Task 8.6 are not complete. See the [Task 2.4/3.1 evidence inventory](openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md).
+Checkpointed internal slices: typed identity and provider persistence (c93411e, f62b0aaf), pumps (2fd7a7d), bridge/scheduler (e955f3a) and scheduler/schema follow-up (3f6d11bf). The DAG run registry remains ApprovedPending because full certification is incomplete; the separate public Task 8.6 facade is Complete under its own reviewed seam and Task 3.2 activation. See the [Task 2.4/3.1 evidence inventory](openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md).
 <!-- dag-run-contract-proposal:end -->

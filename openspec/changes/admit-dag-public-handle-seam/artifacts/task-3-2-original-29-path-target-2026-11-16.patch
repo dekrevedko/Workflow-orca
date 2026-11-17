@@ -1,0 +1,1820 @@
+diff --git a/CLAUDE.md b/CLAUDE.md
+index 94fcf2f0..cde3e062 100644
+--- a/CLAUDE.md
++++ b/CLAUDE.md
+@@ -35,8 +35,8 @@ dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Test
+ # Integration gate (requires Docker via Testcontainers)
+ dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build
+ 
+-# Integration smoke gate (E2E + Hosting only — fastest)
+-dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.E2E|FullyQualifiedName~OrcaCore.Integration.Tests.Hosting"
++# Integration smoke gate (currently compiled CurrentSurface tests)
++dotnet test tests/OrcaCore.Integration.Tests/OrcaCore.Integration.Tests.csproj --no-build --filter "FullyQualifiedName~OrcaCore.Integration.Tests.CurrentSurface"
+ 
+ # Run the console examples
+ dotnet run --project samples/OrcaCore.Examples/OrcaCore.Examples.csproj
+@@ -108,13 +108,17 @@ guards constrain the compiled friend and shared fingerprint operation. It grants
+ or child-start access; further runtime seams require a separate approved amendment.
+ The independently approved `admit-dag-hosting-runtime-view` contract specifies a ninth product
+ friend, `OrcaCore.Dag -> OrcaCore.Dag.Hosting`, limited to three internal runtime-view types
+-and fifteen exact method/getter signatures. The owner-authorized Task 8.6 candidate adds only
+-the two public-handle constructors in doc 17 §17.2.6, for three non-public types and seventeen
+-members; it exposes no mapper delegates or drafts and adds no codec, child access or friend. Final independent
+-implementation review of that extension remains pending.
+-Its contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
++and fifteen exact method/getter signatures.
++The runtime-view contract is independently approved at `43d869fc29e7daa3ec567d4602960f458eb98492` and canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`. The durable bridge decodes committed dependency
+ outputs before mapping and owns normalization, committed-byte fingerprints, and child start.
+ The contract, atomic canonical/registry transition and runtime-view source are independently approved and checkpointed. Complete promotion is independently approved and checkpointed at `3270678409593c9af0a7c1810f3c4be329b133fd`, with evidence `496f30ccd91fbe63b8fd099c546d36864c440a4d` and checkbox-only activation `c85fd0f301f110db691a026bcdd0c0e35c6b26c1`; durable bridge work is not authorized by runtime-view approval.
++Task 8.6 extends that same friend with exactly the two internal public-handle constructors
++listed in doc 17 §17.2.6: three non-public types and seventeen members. It exposes no mapper
++delegates or drafts and adds no codec, child access or friend. The implementation and its
++canonical sync were independently approved at `b9dcdef7` / `598c6d4`; the integrated remediation
++was independently approved at `1e960fc4` / `94e9aca5`. Task 3.2 records owner-authorized Complete
++activation after the review findings and full CI unit lanes are verified; it does not complete
++the remaining DAG run certification or reshape Section 8 obligations.
+ The existing `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting` edge remains the sole
+ DAG-to-durable *runtime* bridge.
+ 
+@@ -320,5 +324,5 @@ RC-3 approved contract (2026-10-05): MaxConcurrentNodes remains ONLY the PER-RUN
+ Transition addendum: [1.3/1.4 P3 dispositions](openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
+ 
+ 
+-Checkpointed internal slices: typed identity and provider persistence (c93411e, f62b0aaf), pumps (2fd7a7d), bridge/scheduler (e955f3a) and scheduler/schema follow-up (3f6d11bf). The registry remains ApprovedPending: full certification and public Task 8.6 are not complete. See the [Task 2.4/3.1 evidence inventory](openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md).
++Checkpointed internal slices: typed identity and provider persistence (c93411e, f62b0aaf), pumps (2fd7a7d), bridge/scheduler (e955f3a) and scheduler/schema follow-up (3f6d11bf). The DAG run registry remains ApprovedPending because full certification is incomplete; the separate public Task 8.6 facade is Complete under its own reviewed seam and Task 3.2 activation. See the [Task 2.4/3.1 evidence inventory](openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md).
+ <!-- dag-run-contract-proposal:end -->
+diff --git a/docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt b/docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt
+new file mode 100644
+index 00000000..d6bb94f1
+--- /dev/null
++++ b/docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt
+@@ -0,0 +1,29 @@
++ M CLAUDE.md
++ M docs/specs/17-selected-mode-capability-matrix.md
++ M openspec/changes/admit-dag-public-handle-seam/design.md
++ M openspec/changes/admit-dag-public-handle-seam/proposal.md
++ M openspec/changes/admit-dag-public-handle-seam/tasks.md
++ M openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
++ M openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
++ M openspec/changes/reshape-developer-facing-interfaces/tasks.md
++ M tests/OrcaCore.Dag.ProcessProbe/Program.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
++ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
++ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
++ M tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
++ M tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
++ M tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
++ M tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
++ M tests/OrcaCore.TestSupport/DagFacadeWire.cs
++?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt
++?? docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md
++?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-validation-2026-11-16.json
++?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-author-self-review-2026-11-16.md
++?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md
++?? openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md
+diff --git a/docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md b/docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md
+new file mode 100644
+index 00000000..b703a9ed
+--- /dev/null
++++ b/docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md
+@@ -0,0 +1,27 @@
++# Task 8.6 / Task 3.2 Complete activation independent review
++
++Date: 2026-11-16. Worktree: X:/ocv302. Branch: draft/admit-dag-public-handle-seam. Base: `94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1`. This is the next uncommitted target requested by the owner: the Core.Tests fix, three P3 findings, and five-row Complete promotion. It is not another contract draft and does not claim a new independent contract approval.
++
++The preceding reviewed merge is `1e960fc4bf67ad6d1a8c053602d4a58964b47d79`, ordered parents `598c6d4` then `ba2b057d`, tree `ff4711dca44f7a56abd53bf0854c10332831e814`. Its only evidence child is the base above. That child changes exactly the integration/remediation verdict and the two catalogue/freeze fixtures. The verdict is 12,688 LF bytes, SHA-256 `e9c5feddb651cbb570d289027b6c43b27eebc08b92dec2cd907a784468366074`. Both commits are pushed; neither activates this target.
++
++## Target and findings resolved
++
++- F1: no three 25 ms Task.Delay polls remain. Child entry is a barrier; the redundant snapshot poll is removed; lease retry is explicitly bounded by provider expiry with queued-request cleanup. The Core guard is unchanged and the complete CI unit list passes.
++- F2: current status in CLAUDE and both doc 17 copies names the real approvals. Runtime-view contract approval is no longer misattributed. The compiled integration smoke filter is corrected.
++- F3: missing/incompatible child binding is explicitly host-configuration behavior outside the five seam requirements, as permitted by the verdict. No delta, canonical block, product source or API baseline changes.
++- F4: draft source/document pins now validate committed history. Complete evidence binds real checkpoints and verdict children; the exact current canonical/API/document guards remain. All three shutdown-sync paths require their reviewed after-state; a rollback fails.
++- Task 3.2: promote exactly five registry rows to Complete, update measured provenance, and activate only reshape 8.6. The checkboxes and rows are prepared in this worktree, pending this review. Archival is separate.
++
++## Evidence and review questions
++
++Read the artifacts under `openspec/changes/admit-dag-public-handle-seam/artifacts/`: `task-3-2-owner-authority-2026-11-16.md`, `task-3-2-author-self-review-2026-11-16.md`, `task-3-2-activation-validation-2026-11-16.json`, and `task-3-2-complete-openspec-provenance-2026-11-16.md`.
++
++The validation JSON records fresh Debug/Release rebuilds, all six CI unit projects (1,149 tests), Integration 11, benchmark smoke, nine package consumers, infrastructure/ExpectedRed counters, strict OpenSpec, and scoped mutation results. PostgreSQL and SQL Server rerun the two affected fault/four-process restart cases each; the reviewed merge's full 123/94 provider suites are inherited rather than relabelled as fresh runs. Structural validation is not approval. The five killed mutations and positive historical-scope probe are documented, including restored files and initial failures.
++
++Please verify the exact two-commit chain first, then judge the F1 retry bound and cleanup, the F2/F3 wording, the F4 retirement without loss of current checks, and whether the five-row Complete evidence and task activation faithfully use the actual reviewed scope. The author self-review is not an independent verdict. Earlier reviewers explicitly excluded independent RV-1 through RV-4 contract review; that qualification is retained.
++
++## Freeze and next checkpoint boundary
++
++The self-inclusive raw-order manifest is `developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt`. The active content record in `review-manifest-provenance.json` excludes only that self-referential fixture. Review documents are catalogued in immutable history. All earlier packets remain byte-exact. A copied index produces the projected tree; the real index stays untouched. Do not infer an activation checkpoint from the earlier merge/evidence chain.
++
++Leave this target uncommitted until the next independent review. Approval should apply only to this Task 3.2 target; it does not activate another task or archive the change.
+diff --git a/docs/specs/17-selected-mode-capability-matrix.md b/docs/specs/17-selected-mode-capability-matrix.md
+index 52a3e6e8..2fbd9cb2 100644
+--- a/docs/specs/17-selected-mode-capability-matrix.md
++++ b/docs/specs/17-selected-mode-capability-matrix.md
+@@ -1270,14 +1270,16 @@ Mapper exceptions derived from `Exception`, including mapper-thrown `OperationCa
+ <!-- runtime-view-contract:end -->
+ 
+ <!-- dag-public-handle-seam:current -->
+-The owner-authorized combined Task 8.6 candidate extends this same friend by exactly the two
++The independently implementation-reviewed Task 8.6 facade extends this same friend by exactly the two
+ internal public-handle constructors listed in §17.2.6. The compiled boundary remains three
+ non-public types and becomes seventeen members: the fifteen runtime-view members plus those
+ constructors. Dag owns typed throws and node/output type checks; Dag.Hosting wires handles,
+ closed public results, snapshots and enum projections; the durable side owns codec/binding
+ decisions and opaque conflict, failure and fingerprint creation. No friend or package edge is
+-added. Final independent implementation review is pending; earlier approved checkpoints remain
+-historical evidence for their original scope.
++added. Implementation and canonical synchronization are approved at `b9dcdef7` / `598c6d4`;
++the main merge and remediations are approved at `1e960fc4` / `94e9aca5`. Owner-authorized Task 3.2
++records Complete activation after the remaining review findings are verified. Earlier approvals
++retain their original scope; no independent contract verdict is inferred.
+ <!-- dag-public-handle-seam:current:end -->
+ 
+ 
+@@ -1607,8 +1609,8 @@ they are not public `RunChild`/`RunChildren` authoring members. Host option
+ durable resource pools. It counts every admitted nonterminal child instance, including one parked
+ in a wait, delay, or lease queue, until that child becomes terminal.
+ 
+-Registration installs the plan for recovery on this host. Registration does not certify that all
+-referenced child workflows are configured in the durable engine. Before creating a run or
++Host-configuration behavior outside the five facade-seam requirements: registration installs
++the plan for recovery but does not certify that all referenced child workflows are configured in the durable engine. Before creating a run or
+ accepting replay, start requires every child binding (identity, version, fingerprint and value
+ contracts) to be installed on this host. A missing or incompatible child binding throws the
+ public `InvalidOperationException` before any run append or start-key binding. It is a host
+@@ -2294,14 +2296,16 @@ Source task 3.3 alone updates executable API/compile/package baselines with sour
+ ## 17.5 Package and integration boundary
+ 
+ <!-- dag-public-handle-seam:current -->
+-The owner-authorized combined Task 8.6 candidate extends this same friend by exactly the two
++The independently implementation-reviewed Task 8.6 facade extends this same friend by exactly the two
+ internal public-handle constructors listed in §17.2.6. The compiled boundary remains three
+ non-public types and becomes seventeen members: the fifteen runtime-view members plus those
+ constructors. Dag owns typed throws and node/output type checks; Dag.Hosting wires handles,
+ closed public results, snapshots and enum projections; the durable side owns codec/binding
+ decisions and opaque conflict, failure and fingerprint creation. No friend or package edge is
+-added. Final independent implementation review is pending; earlier approved checkpoints remain
+-historical evidence for their original scope.
++added. Implementation and canonical synchronization are approved at `b9dcdef7` / `598c6d4`;
++the main merge and remediations are approved at `1e960fc4` / `94e9aca5`. Owner-authorized Task 3.2
++records Complete activation after the remaining review findings are verified. Earlier approvals
++retain their original scope; no independent contract verdict is inferred.
+ <!-- dag-public-handle-seam:current:end -->
+ 
+ 
+diff --git a/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-validation-2026-11-16.json b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-validation-2026-11-16.json
+new file mode 100644
+index 00000000..d9d4c485
+--- /dev/null
++++ b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-validation-2026-11-16.json
+@@ -0,0 +1,474 @@
++{
++  "schemaVersion": 1,
++  "date": "2026-11-16",
++  "stage": "UncommittedActivationReviewCandidate",
++  "baseCommit": "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1",
++  "mergeCheckpoint": "1e960fc4bf67ad6d1a8c053602d4a58964b47d79",
++  "scope": "Task 3.2 only; product source, public API, canonical specs and five delta blocks unchanged from base.",
++  "builds": [
++    {
++      "path": "X:\\dag-seam-activation-20261116\\final-build-debug.log",
++      "bytes": 3896,
++      "sha256": "98ead3c52965c97561151d07999eae47ee20a83f7f069862eec2c508d83bc00d"
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\final-build-release.log",
++      "bytes": 3958,
++      "sha256": "5fa6c3105162f9ffc1b668d47b7cb79f7099f2b8bbd86326853dc9cd371b1613"
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\final-debug-followup.log",
++      "bytes": 3896,
++      "sha256": "000327bbe3446c6dbc0ee04a827242e01428b9b6e374ea35120acc57e6458e0d"
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\final-release-followup.log",
++      "bytes": 3958,
++      "sha256": "926e0bcbe2ccfb86e7fd560cad05710a2a204dc9b379a196c749cae5b3da558a"
++    }
++  ],
++  "buildResult": "Debug and Release solution rebuilds, warnings as errors: 0 warnings / 0 errors each.",
++  "ciUnitProjects": [
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-core.trx",
++      "bytes": 543012,
++      "sha256": "3ca7cc50489e3ac65d644693134eb847d5905b4961f1156fd295fb6e3d018899",
++      "counters": {
++        "total": "390",
++        "executed": "390",
++        "passed": "390",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-ephemeral.trx",
++      "bytes": 650142,
++      "sha256": "4d93cceec230a33e2139a916c3b64c8ddd31bbad84f4f0faa8937ee44eb35634",
++      "counters": {
++        "total": "414",
++        "executed": "414",
++        "passed": "414",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-durable.trx",
++      "bytes": 168472,
++      "sha256": "71d41110d55b896b579855a4a29fb1e8c4c40bcbac18f146cb5409d6a1a2c503",
++      "counters": {
++        "total": "113",
++        "executed": "113",
++        "passed": "113",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-acceptance.trx",
++      "bytes": 52433,
++      "sha256": "03b85689ce10c2aae4206e95a5f6d391a9899986652e8b812ed1b559daddc92b",
++      "counters": {
++        "total": "37",
++        "executed": "37",
++        "passed": "37",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-hosting.trx",
++      "bytes": 113278,
++      "sha256": "7af31a7e079373caac2e2fe0d4226b4870e05bb2631444a5f8ea168fa546d5b5",
++      "counters": {
++        "total": "79",
++        "executed": "79",
++        "passed": "79",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-certification.trx",
++      "bytes": 172169,
++      "sha256": "b27ab7ba6d7a3d5801a768213c19bfde1f186d2a8b16441009b0379c7f263e1e",
++      "counters": {
++        "total": "116",
++        "executed": "116",
++        "passed": "116",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    }
++  ],
++  "ciUnitTotal": 1149,
++  "integration": {
++    "path": "X:\\dag-seam-activation-20261116\\results\\activation-integration.trx",
++    "bytes": 18363,
++    "sha256": "f2d77ff7db8b58a7c2002303e22437452c2f05dee46409ddbff52c3bf9f5ec36",
++    "counters": {
++      "total": "11",
++      "executed": "11",
++      "passed": "11",
++      "failed": "0",
++      "error": "0",
++      "timeout": "0",
++      "aborted": "0",
++      "inconclusive": "0",
++      "passedButRunAborted": "0",
++      "notRunnable": "0",
++      "notExecuted": "0",
++      "disconnected": "0",
++      "warning": "0",
++      "completed": "0",
++      "inProgress": "0",
++      "pending": "0"
++    }
++  },
++  "benchmarkSmoke": {
++    "path": "X:\\dag-seam-activation-20261116\\benchmark-smoke.log",
++    "bytes": 49,
++    "sha256": "114698cfdb6ebd2353eda693a6e4e33b693a960b218ef94e85d7b4550d473b42"
++  },
++  "changedProviderCases": [
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-fault-postgres.trx",
++      "bytes": 4614,
++      "sha256": "11eafad3157b05f298421c8f5c943bcb93769c7e6048ea385f64c7b373c3db10",
++      "counters": {
++        "total": "2",
++        "executed": "2",
++        "passed": "2",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    },
++    {
++      "path": "X:\\dag-seam-activation-20261116\\results\\activation-fault-sqlserver.trx",
++      "bytes": 4590,
++      "sha256": "dbeccbe17a102177792e8e18dbf27bf771041f6211f855c97a6e31c19ef6c16a",
++      "counters": {
++        "total": "2",
++        "executed": "2",
++        "passed": "2",
++        "failed": "0",
++        "error": "0",
++        "timeout": "0",
++        "aborted": "0",
++        "inconclusive": "0",
++        "passedButRunAborted": "0",
++        "notRunnable": "0",
++        "notExecuted": "0",
++        "disconnected": "0",
++        "warning": "0",
++        "completed": "0",
++        "inProgress": "0",
++        "pending": "0"
++      }
++    }
++  ],
++  "providerQualification": "Both real-container providers reran the two affected fault and four-process-restart tests. Full provider suites (PostgreSQL 123, SQL Server 94) are retained evidence of the independently reviewed merge, not fresh activation runs. Full in-memory unit lanes are fresh.",
++  "packages": {
++    "result": "9/9 Green consumers; exact current-source packed feed",
++    "evidence": {
++      "path": "X:\\dag-seam-activation-20261116\\package-consumers.log",
++      "bytes": 288,
++      "sha256": "bf8f25c9e8303ac53b44d0f6ee5b4970e9db00f0f5a70e5216fb9f1838b3673a"
++    }
++  },
++  "focusedGates": {
++    "path": "X:\\dag-seam-activation-20261116\\results\\activation-focused-gates-fixed.trx",
++    "bytes": 10736,
++    "sha256": "69069b622d514374c761f232a3be1f8e0518dac927f56362658095cc4b66b162",
++    "counters": {
++      "total": "6",
++      "executed": "6",
++      "passed": "6",
++      "failed": "0",
++      "error": "0",
++      "timeout": "0",
++      "aborted": "0",
++      "inconclusive": "0",
++      "passedButRunAborted": "0",
++      "notRunnable": "0",
++      "notExecuted": "0",
++      "disconnected": "0",
++      "warning": "0",
++      "completed": "0",
++      "inProgress": "0",
++      "pending": "0"
++    }
++  },
++  "mutations": [
++    {
++      "probe": "complete-stage",
++      "outcome": "killed",
++      "message": "Expected checkpoint.ProposedDagFacadeSeamSuccessors to be equal to\r\n{\r\n    OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards+PostGateProposedRunSuccessor\r\n    {\r\n        Capability = \"developer-facing-surface\",\r\n        Change = \"admit-dag-public-handle-seam\",\r\n        PredecessorBlockSha256 = \"3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a"
++    },
++    {
++      "probe": "complete-evidence",
++      "outcome": "killed",
++      "message": "Expected checkpoint.DagFacadeCompleteEvidence to be OrcaCore.DeveloperSurface.Guards.OpenSpecCorpusGuards+PostGateDagFacadeCompleteEvidence\r\n{\r\n    ImplementationCheckpoint = \"b9dcdef7e611da45d7dc4f75946ee192fc83c37e\",\r\n    ImplementationEvidenceCommit = \"598c6d4fb61f7883e25f79f03001aa620dda0bf7\",\r\n    MergeCheckpoint = \"1e960fc4bf67ad6d1a8c053602d"
++    },
++    {
++      "probe": "shutdown-rollback",
++      "outcome": "killed",
++      "message": "Expected current to be the same string, but they differ on line 60 and column 40 (index 4155):\r\n              ↓ (actual)\r\n  \"…nSnapshot` through the same notification/recheck,…\"\r\n  \"…nSnapshot`, or throw `DagRunFaultedException` when its…\"\r\n              ↑ (expected)."
++    },
++    {
++      "probe": "retired-live-source-pins",
++      "outcome": "accepted",
++      "message": null
++    },
++    {
++      "probe": "canonical-drift",
++      "outcome": "killed",
++      "message": "Expected string to be the same string because the independently reviewed facade blocks remain synchronized at Complete, but they differ on line 108 and column 155 (index 10597):\r\n                  ↓ (actual)\r\n  \"…DAG types and eighteen non-public DAG members, and no DAG…\"\r\n  \"…DAG types and seventeen non-public DAG members, and no DAG…\"\r\n          "
++    },
++    {
++      "probe": "unlisted-owner",
++      "outcome": "killed",
++      "message": "Expected active.Where(item => item.Capability == capability && item.Requirement == heading).Select(item => item.Change).Order(StringComparer.Ordinal) to be equal to {\"admit-dag-authoring-friend-boundary\", \"admit-dag-hosting-runtime-view\", \"admit-dag-public-handle-seam\", \"reshape-developer-facing-interfaces\"} because only the exact chain may own thi"
++    }
++  ],
++  "mutationAccounting": {
++    "killed": 5,
++    "survived": 0,
++    "timeout": 0,
++    "uncovered": 0,
++    "compileError": 0,
++    "ignored": 0,
++    "positiveBoundaryProbeAccepted": 1
++  },
++  "infrastructure": {
++    "path": "X:\\dag-seam-activation-20261116\\results\\activation-infrastructure.trx",
++    "bytes": 495700,
++    "sha256": "d9fef3ba21c3bbd65bee831f384cf660b33bb502a79ac9e9297acf5c615a9f52",
++    "counters": {
++      "total": "319",
++      "executed": "319",
++      "passed": "319",
++      "failed": "0",
++      "error": "0",
++      "timeout": "0",
++      "aborted": "0",
++      "inconclusive": "0",
++      "passedButRunAborted": "0",
++      "notRunnable": "0",
++      "notExecuted": "0",
++      "disconnected": "0",
++      "warning": "0",
++      "completed": "0",
++      "inProgress": "0",
++      "pending": "0"
++    }
++  },
++  "expectedRed": {
++    "path": "X:\\dag-seam-activation-20261116\\results\\activation-expected-red.trx",
++    "bytes": 54709,
++    "sha256": "359842269fd24bd8b33929f92d48c42fe2eafd1927b8cd7d9a7f361b12737ceb",
++    "counters": {
++      "total": "14",
++      "executed": "14",
++      "passed": "0",
++      "failed": "14",
++      "error": "0",
++      "timeout": "0",
++      "aborted": "0",
++      "inconclusive": "0",
++      "passedButRunAborted": "0",
++      "notRunnable": "0",
++      "notExecuted": "0",
++      "disconnected": "0",
++      "warning": "0",
++      "completed": "0",
++      "inProgress": "0",
++      "pending": "0"
++    }
++  },
++  "strictOpenSpec": {
++    "path": "X:\\dag-seam-activation-20261116\\openspec-strict-final.log",
++    "bytes": 1148,
++    "sha256": "688cf28ce112577ad2cc2ac23fc7f748839a567d7c8eab4f62fc69fc27d1fd0b"
++  },
++  "strictOpenSpecQualification": "28/28 structural validation only; no semantic approval inferred.",
++  "observedFailures": [
++    {
++      "evidence": {
++        "path": "X:\\dag-seam-activation-20261116\\results\\review-core-reproduction.trx",
++        "bytes": 6304,
++        "sha256": "409802c1748f848bdf0444bad516e765ddf4edff34cb61a07e247a20e0730ea0",
++        "counters": {
++          "total": "1",
++          "executed": "1",
++          "passed": "0",
++          "failed": "1",
++          "error": "0",
++          "timeout": "0",
++          "aborted": "0",
++          "inconclusive": "0",
++          "passedButRunAborted": "0",
++          "notRunnable": "0",
++          "notExecuted": "0",
++          "disconnected": "0",
++          "warning": "0",
++          "completed": "0",
++          "inProgress": "0",
++          "pending": "0"
++        }
++      },
++      "resolution": "Reproduced unchanged Core guard; fixed all three poll sites without exemptions. Full Core 390/390 now passes."
++    },
++    {
++      "evidence": {
++        "path": "X:\\dag-seam-activation-20261116\\results\\activation-focused-gates.trx",
++        "bytes": 15308,
++        "sha256": "4ab88ccb722f9505b19bf9b5442d77a8b2ccd5d812bf3ca0dbeedf9c67dcbd0b",
++        "counters": {
++          "total": "6",
++          "executed": "6",
++          "passed": "5",
++          "failed": "1",
++          "error": "0",
++          "timeout": "0",
++          "aborted": "0",
++          "inconclusive": "0",
++          "passedButRunAborted": "0",
++          "notRunnable": "0",
++          "notExecuted": "0",
++          "disconnected": "0",
++          "warning": "0",
++          "completed": "0",
++          "inProgress": "0",
++          "pending": "0"
++        }
++      },
++      "resolution": "One stale current CLAUDE status-block digest was found and repinned after status reconciliation; six focused gates now pass."
++    },
++    {
++      "evidence": {
++        "path": "X:\\dag-seam-activation-20261116\\activation-fault-inmemory.log",
++        "bytes": 535,
++        "sha256": "7838c653db2f0227e46f67fe97c6d03c0b80978b949c26a929167242a54ad5d5"
++      },
++      "resolution": "Provider-only filter matched no in-memory tests; this is no evidence. Full Hosting 79 and ProviderCertification 116 are the actual fresh in-memory lanes."
++    },
++    {
++      "evidence": {
++        "path": "X:\\dag-seam-activation-20261116\\results\\activation-infrastructure-initial.trx",
++        "bytes": 509403,
++        "sha256": "8fd94455df7f79139159e5fa2fc9b1aad8223d943bd7c59b4a2e5ed9c0c9908c",
++        "counters": {
++          "total": "319",
++          "executed": "319",
++          "passed": "315",
++          "failed": "4",
++          "error": "0",
++          "timeout": "0",
++          "aborted": "0",
++          "inconclusive": "0",
++          "passedButRunAborted": "0",
++          "notRunnable": "0",
++          "notExecuted": "0",
++          "disconnected": "0",
++          "warning": "0",
++          "completed": "0",
++          "inProgress": "0",
++          "pending": "0"
++        }
++      },
++      "resolution": "Fixed two stale schema-25 assertions, updated task accounting to 133 complete / 26 pending, and included merge additions in immutable-history Git queries. Exact prior-record comparisons remain. The committed merge packet itself reproduces the history-query regression."
++    }
++  ],
++  "reviewLimits": "Author self-review is not an independent verdict. Prior external reviewers exclude independent RV-1 through RV-4 contract review. This activation target awaits the next independent review and is not committed or pushed.",
++  "ciUnitQualification": "The full six-project CI unit list is run locally; this is not a hosted CI or coverage-collection claim.",
++  "expectedRedQualification": "14 known missing executable scenario drivers, all intentionally red; no passing-test or feature-completion credit.",
++  "reproductionCommands": [
++    "dotnet build OrcaCore.slnx --no-restore -warnaserror",
++    "dotnet build OrcaCore.slnx --no-restore -c Release -warnaserror",
++    "dotnet test <each CI unit project listed by ciUnitProjects> --no-build --no-restore -c Release --logger trx",
++    "tests/OrcaCore.DeveloperSurface.Guards/run-package-fixtures.ps1 -Disposition Green -CompletedSection 8 -CompletedTask 8.6",
++    "Set ORCACORE_PUBLIC_API_PACKAGE_FEED to the absolute artifacts/phase0-packages path; dotnet test tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj --no-build --no-restore -c Release --filter Disposition=Infrastructure --logger trx",
++    "dotnet test tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj --no-build --no-restore -c Release --filter Disposition=ExpectedRed --logger trx",
++    "openspec validate --all --strict"
++  ],
++  "validationClosure": "After the full infrastructure run, only this evidence record, author self-review, request/catalogue and manifest/content anchors are finalized. ReviewManifests and Task72 are rerun on that final freeze, with their TRX retained outside the target to avoid self-reference. Product, canonical, API and guard source remain the tested bytes."
++}
+diff --git a/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-author-self-review-2026-11-16.md b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-author-self-review-2026-11-16.md
+new file mode 100644
+index 00000000..48fd63e4
+--- /dev/null
++++ b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-author-self-review-2026-11-16.md
+@@ -0,0 +1,35 @@
++# Task 3.2 author self-review
++
++Date: 2026-11-16. This is a fresh adversarial review of each major step by the implementing agent, not an independent verdict or contract approval. The separate implementation and integration/remediation verdicts remain the authority for their exact reviewed trees. The owner directs preparation of this Complete target; it remains uncommitted for the next review.
++
++## Reviewed checkpoint and evidence step
++
++Verified the NUL-porcelain projection against all 89 manifest paths before staging. The merge is `1e960fc4bf67ad6d1a8c053602d4a58964b47d79`, with ordered parents `598c6d4fb61f7883e25f79f03001aa620dda0bf7` and `ba2b057d7898f516845e90323b4288fb0c1744d8`, and tree `ff4711dca44f7a56abd53bf0854c10332831e814`. Its only direct evidence child is `94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1`: precisely the verdict and two catalogue/freeze fixtures. The verdict is 12,688 LF bytes, SHA-256 `e9c5feddb651cbb570d289027b6c43b27eebc08b92dec2cd907a784468366074`. Both commits are pushed. Neither activates Task 3.2.
++
++## F1 test-harness step
++
++Reproduced the Core guard failure before editing. Removed the redundant provider-certification snapshot poll, signalled actual child admission in the process probe, and bounded the test-side lease request by four acquisitions separated by the provider's five-second lease boundary. The five-second TimeProvider delay represents expiry, not a 25 ms snapshot loop. A fourth unsuccessful acquire fails the test. Cleanup releases the granted fence or cancels the queued request with a separate bounded token. No repository guard exemption was introduced.
++
++Reviewed the test-side lease API and five-second lease/fifteen-second turn assumptions. Fresh PostgreSQL and SQL Server fault and four-process restart cases pass. A provider-specific filter selected zero in-memory cases; no credit is claimed for it. All six CI unit projects, including Core and ProviderCertification, pass. This bounded helper is test infrastructure, not a new product retry policy.
++
++## F2 and F3 documentation step
++
++Replaced stale pending-review text in CLAUDE and both doc 17 status blocks with the actual review chains. Moved the facade paragraph after the runtime-view approval sentence so the latter cannot be read as facade contract approval. Corrected the integration smoke filter to the compiled CurrentSurface group. Child binding failures are explicitly host-configuration behavior outside the five seam requirements, the second route offered by the reviewer; there is no fourth closed-result variant or canonical amendment.
++
++## F4 historical-guard and Complete step
++
++The former live candidate helper now reads the exact implementation and merge blobs and verifies both real direct-child verdict commits. It retains its existing source filename to avoid unrelated file/catalogue churn. Historical source scope no longer depends on a diff from da1a4729 to the current worktree. Historical document projections use committed bytes; the maintained Task 7.3 table hashes current documents directly. The old candidate fixture remains immutable history.
++
++The five rows are Complete with exact predecessor/proposed hashes and owner chains. The Complete record binds both reviewed chains and the owner-direction artifact. The ten predecessor operations become SupersededByApprovedSuccessor. Other Section 8 rows, canonical content and public API remain unchanged. The corpus provenance is measured from the compiled guard, not inferred from an earlier gate.
++
++Self-review found that replacing historical document readers could bypass two live shutdown-document checks. Added an explicit current check for all three registered shutdown-sync paths. Reverting a document to its pre-sync bytes now fails that check. Focused validation also found one stale CLAUDE current-status block digest; corrected the digest after reviewing the changed block.
++
++The full infrastructure lane exposed two stale schema-25 assertions and the task ledger's old 132-complete count. Updated them to schema 26 and 133 complete / 26 pending while preserving exact predecessor comparisons. It also exposed a history-query defect: Git log without merge diffs did not see the review packet first introduced by the approved merge. Both addition queries now include merge diffs and deduplicate commits before comparing immutable bytes. The actual merge packet reproduced this failure before the fix; it must pass as committed history without appearing in the new dirty manifest.
++
++Five negative probes were killed: reverting a Complete stage, forging a reviewed checkpoint, rolling back a shutdown document, changing the canonical friend count, and adding an unlisted owner. A positive probe added a temporary product source file and changed an existing source file; the historical scope guard accepted them, proving the obsolete draft freeze is retired. All probe changes were restored. Current canonical, API, boundary, maintained-document and active-target freeze checks still enforce their own scopes.
++
++## Validation and remaining boundary
++
++Reproduction commands, counters, log/TRX hashes, known initial failures and qualifications are recorded in `task-3-2-activation-validation-2026-11-16.json`. Full CI unit list: Core 390, Ephemeral 414, Durable 113, Acceptance 37, Hosting 79, ProviderCertification 116 (1,149 total); Integration 11. These are local runs of the full CI unit list, not a hosted CI or coverage claim. Real-provider activation reruns cover the changed fault/restart helper. Full 123/94 provider results belong to the reviewed merge and are explicitly inherited. No product code or public signature changed in activation.
++
++The new request and self-inclusive dirty manifest define the next review target. Its five Complete rows and task checkboxes describe this prepared worktree only. It is not committed or pushed, and no independent activation verdict is manufactured. Archival and other Section 8 activation are outside this target.
+diff --git a/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md
+new file mode 100644
+index 00000000..0df61e22
+--- /dev/null
++++ b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md
+@@ -0,0 +1,33 @@
++# Task 3.2 Complete provenance
++
++Date: 2026-11-16. The five facade rows are Complete under implementation/canonical approval b9dcdef7 / 598c6d4, integrated-remediation approval 1e960fc4 / 94e9aca5 and the explicit owner activation instruction. The owner-approved RV-4 blocks are unchanged; the reviewers' exclusion of independent contract review is retained. Source and merge evidence remain immutable. The ten predecessor operations now have approved successors rather than a pending owner-authorized candidate. No other Section 8 task is activated.
++
++Rows use the compiled guard's LF-normalized blocks, ordinal ordering and a final LF. Semantic eligibility describes canonical state and does not invent approval.
++
++- record rows: 224
++- record bytes: 59,753
++- record SHA-256: `647fc0551cd0b9aaf4d42a873e148902a37ecc0b9e0252acff33ffba7138a424`
++- synchronized operations: 198
++- pending canonical operations: 0
++- declared new-capability requirements outside the canonical set: 3
++- semantic approval eligible: yes
++
++| State | Count |
++|---|---:|
++| `Synchronized` | 198 |
++| `SupersededByApprovedSuccessor` | 23 |
++| `SupersededByOwnerAuthorizedCandidate` | 0 |
++| `PendingAddition` | 0 |
++| `PendingAddedCanonicalConflict` | 0 |
++| `PendingModification` | 0 |
++| `PendingRemoval` | 0 |
++| `NewCapabilityOutsideCanonical` | 3 |
++
++- canonical capability directories: 14
++- record bytes: 547
++- SHA-256: `7165dac4e1a57022a7890b421f522bf4152f6d5ddc159a41539ce2ef0d18ec9f`
++- capability directories: 40
++- record bytes: 3,265
++- SHA-256: `6dfe7b1ca4792b4fe42d9029f9202e4b3aa2dfc3c8f5a0bd3f68e0beab54db1e`
++
++Whole canonical content remains 14 files / 1,635 record bytes / `a25ded5d8e1277de39c84e4d1ecbab07cb19341e84acd62bc07a58de22ce888a`. All 34 superseded provenance artifacts retain their exact bytes. The draft source/document pinning logic now checks approved commits, while current canonical/API and maintained document guards retain live-tree accountability.
+diff --git a/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md
+new file mode 100644
+index 00000000..18964bb1
+--- /dev/null
++++ b/openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md
+@@ -0,0 +1,9 @@
++# Task 3.2 owner authority
++
++Date: 2026-11-16.
++
++The owner instructed: "Independently review the 89-path merge/remediation target in X:/ocv302. Fix any findings, then checkpoint the reviewed merge and push and continue through Task 3.2."
++
++The independent integration/remediation verdict already present in the worktree approves its exact 89-path tree for merge checkpoint and a direct evidence child. It records one P1 and three P3 activation findings. The exact approved merge and evidence chain are preserved before activation; the fixes are validated in this activation target. The earlier implementation and merge reviewers excluded independent contract approval because they authored RV-1 through RV-4. Neither their verdicts nor the fresh author self-review are represented as an independent contract review.
++
++The owner subsequently confirmed that the next target is the Core.Tests fix, the three P3 findings and Task 3.2 Complete promotion, with the full CI unit list included. The two reviewed-chain commits are pushed. This instruction authorizes preparing and validating that separate activation target; it remains uncommitted for the next review. No activation is added to the reviewed merge or its evidence child. It does not activate the rest of Section 8, grant new public signatures, change the five reviewed canonical blocks, or archive the change. There is no Complete activation in either reviewed checkpoint/evidence chain.
+diff --git a/openspec/changes/admit-dag-public-handle-seam/design.md b/openspec/changes/admit-dag-public-handle-seam/design.md
+index 3324734b..c0fd6f0e 100644
+--- a/openspec/changes/admit-dag-public-handle-seam/design.md
++++ b/openspec/changes/admit-dag-public-handle-seam/design.md
+@@ -1,6 +1,6 @@
+-## Current delivery scope (2026-11-15)
++## Current completion scope (2026-11-16)
+ 
+-The owner has authorized completing this change in one uncommitted target for final review, including contract/document reconciliation, canonical synchronization, source and verification. See `artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md`. Earlier draft and per-stage approval statements below remain historical context; no independent verdict or checkpoint is claimed by this authorization. The RV-4 contract remains the implementation baseline.
++The implementation/canonical sync is independently approved at `b9dcdef7` / `598c6d4`; its reviewed main merge/remediation is checkpointed at `1e960fc4` / `94e9aca5`. The owner authorizes the remaining review fixes and Task 3.2 Complete activation after validation. The reviewers authored RV-1–RV-4 and expressly excluded independent contract approval; owner-approved RV-4 remains the unchanged five-block contract. This activation closes only the facade seam and reshape 8.6, not the DAG run change or the rest of Section 8. Earlier dated draft and process statements below are historical context. See `artifacts/task-3-2-owner-authority-2026-11-16.md`.
+ 
+ ## Context
+ 
+@@ -286,7 +286,7 @@ The full provider suites and real process-restart certification exercise the pro
+ 
+ ## Open Questions
+ 
+-None. The owner accepted D1 and D2 on 2026-11-15. D3 follows from the grant. D4 and the submitted-input `NotSupportedException` outcome were accepted during the RV-3 review; RV-4 passed the pre-gate design review. Final independent implementation review remains pending.
++None. The owner accepted D1 and D2 on 2026-11-15. D3 follows from the grant. D4 and the submitted-input `NotSupportedException` outcome were accepted during the RV-3 review; RV-4 passed the pre-gate design review. Implementation/canonical sync and merge/remediation reviews are approved; Task 3.2 records the owner-authorized closeout.
+ 
+ ## 2026-11-16 implementation review follow-up
+ 
+@@ -297,3 +297,9 @@ F1 now uses an independently reconstructed typed frame, verifies exact equality
+ F3 uses a public InvalidOperationException for a missing or incompatible installed child binding before any start effect; registration remains the plan-install point, without a new result variant. F4 explicitly records existing fail-closed behavior for corrupt stored input across all reads and poison reconciliation, distinct from a valid checkpoint in IntegrityFault. The five RV-4 delta blocks and public signatures are unchanged.
+ 
+ F2 is a separate merge/remediation candidate with second parent `ba2b057d7898f516845e90323b4288fb0c1744d8`. Both sides' source and canonical changes are retained; the nine ephemeral source paths are separately checked against that exact reviewed mainline tip. No broad folder exclusion is permitted. Final promotion depends on review of this merge and the F1 evidence; no activation was part of the checkpoint/evidence chain.
++
++## Task 3.2 finding resolution (2026-11-16)
++
++The Core.Tests wall-clock guard is retained unchanged. Admission is observed through the real child gate; the redundant snapshot poll is removed; test-only lease contention retries are bounded by the provider's five-second lease and fifteen-second maximum turn. A timeout cancels the queued test request. Full CI unit lanes now include Core.Tests and ProviderCertification, with provider process-restart evidence rerun.
++
++The missing/incompatible child-binding InvalidOperationException is explicitly documented as host-configuration behavior outside the five seam requirements, not a fourth closed comparison result. No delta or canonical block changes. The historical guard now checks committed implementation/merge blobs and real direct-child evidence, not live source/doc bytes against the old draft. Current canonical, API and maintained documentation checks remain active; the three shutdown-sync document checks strictly require their reviewed merged after-state.
+diff --git a/openspec/changes/admit-dag-public-handle-seam/proposal.md b/openspec/changes/admit-dag-public-handle-seam/proposal.md
+index 144b3843..596e239d 100644
+--- a/openspec/changes/admit-dag-public-handle-seam/proposal.md
++++ b/openspec/changes/admit-dag-public-handle-seam/proposal.md
+@@ -1,6 +1,6 @@
+-## Current delivery scope (2026-11-15)
++## Current completion scope (2026-11-16)
+ 
+-The owner has authorized completing this change in one uncommitted target for final review, including contract/document reconciliation, canonical synchronization, source and verification. See `artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md`. Earlier draft and per-stage approval statements below remain historical context; no independent verdict or checkpoint is claimed by this authorization. The RV-4 contract remains the implementation baseline.
++The implementation/canonical sync is independently approved at `b9dcdef7` / `598c6d4`; its reviewed main merge/remediation is checkpointed at `1e960fc4` / `94e9aca5`. The owner authorizes the remaining review fixes and Task 3.2 Complete activation after validation. The reviewers authored RV-1–RV-4 and expressly excluded independent contract approval; owner-approved RV-4 remains the unchanged five-block contract. This activation closes only the facade seam and reshape 8.6, not the DAG run change or the rest of Section 8. Earlier dated draft and process statements below are historical context. See `artifacts/task-3-2-owner-authority-2026-11-16.md`.
+ 
+ ## Why
+ 
+@@ -38,7 +38,7 @@ None.
+ 
+ The implementation affects `OrcaCore.Dag` (public facade types, two internal constructors, two new public exceptions, one extended exception, two new union variants), `OrcaCore.Dag.Hosting` (registry, handle wiring, snapshot projection), `OrcaCore.Durable.Hosting` and `OrcaCore.Engine.Durable` (run facts and the four opaque values behind the existing bridge, start-key owner resolution), the `DagRuntimeViewBoundaryGuards` allowlist, the durable-bridge reference fixture, API baselines and package-consumer fixtures.
+ 
+-Task 0.1 admitted the five exact Proposed successors with stage-aware guards and a process provenance checkpoint. The owner's subsequent combined-delivery direction authorizes the source, current-document reconciliation and five-block canonical synchronization in this uncommitted candidate. The registry retains Proposed history and an explicit owner-authorized candidate marker; no external verdict, evidence commit or Complete status is invented.
++Task 0.1 admitted the five exact Proposed successors with stage-aware guards and a process provenance checkpoint. The owner's subsequent combined-delivery direction authorizes the source, current-document reconciliation and five-block canonical synchronization in this uncommitted candidate. That Proposed stage is retained in the reviewed commits. Task 3.2 promotes the five current rows to Complete using both actual review/checkpoint/evidence chains and the owner activation instruction; the draft marker retires.
+ 
+ Provider execution also exposed PostgreSQL checkpoint lineage loss. The provider now persists parent/root instance ids on insert and update; its initial greenfield schema includes those columns. No provider-port or lease-protocol signature changes. The candidate adds in-memory behavior tests, both complete database-provider suites and a separate-process restart fixture. Validation and self-review are recorded in the artifacts directory.
+ 
+@@ -75,3 +75,9 @@ RV-2 (projected tree `5f1a184d4e6c1667729cf67134e199e4a9b038c5`) was returned wi
+ RV-3 (projected tree `f53f2935285a3d22ea58d9bb22c8174328edf8fa`) resolved the RV-2 blocker. The review accepted D4 and `NotSupportedException`, and held Task 0.1 for a correction to the friends delta. RV-3's request and manifest stay byte-exact; its seven changed files are preserved under `artifacts/superseded-rv-3-draft-2026-11-15/`. This revision: uses the reopen flag for reopen only and routes a start with different contract keys through `DagStartResult.RunInputConflict`; names the two key comparisons (value key versus own graph is integrity, graph key versus installed plan is binding mismatch) and preserves storage, integrity and cancellation exceptions; narrows the prototype evidence claim to the suites that passed and the paths the shared normalizer covers; and makes committed cancellation on an incompatible host explicit. Only the friends delta and the evidence record changed besides these notes.
+ 
+ No signature changed, so the RV-2 proof remains the current proof. The current two-assembly proof (`artifacts/task-1-1-public-handle-seam-rv-2-proof-*.cs`) compiles with warnings as errors against the real `OrcaCore` and `OrcaCore.Dag`. It proves signature sufficiency only; its bridge is a stand-in.
++
++## Task 3.2 finding resolution (2026-11-16)
++
++The Core.Tests wall-clock guard is retained unchanged. Admission is observed through the real child gate; the redundant snapshot poll is removed; test-only lease contention retries are bounded by the provider's five-second lease and fifteen-second maximum turn. A timeout cancels the queued test request. Full CI unit lanes now include Core.Tests and ProviderCertification, with provider process-restart evidence rerun.
++
++The missing/incompatible child-binding InvalidOperationException is explicitly documented as host-configuration behavior outside the five seam requirements, not a fourth closed comparison result. No delta or canonical block changes. The historical guard now checks committed implementation/merge blobs and real direct-child evidence, not live source/doc bytes against the old draft. Current canonical, API and maintained documentation checks remain active; the three shutdown-sync document checks strictly require their reviewed merged after-state.
+diff --git a/openspec/changes/admit-dag-public-handle-seam/tasks.md b/openspec/changes/admit-dag-public-handle-seam/tasks.md
+index 215fcd51..644ca04f 100644
+--- a/openspec/changes/admit-dag-public-handle-seam/tasks.md
++++ b/openspec/changes/admit-dag-public-handle-seam/tasks.md
+@@ -26,11 +26,11 @@ Continue through implementation and verification in one uncommitted target, then
+ - [x] 2.4 Extend `DagRuntimeViewBoundaryGuards` by exactly two member strings, keep the type list at three, keep the forbidden-reference probes red, and refresh the durable-bridge reference fixture, API baselines and package-consumer fixtures that legitimately change.
+ - [x] 2.5 Replace reflection into `DagCoordinator.CreateOrReopenAsync` in the hosting tests with the public facade. Add behavior tests for: registration idempotence, fingerprint conflict, and `RunInputConflict`; start replay on retry and after a competing create, start conflict, and start under another run-input contract returning `RunInputConflict` with the owner's run id; reopen absent, mismatched and under another run-input contract; two run-input types with one full name and an equal key where the newer rejects the older's stored bytes (reopen throws, the host skips new mapping and admission, an admitted child is still joined, a compatible host finishes the run, no mapping failure); a submitted run input that does not round-trip, on first start and on replay; a start key reused with an equal contract key and different validated bytes returning `StartIdempotencyConflict`; a stored value whose recorded key disagrees with its own graph keeping its integrity classification on reopen, in recovery and for an owner examined during replay; cancellation accepted on a compatible host whose child-cancellation work is consumed by an incompatible host's pump; two different CLR types with an equal key registered on one host; recovery skipping a foreign-contract run; authored-order snapshots; node failure code, location and occurrence for each code; output available and unavailable; foreign-plan node rejection; terminal wait; cancellation outcomes; restart with re-registration; and the faulted run in every row of design §5, before and after cancellation and across restart, including a waiter held by an explicit barrier, not timing, until both the fault and its reconciliation have committed. Run the binding, round-trip and fault cases on PostgreSQL and SQL Server through provider certification, and prove status derivation and stored-input verification across a real process restart; the prototype covered neither.
+ - [x] 2.6 Run clean Debug/Release builds, hosting, durable, provider and guard lanes and strict OpenSpec; report intentional ExpectedRed separately. Record exact results in the final validation artifact.
+-- [x] 2.7 Record the independent implementation APPROVE at checkpoint `b9dcdef7e611da45d7dc4f75946ee192fc83c37e`, tree `8ef5842bb8c7952f30f0f4184e97baf45ba986c0`, and direct-child evidence `598c6d4fb61f7883e25f79f03001aa620dda0bf7`. Findings F1/F2 block Complete until remediation and merge review; F3–F5 are handled in the follow-up candidate.
++- [x] 2.7 Record the independent implementation APPROVE at checkpoint `b9dcdef7e611da45d7dc4f75946ee192fc83c37e`, tree `8ef5842bb8c7952f30f0f4184e97baf45ba986c0`, and direct-child evidence `598c6d4fb61f7883e25f79f03001aa620dda0bf7`. Its F1/F2 findings were resolved by the approved merge/remediation checkpoint `1e960fc4` and evidence child `94e9aca5`; its F3–F5 were handled in that checkpoint. The merge verdict's separate activation findings are resolved in Task 3.2.
+ 
+ ## 3. Closeout
+ 
+ - [x] 3.1 Prepare the final uncommitted review target: validation record, major-step self-review log, review request, immutable packet catalogue, exact dirty manifest and copied-index tree. Preserve the earlier packets and leave the real index unstaged.
+-- [ ] 3.2 After actual independent approval and checkpoint/evidence commits, promote the five registry rows and activate reshape 8.6 using its own compiled evidence. This post-review activation is intentionally pending. Archival is separate.
++- [x] 3.2 Promote the five registry rows to Complete and activate reshape 8.6 using implementation approval `b9dcdef7` / `598c6d4`, integrated remediation approval `1e960fc4` / `94e9aca5`, the verified activation findings and the explicit owner instruction in `artifacts/task-3-2-owner-authority-2026-11-16.md`. Retire live draft pins in favor of committed history, retain strict current canonical/API/document guards, and record the full CI unit and provider evidence in `artifacts/task-3-2-activation-validation-2026-11-16.json`. Archival is separate.
+ 
+-**Current state:** executable implementation is prepared under owner direction. The RV-4 design and five delta blocks remain the contract baseline; earlier rejected/superseded packets are permanent history. The implementation verdict and its checkpoint/evidence commits now exist. The follow-up merge/remediation target and Complete activation still require review.
++**Current state:** executable implementation is prepared under owner direction. The RV-4 design and five delta blocks remain the contract baseline; earlier rejected/superseded packets are permanent history. The implementation verdict and its checkpoint/evidence commits now exist. The independent merge/remediation verdict is checkpointed in the second real evidence chain. Task 3.2 records the owner-authorized Complete activation with finding verification; no other Section 8 task is activated. The Task 3.2 rows and checkbox are an uncommitted activation candidate for the next independent review, not a landed activation.
+diff --git a/openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md b/openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+index 42f1fd22..9659204b 100644
+--- a/openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
++++ b/openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md
+@@ -13,26 +13,26 @@ requires the numbered rows, paths, and hashes exactly as recorded here.
+ 
+ | # | Active source | Normalized SHA-256 |
+ |---:|---|---|
+-| 1 | `CLAUDE.md` | `3a49fe6b981d14759a816ff9b7118b94bcc49568bac66541971a63ae03be0314` |
++| 1 | `CLAUDE.md` | `2ed3489d3479d03003d39096c0da8b864d73a7fd913f6385448c8a57097bf0c4` |
+ | 2 | `docs/eks-scheduler-handoff.md` | `48cf025958482433e34b4e52185484ed587936ba56ef4822bc96e1b08b3f9ef2` |
+ | 3 | `docs/end-to-end-plan.md` | `ef67c5f0ad8f1600167efb5928e64c30879c98837cad8e8a86276a0c6c377292` |
+-| 4 | `docs/ephemeral-engine-developer-guide.md` | `4c84ed2e771b5b71d06004b28d79396e1b137eac458373fbfd6cd34137770fc0` |
++| 4 | `docs/ephemeral-engine-developer-guide.md` | `091ac6a1fe608e65433c3f7355d4b327f0a2ed049b9ef7b09781da1fa8c78786` |
+ | 5 | `docs/ephemeral-engine-diagrams.md` | `3f4e32e272c0acb5c073bbc44be5af5315c50ec887721d433d0817d4f5add62d` |
+-| 6 | `docs/implementation/00-stack-decisions.md` | `aa9f9416257e3d8bd980e0a92d5d0db76cad15518892458236af66df113cc0d8` |
+-| 7 | `docs/implementation/01-solution-architecture.md` | `bf3cfb6fd1cafa8fa98daf4b4ba3a22ccda6c7affbfa53cd340e5c329208df0e` |
++| 6 | `docs/implementation/00-stack-decisions.md` | `1b39a38f880bc6f37d1ce8fd3fbf46361f9f4d1cdde1ff3f78e5c648bedc4471` |
++| 7 | `docs/implementation/01-solution-architecture.md` | `79307afab283a4e0afd4a750800f9c83f6eeadf6e62fbb5c5b04916f9428131e` |
+ | 8 | `docs/implementation/02-engineering-conventions.md` | `44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d` |
+ | 9 | `docs/implementation/developer-facing-interface-refactor-phased-plan-2026-07-14.md` | `d7ffed1592a748662805d039ac99f32e8f070eab7fc7d957cc83ee96342f572a` |
+-| 10 | `docs/normative-source-map.md` | `4bbecd28e5ede36215e5a7c68b903fe617c60ee1830a696788c3ff0c07b1afdf` |
++| 10 | `docs/normative-source-map.md` | `7cb1cf7d4678bc897198627ab261e2e50c6040b83a310cf87ce7758e07e2ac40` |
+ | 11 | `docs/production-readiness.md` | `8d3ffb9b52ef4b6bfc282023abd27c753bcf530ddfd36bf53df1d25e74910929` |
+ | 12 | `docs/project-technical-overview.md` | `c2c837223cd25bdaffec8fcab999b6ba0c38c2171ee7673fe1f79c014103a5c4` |
+ | 13 | `docs/specs/01-concept-and-goals.md` | `36826933178462e6d83eb817cec2b51ec77cd93609a5726ad883b888c0960fb4` |
+-| 14 | `docs/specs/03-domain-model-and-glossary.md` | `f541785b062b14fd8b5231124cc50952da87c111fd9c0883093484ff8154a175` |
++| 14 | `docs/specs/03-domain-model-and-glossary.md` | `5750f167b24f5d3b66368583690c011372c706d9f3ad26dbafb3520571ef09bc` |
+ | 15 | `docs/specs/05-requirements-events-waits-timers.md` | `c546e72793148ce5e34f0868b36170316e0ca9d34b830ad8bb2b73267df427f2` |
+ | 16 | `docs/specs/06-requirements-durable-execution.md` | `c726bcc03d1e5ae8f7afc34b4a54ed50ef63da54f9c50f486779292197f00a08` |
+-| 17 | `docs/specs/09-requirements-management-operations.md` | `c24a44983974023b20d6e59cee0162bf1caf48140ebe307942f006dc7eb5a738` |
+-| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `2e832b0068a3c31fd0e41db64db4624272dd2f90b224cc98078040e42f44acca` |
+-| 19 | `docs/specs/12-acceptance-criteria.md` | `6fbd9b7716acfbd2fb4d9676e640d03eecd09d2e0380f3ddcb97c141304fc31b` |
+-| 20 | `docs/specs/13-phasing-and-open-questions.md` | `9c5e51821dab5ed9b257d64c25d9639dcba23a15390746478d3cc4263495ae8f` |
++| 17 | `docs/specs/09-requirements-management-operations.md` | `faa6626fb9dddd964ae412a63adf5005766f597674dc757167c4b9f3432ce274` |
++| 18 | `docs/specs/10-provider-model-and-extensibility.md` | `3fb89caac6345f6acc9c9f48be738b13aa29b9923fa8ae7bc63618026ef89dde` |
++| 19 | `docs/specs/12-acceptance-criteria.md` | `46e576a1102919383c2647323275e4534da45334c9408011add9d8674cb834aa` |
++| 20 | `docs/specs/13-phasing-and-open-questions.md` | `6d018a7e3b6806956bbc4199568dc7474064a779334b583385df873ff3b48a08` |
+ | 21 | `docs/specs/14-driving-scenario-eks-job-scheduler.md` | `a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800` |
+ | 22 | `docs/specs/16-requirements-durable-driver.md` | `2f7e9845b13d25c5e9cb11898d669c911368a08d4c87c9f2843a4ff56e258ffe` |
+ 
+@@ -200,3 +200,7 @@ All other source rows and historical review records remain unchanged.
+ Rows 1, 6, 7, 9, 12, 15, 16, 22 refresh only the current DAG source/evidence status in the
+ edited numbered and guide documents. The previously reviewed requirements,
+ API baselines, canonical sync, and expected-red dispositions are unchanged.
++
++## DAG Task 8.6 Complete activation (2026-11-16)
++
++The maintained rows now pin actual current documents directly. The facade candidate's historical live-byte projection is retired in favor of immutable checkpoint blobs. The two real implementation/merge review chains and owner activation direction replace pending-review status; no other Section 8 completion is claimed.
+diff --git a/openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md b/openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+index ad4dbda6..297bcb11 100644
+--- a/openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
++++ b/openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md
+@@ -51,7 +51,7 @@ The quoted OpenSpec headings below are exact canonical requirement identities.
+ | 8.3 | `durable-runtime`: “Durable DAG progression is runtime owned”; `quality-and-verification`: “Typed DAG execution is acceptance tested” | doc 17 §§17.2.6, 17.3; AC-607 and AC-608. Build rejects inspectable structure; opaque non-direct `OutputOf` fails at mapping time as `DAG_INPUT_MAPPING_INVALID` before input commit or child start. Under the approved-pending runtime-view contract, 8.3 owns typed mapping validation only; the durable bridge decodes outputs first and 8.4/8.5 own fixed-codec round-trip, fingerprint and commit. |
+ | 8.4 | `workflow-contracts`: “Durable values use one fixed detached codec”; `repository-foundation`: “Dependency direction remains one-way”, “Executable compiler IR remains implementation only”; `developer-facing-surface`: “Implementation package boundaries use exact internal friends”; `durable-runtime`: “Durable DAG progression is runtime owned” | doc 17 §17.2.6 internal child-start/join; AC-612 and AC-614. The sole DAG-to-durable runtime bridge is `OrcaCore.Durable.Hosting -> OrcaCore.Dag.Hosting`; no public child API. The independently approved `OrcaCore -> OrcaCore.Dag` authoring friend grants no child-start access; it is compiled in independently approved checkpoint `a9f835f939d683500ca231c7ba491ab8eae2aaae`, and its Task 3.2 closeout is checkpointed at `b5fb28e65dbf3fea102ddec1d5fe1cf9d794c659`. The separate `OrcaCore.Dag -> OrcaCore.Dag.Hosting` internal runtime view has independent contract approval at `43d869fc29e7daa3ec567d4602960f458eb98492` and is canonical at independently approved checkpoint `a0da21ba9597e3864a3d4134120fbb0138417bd7`; compiled and independently source-approved at checkpoint `4eb2e8d3a68e0ae7d873bd4f54c53735beefb132`, with direct-child evidence `2fdfa59a747a5d1d1667abd63a8def88168a172b`; it adds no codec or child-start access to the authoring friend. The proposed 8.4 bridge contract owns declared-type dependency-output decoding before evaluation and fixed-codec normalization/detachment, committed-byte fingerprinting and child-start input handoff.  Proposed full run contract: typed dag-run-v1/provider state, fenced lifecycle, every-host child pump and DAG-only ready sink from admit-durable-dag-run-progression task 1.1; contract and atomic canonical approval remain pending. |
+ | 8.5 | `workflow-contracts`: “Durable values use one fixed detached codec”; `durable-runtime`: “Durable DAG progression is runtime owned”; `durable-persistence-and-outbox`: “Workflow store persists first-class durable records”, “Outbox delivery is adapter-driven and at-least-once”; `quality-and-verification`: “Typed DAG execution is acceptance tested” | doc 17 §17.2.6 runtime-owned restart/reattachment; DU-031/033, DR-037/041, DR-AC-008 and AC-608, AC-610, AC-613, AC-614. DU-031 names internal DAG child-start commands in the commit-bound outbox; DR-037 gives the internal dispatcher the disjoint claim. Child-start/join work uses the one logical provider outbox, with claims partitioned from public workflow events; only the internal runtime pump may claim it, and the application dispatcher never receives it. No DAG-private transport. Under the proposed re-sequencing, this runtime slice implements bridge-owned output decoding, valid-input codec round-trip, committed-byte fingerprinting and once-only input commit before child start.  Proposed full run contract: typed dag-run-v1/provider state, fenced lifecycle, every-host child pump and DAG-only ready sink from admit-durable-dag-run-progression task 1.1; contract and atomic canonical approval remain pending. |
+-| 8.6 | `durable-runtime`: “Durable DAG progression is runtime owned”; `management-and-querying`: “DAG terminal waiting is notification-driven”; `developer-facing-surface`: “Completion waits are notification-driven and race-free”, “Closed registration and start results retain a cast-free success path”; `quality-and-verification`: “Typed DAG execution is acceptance tested” | doc 17 §17.2.6 statuses, authored-order snapshots, typed handles and cancellation; AC-611, AC-616–618. The owner-authorized public-handle seam candidate also owns the exact friends/dependency headings in `developer-facing-surface` and `repository-foundation`: three non-public DAG types, seventeen members, four-part input binding, two closed three-variant results, lossless run-input submission/reopen, level-triggered faults, and provider/process-restart evidence. Final independent implementation review is pending. |
++| 8.6 | `durable-runtime`: “Durable DAG progression is runtime owned”; `management-and-querying`: “DAG terminal waiting is notification-driven”; `developer-facing-surface`: “Completion waits are notification-driven and race-free”, “Closed registration and start results retain a cast-free success path”; `quality-and-verification`: “Typed DAG execution is acceptance tested” | doc 17 §17.2.6 statuses, authored-order snapshots, typed handles and cancellation; AC-611, AC-616–618. The independently implementation-reviewed public-handle seam also owns the exact friends/dependency headings in `developer-facing-surface` and `repository-foundation`: three non-public DAG types, seventeen members, four-part input binding, two closed three-variant results, lossless run-input submission/reopen, level-triggered faults, and provider/process-restart evidence. Implementation/canonical sync and merge remediation are approved at `b9dcdef7` / `598c6d4` and `1e960fc4` / `94e9aca5`; Task 3.2 activates only this facade slice after finding verification. |
+ | 8.7 | `runtime-resource-governance`: “Execution-path concurrency is host-owned”; `workflow-contracts`: “Host-facing execution hints remain optional and declarative”; `durable-runtime`: “Durable DAG progression is runtime owned”; `quality-and-verification`: “Typed DAG execution is acceptance tested” | doc 17 §§17.2.6 and concurrency-lifetime table; AC-609 and AC-528's DAG clause. `MaxConcurrentNodes` counts every admitted nonterminal child, including one parked on a wait, until terminal. |
+ | 8.8 | `repository-foundation`: “Infrastructure integrations are separate projects”, “Optional integrations are isolated”; `developer-facing-surface`: “Infrastructure integrations depend outward from OrcaCore”; `quality-and-verification`: “Infrastructure separation is architecture verified” | doc 17 package/companion boundary; document 14 JS-AC-016 and JS-001 project boundary. No Kubernetes/AWS SDK in an OrcaCore package. |
+ | 8.9 | `repository-foundation`: “Optional integrations are isolated”; `quality-and-verification`: “Typed DAG execution is acceptance tested”, “Infrastructure separation is architecture verified” | doc 17 DAG/companion journey; document 14 JS-004–JS-010 and JS-AC-006–JS-AC-015, JS-AC-018; AC-321 create-or-observe identity and AC-609/613 as applicable. Ordinary typed submit step, event wait, lease-held terminal verification, no generic external-job node. |
+diff --git a/openspec/changes/reshape-developer-facing-interfaces/tasks.md b/openspec/changes/reshape-developer-facing-interfaces/tasks.md
+index e244d4c9..e81b5a5a 100644
+--- a/openspec/changes/reshape-developer-facing-interfaces/tasks.md
++++ b/openspec/changes/reshape-developer-facing-interfaces/tasks.md
+@@ -201,7 +201,7 @@ checkpoint tasks in `harmonize-downstream-capability-specs` are a separate concu
+ 
+ **Proposed runtime-view codec re-sequencing (2026-10-02):** `admit-dag-hosting-runtime-view` task 1.1 proposes ledger-only ownership changes to the still-open 8.3–8.5 tasks. Mapping validation remains 8.3; the durable bridge defines dependency-output decoding and fixed-codec normalization/fingerprint/commit at 8.4 and implements them at 8.5. The current eight friends and canonical durable-runtime/workflow-contracts requirements are unchanged. This note is not contract approval, a friend attribute, completion credit or source authority. An incompatible bridge design requires a separate approved canonical delta before source.
+ 
+-- [ ] 8.6 Implement exact DAG run/node statuses, authored-order snapshots, child failure-code mapping, fixed dependency blocking/independent progression, cast-free registration/start helpers, notification-driven race-free `WaitForTerminalAsync`, and idempotent cancellation that stops admission and waits for running children before terminal `Cancelled`.
++- [x] 8.6 Implement exact DAG run/node statuses, authored-order snapshots, child failure-code mapping, fixed dependency blocking/independent progression, cast-free registration/start helpers, notification-driven race-free `WaitForTerminalAsync`, and idempotent cancellation that stops admission and waits for running children before terminal `Cancelled`.
+ - [ ] 8.7 Implement host `MaxConcurrentNodes` as the count of admitted nonterminal child instances, including parked children until terminal, separately from child workflow path limits, optional `ForEach` caps, transient pools, and durable resource pools.
+ - [ ] 8.8 Establish or relocate Kubernetes/AWS/job-scheduler code into one or more outward-dependent companion projects in the same solution; ensure no OrcaCore or DAG project/package references their SDKs or DTOs.
+ - [ ] 8.9 Add a companion Kubernetes Job journey using a typed durable submit step, bounded create-or-observe keyed by `StepOperationId`, ordinary `Wait`, normalized event redelivery identity, scoped lease protection, trusted stop reconciliation, and no public generic external-job node.
+diff --git a/tests/OrcaCore.Dag.ProcessProbe/Program.cs b/tests/OrcaCore.Dag.ProcessProbe/Program.cs
+index 2dd7f0b8..dc78dabc 100644
+--- a/tests/OrcaCore.Dag.ProcessProbe/Program.cs
++++ b/tests/OrcaCore.Dag.ProcessProbe/Program.cs
+@@ -49,7 +49,7 @@ internal static class Program
+         {
+             await host.StartAsync(token);
+             var run = (await definition.StartOrGetAsync(new() { Value = 17 }, StartIdempotencyKey.Create("restart"), token)).GetHandleOrThrow();
+-            while ((await run.GetSnapshotAsync(token)).Nodes[0].Status != DagNodeStatus.Running) await Task.Delay(25, token);
++            await host.Services.GetRequiredService<Gate>().Entered.Task.WaitAsync(token);
+             await DagFacadeWire.FacadeTransitionAsync(events, run.RunId.Value, true, token);
+             (await run.GetSnapshotAsync(token)).Status.Should().Be(DagRunStatus.Running);
+             await File.WriteAllTextAsync(statePath, JsonSerializer.Serialize(new RestartState(run.RunId.ToString(), Environment.ProcessId)), token);
+@@ -97,7 +97,8 @@ internal static class Program
+     }
+     private sealed class Gate : IStep<int>
+     {
++        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+         public async ValueTask<StepResult> ExecuteAsync(StepContext<int> context, CancellationToken token)
+-        { await Task.Delay(Timeout.Infinite, token); return new StepResult.Completed(); }
++        { Entered.TrySetResult(); await Task.Delay(Timeout.Infinite, token); return new StepResult.Completed(); }
+     }
+ }
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs b/tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
+index eac3e1cf..36fcc726 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs
+@@ -6,153 +6,112 @@ using AwesomeAssertions;
+ 
+ namespace OrcaCore.DeveloperSurface.Guards;
+ 
+-// A bounded owner-authorized candidate, not inherited independent approval. Historical
+-// guards see their original bytes only after verifying the exact current source record.
+-internal static class DagFacadeReviewCandidate
++// Immutable approval history, not a pin on the current product or documentation.
++// Current behavior/API/canonical guards remain responsible for the live tree.
++internal static class DagFacadeApprovedHistory
+ {
+     internal const string Parent = "da1a4729ea2cdb9474eb219eb507760574f83dcb";
++    internal const string Implementation = "b9dcdef7e611da45d7dc4f75946ee192fc83c37e";
++    internal const string ImplementationEvidence = "598c6d4fb61f7883e25f79f03001aa620dda0bf7";
++    internal const string IntegrationTip = "ba2b057d7898f516845e90323b4288fb0c1744d8";
++    internal const string Merge = "1e960fc4bf67ad6d1a8c053602d4a58964b47d79";
++    internal const string MergeEvidence = "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1";
+     private const string RecordPath = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-review-candidate.json";
+     private const string RecordSha256 = "003dfd97665358213a6d6dd517f9cd271f62eea617f95642c80fec3ebc961bb6";
+-
+     private sealed record FileRow(string Path, string? BeforeSha256, string AfterSha256);
+     private sealed record Candidate(string Stage, string Parent, string OwnerDirectionPath, string OwnerDirectionSha256,
+         FileRow[] Sources, FileRow[] Documents, FileRow[] PublicApi);
+ 
+     private static Candidate Read(string root)
+     {
+-        var bytes = File.ReadAllBytes(Path.Combine(root, RecordPath));
++        var bytes = Blob(root, Merge, RecordPath);
+         Hash(bytes).Should().Be(RecordSha256);
++        File.ReadAllBytes(Path.Combine(root, RecordPath)).Should().Equal(bytes, "the retired draft record remains immutable history");
+         var record = JsonSerializer.Deserialize<Candidate>(bytes, new JsonSerializerOptions { PropertyNameCaseInsensitive = true })!;
+         record.Stage.Should().Be("OwnerAuthorizedReviewCandidate");
+         record.Parent.Should().Be(Parent);
+-        Hash(File.ReadAllBytes(Path.Combine(root, record.OwnerDirectionPath))).Should().Be(record.OwnerDirectionSha256);
++        Hash(Blob(root, Merge, record.OwnerDirectionPath)).Should().Be(record.OwnerDirectionSha256);
+         return record;
+     }
+ 
+-    internal const string IntegrationTip = "ba2b057d7898f516845e90323b4288fb0c1744d8";
+-
+-    internal static string IntegrationAncestry(string root)
++    internal static void ValidateReviewedChains(string root)
+     {
+-        var mergePath = Git(root, "rev-parse", "--path-format=absolute", "--git-path", "MERGE_HEAD").Trim();
+-        if (File.Exists(mergePath))
++        Git(root, "rev-list", "--parents", "-n", "1", Implementation).Trim().Should().Be(Implementation + " " + Parent);
++        Git(root, "rev-parse", Implementation + "^{tree}").Trim().Should().Be("8ef5842bb8c7952f30f0f4184e97baf45ba986c0");
++        Git(root, "rev-list", "--parents", "-n", "1", Merge).Trim().Should().Be(Merge + " " + ImplementationEvidence + " " + IntegrationTip);
++        Git(root, "rev-parse", Merge + "^{tree}").Trim().Should().Be("ff4711dca44f7a56abd53bf0854c10332831e814");
++        Evidence(Implementation, ImplementationEvidence, "implementation", "c64747716a1ddb35757919525cefb5aee509cde948c41d63c1f7fea899884600");
++        Evidence(Merge, MergeEvidence, "integration-remediation", "e9c5feddb651cbb570d289027b6c43b27eebc08b92dec2cd907a784468366074");
++        _ = Git(root, "merge-base", "--is-ancestor", MergeEvidence, "HEAD");
++        void Evidence(string checkpoint, string evidence, string kind, string sha)
+         {
+-            File.ReadAllText(mergePath).Trim().Should().Be(IntegrationTip,
+-                "only the named mainline parent may supply pending-merge ancestry");
+-            return IntegrationTip;
++            var verdict = "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-" + kind + "-independent-review-verdict-2026-11-16.md";
++            Git(root, "rev-list", "--parents", "-n", "1", evidence).Trim().Should().Be(evidence + " " + checkpoint);
++            Git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", evidence).Split('\n', StringSplitOptions.RemoveEmptyEntries)
++                .Should().Equal(verdict, "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json",
++                    "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json");
++            var bytes = Blob(root, evidence, verdict);
++            Hash(bytes).Should().Be(sha);
++            File.ReadAllBytes(Path.Combine(root, verdict)).Should().Equal(bytes);
+         }
+-        _ = Git(root, "merge-base", "--is-ancestor", IntegrationTip, "HEAD");
+-        return "HEAD";
+-    }
+-
+-    private static void VerifyImplementationReview(string root)
+-    {
+-        const string checkpoint = "b9dcdef7e611da45d7dc4f75946ee192fc83c37e";
+-        const string evidence = "598c6d4fb61f7883e25f79f03001aa620dda0bf7";
+-        const string verdict = "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-verdict-2026-11-16.md";
+-        Hash(File.ReadAllBytes(Path.Combine(root,
+-            "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-review-record-2026-11-16.json")))
+-            .Should().Be("8c70ceb10212907da0f08fe106b0075d5acfc1e477fdc38fd1de1635d23ff2c5");
+-        Git(root, "rev-parse", checkpoint + "^{tree}").Trim().Should().Be("8ef5842bb8c7952f30f0f4184e97baf45ba986c0");
+-        Git(root, "rev-list", "--parents", "-n", "1", checkpoint).Trim().Should().Be(checkpoint + " " + Parent);
+-        Git(root, "rev-list", "--parents", "-n", "1", evidence).Trim().Should().Be(evidence + " " + checkpoint);
+-        _ = Git(root, "merge-base", "--is-ancestor", evidence, "HEAD");
+-        Git(root, "diff-tree", "--no-commit-id", "--name-only", "-r", evidence)
+-            .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(verdict,
+-                "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json",
+-                "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json");
+-        Hash(File.ReadAllBytes(Path.Combine(root, verdict))).Should().Be("c64747716a1ddb35757919525cefb5aee509cde948c41d63c1f7fea899884600");
+-        Normalize(File.ReadAllText(Path.Combine(root, verdict))).Should().Be(Git(root, "show", evidence + ":" + verdict));
+     }
+ 
+     internal static string[] IntegratedSourcePaths(string root)
+     {
+-        _ = IntegrationAncestry(root);
+-        var paths = Git(root, "diff", "--name-only", Parent, IntegrationTip, "--", "src")
+-            .Split('\n', StringSplitOptions.RemoveEmptyEntries);
++        var paths = Git(root, "diff", "--name-only", Parent, IntegrationTip, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries);
+         paths.Should().HaveCount(9);
+         paths.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Engine.Ephemeral/", StringComparison.Ordinal));
+-        foreach (var path in paths)
+-            Normalize(File.ReadAllText(Path.Combine(root, path))).Should().Be(Git(root, "show", IntegrationTip + ":" + path),
+-                "only the exact integrated PR #23/#25 source is excluded from the DAG candidate");
++        foreach (var path in paths) Blob(root, Merge, path).Should().Equal(Blob(root, IntegrationTip, path));
+         return paths;
+     }
+ 
+-    internal static string IntegratedDocumentBeforeFacade(string root, string path, string current)
+-    {
+-        var row = Read(root).Documents.Single(item => item.Path == path);
+-        VerifyCurrent(root, row);
+-        current.Should().Be(Normalize(File.ReadAllText(Path.Combine(root, path))));
+-        return Git(root, "show", IntegrationTip + ":" + path);
+-    }
+-
+     internal static string[] SourcePaths(string root)
+     {
+-        VerifyImplementationReview(root);
++        ValidateReviewedChains(root);
+         var rows = Read(root).Sources;
+-        var actual = Git(root, "diff", "--name-only", Parent, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries)
+-            .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+-            .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+-        rows.Select(row => row.Path).Should().Equal(actual.Except(IntegratedSourcePaths(root), StringComparer.Ordinal), "the owner-authorized facade candidate has an exact source scope");
+-        foreach (var row in rows) VerifyCurrent(root, row);
+-        return actual;
++        var approved = Git(root, "diff", "--name-only", Parent, Merge, "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries);
++        rows.Select(row => row.Path).Should().Equal(approved.Except(IntegratedSourcePaths(root), StringComparer.Ordinal));
++        foreach (var row in rows) VerifyApproved(root, row);
++        return approved;
+     }
+ 
+     internal static string[] PublicApiPaths(string root)
+     {
+         var rows = Read(root).PublicApi;
+-        rows.Select(row => row.Path).Should().Equal(
+-            "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt");
+-        foreach (var row in rows) { VerifyCurrent(root, row); _ = PriorBytes(root, row); }
++        rows.Select(row => row.Path).Should().Equal("tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt");
++        foreach (var row in rows) { VerifyApproved(root, row); _ = PriorBytes(root, row); }
+         return rows.Select(row => row.Path).ToArray();
+     }
+ 
+     internal static byte[] PriorSourceBytes(string root, string path)
+     {
+         var row = Read(root).Sources.SingleOrDefault(item => item.Path == path);
+-        if (row is null) return File.ReadAllBytes(Path.Combine(root, path));
+-        VerifyCurrent(root, row);
+-        row.BeforeSha256.Should().NotBeNull("only existing source can be projected into a historical source record");
++        if (row is null) return Blob(root, Parent, path);
++        VerifyApproved(root, row);
+         return PriorBytes(root, row);
+     }
+ 
+     internal static string PriorDocument(string root, string path)
+     {
+         var row = Read(root).Documents.SingleOrDefault(item => item.Path == path);
+-        if (row is null) return Normalize(File.ReadAllText(Path.Combine(root, path)));
+-        VerifyCurrent(root, row);
++        if (row is null) return TextAt(root, Merge, path);
++        VerifyApproved(root, row);
+         return Normalize(Encoding.UTF8.GetString(PriorBytes(root, row)));
+     }
+ 
+-    internal static string CurrentDocumentationHash(string root, string path, string historicalHash)
++    internal static string TextAt(string root, string commit, string path) => Normalize(Encoding.UTF8.GetString(Blob(root, commit, path)));
++    private static void VerifyApproved(string root, FileRow row) => Hash(Blob(root, Merge, row.Path)).Should().Be(row.AfterSha256);
++    private static byte[] PriorBytes(string root, FileRow row)
+     {
+-        var row = Read(root).Documents.SingleOrDefault(item => item.Path == path);
+-        if (row is null) return historicalHash;
+-        VerifyCurrent(root, row);
+-        var priorHash = Hash(Encoding.UTF8.GetBytes(Normalize(Encoding.UTF8.GetString(PriorBytes(root, row)))));
+-        if (priorHash != historicalHash)
+-        {
+-            _ = IntegrationAncestry(root);
+-            Hash(Encoding.UTF8.GetBytes(Git(root, "show", IntegrationTip + ":" + path))).Should().Be(historicalHash,
+-                "a mainline documentation successor must match the exact integrated parent");
+-        }
+-        return Hash(Encoding.UTF8.GetBytes(Normalize(File.ReadAllText(Path.Combine(root, path)))));
++        var bytes = Blob(root, Parent, row.Path); Hash(bytes).Should().Be(row.BeforeSha256); return bytes;
+     }
+-
+-    private static void VerifyCurrent(string root, FileRow row) =>
+-        Hash(File.ReadAllBytes(Path.Combine(root, row.Path))).Should().Be(row.AfterSha256, "the facade candidate pins {0}", row.Path);
+-
+-    private static byte[] PriorBytes(string root, FileRow row)
++    private static byte[] Blob(string root, string commit, string path)
+     {
+-        var start = Start(root, "show", Parent + ":" + row.Path);
+-        using var process = Process.Start(start)!;
+-        using var bytes = new MemoryStream();
+-        process.StandardOutput.BaseStream.CopyTo(bytes);
++        using var process = Process.Start(Start(root, "show", commit + ":" + path))!;
++        using var bytes = new MemoryStream(); process.StandardOutput.BaseStream.CopyTo(bytes);
+         var error = process.StandardError.ReadToEnd(); process.WaitForExit();
+-        process.ExitCode.Should().Be(0, error);
+-        var result = bytes.ToArray(); Hash(result).Should().Be(row.BeforeSha256);
+-        return result;
++        process.ExitCode.Should().Be(0, error); return bytes.ToArray();
+     }
+-
+     private static string Git(string root, params string[] args)
+     {
+         using var process = Process.Start(Start(root, args))!;
+@@ -162,7 +121,8 @@ internal static class DagFacadeReviewCandidate
+     private static ProcessStartInfo Start(string root, params string[] args)
+     {
+         var start = new ProcessStartInfo("git") { WorkingDirectory = root, UseShellExecute = false,
+-            RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true };
++            RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true,
++            StandardOutputEncoding = Encoding.UTF8, StandardErrorEncoding = Encoding.UTF8 };
+         foreach (var arg in args) start.ArgumentList.Add(arg); return start;
+     }
+     private static string Normalize(string text) => text.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+index f5e9f278..587f2180 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs
+@@ -76,18 +76,17 @@ public sealed class DagPumpSliceGuards
+         Hash(record).Should().Be(Task23SourceRecordSha256, "the unapproved Task 2.3 candidate cannot broaden its scope silently");
+         var rows = record.Split('\n', StringSplitOptions.RemoveEmptyEntries).Select(row => row.Split('\t')).ToArray();
+         var paths = rows.Select(row => row[0]).ToArray();
+-        var facade = DagFacadeReviewCandidate.SourcePaths(root);
+-        var changed = Git(root, "diff", "--name-only", Task23Base, "--", "src")
++        var facade = DagFacadeApprovedHistory.SourcePaths(root);
++        var changed = Git(root, "diff", "--name-only", Task23Base, DagFacadeApprovedHistory.Merge, "--", "src")
+             .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+-            .Concat(Git(root, "ls-files", "--others", "--exclude-standard", "--", "src").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+             .Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).ToArray();
+-        var ephemeralConcurrency = DagFacadeReviewCandidate.IntegratedSourcePaths(root);
++        var ephemeralConcurrency = DagFacadeApprovedHistory.IntegratedSourcePaths(root);
+         paths.Concat(facade).Concat(ephemeralConcurrency).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal).Should().Equal(changed);
+         paths.Should().OnlyContain(path => path.StartsWith("src/OrcaCore.Dag.Hosting/", StringComparison.Ordinal) ||
+             path.StartsWith("src/OrcaCore.Durable.Hosting/", StringComparison.Ordinal) ||
+             path.StartsWith("src/OrcaCore.Engine.Durable/", StringComparison.Ordinal));
+         foreach (var row in rows)
+-            Convert.ToHexStringLower(SHA256.HashData(DagFacadeReviewCandidate.PriorSourceBytes(root, row[0]))).Should().Be(row[1]);
++            Convert.ToHexStringLower(SHA256.HashData(DagFacadeApprovedHistory.PriorSourceBytes(root, row[0]))).Should().Be(row[1]);
+         return paths.Concat(facade).Distinct(StringComparer.Ordinal).ToArray();
+     }
+ 
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+index bef28afb..9709106b 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs
+@@ -326,7 +326,7 @@ public sealed class DagStreamIdentitySliceGuards
+             .Split('\n', StringSplitOptions.RemoveEmptyEntries).Should().Equal(
+                 layers.Keys.Append("repository-foundation").Select(cap => "openspec/specs/" + cap + "/spec.md").Order(StringComparer.Ordinal));
+         // The only new capability changed by this exact source-pinned candidate.
+-        DagFacadeReviewCandidate.PriorDocument(root, "openspec/specs/repository-foundation/spec.md")
++        DagFacadeApprovedHistory.PriorDocument(root, "openspec/specs/repository-foundation/spec.md")
+             .Should().Be(Normalize(Git(root, "show", baseCommit + ":openspec/specs/repository-foundation/spec.md")));
+         foreach (var (capability, changes) in layers)
+         {
+@@ -351,7 +351,7 @@ public sealed class DagStreamIdentitySliceGuards
+                 "src/OrcaCore.Dag", "src/OrcaCore.Dag.Hosting", "openspec/specs")
+                 .Split('\n', StringSplitOptions.RemoveEmptyEntries))
+             .Except(DagPumpSliceGuards.Task23CandidatePaths(root), StringComparer.Ordinal)
+-            .Except(DagFacadeReviewCandidate.PublicApiPaths(root), StringComparer.Ordinal).Should().BeEmpty();
++            .Except(DagFacadeApprovedHistory.PublicApiPaths(root), StringComparer.Ordinal).Should().BeEmpty();
+     }
+ 
+     private static HashSet<string> CatalogApiKeys(string text)
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
+index 6679aafb..0f4caad1 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs
+@@ -126,8 +126,7 @@ internal static class EphemeralFailureSettlementReviewHistory
+                 expected = expected.TrimEnd('\n') + "\n\n" + block + "\n";
+             }
+         }
+-        var current = OpenSpecCorpusGuards.BeforeShutdownStartReservationSync(root, path,
+-            DagFacadeReviewCandidate.PriorDocument(root, path));
++        var current = DagFacadeApprovedHistory.PriorDocument(root, path);
+         current.Should().Be(expected, "unowned text, order and preambles cannot change through the historical adapter");
+         Hash(current).Should().Be(pin.GetProperty("afterSha256").GetString());
+         return before;
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
+index 54e5b732..11ed4ff5 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs
+@@ -73,7 +73,7 @@ public sealed class EphemeralShutdownTransitionGuards
+     {
+         using var fixture = Load();
+         var current = fixture.RootElement;
+-        current.GetProperty("schemaVersion").GetInt32().Should().Be(25);
++        current.GetProperty("schemaVersion").GetInt32().Should().Be(26);
+         var before = JsonNode.Parse(Git("show", SourceVerdictCommit + ":" + Registry))!.AsObject();
+         var after = JsonNode.Parse(current.GetRawText())!.AsObject();
+         OpenSpecCorpusGuards.ProjectDagFacadeSeamRegistryExtension(after);
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+index 94bdd189..3a9469ae 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
++++ b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json
+@@ -16,7 +16,7 @@
+       "purpose": "active review template"
+     }
+   ],
+-  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-dirty-manifest-2026-11-16.txt",
++  "activeFreezeManifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt",
+   "records": [
+     {
+       "path": "docs/archive/architecture/README.md",
+@@ -2745,6 +2745,16 @@
+       "bytes": 7784,
+       "sha256": "7949969baef963abe83f795211cbfeed9acff5c6ec9f9050e7bad267aade8e36"
+     },
++    {
++      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt",
++      "bytes": 2341,
++      "sha256": "95bdb057358f6e5f3d26431b2bbcefadb2b8bd1756dcd53d9d71346804e62631"
++    },
++    {
++      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md",
++      "bytes": 4167,
++      "sha256": "c4f6e0e71b2d48801b03d131c45928d73509133f41557525e3e03e160bf4f38e"
++    },
+     {
+       "path": "docs/review/harmonize-downstream-capability-specs-task-7-2-aaa-1-and-task-7-3-dirty-manifest-2026-09-18.txt",
+       "bytes": 2101,
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+index aa064a79..459928ea 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
++++ b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json
+@@ -2,8 +2,8 @@
+   "schemaVersion": 6,
+   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
+   "recordCount": 224,
+-  "recordBytes": 59823,
+-  "recordSha256": "fabb08ccbe61490a4025f15c9b83cc0ab571dfcdef927b99cd9f5f78c9bcce9e",
++  "recordBytes": 59753,
++  "recordSha256": "647fc0551cd0b9aaf4d42a873e148902a37ecc0b9e0252acff33ffba7138a424",
+   "semanticApprovalEligible": true,
+   "pendingCanonicalOperations": [],
+   "activeNewCapabilitiesOutsideCanonical": [
+@@ -175,8 +175,8 @@
+   "capabilityDirectoryCount": 40,
+   "capabilityDirectoryBytes": 3265,
+   "capabilityDirectorySha256": "6dfe7b1ca4792b4fe42d9029f9202e4b3aa2dfc3c8f5a0bd3f68e0beab54db1e",
+-  "artifactPath": "openspec/changes/admit-dag-public-handle-seam/artifacts/integration-candidate-openspec-provenance-2026-11-16.md",
+-  "artifactNormalizedSha256": "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4",
++  "artifactPath": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md",
++  "artifactNormalizedSha256": "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4",
+   "canonicalContents": [
+     {
+       "path": "openspec/specs/developer-facing-surface/spec.md",
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+index ff9b4225..666a0056 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
++++ b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json
+@@ -1,5 +1,5 @@
+ {
+-  "schemaVersion": 25,
++  "schemaVersion": 26,
+   "requiredStages": [
+     "amendment-approval",
+     "canonical-open-spec",
+@@ -1100,7 +1100,7 @@
+       "predecessorChange": "admit-dag-hosting-runtime-view",
+       "predecessorOperation": "MODIFIED",
+       "successorOperation": "MODIFIED",
+-      "stage": "Proposed",
++      "stage": "Complete",
+       "turnsGreenTask": "1.3",
+       "predecessorBlockSha256": "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab",
+       "proposedBlockSha256": "a55739a1ab663d7d5f3671d7c0bf1360273f708be9871c8d001fe9a861de02f0"
+@@ -1112,7 +1112,7 @@
+       "predecessorChange": "admit-dag-hosting-runtime-view",
+       "predecessorOperation": "MODIFIED",
+       "successorOperation": "MODIFIED",
+-      "stage": "Proposed",
++      "stage": "Complete",
+       "turnsGreenTask": "1.3",
+       "predecessorBlockSha256": "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8",
+       "proposedBlockSha256": "96d1b6248ced6c4e5682d980b108abdca86de0d82961310ec06a63f9d4b89892"
+@@ -1124,7 +1124,7 @@
+       "predecessorChange": "expose-ephemeral-failures-and-settlement",
+       "predecessorOperation": "MODIFIED",
+       "successorOperation": "MODIFIED",
+-      "stage": "Proposed",
++      "stage": "Complete",
+       "turnsGreenTask": "1.3",
+       "predecessorBlockSha256": "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1",
+       "proposedBlockSha256": "14f49ff22a1fb51f913ce431dadb15d9f77557fdb30cfdce5dfa4c9d6791b07a"
+@@ -1136,7 +1136,7 @@
+       "predecessorChange": "reshape-developer-facing-interfaces",
+       "predecessorOperation": "ADDED",
+       "successorOperation": "MODIFIED",
+-      "stage": "Proposed",
++      "stage": "Complete",
+       "turnsGreenTask": "1.3",
+       "predecessorBlockSha256": "0e00b3bc7ae11980a67c0f5878577473c8e237e66c9769c2ad9b7425b547924e",
+       "proposedBlockSha256": "02fb7fe339c68c23604c07aeede15d7e6ba1791425bc2d138abae582525c642e"
+@@ -1148,16 +1148,19 @@
+       "predecessorChange": "reshape-developer-facing-interfaces",
+       "predecessorOperation": "ADDED",
+       "successorOperation": "MODIFIED",
+-      "stage": "Proposed",
++      "stage": "Complete",
+       "turnsGreenTask": "1.3",
+       "predecessorBlockSha256": "5afa82ae478b50c595c572d9fb99157e4e76105606847d35ad402b09f3d3441e",
+       "proposedBlockSha256": "d14accd6a3fdfe38f6f6bfdffa60783aeb1e7ef9492850a7cc5340676295ffce"
+     }
+   ],
+-  "ownerAuthorizedDagFacadeCandidate": {
+-    "stage": "OwnerAuthorizedReviewCandidate",
+-    "ownerDirectionPath": "openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md",
+-    "parent": "da1a4729ea2cdb9474eb219eb507760574f83dcb",
+-    "independentReviewPending": true
++  "dagFacadeCompleteEvidence": {
++    "stage": "Complete",
++    "implementationCheckpoint": "b9dcdef7e611da45d7dc4f75946ee192fc83c37e",
++    "implementationEvidenceCommit": "598c6d4fb61f7883e25f79f03001aa620dda0bf7",
++    "mergeCheckpoint": "1e960fc4bf67ad6d1a8c053602d4a58964b47d79",
++    "mergeEvidenceCommit": "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1",
++    "ownerDirectionPath": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md",
++    "ownerDirectionSha256": "5ebb2522aa95ee2a38e240991ba3299e2075391551806754a8672772abf41655"
+   }
+ }
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+index f3e28861..c4de86ae 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
++++ b/tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json
+@@ -1,6 +1,17 @@
+ {
+   "schemaVersion": 11,
+-  "activeFreeze": null,
++  "activeFreeze": {
++    "task": "reshape-dag-public-handle-seam-task-3.2-complete-activation",
++    "requestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md",
++    "manifestPath": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt",
++    "disposition": "RawGitOrder",
++    "baseCommit": "94e9aca5632bd77d0c6ecde9d7fe689bcdee18d1",
++    "contentRecordExcludedPaths": [
++      "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/review-manifest-provenance.json"
++    ],
++    "contentRecordBytes": 4239,
++    "contentRecordSha256": "533bd4bfbe84a8a3277550dca64d4e55c6b98605b490aa5ce25f49191ab59c09"
++  },
+   "rejectedFreezes": [
+     {
+       "id": "7.1-initial-rejected",
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
+index 4d2caccf..8b44f89d 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs
+@@ -90,7 +90,7 @@ public sealed class NativeSupportTransitionGuards
+     {
+         using var document = Load();
+         var root = document.RootElement;
+-        root.GetProperty("schemaVersion").GetInt32().Should().Be(25);
++        root.GetProperty("schemaVersion").GetInt32().Should().Be(26);
+         var old = JsonNode.Parse(Git("show", VerdictCommit + ":" + Registry));
+         var current = JsonNode.Parse(root.GetRawText())!.AsObject();
+         OpenSpecCorpusGuards.ProjectDagFacadeSeamRegistryExtension(current);
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+index 8a94bea3..009060de 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs
+@@ -113,30 +113,31 @@ public sealed class OpenSpecCorpusGuards
+     private const string RuntimeViewCloseoutArtifact = "openspec/changes/admit-dag-hosting-runtime-view/artifacts/task-3-2-runtime-view-closeout-2026-10-04.md";
+     private const string RuntimeViewCloseoutSha256 = "8a2eb6b3e860fb45031fb55115911570d2478a26e7fad5aaeb12d24188753a9d";
+     private const string DagFacadeSeamChange = "admit-dag-public-handle-seam";
+-    private static readonly PostGateDagFacadeCandidate ExactOwnerAuthorizedDagFacadeCandidate = new(
+-        "OwnerAuthorizedReviewCandidate",
+-        "openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md",
+-        DagFacadeReviewCandidate.Parent, true);
++    private static readonly PostGateDagFacadeCompleteEvidence ExactDagFacadeCompleteEvidence = new(
++        CompletePostGateStage, DagFacadeApprovedHistory.Implementation, DagFacadeApprovedHistory.ImplementationEvidence,
++        DagFacadeApprovedHistory.Merge, DagFacadeApprovedHistory.MergeEvidence,
++        "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md",
++        "5ebb2522aa95ee2a38e240991ba3299e2075391551806754a8672772abf41655");
+     private static readonly PostGateProposedRunSuccessor[] ExactProposedDagFacadeSeamSuccessors =
+     [
+         new("developer-facing-surface", "Implementation package boundaries use exact internal friends", DagFacadeSeamChange,
+-            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
++            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", CompletePostGateStage, "1.3",
+             "3a848931f75b44c6cf2edf97b564c6e213b23d90720701a31a4a45394cbf93ab",
+             "a55739a1ab663d7d5f3671d7c0bf1360273f708be9871c8d001fe9a861de02f0"),
+         new("repository-foundation", "Dependency direction remains one-way", DagFacadeSeamChange,
+-            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
++            "admit-dag-hosting-runtime-view", "MODIFIED", "MODIFIED", CompletePostGateStage, "1.3",
+             "f0dbc156d044536a83d73934dfcb6eaac5f974069b1a5c555433f2a4b56a1ab8",
+             "96d1b6248ced6c4e5682d980b108abdca86de0d82961310ec06a63f9d4b89892"),
+         new("developer-facing-surface", "Completion waits are notification-driven and race-free", DagFacadeSeamChange,
+-            "expose-ephemeral-failures-and-settlement", "MODIFIED", "MODIFIED", ProposedPostGateStage, "1.3",
++            "expose-ephemeral-failures-and-settlement", "MODIFIED", "MODIFIED", CompletePostGateStage, "1.3",
+             "75d08ccdd5fec3e6eff08fed12972548212774fcce684af3f91b9de45a6833c1",
+             "14f49ff22a1fb51f913ce431dadb15d9f77557fdb30cfdce5dfa4c9d6791b07a"),
+         new("management-and-querying", "DAG terminal waiting is notification-driven", DagFacadeSeamChange,
+-            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", ProposedPostGateStage, "1.3",
++            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", CompletePostGateStage, "1.3",
+             "0e00b3bc7ae11980a67c0f5878577473c8e237e66c9769c2ad9b7425b547924e",
+             "02fb7fe339c68c23604c07aeede15d7e6ba1791425bc2d138abae582525c642e"),
+         new("developer-facing-surface", "Closed registration and start results retain a cast-free success path", DagFacadeSeamChange,
+-            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", ProposedPostGateStage, "1.3",
++            "reshape-developer-facing-interfaces", "ADDED", "MODIFIED", CompletePostGateStage, "1.3",
+             "5afa82ae478b50c595c572d9fb99157e4e76105606847d35ad402b09f3d3441e",
+             "d14accd6a3fdfe38f6f6bfdffa60783aeb1e7ef9492850a7cc5340676295ffce")
+     ];
+@@ -171,7 +172,7 @@ public sealed class OpenSpecCorpusGuards
+     ];
+     private static readonly (string Path, string Sha256)[] DagRunDocumentDispositionPins =
+     [
+-        ("CLAUDE.md", "898e9ad977b9b8745baeeefa9c3f966670bd7db34fb300dcb3f884a2eca144af"),
++        ("CLAUDE.md", "3a899dfecf99a7fe3a12cb76b10a2bfafd07bea5947e09ce8a32f478e5092fe7"),
+         ("docs/specs/03-domain-model-and-glossary.md", "45cb3a43f1a755118c3e18b55ee1d7e8ed519d5cf166d2cca24dc76cb3879adb"),
+         ("docs/specs/04-requirements-core-runtime.md", "ef4f53846c69a29ad60d7f51ee7bb04ebec92c33af1d0be51151d2c05d8ef0bc"),
+         ("docs/specs/05-requirements-events-waits-timers.md", "f1ea64fd27156d81d5f37c3759c3af2ca6616c4b7b1f05c10d0567fe6913da95"),
+@@ -305,7 +306,7 @@ public sealed class OpenSpecCorpusGuards
+     private const string RuntimeViewReshapeHandoffSha256 =
+         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
+     private const string CurrentOpenSpecProvenanceSha256 =
+-        "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4";
++        "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4";
+     private const string HistoricalCanonicalSourceCommit =
+         "ba2478e995023b0712c44705174c2b0e3262f213";
+     private const string HistoricalCanonicalRemovalCatalogSha256 =
+@@ -326,7 +327,7 @@ public sealed class OpenSpecCorpusGuards
+         "openspec/changes/reshape-developer-facing-interfaces/artifacts/" +
+         "task-8-0-section-8-requirement-gate-2026-09-26.md";
+     private const string Task80RequirementGateSha256 =
+-        "b953ba4c6cd85a7e5d09c67e082072f44e81e0b949cb390c237e4cc3d1cfb0e6";
++        "52d0f179016832fb541ca52567a57eca23a22594830dbbc2a0f5708f0fff8543";
+     private const string MissingApprovalReviewState = "MissingApproval";
+     private const string RejectedReviewState = "Rejected";
+     private const string ApprovalAwaitingEvidenceCommitReviewState =
+@@ -350,9 +351,9 @@ public sealed class OpenSpecCorpusGuards
+         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
+     private const string PublicAuthoringCompanionSha256 =
+         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
+-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 33;
++    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 34;
+     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
+-        "9ba1fe78cdf1a9558811a3d8b1e6797847e645d9ae52f2e3092742b442b04dc6";
++        "4e80db80c5d70f78c24af9aae1e1d8c81e25c2a2041dc185acf1f1132614d7ee";
+     private static readonly (string Path, string NormalizedSha256)[]
+         SupersededOpenSpecProvenanceArtifacts =
+         [
+@@ -421,7 +422,9 @@ public sealed class OpenSpecCorpusGuards
+             ("openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-candidate-openspec-provenance-2026-11-15.md",
+                 "253b87d542f75f07fa7ba9d32144b3b2935f07ccaac9b60a9aa6e1c9372b60bb"),
+             ("openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md",
+-                "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043")
++                "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043"),
++            ("openspec/changes/admit-dag-public-handle-seam/artifacts/integration-candidate-openspec-provenance-2026-11-16.md",
++                "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4")
+         ];
+     private const string EmptyCorePublicApiBaseline =
+         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
+@@ -541,7 +544,7 @@ public sealed class OpenSpecCorpusGuards
+         "openspec/changes/harmonize-downstream-capability-specs/artifacts/" +
+         "task-7-3-active-documentation-reconciliation-2026-09-18.md";
+     private const string Task73DocumentationArtifactSha256 =
+-        "d3debf0b006f70227764063c721daf2791f9e6501fe772190294462c880bd1c4";
++        "e6245fefd2c86d261664a350df3f31ba2858d441a8a566583a2b8e99f864e5fb";
+     private const string Task73PinRefreshDecision =
+         "Only the owner of a reviewed change that intentionally edits one of these 22 sources may refresh its " +
+         "recorded hash. Task 7.4 or Section 8 may refresh a row only in the same frozen target that intentionally " +
+@@ -1738,7 +1741,7 @@ public sealed class OpenSpecCorpusGuards
+         IReadOnlyCollection<DeltaRequirement> activeRequirements,
+         PostGateAmendmentCheckpoint checkpoint)
+     {
+-        checkpoint.SchemaVersion.Should().Be(25);
++        checkpoint.SchemaVersion.Should().Be(26);
+         checkpoint.ProposedRequirementSuccessors.Should().Equal(
+             ExactProposedDagSuccessors,
+             "only the exact reviewed predecessor/successor headings may bypass sole active ownership");
+@@ -1804,18 +1807,15 @@ public sealed class OpenSpecCorpusGuards
+ 
+     internal static void ProjectDagFacadeSeamRegistryExtension(JsonObject current)
+     {
+-        current["schemaVersion"]!.GetValue<int>().Should().Be(25);
+-        var exactRows = JsonSerializer.SerializeToNode(ExactProposedDagFacadeSeamSuccessors,
+-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+-        JsonNode.DeepEquals(current["proposedDagFacadeSeamSuccessors"], exactRows).Should().BeTrue(
+-            "historical registry comparisons may project only the exact five Proposed facade rows");
++        current["schemaVersion"]!.GetValue<int>().Should().Be(26);
++        var options = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
++        JsonNode.DeepEquals(current["proposedDagFacadeSeamSuccessors"], JsonSerializer.SerializeToNode(
++            ExactProposedDagFacadeSeamSuccessors, options)).Should().BeTrue("only the five exact Complete rows may be projected");
++        JsonNode.DeepEquals(current["dagFacadeCompleteEvidence"], JsonSerializer.SerializeToNode(
++            ExactDagFacadeCompleteEvidence, options)).Should().BeTrue("Complete requires both real approval chains and owner activation authority");
++        current.ContainsKey("ownerAuthorizedDagFacadeCandidate").Should().BeFalse("the draft execution marker must retire");
+         current.Remove("proposedDagFacadeSeamSuccessors");
+-        if (current["ownerAuthorizedDagFacadeCandidate"] is { } candidate)
+-        {
+-            JsonNode.DeepEquals(candidate, JsonSerializer.SerializeToNode(ExactOwnerAuthorizedDagFacadeCandidate,
+-                new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase })).Should().BeTrue();
+-            current.Remove("ownerAuthorizedDagFacadeCandidate");
+-        }
++        current.Remove("dagFacadeCompleteEvidence");
+         current["schemaVersion"] = 24;
+     }
+ 
+@@ -1826,22 +1826,19 @@ public sealed class OpenSpecCorpusGuards
+         PostGateAmendmentCheckpoint checkpoint)
+     {
+         checkpoint.ProposedDagFacadeSeamSuccessors.Should().Equal(ExactProposedDagFacadeSeamSuccessors,
+-            "only five source-pinned Proposed facade successors may coexist with their exact predecessor chains");
+-        // Proposed rows remain immutable process history. This separate candidate is owner
+-        // execution authority only; it never invents approval evidence or Complete status.
+-        var candidate = checkpoint.OwnerAuthorizedDagFacadeCandidate;
+-        if (candidate is not null)
+-        {
+-            candidate.Should().Be(ExactOwnerAuthorizedDagFacadeCandidate);
+-            _ = DagFacadeReviewCandidate.SourcePaths(root);
+-        }
+-        ValidateTaskReference(root, new PostGateTaskReference(DagFacadeSeamChange, "1.3",
+-            candidate is null ? OpenTaskState : CompleteTaskState));
++            "only five source-pinned Complete facade successors may coexist with their exact predecessor chains");
++        checkpoint.DagFacadeCompleteEvidence.Should().Be(ExactDagFacadeCompleteEvidence);
++        Sha256(File.ReadAllBytes(Path.Combine(root, ExactDagFacadeCompleteEvidence.OwnerDirectionPath)))
++            .Should().Be(ExactDagFacadeCompleteEvidence.OwnerDirectionSha256);
++        _ = DagFacadeApprovedHistory.SourcePaths(root);
++        foreach (var task in new[] { "0.2", "1.2", "1.3", "2.7", "3.2" })
++            ValidateTaskReference(root, new PostGateTaskReference(DagFacadeSeamChange, task, CompleteTaskState));
++        ValidateTaskReference(root, new PostGateTaskReference("reshape-developer-facing-interfaces", "8.6", CompleteTaskState));
+         var keys = new HashSet<string>(StringComparer.Ordinal);
+         foreach (var successor in checkpoint.ProposedDagFacadeSeamSuccessors)
+         {
+             keys.Add($"{successor.Capability}\0{successor.Requirement}").Should().BeTrue();
+-            successor.Stage.Should().Be(ProposedPostGateStage);
++            successor.Stage.Should().Be(CompletePostGateStage);
+             var predecessor = ReadResolvedPostGateOwner(root, successor.PredecessorChange,
+                 successor.Capability, successor.Requirement);
+             var proposed = ReadResolvedPostGateOwner(root, successor.Change,
+@@ -1850,13 +1847,12 @@ public sealed class OpenSpecCorpusGuards
+             proposed.Operation.ToString().ToUpperInvariant().Should().Be(successor.SuccessorOperation);
+             proposed.CapabilityKind.Should().Be(CapabilityKind.Modified);
+             Sha256(predecessor.Block).Should().Be(successor.PredecessorBlockSha256,
+-                "the immediate predecessor remains unchanged while the facade contract is Proposed");
++                "the immediate predecessor remains unchanged after facade Complete promotion");
+             Sha256(proposed.Block).Should().Be(successor.ProposedBlockSha256,
+                 "fixture-only re-pinning cannot change a proposed facade block");
+             var canonical = canonicalRequirements[successor.Capability][successor.Requirement];
+-            canonical.Block.Should().Be(candidate is null ? predecessor.Block : proposed.Block,
+-                "only the exact owner-authorized candidate permits these five synchronized blocks");
+-            if (candidate is null) proposed.Block.Should().NotBe(canonical.Block);
++            canonical.Block.Should().Be(proposed.Block,
++                "the independently reviewed facade blocks remain synchronized at Complete");
+             string[] chain = successor.PredecessorChange switch
+             {
+                 RuntimeViewChange => ["reshape-developer-facing-interfaces", "admit-dag-authoring-friend-boundary", RuntimeViewChange, DagFacadeSeamChange],
+@@ -1938,7 +1934,7 @@ public sealed class OpenSpecCorpusGuards
+             var path = row.GetProperty("path").GetString()!;
+             Sha256(NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, verdictCommit, path))))
+                 .Should().Be(row.GetProperty("beforeSha256").GetString());
+-            Sha256(BeforeShutdownStartReservationSync(root, path, DagFacadeReviewCandidate.PriorDocument(root, path)))
++            Sha256(DagFacadeApprovedHistory.PriorDocument(root, path))
+                 .Should().Be(EphemeralFailureSettlementSourceReview.PublicationDocumentationHash(
+                     root, path, row.GetProperty("afterSha256").GetString()!));
+         }
+@@ -1965,7 +1961,7 @@ public sealed class OpenSpecCorpusGuards
+             {
+                 facadeSuccessor.Should().Be(ExactProposedDagFacadeSeamSuccessors.Single(item =>
+                     item.Capability == capability && item.Requirement == requirement));
+-                facadeSuccessor.Stage.Should().Be(ProposedPostGateStage);
++                facadeSuccessor.Stage.Should().Be(CompletePostGateStage);
+                 facadeSuccessor.PredecessorChange.Should().Be(change);
+                 ValidateResolvedPostGateOwnerChain(root, activeRequirements, capability, requirement,
+                     ["reshape-developer-facing-interfaces", change, DagFacadeSeamChange]);
+@@ -2039,11 +2035,12 @@ public sealed class OpenSpecCorpusGuards
+         using var registry = ReadApprovedShutdownSpecSync(root);
+         var row = registry.RootElement.GetProperty("documents").EnumerateArray()
+             .Single(item => item.GetProperty("path").GetString() == path);
+-        if (Sha256(current) == row.GetProperty("beforeSha256").GetString()) return current;
+-        if (Sha256(current) != row.GetProperty("afterSha256").GetString())
+-            current = DagFacadeReviewCandidate.IntegratedDocumentBeforeFacade(root, path, current);
+-        Sha256(current).Should().Be(row.GetProperty("afterSha256").GetString(),
+-            $"the current text of {path} must match the exact approved projection");
++        // The live after-state must be the exact merged document. Pre-sync text
++        // is accepted only by explicit commit-based historical readers, never here.
++        current.Should().Be(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
++        current.Should().Be(DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.Merge, path));
++        var integrated = DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.IntegrationTip, path);
++        Sha256(integrated).Should().Be(row.GetProperty("afterSha256").GetString());
+         var baseline = registry.RootElement.GetProperty("contractApproval").GetString()!;
+         var prior = NormalizeLineEndings(Encoding.UTF8.GetString(ReadGitBlob(root, baseline, path)));
+         Sha256(prior).Should().Be(row.GetProperty("beforeSha256").GetString());
+@@ -2054,12 +2051,18 @@ public sealed class OpenSpecCorpusGuards
+     {
+         using var registry = ReadApprovedShutdownSpecSync(root);
+         var row = registry.RootElement;
++        foreach (var document in row.GetProperty("documents").EnumerateArray())
++        {
++            var path = document.GetProperty("path").GetString()!;
++            _ = BeforeShutdownStartReservationSync(root, path,
++                NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
++        }
+         row.GetProperty("stage").GetString().Should().Be("ContractApprovedCanonicalPrepared");
+         var process = row.GetProperty("processApproval").GetString()!;
+         var contract = row.GetProperty("contractApproval").GetString()!;
+         VerifyVerdict(process, row.GetProperty("processCheckpoint").GetString()!, "process", "processVerdictSha256");
+         VerifyVerdict(contract, process, "contract", "contractVerdictSha256");
+-        var ancestry = RunGit(root, "merge-base", "--is-ancestor", contract, DagFacadeReviewCandidate.IntegrationAncestry(root));
++        var ancestry = RunGit(root, "merge-base", "--is-ancestor", contract, "HEAD");
+         ancestry.ExitCode.Should().Be(0, "the exact contract approval must be in the synchronization's ancestry");
+ 
+         void VerifyVerdict(string commit, string parent, string kind, string shaField)
+@@ -2188,7 +2191,7 @@ public sealed class OpenSpecCorpusGuards
+         ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, "2.4", CompleteTaskState));
+         foreach (var task in new[] { "2.1", "2.2", "2.3", "3.1", "3.2" })
+             ValidateTaskReference(root, new PostGateTaskReference(DagRunChange, task, OpenTaskState));
+-        foreach (var task in new[] { "8.4", "8.5", "8.6" })
++        foreach (var task in new[] { "8.4", "8.5" })
+             ValidateTaskReference(root, new PostGateTaskReference("reshape-developer-facing-interfaces", task, OpenTaskState));
+ 
+         var keys = new HashSet<string>(StringComparer.Ordinal);
+@@ -2452,7 +2455,7 @@ public sealed class OpenSpecCorpusGuards
+         {
+             facadeSuccessor.Should().Be(ExactProposedDagFacadeSeamSuccessors.Single(item =>
+                 item.Capability == capability && item.Requirement == heading));
+-            facadeSuccessor.Stage.Should().Be(ProposedPostGateStage);
++            facadeSuccessor.Stage.Should().Be(CompletePostGateStage);
+             facadeSuccessor.PredecessorChange.Should().Be(RuntimeViewChange);
+             chain = [.. chain, DagFacadeSeamChange];
+         }
+@@ -2575,7 +2578,7 @@ public sealed class OpenSpecCorpusGuards
+             signature.Should().ContainSingle("every normative owner defines all fifteen exact runtime-view signatures");
+             Sha256(signature[0].Groups[1].Value).Should().Be(RuntimeViewSignatureContractSha256);
+         }
+-        var composition = DagFacadeReviewCandidate.PriorDocument(root, "docs/specs/08-requirements-composition.md");
++        var composition = DagFacadeApprovedHistory.PriorDocument(root, "docs/specs/08-requirements-composition.md");
+         var compositionBlocks = new List<string>();
+         foreach (var heading in new[]
+                  { "CP-020 Separate package and dependency direction", "CP-022 Direct-dependency input mapping" })
+@@ -4003,8 +4006,7 @@ public sealed class OpenSpecCorpusGuards
+         foreach (var row in artifactRows)
+         {
+             Sha256(documents[row.Path]).Should().Be(
+-                DagFacadeReviewCandidate.CurrentDocumentationHash(root, row.Path,
+-                    EphemeralFailureSettlementReviewHistory.CurrentDocumentationHash(root, row.Path, row.Sha256)),
++                row.Sha256,
+                 $"Task 7.3 source '{row.Path}' must remain byte-equivalent after LF normalization");
+         }
+ 
+@@ -4500,6 +4502,7 @@ public sealed class OpenSpecCorpusGuards
+             root,
+             "log",
+             "--full-history",
++            "-m", // Include records first introduced by a merge checkpoint.
+             "--diff-filter=A",
+             "--name-only",
+             "--format=",
+@@ -4534,6 +4537,7 @@ public sealed class OpenSpecCorpusGuards
+                 root,
+                 "log",
+                 "--full-history",
++                "-m",
+                 "--diff-filter=A",
+                 "--format=%H",
+                 "--reverse",
+@@ -4542,7 +4546,9 @@ public sealed class OpenSpecCorpusGuards
+                 entry.Path);
+             history.ExitCode.Should().Be(0, history.StandardError);
+             var introductionCommits = NormalizeLineEndings(history.StandardOutput)
+-                .Split('\n', StringSplitOptions.RemoveEmptyEntries);
++                .Split('\n', StringSplitOptions.RemoveEmptyEntries)
++                .Distinct(StringComparer.Ordinal)
++                .ToArray();
+             if (introductionCommits.Length == 0)
+             {
+                 activeFreezePaths ??= ReadNormalizedReviewManifestPaths(
+@@ -5267,7 +5273,7 @@ public sealed class OpenSpecCorpusGuards
+         IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonicalRequirements,
+         PostGateAmendmentCheckpoint checkpoint)
+     {
+-        checkpoint.SchemaVersion.Should().Be(25);
++        checkpoint.SchemaVersion.Should().Be(26);
+         checkpoint.ProposedRequirementSuccessors.Should().Equal(
+             ExactProposedDagSuccessors,
+             "a proposed post-gate successor is a named exception, not a general duplicate-owner waiver");
+@@ -7237,8 +7243,7 @@ public sealed class OpenSpecCorpusGuards
+             IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonical,
+             PostGateAmendmentCheckpoint checkpoint)
+     {
+-        if (checkpoint.OwnerAuthorizedDagFacadeCandidate is null) return canonical;
+-        checkpoint.OwnerAuthorizedDagFacadeCandidate.Should().Be(ExactOwnerAuthorizedDagFacadeCandidate);
++        checkpoint.DagFacadeCompleteEvidence.Should().Be(ExactDagFacadeCompleteEvidence);
+         var result = canonical.ToDictionary(item => item.Key, item => item.Value, StringComparer.Ordinal);
+         foreach (var row in checkpoint.ProposedDagFacadeSeamSuccessors)
+         {
+@@ -7260,14 +7265,14 @@ public sealed class OpenSpecCorpusGuards
+     {
+         var facade = checkpoint.ProposedDagFacadeSeamSuccessors.SingleOrDefault(row =>
+             row.Capability == requirement.Capability && row.Requirement == requirement.Requirement);
+-        if (facade is not null && checkpoint.OwnerAuthorizedDagFacadeCandidate is not null &&
++        if (facade is not null && checkpoint.DagFacadeCompleteEvidence is not null &&
+             Sha256(canonicalRequirements[facade.Capability][facade.Requirement].Block) == facade.ProposedBlockSha256)
+         {
+             if (requirement.Change == DagFacadeSeamChange) return ClassifyProvenance(canonicalRequirements, requirement);
+             var prior = PriorDagFacadeCanonicalBlocks(root, canonicalRequirements, checkpoint);
+             var historical = ClassifyPostGateProvenance(root, prior, requirement, checkpoint);
+             historical.State.Should().BeOneOf(ProvenanceState.Synchronized, ProvenanceState.SupersededByApprovedSuccessor);
+-            return CreateProvenanceRow(requirement, ProvenanceState.SupersededByOwnerAuthorizedCandidate,
++            return CreateProvenanceRow(requirement, ProvenanceState.SupersededByApprovedSuccessor,
+                 canonicalRequirements[facade.Capability][facade.Requirement].Block);
+         }
+         if (requirement.Capability == ShutdownStartReservationCapability &&
+@@ -7408,7 +7413,9 @@ public sealed class OpenSpecCorpusGuards
+         string Block);
+ 
+     private sealed record CanonicalRequirement(string Requirement, string Block);
+-    private sealed record PostGateDagFacadeCandidate(string Stage, string OwnerDirectionPath, string Parent, bool IndependentReviewPending);
++    private sealed record PostGateDagFacadeCompleteEvidence(string Stage, string ImplementationCheckpoint,
++        string ImplementationEvidenceCommit, string MergeCheckpoint, string MergeEvidenceCommit,
++        string OwnerDirectionPath, string OwnerDirectionSha256);
+ 
+     private sealed record DeltaRequirement(
+         string Change,
+@@ -7499,7 +7506,7 @@ public sealed class OpenSpecCorpusGuards
+         string RuntimeViewActivationCommit,
+         PostGateProposedRunSuccessor[] ProposedDagRunSuccessors,
+         PostGateProposedRunSuccessor[] ProposedDagFacadeSeamSuccessors,
+-        PostGateDagFacadeCandidate? OwnerAuthorizedDagFacadeCandidate,
++        PostGateDagFacadeCompleteEvidence DagFacadeCompleteEvidence,
+         PostGateApprovedRunSuccessor[] ApprovedDagRunSuccessors,
+         PostGateSupersededPredecessor[] SupersededDagRunPredecessors,
+         PostGateRunApprovalEvidence ApprovedDagRunEvidence,
+diff --git a/tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs b/tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+index 0a260990..c81d6d9e 100644
+--- a/tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
++++ b/tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs
+@@ -36,8 +36,8 @@ public sealed partial class TaskAccountingGuards
+         var pending = entries.Length - completed;
+ 
+         entries.Should().HaveCount(159);
+-        completed.Should().Be(132);
+-        pending.Should().Be(27);
++        completed.Should().Be(133);
++        pending.Should().Be(26);
+     }
+ 
+     [Fact]
+diff --git a/tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs b/tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
+index f9eb1697..10c3944c 100644
+--- a/tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
++++ b/tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs
+@@ -142,8 +142,6 @@ public static partial class DagRunCertification
+         {
+             var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(authored.Build()).GetHandleOrThrow();
+             var run = (await definition.StartOrGetAsync(17, StartIdempotencyKey.Create(Guid.NewGuid().ToString("N")), token)).GetHandleOrThrow();
+-            while ((await run.GetSnapshotAsync(token)).Nodes[0].Status != DagNodeStatus.Running)
+-                await Task.Delay(25, token);
+             await childGate.Entered.Task.WaitAsync(token);
+             var admitted = await FacadeReadAsync(probe.Inner, run.RunId.Value, token);
+             var childCheckpoint = (await probe.Inner.LoadCheckpointAsync(admitted.Nodes[0].ChildInstanceId!, token)).Value;
+diff --git a/tests/OrcaCore.TestSupport/DagFacadeWire.cs b/tests/OrcaCore.TestSupport/DagFacadeWire.cs
+index 20f6277d..f11e62ea 100644
+--- a/tests/OrcaCore.TestSupport/DagFacadeWire.cs
++++ b/tests/OrcaCore.TestSupport/DagFacadeWire.cs
+@@ -20,14 +20,20 @@ public static class DagFacadeWire
+     public static async Task FacadeTransitionAsync(IWorkflowEventStore events, Guid id, bool fault, CancellationToken token)
+     {
+         var request = Request(id) with { Purpose = DagRunLeasePurposeV1.IntegrityReconciliation };
+-        DagRunLeaseResultV1 granted;
+-        do
+-        {
+-            granted = await events.AcquireDagRunLeaseAsync(request, token);
+-            if (granted.Fence is null) await Task.Delay(25, token);
+-        } while (granted.Fence is null);
++        DagRunLeaseResultV1? granted = null;
+         try
+         {
++            // Providers cap a lease at five seconds and an owner's renewed turn at
++            // fifteen seconds. Retry at lease-expiry boundaries, never a 25ms poll;
++            // a fourth failed acquire is a test failure, not an unbounded wait.
++            for (var attempt = 0; attempt < 4; attempt++)
++            {
++                granted = await events.AcquireDagRunLeaseAsync(request, token);
++                if (granted.Fence is not null) break;
++                granted.Outcome.Should().Be(DagRunLeaseOutcomeV1.Queued);
++                if (attempt < 3) await Task.Delay(TimeSpan.FromSeconds(5), TimeProvider.System, token);
++            }
++            granted!.Fence.Should().NotBeNull("the queued test transition must acquire within the provider's maximum turn");
+             var before = await FacadeReadAsync(events, id, token);
+             var state = fault ? DagRunStateV1.IntegrityFault : before.Nodes.Any(node => node.State is
+                 DagNodeStateV1.Cancelled or DagNodeStateV1.CancellationRequested) ? DagRunStateV1.CancellationRequested : DagRunStateV1.Running;
+@@ -38,7 +44,12 @@ public static class DagFacadeWire
+             var result = await events.AppendAsync(Batch(after, [record], granted.Fence, []), token);
+             result.IsSuccess.Should().BeTrue(result.IsFailure ? result.Error.ToString() : "the injected transition is valid");
+         }
+-        finally { await events.ReleaseDagRunLeaseAsync(granted.Fence, token); }
++        finally
++        {
++            using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
++            if (granted?.Fence is { } fence) await events.ReleaseDagRunLeaseAsync(fence, cleanup.Token);
++            else await events.CancelDagRunLeaseRequestAsync(id, request.OwnerId, request.RequestId, cleanup.Token);
++        }
+     }
+ 
+     public static async Task<DagRunSnapshotV1> FacadeReadAsync(IWorkflowEventStore events, Guid id, CancellationToken token)
