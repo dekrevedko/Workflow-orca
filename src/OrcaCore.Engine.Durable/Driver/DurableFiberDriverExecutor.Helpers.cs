@@ -38,7 +38,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         TState rootState,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
-        JsonWorkflowPayloadSerializer serializer,
         IReadOnlyList<DurableOwnedObligationState> ownedObligations,
         CancellationToken cancellationToken)
     {
@@ -71,11 +70,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     $"IStep<{typeof(TState).Name}>.");
             }
 
-            var attemptState = plan.DetachedAttemptState
-                ? serializer.Deserialize<TState>(serializer.Serialize(rootState))
-                : rootState;
             var stepContext = StepContextContracts.Create(
-                attemptState,
+                rootState,
                 stepExecution,
                 resumedEvent,
                 timeProvider,
@@ -85,7 +81,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             var nextState = result is StepResult.Failed
                 ? rootState
                 : plan.DetachedAttemptState
-                    ? serializer.Deserialize<TState>(serializer.Serialize(stepContext.State))
+                    ? (TState)CoreWorkflowValueCodec.Detach(stepContext.State, typeof(TState))!
                     : stepContext.State;
             return new ExecutedStep(execution, fiber, result, nextState);
         }
@@ -188,7 +184,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     {
         var committedExecution = execution;
         var committedFiber = fiber;
-        var committedState = context.Serializer.Serialize(state);
+        var committedState = new SerializedPayload(CoreWorkflowValueCodec.Format,
+            CoreWorkflowValueCodec.Serialize(state, typeof(TState), out var detached));
+        var attemptState = plan.DetachedAttemptState && fiber.OwningScopeId is null ? (TState)detached! : state;
         var insideLease = ResolveLeaseExecutionContext(fiber, ownedObligations) is not null;
         DurableCommandRuntime.StepCancellationScope? stepCancellation = null;
         CancellationTokenSource? timeoutCancellation = null;
@@ -237,10 +235,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     execution,
                     fiber,
                     instruction,
-                    state,
+                    attemptState,
                     resumedEvent,
                     context.TimeProvider,
-                    context.Serializer,
                     ownedObligations,
                     policyToken).AsTask();
                 if (timeoutReached is not null)
@@ -656,12 +653,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 exception.InnerException);
         }
 
-        var resultPayload = codec.Serialize(
-            result,
-            branch.Result.ResultType,
-            branch.Result.ResultSchemaIdentity);
-        EnsureSerializedResultSize(resultPayload.Payload);
-        return resultPayload.Payload;
+        return BranchResultMaterializer.Serialize(result, branch.Result.ResultType, plan.CompilerOptions.MaxSerializedResultBytes);
     }
 
     private (StructuredExecutionState Execution, TState State) MergeAndResume(

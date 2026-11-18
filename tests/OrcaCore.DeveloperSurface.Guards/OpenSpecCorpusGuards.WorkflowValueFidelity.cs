@@ -132,12 +132,20 @@ public sealed partial class OpenSpecCorpusGuards
 
     internal static string BeforeValueFidelitySynchronization(string root, string path, string current)
     {
-        // The guide is a separately reviewed sync deliverable alongside the numbered contract.
-        if (path == "docs/ephemeral-engine-developer-guide.md")
+        // Only these two guide updates are projected before older documentation checks.
+        (string After, string Before)? guide = path switch
         {
-            Sha256(current).Should().Be("c44bc8e489bf2afc3bad3d814cd073348ca37eeb8931d905589bfcdce0165363");
+            "docs/ephemeral-engine-developer-guide.md" => ("c44bc8e489bf2afc3bad3d814cd073348ca37eeb8931d905589bfcdce0165363",
+                "091ac6a1fe608e65433c3f7355d4b327f0a2ed049b9ef7b09781da1fa8c78786"),
+            "docs/ephemeral-native-support.md" => ("e448a88ad1f365e0138b2360479ab9bc450e58c9d9718616e354c81f03f7c57b",
+                "9e5a9506ae93cdd2d752385e8b929d601f7436c895e578936c0dd1346a3ddb1e"),
+            _ => null
+        };
+        if (guide is { } hashes)
+        {
+            Sha256(current).Should().Be(hashes.After);
             var prior = DagFacadeApprovedHistory.TextAt(root, ValueFidelityProposal, path);
-            Sha256(prior).Should().Be("091ac6a1fe608e65433c3f7355d4b327f0a2ed049b9ef7b09781da1fa8c78786");
+            Sha256(prior).Should().Be(hashes.Before);
             return prior;
         }
         var contract = ReadFidelityContract(root);

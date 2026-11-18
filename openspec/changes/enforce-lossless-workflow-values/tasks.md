@@ -5,5 +5,5 @@
 
 ## 2. Implementation and qualification
 
-- [ ] 2.1 Implement and independently review the shared value check, caller integration and executable boundary regressions. Measure the cost of checking detached state.
+- [x] 2.1 Implement and independently review the shared value check, caller integration and executable boundary regressions. Measure the cost of checking detached state.
 - [ ] 2.2 Record the test and package qualification results, review the evidence and commit the reviewed implementation.

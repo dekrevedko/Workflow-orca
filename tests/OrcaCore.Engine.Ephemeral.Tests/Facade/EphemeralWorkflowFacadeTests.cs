@@ -8,6 +8,56 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Facade;
 public sealed class EphemeralWorkflowFacadeTests
 {
     [Fact]
+    public async Task InitReceivesTheDetachedInputWhoseBytesBoundTheStartKey()
+    {
+        var token = TestContext.Current.CancellationToken;
+        using var services = CreateServices().BuildServiceProvider();
+        var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<MutableInput>(input => new State(++input.Value)).End().Build();
+        var handle = services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
+        var input = new MutableInput { Value = 17 };
+        var key = StartIdempotencyKey.Create("frozen-input");
+        var owner = (await handle.StartOrGetAsync(input, key, token)).GetHandleOrThrow();
+        Assert.Equal(17, input.Value);
+        Assert.Equal(18, (await owner.GetStateAsync<State>(token)).Value);
+        Assert.Equal(owner.InstanceId, (await handle.StartOrGetAsync(input, key, token)).GetHandleOrThrow().InstanceId);
+    }
+
+    [Fact]
+    public async Task LossyDetachedReplacementFailsItsStepAndPreservesCommittedState()
+    {
+        var token = TestContext.Current.CancellationToken;
+        using var services = CreateServices().BuildServiceProvider();
+        var definition = Workflow.Ephemeral<LossyState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(_ => new LossyState())
+            .Then(context =>
+            {
+                context.ReplaceState(LossyState.Of(17));
+                return ValueTask.CompletedTask;
+            }).End().Build();
+        var registered = services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
+        var instance = (await registered.StartOrGetAsync(0, StartIdempotencyKey.Create("lossy-replacement"), token)).GetHandleOrThrow();
+        var snapshot = await instance.GetSnapshotAsync(token);
+        Assert.Equal(WorkflowInstanceStatus.Failed, snapshot.Status);
+        Assert.Contains(nameof(LossyState), Assert.IsType<WorkflowFailure>(snapshot.Failure).Message);
+        var committed = await instance.GetStateAsync<LossyState>(token);
+        Assert.Equal(0, committed.Value);
+        Assert.Equal(0, committed.Revision);
+    }
+
+    private sealed class MutableInput
+    {
+        public int Value { get; set; }
+    }
+
+    private sealed class LossyState
+    {
+        public int Value { get; private set; }
+        public int Revision { get; init; }
+        internal static LossyState Of(int value) => new() { Value = value, Revision = value };
+    }
+
+    [Fact]
     public async Task Registry_StartsReopensAndReturnsDetachedTypedOutput()
     {
         using var provider = CreateServices().BuildServiceProvider();

@@ -10,6 +10,41 @@ namespace OrcaCore.Engine.Durable.Tests.Facade;
 public sealed class DurableEventDeduplicationFacadeTests
 {
     [Fact]
+    public void TypedIngress_UsesTheBytesCapturedByTheEventFactory()
+    {
+        var route = new WorkflowEventRoute.StartOrDeliver<List<int>>(DefinitionId.New(),
+            DefinitionVersion.Initial, StartIdempotencyKey.Create("captured-input"), [17]);
+        var message = WorkflowInboundEvent<List<int>>.Create(
+            WorkflowEventContract<List<int>>.Create(EventName.Create("captured"), EventContractVersion.Initial),
+            EventId.Create("captured-event"), CorrelationId.Create("captured"), null, DateTimeOffset.UnixEpoch,
+            route, [23]);
+        var first = DurableInboundEventNormalizer.Normalize(message);
+        route.WorkflowInput.Clear();
+        ((WorkflowEventRoute.StartOrDeliver<List<int>>)message.Route).WorkflowInput.Add(0);
+        message.Payload.Clear();
+        WorkflowInboundEvent upcast = message;
+        var second = DurableInboundEventNormalizer.Normalize(upcast);
+        second.Fingerprint.Should().Be(first.Fingerprint);
+        second.Envelope.Route!.WorkflowInputPayload.Should().Equal("[17]"u8.ToArray());
+        second.Envelope.Payload.Should().Equal("[23]"u8.ToArray());
+    }
+
+    [Fact]
+    public async Task TypedNullPayload_RetainsOwnershipOnReplayThroughTheBaseOverload()
+    {
+        var store = new InMemoryWorkflowProvider();
+        var facade = CreateFacade(store, driveAfterDelivery: false);
+        var message = WorkflowInboundEvent<string?>.Create(
+            WorkflowEventContract<string?>.Create(EventName.Create("typed-null"), EventContractVersion.Initial),
+            EventId.Create("typed-null"), CorrelationId.Create("null"), null, DateTimeOffset.UnixEpoch,
+            new WorkflowEventRoute.DefinitionFanout(DefinitionId.New()), null);
+        var token = TestContext.Current.CancellationToken;
+        (await facade.Events.AcceptAsync((WorkflowInboundEvent)message, token)).Should().BeOfType<WorkflowEventAcceptanceResult.Accepted>();
+        (await facade.Events.AcceptAsync(message, token)).Should().BeOfType<WorkflowEventAcceptanceResult.Duplicate>();
+        DurableInboundEventNormalizer.Normalize(message).Envelope.Payload.Should().Equal("null"u8.ToArray());
+    }
+
+    [Fact]
     public async Task DefinitionFanout_EmptySnapshotIsOwnedAndStableOnRedelivery()
     {
         var store = new InMemoryWorkflowProvider();

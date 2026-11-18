@@ -6,18 +6,34 @@ using OrcaCore.Hosting;
 
 internal static class CodecMemberCases
 {
+    internal static void MutableOmissionFidelity()
+    {
+        Reject<NotSupportedException>(() => Materialize(new MutableState { Count = 0 }), "round-trip");
+        Check(Materialize(new MutableState { Count = 7 }).Count == 7, "present mutable member is preserved");
+    }
+
+    internal static void LegacyInitOnlyFidelity()
+    {
+        Reject<NotSupportedException>(() => Materialize(new InitState { Count = 0 }), "round-trip");
+        Check(Materialize(new InitState { Count = 7 }).Count == 7, "present init-only member is preserved in reflection mode");
+    }
+
     internal static async Task IncludedMembers()
     {
+        var lossy = PrivateSetterValue.From(17);
+        Reject<NotSupportedException>(() => Materialize(lossy), "round-trip");
+        Reject<NotSupportedException>(() => Materialize(new List<PrivateSetterValue> { lossy }), "round-trip");
+
         var bad = new BoundaryDerived { Number = 7, Extra = 99 };
         Reject<NotSupportedException>(() => Materialize(new IncludedSubtypeField { Value = bad }), "polymorphic");
-        IncludedSubtypeProperty.Reads = 0;
-        Reject<NotSupportedException>(() => Materialize(new IncludedSubtypeProperty { Value = bad }), "polymorphic");
-        Check(IncludedSubtypeProperty.Reads == 1, "rejected included getter is read exactly once");
+        var rejectedProperty = new IncludedSubtypeProperty { Value = bad };
+        Reject<NotSupportedException>(() => Materialize(rejectedProperty), "polymorphic");
+        Check(rejectedProperty.Reads == 1, "rejected included getter is read exactly once");
         Reject<NotSupportedException>(() => Materialize(new OrdinarySubtypeProperty { Value = bad }), "polymorphic");
         Reject<NotSupportedException>(() => Materialize(new IncludedCollectionField { Value = new BoundaryList() }), "allowlist");
-        IncludedCollectionProperty.Reads = 0;
-        Reject<NotSupportedException>(() => Materialize(new IncludedCollectionProperty { Value = new BoundaryList() }), "allowlist");
-        Check(IncludedCollectionProperty.Reads == 1, "rejected collection getter is read exactly once");
+        var rejectedCollection = new IncludedCollectionProperty { Value = new BoundaryList() };
+        Reject<NotSupportedException>(() => Materialize(rejectedCollection), "allowlist");
+        Check(rejectedCollection.Reads == 1, "rejected collection getter is read exactly once");
         Reject<NotSupportedException>(() => Materialize(new OrdinaryCollectionProperty { Value = new BoundaryList() }), "allowlist");
         Reject<NotSupportedException>(() => Materialize(new IncludedObjectList { Value = new List<BoundaryBase> { bad } }), "polymorphic");
         Reject<NotSupportedException>(() => Materialize(new IncludedObjectMap { Value = new Dictionary<string, BoundaryBase> { ["bad"] = bad } }), "polymorphic");
@@ -29,24 +45,22 @@ internal static class CodecMemberCases
         var fieldCopy = Materialize(field);
         Check(fieldCopy.Value.Number == 7 && !ReferenceEquals(fieldCopy.Value, field.Value), "included fields remain detached");
         var property = new IncludedSubtypeProperty { Value = new BoundaryBase { Number = 7 } };
-        IncludedSubtypeProperty.Reads = 0;
         var propertyCopy = Materialize(property);
-        Check(IncludedSubtypeProperty.Reads == 1 && propertyCopy.Peek().Number == 7 &&
+        Check(property.Reads == 1 && propertyCopy.Peek().Number == 7 &&
             !ReferenceEquals(property.Peek(), propertyCopy.Peek()), "valid included getter runs once and remains detached");
-        OrdinaryCountingProperty.Reads = 0;
-        _ = Materialize(new OrdinaryCountingProperty());
-        Check(OrdinaryCountingProperty.Reads == 2, "ordinary public getter retains its legacy validation and serialization reads");
-        OrdinaryCountingProperty.Reads = 0;
-        _ = Materialize(new NestedIncludedGetter());
-        Check(OrdinaryCountingProperty.Reads == 1, "an included field must not add a prepass through its child's getter");
+        var countingProperty = new OrdinaryCountingProperty();
+        _ = Materialize(countingProperty);
+        Check(countingProperty.Reads == 2, "submitted public getter retains its validation and serialization reads");
+        var nested = new NestedIncludedGetter();
+        _ = Materialize(nested);
+        Check(nested.Value.Reads == 1, "an included field must not add a prepass through its child's getter");
         var ignored = Materialize(new IgnoredSubtypeField { Hidden = bad, Number = 7 });
         Check(ignored.Number == 7 && ignored.Hidden is null, "ignored members remain omitted without reading their runtime value");
         var approved = Materialize(new ApprovedSubtypeField { Value = new ApprovedBoundaryDerived { Number = 7, Extra = 99 } });
         Check(approved.Value is ApprovedBoundaryDerived { Number: 7, Extra: 99 }, "explicitly approved included polymorphism retains every value");
         var list = new IncludedCollectionProperty { Value = new List<int> { 7, 8 } };
-        IncludedCollectionProperty.Reads = 0;
         var listCopy = Materialize(list);
-        Check(IncludedCollectionProperty.Reads == 1 && listCopy.Peek().SequenceEqual([7, 8]) &&
+        Check(list.Reads == 1 && listCopy.Peek().SequenceEqual([7, 8]) &&
             !ReferenceEquals(list.Peek(), listCopy.Peek()), "allowlisted included collections remain detached with one getter read");
 
         var services = new ServiceCollection().AddTransient<MemberWaitStep>();
@@ -144,12 +158,18 @@ internal static class CodecMemberCases
 }
 
 public class BoundaryBase { public int Number { get; set; } }
+public sealed class PrivateSetterValue
+{
+    public int Value { get; private set; }
+    public static PrivateSetterValue From(int value) => new() { Value = value };
+}
+
 public sealed class BoundaryDerived : BoundaryBase { public int Extra { get; set; } }
 public sealed class IncludedSubtypeField { [JsonInclude] public BoundaryBase Value = new(); }
 public sealed class IncludedSubtypeProperty
 {
     private BoundaryBase value = new();
-    public static int Reads;
+    internal int Reads;
     [JsonInclude] internal BoundaryBase Value { get { Reads++; return value; } set => this.value = value; }
     public BoundaryBase Peek() => value;
 }
@@ -158,7 +178,7 @@ public sealed class IncludedCollectionField { [JsonInclude] public IReadOnlyList
 public sealed class IncludedCollectionProperty
 {
     private IReadOnlyList<int> value = [];
-    public static int Reads;
+    internal int Reads;
     [JsonInclude] internal IReadOnlyList<int> Value { get { Reads++; return value; } set => this.value = value; }
     public IReadOnlyList<int> Peek() => value;
 }
@@ -180,7 +200,7 @@ public sealed class BoundaryList : IReadOnlyList<int>
 public sealed class OrdinaryCountingProperty
 {
     private int value = 7;
-    public static int Reads;
+    internal int Reads;
     public int Value { get { Reads++; return value; } set => this.value = value; }
 }
 public sealed class NestedIncludedGetter { [JsonInclude] public OrdinaryCountingProperty Value = new(); }
@@ -231,6 +251,8 @@ public sealed class MemberIntConverter : JsonConverter<int>
 }
 
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Metadata)]
+[JsonSerializable(typeof(PrivateSetterValue))]
+[JsonSerializable(typeof(List<PrivateSetterValue>))]
 [JsonSerializable(typeof(WriteOnlyMap))]
 [JsonSerializable(typeof(WriteOnlyConverter))]
 [JsonSerializable(typeof(SerializedMap))]
@@ -253,6 +275,8 @@ public sealed class MemberIntConverter : JsonConverter<int>
 public partial class CodecMemberContext : JsonSerializerContext;
 
 [JsonSourceGenerationOptions(GenerationMode = JsonSourceGenerationMode.Default)]
+[JsonSerializable(typeof(PrivateSetterValue))]
+[JsonSerializable(typeof(List<PrivateSetterValue>))]
 [JsonSerializable(typeof(WriteOnlyMap))]
 [JsonSerializable(typeof(WriteOnlyConverter))]
 [JsonSerializable(typeof(SerializedMap))]

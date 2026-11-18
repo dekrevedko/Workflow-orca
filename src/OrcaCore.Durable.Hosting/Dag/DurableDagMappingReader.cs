@@ -41,9 +41,20 @@ internal sealed class DurableDagMappingReader(DurableDagRunStore store,
         var run = await store.ReadAsync(node.Identity.RunId, cancellationToken).ConfigureAwait(false)
             ?? throw new InvalidOperationException("DAG run does not exist.");
         var inputs = Inspect(run, node);
+        object? runInput;
         try
         {
-            var runInput = DurableDagValues.DecodeVerified(inputs.RunBytes, inputs.RunType);
+            runInput = DurableDagValues.DecodeVerified(inputs.RunBytes, inputs.RunType);
+        }
+        catch (Exception error) when (error is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            // Framing and syntax passed Inspect. A cached compatibility result
+            // cannot turn a subsequent failed reconstruction into a bad mapper.
+            throw new DurableDagDefinitionUnavailableException();
+        }
+        try
+        {
             var decoded = inputs.Outputs.Select(output => new DurableDagDecodedOutputV1(
                 output.Identity, output.Type, DurableDagValues.DecodeVerified(output.Bytes, output.Type))).ToArray();
             cancellationToken.ThrowIfCancellationRequested();

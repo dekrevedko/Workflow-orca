@@ -5,12 +5,12 @@
     {
       "id": "OrcaCore",
       "project": "src/OrcaCore.Abstractions/OrcaCore.csproj",
-      "sourceSha256": "c74e6779e9046cd96d93b295f2721788aca4093b74e9223fb3c9cb6352baf08c"
+      "sourceSha256": "a34e5577640e965f24b503d71e7fb94e14d6ac66a39ffa455ff6b0826c42fe2b"
     },
     {
       "id": "OrcaCore.Core",
       "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
-      "sourceSha256": "f30810f40009f471d45691f504ec5781293ab57a823d3805987435944eaa80f4"
+      "sourceSha256": "ba0d07b7ec401a9f7e285ad8901b34db483cb5fbf6f1831e7d1ebd6e02728153"
     },
     {
       "id": "OrcaCore.Dag",
@@ -25,17 +25,17 @@
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "0528234103fa486ed1322795a15b2bb0b8629d7c9e5e0c35c4ec11e308107fc4"
+      "sourceSha256": "7f5b609ee74f1002b7d54046cc627fdeaef487aecb858fd966c06dbea9a331be"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "edd37b1e606a16bda5058b4ccfedff3a69786b5f02731477d7b02533424a174b"
+      "sourceSha256": "123571cbf85af8c7af84b7567b59812f27da362565496a6049b260a365f7bbfc"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
       "project": "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj",
-      "sourceSha256": "6fb1b79ec88a4c3c3d9d1f0379338f1fb66da8ef40b612af4d8971daf0452afb"
+      "sourceSha256": "024f965d547c2e4f797c1181c8c5c1209fb6660c83e5d371d376d80168e65831"
     },
     {
       "id": "OrcaCore.Provider.Abstractions",

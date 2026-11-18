@@ -7,22 +7,7 @@ internal static class DurableDagValues
 {
     internal static DagRunValueV1 Normalize(string key, object? value, Type declaredType)
     {
-        if (value is null && declaredType.IsValueType && Nullable.GetUnderlyingType(declaredType) is null)
-            throw new InvalidDataException("Null is not valid for this declared DAG value type.");
         var bytes = CoreWorkflowValueCodec.Serialize(value, declaredType);
-        _ = CoreWorkflowValueCodec.Deserialize(bytes, declaredType);
-        return new(true, key, CoreWorkflowValueCodec.Format, bytes, DurableDagWire.ValueFingerprint(bytes));
-    }
-
-    // Run input is immutable and must be reopenable by the type that submits it.
-    // This rule deliberately does not change mapped inputs or child outputs.
-    internal static DagRunValueV1 NormalizeRunInput(string key, object? value, Type declaredType)
-    {
-        if (value is null && declaredType.IsValueType && Nullable.GetUnderlyingType(declaredType) is null)
-            throw new NotSupportedException("Null cannot round-trip through the declared DAG run-input type.");
-        var bytes = CoreWorkflowValueCodec.Serialize(value, declaredType);
-        if (!RoundTrips(bytes, declaredType))
-            throw new NotSupportedException($"A value of '{declaredType}' does not round-trip losslessly through the fixed codec.");
         return new(true, key, CoreWorkflowValueCodec.Format, bytes, DurableDagWire.ValueFingerprint(bytes));
     }
 
@@ -47,10 +32,8 @@ internal static class DurableDagValues
     {
         try
         {
-            var decoded = CoreWorkflowValueCodec.Deserialize(bytes, declaredType);
-            if (decoded is null && declaredType.IsValueType && Nullable.GetUnderlyingType(declaredType) is null)
-                return false;
-            return CoreWorkflowValueCodec.Serialize(decoded, declaredType).AsSpan().SequenceEqual(bytes);
+            _ = CoreWorkflowValueCodec.Deserialize(bytes, declaredType);
+            return true;
         }
         catch (Exception error) when (error is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
         {

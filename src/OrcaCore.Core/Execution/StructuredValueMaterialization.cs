@@ -58,3 +58,21 @@ internal static class BranchInputMaterializer
             inputPlan.BranchStateType));
     }
 }
+
+internal static class BranchResultMaterializer
+{
+    internal static byte[] Serialize(object? result, Type declaredType, int maximumBytes)
+    {
+        return FixedWorkflowValueCodec.Serialize(result, declaredType, out _, CheckEncodedLength);
+
+        void CheckEncodedLength(int length)
+        {
+            if (length > maximumBytes)
+            {
+                throw new StructuredExecutionLimitException(
+                    StructuredExecutionLimitCodes.SerializedResultExceeded,
+                    $"Serialized structured result is {length} bytes, exceeding the configured limit of {maximumBytes} bytes.");
+            }
+        }
+    }
+}

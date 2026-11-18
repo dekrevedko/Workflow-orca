@@ -6,6 +6,7 @@ using OrcaCore.Core.Building;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
+using OrcaCore.Core.Internal;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Governance;
 
@@ -475,12 +476,9 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         $"IStep<{typeof(TState).Name}>.");
             }
 
-                var stateSchema = typeof(TState).AssemblyQualifiedName ?? typeof(TState).FullName!;
                 var attemptState = plan.DetachedAttemptState
-                    ? (TState)(codec.Deserialize(codec.Serialize(
-                        instance.State,
-                        typeof(TState),
-                        stateSchema)) ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
+                    ? (TState)(CoreWorkflowValueCodec.Detach(instance.State, typeof(TState))
+                        ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                             "Root state deserialized to null before step execution."))
                     : instance.State;
                 var stepContext = StepContextContracts.Create(
@@ -505,10 +503,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     cancellationToken.ThrowIfCancellationRequested();
                     if (result is not StepResult.Failed && plan.DetachedAttemptState)
                     {
-                        var committedState = (TState)(codec.Deserialize(codec.Serialize(
-                            stepContext.State,
-                            typeof(TState),
-                            stateSchema)) ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
+                        var committedState = (TState)(CoreWorkflowValueCodec.Detach(stepContext.State, typeof(TState))
+                            ?? throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
                                 "Root state deserialized to null after step execution."));
                         instance.ReplaceState(committedState);
                     }

@@ -164,7 +164,7 @@ internal static class DurableContractAdapter
             attemptedDefinitionFingerprint,
             attemptedInputFingerprint);
 
-    internal static PayloadFingerprint PayloadFingerprint<T>(T value)
+    internal static PayloadFingerprint PayloadFingerprint(ReadOnlySpan<byte> value)
     {
         var digest = DurableWorkflowInputFingerprint.Create(value);
         return new PayloadFingerprint(digest);

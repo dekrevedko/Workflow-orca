@@ -57,17 +57,20 @@ internal static class ForEachSnapshotMaterializer
 
     private static object RoundTrip(object array, Type snapshotType)
     {
-        var encoded = FixedWorkflowValueCodec.Serialize(array, snapshotType);
-        if (encoded.Length > FixedWorkflowValueCodec.MaxEncodedValueBytes)
+        FixedWorkflowValueCodec.Serialize(array, snapshotType, out var detached, CheckEncodedLength);
+        return detached ??
+               throw new InvalidOperationException("ForEach item snapshot decoded to null.");
+    }
+
+    private static void CheckEncodedLength(int length)
+    {
+        if (length > FixedWorkflowValueCodec.MaxEncodedValueBytes)
         {
             throw new StructuredExecutionLimitException(
                 StructuredExecutionLimitCodes.EncodedValueExceeded,
-                $"Encoded ForEach item snapshot is {encoded.Length} bytes, exceeding the fixed " +
+                $"Encoded ForEach item snapshot is {length} bytes, exceeding the fixed " +
                 $"{FixedWorkflowValueCodec.Format} value limit of " +
                 $"{FixedWorkflowValueCodec.MaxEncodedValueBytes} bytes.");
         }
-
-        return FixedWorkflowValueCodec.Deserialize(encoded, snapshotType) ??
-               throw new InvalidOperationException("ForEach item snapshot decoded to null.");
     }
 }

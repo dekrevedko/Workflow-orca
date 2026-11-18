@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Engine.Durable.Definitions;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Providers.InMemory;
@@ -8,6 +9,105 @@ namespace OrcaCore.Engine.Durable.Tests.Facade;
 
 public sealed class DurableStartIdempotencyFacadeTests
 {
+    [Fact]
+    public async Task LossyInputIsRejectedBeforeBindingANewOrExistingStartKey()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var store = new InMemoryWorkflowProvider();
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<LossyInput>(input => new State(input.Value)).End().Build();
+        var handle = CreateRegistry(store).Register(definition).GetHandleOrThrow();
+        var key = StartIdempotencyKey.Create("lossy-input");
+        await Assert.ThrowsAsync<NotSupportedException>(() => handle.StartOrGetAsync(LossyInput.Of(17), key, token).AsTask());
+        Assert.False((await store.GetStartedAsync(key.Value, token)).HasValue);
+
+        var owner = (await handle.StartOrGetAsync(LossyInput.Of(0), key, token)).GetHandleOrThrow();
+        await Assert.ThrowsAsync<NotSupportedException>(() => handle.StartOrGetAsync(LossyInput.Of(17), key, token).AsTask());
+        Assert.Equal(owner.InstanceId, (await store.GetStartedAsync(key.Value, token)).Value.InstanceId);
+    }
+
+    [Fact]
+    public async Task StartKeyAndInitUseTheSameCapturedInputBytesAcrossHosts()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var store = new InMemoryWorkflowProvider();
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<ReadCountingInput>(input => new State(input.Value)).End().Build();
+        var handle = CreateRegistry(store).Register(definition).GetHandleOrThrow();
+        var key = StartIdempotencyKey.Create("single-capture");
+        var input = new ReadCountingInput { AdvanceOnRead = true };
+        var instance = (await handle.StartOrGetAsync(input, key, token)).GetHandleOrThrow();
+        var committed = await instance.GetStateAsync<State>(token);
+        var replay = new ReadCountingInput { Value = committed.Value };
+
+        foreach (var registry in new[] { handle, CreateRegistry(store).Register(definition).GetHandleOrThrow() })
+        {
+            var existing = Assert.IsType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>(
+                await registry.StartOrGetAsync(replay, key, token));
+            Assert.True(existing.WasExisting);
+            Assert.Equal(instance.InstanceId, existing.Handle.InstanceId);
+        }
+    }
+
+    [Fact]
+    public async Task ExplicitNullInputPersistsTheBytesThatBoundTheStartKey()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var store = new InMemoryWorkflowProvider();
+        var definition = Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int?>(input => new State(input ?? 17)).End().Build();
+        var handle = CreateRegistry(store).Register(definition).GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync(null, StartIdempotencyKey.Create("present-null"), token)).GetHandleOrThrow();
+        var events = await store.LoadTailAsync(new global::OrcaCore.Abstractions.Ids.WorkflowStreamId(instance.InstanceId),
+            global::OrcaCore.Abstractions.Ids.StreamVersion.Empty, token);
+        var started = Assert.Single(events.OfType<global::OrcaCore.Abstractions.Durable.WorkflowStartedEvent>());
+        Assert.Equal("orcacore-json-v1", started.InputContentType);
+        Assert.Equal("null"u8.ToArray(), started.InputPayload);
+        Assert.Equal(Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("null"u8)), started.InputFingerprint);
+        Assert.Equal(17, (await instance.GetStateAsync<State>(token)).Value);
+    }
+
+    private sealed class LossyInput
+    {
+        public int Value { get; private set; }
+        public int Revision { get; init; }
+        internal static LossyInput Of(int value) => new() { Value = value, Revision = value };
+    }
+
+    [Fact]
+    public async Task LossyDetachedReplacementFailsItsDurableStepAndPreservesTheCheckpoint()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var store = new InMemoryWorkflowProvider();
+        var definition = Workflow.Durable<LossyInput>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(_ => LossyInput.Of(0)).Then<ReplaceWithLossyState>().End().Build();
+        using var services = new ServiceCollection().AddSingleton(new ReplaceWithLossyState()).BuildServiceProvider();
+        var owner = (await CreateRegistry(store, new DurableDefinitionRegistry(services)).Register(definition).GetHandleOrThrow()
+            .StartOrGetAsync(0, StartIdempotencyKey.Create("lossy-state"), token)).GetHandleOrThrow();
+        var snapshot = await owner.GetSnapshotAsync(token);
+        Assert.Equal(WorkflowInstanceStatus.Failed, snapshot.Status);
+        Assert.Contains(nameof(LossyInput), Assert.IsType<WorkflowFailure>(snapshot.Failure).Message);
+        var committed = await owner.GetStateAsync<LossyInput>(token);
+        Assert.Equal(0, committed.Value);
+        Assert.Equal(0, committed.Revision);
+    }
+
+    private sealed class ReplaceWithLossyState : IStep<LossyInput>
+    {
+        public ValueTask<StepResult> ExecuteAsync(StepContext<LossyInput> context, CancellationToken token)
+        {
+            context.ReplaceState(LossyInput.Of(17));
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
+    private sealed class ReadCountingInput
+    {
+        private int value;
+        internal bool AdvanceOnRead { get; init; }
+        public int Value { get => AdvanceOnRead ? ++value : value; set => this.value = value; }
+    }
+
     [Fact]
     public async Task ReplacementHost_SameKeyWithChangedInput_ReturnsConflictWithoutAnIncompatibleHandle()
     {
@@ -77,13 +177,14 @@ public sealed class DurableStartIdempotencyFacadeTests
         getIncompatibleHandle.Should().Throw<WorkflowStartIdempotencyConflictException>();
     }
 
-    private static DurableWorkflowDefinitionRegistry CreateRegistry(InMemoryWorkflowProvider store)
+    private static DurableWorkflowDefinitionRegistry CreateRegistry(InMemoryWorkflowProvider store,
+        DurableDefinitionRegistry? definitions = null)
     {
         var notifications = new DurableFacadeNotificationHub();
         var processor = new DurableCommandProcessor(store, runtimeObserver: notifications);
         var runtime = new DurableWorkflowRuntime(
             processor,
-            new DurableDefinitionRegistry(),
+            definitions ?? new DurableDefinitionRegistry(),
             TimeProvider.System,
             projectionStore: store);
         return new DurableWorkflowDefinitionRegistry(

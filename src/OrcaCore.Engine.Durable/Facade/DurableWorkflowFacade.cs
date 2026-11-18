@@ -317,7 +317,8 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(idempotencyKey);
-        var inputFingerprint = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.PayloadFingerprint(input);
+        var captured = DurableStartInput.Capture(input);
+        var inputFingerprint = captured.Fingerprint;
 
         await startGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
@@ -359,7 +360,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             }
 
             var task = (Task)StartRuntimeMethod
-                .MakeGenericMethod(typeof(TInput), stateType)
+                .MakeGenericMethod(stateType)
                 .Invoke(
                     runtime,
                     [
@@ -367,7 +368,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                         definitionId,
                         definitionVersion,
                         definitionFingerprint,
-                        input,
+                        captured,
                         cancellationToken
                     ])!;
             await task.ConfigureAwait(false);

@@ -49,16 +49,4 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         return true;
     }
 
-    private static void EnsureSerializedResultSize(
-        CompiledWorkflowPlan plan,
-        byte[] payload)
-    {
-        if (payload.Length > plan.CompilerOptions.MaxSerializedResultBytes)
-        {
-            throw new StructuredExecutionLimitException(
-                StructuredExecutionLimitCodes.SerializedResultExceeded,
-                $"Serialized structured result is {payload.Length} bytes, exceeding the configured " +
-                $"limit of {plan.CompilerOptions.MaxSerializedResultBytes} bytes.");
-        }
-    }
 }

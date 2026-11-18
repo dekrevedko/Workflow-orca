@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 399,
-    "physicalDeclarations": 1677,
+    "physicalDeclarations": 1692,
     "activeFiles": 243,
-    "activeDeclarations": 989,
+    "activeDeclarations": 1004,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -297,7 +297,7 @@
       "source": "tests/OrcaCore.Core.Tests/Contracts/EventEnvelopeContractTests.cs",
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "active",
-      "declarations": 4
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Core.Tests/Contracts/IdContractTests.cs",
@@ -531,7 +531,7 @@
       "source": "tests/OrcaCore.Core.Tests/Serialization/FixedWorkflowValueCodecCollectionTests.cs",
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "active",
-      "declarations": 2
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Core.Tests/Serialization/WorkflowEventCodecTests.cs",
@@ -1413,7 +1413,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableEventDeduplicationFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 8
+      "declarations": 10
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableLifecycleFacadeTests.cs",
@@ -1425,7 +1425,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableStartIdempotencyFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 2
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableWorkflowCatalogTests.cs",
@@ -1743,7 +1743,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 4
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Failures/OriginalStepFailureTests.cs",
@@ -1947,7 +1947,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 5
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs",

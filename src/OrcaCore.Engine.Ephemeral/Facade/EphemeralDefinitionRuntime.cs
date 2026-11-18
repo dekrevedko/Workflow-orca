@@ -34,7 +34,7 @@ internal static class EphemeralDefinitionRuntime
         public void Register() => engine.RegisterDefinition(definition);
         public Task<EphemeralWorkflowInstanceSnapshot> StartAsync<TInput>(
             DefinitionId definitionId, DefinitionVersion version, TInput input, CancellationToken cancellationToken) =>
-            engine.StartCoreAsync<TInput, TState>(definitionId, version, input, cancellationToken, enforceUniqueWaits: true);
+            engine.StartDetachedCoreAsync<TInput, TState>(definitionId, version, input, cancellationToken, enforceUniqueWaits: true);
         public async Task RaiseEventAsync(InstanceId instanceId, EventEnvelope envelope, CancellationToken cancellationToken) =>
             _ = await engine.RaiseEventCoreAsync<TState>(instanceId, envelope, cancellationToken).ConfigureAwait(false);
     }

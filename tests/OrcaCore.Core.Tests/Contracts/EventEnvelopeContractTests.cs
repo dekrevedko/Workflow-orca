@@ -7,6 +7,41 @@ namespace OrcaCore.Core.Tests.Contracts;
 public sealed class EventEnvelopeContractTests
 {
     [Fact]
+    public void EventFactory_RejectsUnreconstructablePayloadAndStartInput()
+    {
+        var loss = new ShiftingValue(16);
+        var id = EventId.Create("loss");
+        var correlation = CorrelationId.Create("loss");
+        Action payload = () => WorkflowInboundEvent<ShiftingValue>.Create(
+            WorkflowEventContract<ShiftingValue>.Create(EventName.Create("loss"), EventContractVersion.Initial),
+            id, correlation, null, DateTimeOffset.UnixEpoch, new WorkflowEventRoute.Correlation(DefinitionId.New()), loss);
+        Action startInput = () => WorkflowInboundEvent.Create(
+            WorkflowEventContract.Create(EventName.Create("loss"), EventContractVersion.Initial),
+            id, correlation, null, DateTimeOffset.UnixEpoch, new WorkflowEventRoute.StartOrDeliver<ShiftingValue>(
+                DefinitionId.New(), DefinitionVersion.Initial, StartIdempotencyKey.Create("loss"), loss));
+        payload.Should().Throw<NotSupportedException>().WithMessage("*round-trip*");
+        startInput.Should().Throw<NotSupportedException>().WithMessage("*round-trip*");
+    }
+
+    private sealed class ShiftingValue(int value)
+    {
+        public int Value { get; } = value + 1;
+    }
+
+    [Fact]
+    public void Envelope_DistinguishesPresentJsonNullFromAMissingPayload()
+    {
+        var contract = WorkflowEventContract<int?>.Create(EventName.Create("optional"), EventContractVersion.Initial);
+        var id = EventId.Create("optional-event");
+        var correlation = CorrelationId.Create("optional");
+        var present = CreateEnvelope(id, contract, correlation, DateTimeOffset.UnixEpoch, "null"u8.ToArray());
+        present.GetPayload(contract).Should().BeNull();
+        var missing = CreateEnvelope(id, contract, correlation, DateTimeOffset.UnixEpoch, ReadOnlyMemory<byte>.Empty);
+        Action read = () => missing.GetPayload(contract);
+        read.Should().Throw<InvalidOperationException>().WithMessage("*does not contain a payload*");
+    }
+
+    [Fact]
     public void Envelope_HasTheExactRuntimeCreatedSurface()
     {
         typeof(EventEnvelope).GetConstructors(BindingFlags.Instance | BindingFlags.Public)

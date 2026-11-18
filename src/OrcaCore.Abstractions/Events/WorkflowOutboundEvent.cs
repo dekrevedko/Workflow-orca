@@ -69,8 +69,6 @@ public sealed class WorkflowOutboundEvent
             throw new InvalidOperationException("The outbound event does not contain a payload.");
         }
 
-        return (TPayload?)FixedWorkflowValueCodec.Deserialize(payload, typeof(TPayload)) ??
-            throw new InvalidOperationException(
-                $"The outbound event payload materialized as null for '{typeof(TPayload).FullName}'.");
+        return (TPayload)FixedWorkflowValueCodec.Deserialize(payload, typeof(TPayload))!;
     }
 }

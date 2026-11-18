@@ -112,13 +112,14 @@ internal sealed class DurableWorkflowRuntime
         ArgumentNullException.ThrowIfNull(definitionVersion);
         var definition = definitions.Resolve<TState>(definitionId, definitionVersion);
         var plan = (CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition);
-        var result = await StartOrGetCoreAsync(
+        var captured = DurableStartInput.Capture(input);
+        var result = await StartOrGetSerializedCoreAsync(
                 idempotencyKey,
                 definitionId,
                 definitionVersion,
                 plan.Fingerprint,
-                global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.PayloadFingerprint(input).Value,
-                input,
+                captured.Fingerprint.Value,
+                captured.Payload,
                 cancellationToken)
             .ConfigureAwait(false);
         if (result.ConflictingBinding is { } conflict)
@@ -144,12 +145,12 @@ internal sealed class DurableWorkflowRuntime
             result.Created);
     }
 
-    internal async Task<DurableFacadeStartResult> StartOrGetForFacadeAsync<TInput, TState>(
+    internal async Task<DurableFacadeStartResult> StartOrGetForFacadeAsync<TState>(
         string idempotencyKey,
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         DefinitionFingerprint definitionFingerprint,
-        TInput input,
+        DurableStartInput input,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(idempotencyKey);
@@ -158,13 +159,13 @@ internal sealed class DurableWorkflowRuntime
         ArgumentNullException.ThrowIfNull(definitionFingerprint);
         definitions.Resolve<TState>(definitionId, definitionVersion);
 
-        var result = await StartOrGetCoreAsync(
+        var result = await StartOrGetSerializedCoreAsync(
                 idempotencyKey,
                 definitionId,
                 definitionVersion,
                 definitionFingerprint.Value,
-                global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.PayloadFingerprint(input).Value,
-                input,
+                input.Fingerprint.Value,
+                input.Payload,
                 cancellationToken)
             .ConfigureAwait(false);
         return new DurableFacadeStartResult(
@@ -172,26 +173,6 @@ internal sealed class DurableWorkflowRuntime
             result.Created,
             result.ConflictingBinding,
             result.ConflictingPendingIntent);
-    }
-
-    private async Task<StartOrGetResult> StartOrGetCoreAsync<TInput>(
-        string idempotencyKey,
-        DefinitionId definitionId,
-        DefinitionVersion definitionVersion,
-        string definitionFingerprint,
-        string inputFingerprint,
-        TInput input,
-        CancellationToken cancellationToken)
-    {
-        var serializedInput = input is null ? null : payloadSerializer.Serialize(input);
-        return await StartOrGetSerializedCoreAsync(
-            idempotencyKey,
-            definitionId,
-            definitionVersion,
-            definitionFingerprint,
-            inputFingerprint,
-            serializedInput,
-            cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<StartOrGetResult> StartOrGetSerializedCoreAsync(
