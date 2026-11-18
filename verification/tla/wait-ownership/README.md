@@ -12,7 +12,7 @@ From the repository root with PowerShell 7:
 dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj -c Release
 ```
 
-The runner downloads checksum-pinned TLC 1.7.4 and Temurin JRE 21.0.9+10 into the ignored `.codex-run/tla-tools/` directory. It makes no machine-wide Java installation, registry, PATH, NuGet, or runtime-package change. Windows/Linux x64 are pinned; local validation was on Windows. An eventual system installation is a separate adoption decision; use `winget` on Windows if that is later requested.
+The runner downloads checksum-pinned TLC 1.7.4 and Temurin JRE 21.0.9+10 into the ignored `.codex-run/tla-tools/` directory. It makes no machine-wide Java installation, registry, PATH, NuGet, or runtime-package change. Windows/Linux x64 are pinned; local validation was on Windows. The adopted workflow uses this private runtime locally and in CI.
 
 Select profiles from an existing PowerShell session:
 
@@ -31,7 +31,7 @@ Default limits are one worker, 1 GiB heap, and 300 seconds per profile. A determ
 - `Witness-*.cfg`: fourteen reachable scenario traces, including successor-then-failure.
 - `Control-*.cfg`: a positive completed-progress control and explicit removal of return or scheduling assumptions.
 - `profiles.json`: expected result type; normal checks never accept the known runtime violation as success.
-- `toolchain.json`: artifact URLs, versions, and SHA-256 pins.
+- [`../toolchain.json`](../toolchain.json): artifact URLs, versions, and SHA-256 pins.
 
 Outputs go to a fresh ignored `.codex-run/wait-ownership/<timestamp>/` directory. `results.json` records each classification, command, limit, state counts, duration, and violated property. `source-manifest.json` hashes production source, tests, model, configuration, scripts, and planning inputs; the top-level record also stores HEAD and a dirty-diff hash. Each profile retains its exact module/config copies and `tlc.log` trace. Untracked inputs appear in the source manifest, so a clean-HEAD identifier alone is not mistaken for evidence of new files.
 

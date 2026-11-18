@@ -5,6 +5,7 @@ on:
   pull_request:
     paths:
       - 'verification/tla/wait-ownership/**'
+      - 'verification/tla/toolchain.json'
       - 'scripts/verification/**'
       - '.github/workflows/wait-ownership.yml'
       - 'src/OrcaCore.Engine.Ephemeral/**'
@@ -22,6 +23,7 @@ on:
     branches: [master]
     paths:
       - 'verification/tla/wait-ownership/**'
+      - 'verification/tla/toolchain.json'
       - 'scripts/verification/**'
       - '.github/workflows/wait-ownership.yml'
       - 'src/OrcaCore.Engine.Ephemeral/**'

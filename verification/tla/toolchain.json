@@ -1,0 +1,20 @@
+{
+  "tlc": {
+    "release": "v1.7.4",
+    "url": "https://github.com/tlaplus/tlaplus/releases/download/v1.7.4/tla2tools.jar",
+    "sha256": "936a262061c914694dfd669a543be24573c45d5aa0ff20a8b96b23d01e050e88"
+  },
+  "java": {
+    "version": "21.0.9",
+    "build": "21.0.9+10",
+    "directory": "jdk-21.0.9+10-jre",
+    "windows": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.9%2B10/OpenJDK21U-jre_x64_windows_hotspot_21.0.9_10.zip",
+      "sha256": "39c5e23f3ce4d420663afba8ffde28034b72e2b3e240943dc2321bc1f912eef9"
+    },
+    "linux": {
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.9%2B10/OpenJDK21U-jre_x64_linux_hotspot_21.0.9_10.tar.gz",
+      "sha256": "aeab55d064a1a27a3744b0880b9b414077b4ed2b1790817eea3df60aec946431"
+    }
+  }
+}

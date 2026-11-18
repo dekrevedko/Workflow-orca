@@ -178,6 +178,7 @@ dotnet run --project samples/OrcaCore.Examples/OrcaCore.Examples.csproj
 - [Production Readiness Notes](docs/production-readiness.md)
 - [Install packages and publish a prerelease](docs/packages.md)
 - [Durable Driver Requirements](docs/specs/16-requirements-durable-driver.md)
+- [TLA+ protocol verification](verification/tla/README.md)
 - [Integration Gates](tests/OrcaCore.Integration.Tests/README.md)
 
 The superseded prototype and its original solution metadata are preserved under
