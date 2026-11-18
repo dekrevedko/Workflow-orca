@@ -11,13 +11,19 @@ public sealed partial class OpenSpecCorpusGuards
     private const string ValueFidelityProposal = "c05bdad7af594febd3b7c487d42dbccf65224a59";
     private const string ValueFidelityVerdict = "openspec/changes/enforce-lossless-workflow-values/artifacts/contract-approval.md";
     private const string ValueFidelityVerdictHash = "66c8fefd9869217ef20e0efa59f34d953a47a71ad01b7bf7e3b7e6928868111e";
-    private const string ValueFidelityStage = "ApprovedPending";
+    private const string ValueFidelityStage = "Complete";
+    private const string ValueFidelitySource = "200d13a854677743b644e9bb1dbde2edb2318e05";
+    private const string ValueFidelityQualification = "openspec/changes/" + ValueFidelityChange + "/artifacts/qualification.md";
+    private const string ValueFidelityQualificationHash = "e74443200893868427982ea936c957c25453825531cd3697e40529eb4e7ed39f";
     private const string ValueFidelityContractHash = "18406e9549dad916e955ea9acd8baa02f0f7049464789a32bfe7a085dfdc8bc9";
 
     internal static void ProjectValueFidelityRegistry(JsonObject current)
     {
         var row = current["workflowValueFidelity"]!.AsObject();
-        row.Count.Should().Be(7);
+        row.Count.Should().Be(10);
+        row["implementationCheckpoint"]!.GetValue<string>().Should().Be(ValueFidelitySource);
+        row["qualificationPath"]!.GetValue<string>().Should().Be(ValueFidelityQualification);
+        row["qualificationSha256"]!.GetValue<string>().Should().Be(ValueFidelityQualificationHash);
         row["reviewedCheckpoint"]!.GetValue<string>().Should().Be(ValueFidelityProposal);
         row["verdictPath"]!.GetValue<string>().Should().Be(ValueFidelityVerdict);
         row["verdictSha256"]!.GetValue<string>().Should().Be(ValueFidelityVerdictHash);
@@ -55,6 +61,11 @@ public sealed partial class OpenSpecCorpusGuards
             .And.Contain($"Reviewed normalized contract SHA-256: `{ValueFidelityContractHash}`");
         ValidateTaskReference(root, new PostGateTaskReference(ValueFidelityChange, "1.1", CompleteTaskState));
         ValidateTaskReference(root, new PostGateTaskReference(ValueFidelityChange, "1.2", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(ValueFidelityChange, "2.1", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(ValueFidelityChange, "2.2", CompleteTaskState));
+        var qualification = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, ValueFidelityQualification)));
+        Sha256(qualification).Should().Be(ValueFidelityQualificationHash);
+        qualification.Should().Contain(ValueFidelitySource);
         var keys = new HashSet<string>(StringComparer.Ordinal);
         var expectedCount = 0;
         foreach (var row in contract.GetProperty("successors").EnumerateArray())
@@ -80,8 +91,7 @@ public sealed partial class OpenSpecCorpusGuards
             var change = ReadResolvedPostGateOwner(root, ValueFidelityChange, cap, title);
             change.Operation.Should().Be(RequirementOperation.Added);
             Sha256(change.Block).Should().Be(row.GetProperty("sha256").GetString());
-            if (FidelitySynchronized) canonical[cap][title].Block.Should().Be(change.Block);
-            else canonical[cap].Should().NotContainKey(title);
+            canonical[cap][title].Block.Should().Be(change.Block);
             expectedCount++;
         }
         active.Count(item => item.Change == ValueFidelityChange).Should().Be(expectedCount);
@@ -94,8 +104,6 @@ public sealed partial class OpenSpecCorpusGuards
         return keys;
     }
 
-    private static bool FidelitySynchronized => ValueFidelityStage == "ApprovedPending";
-
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>>
         PriorValueFidelityCanonical(string root,
             IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> canonical, JsonElement contract)
@@ -107,7 +115,7 @@ public sealed partial class OpenSpecCorpusGuards
             var title = row.GetProperty("requirement").GetString()!;
             var predecessor = ReadResolvedPostGateOwner(root, row.GetProperty("predecessor").GetString()!, cap, title);
             Sha256(predecessor.Block).Should().Be(row.GetProperty("beforeSha256").GetString());
-            var expected = row.GetProperty(FidelitySynchronized ? "afterSha256" : "beforeSha256").GetString();
+            var expected = row.GetProperty("afterSha256").GetString();
             Sha256(canonical[cap][title].Block).Should().Be(expected);
             var historical = new Dictionary<string, CanonicalRequirement>(result[cap], StringComparer.Ordinal);
             historical[title] = new(title, predecessor.Block);
@@ -158,9 +166,8 @@ public sealed partial class OpenSpecCorpusGuards
     private static string ProjectValueFidelityDocument(string root, string path, string current,
         JsonElement contract, JsonElement row)
     {
-        var hash = row.GetProperty(FidelitySynchronized ? "afterSha256" : "beforeSha256").GetString();
+        var hash = row.GetProperty("afterSha256").GetString();
         Sha256(current).Should().Be(hash, "only the reviewed document may be projected");
-        if (!FidelitySynchronized) return current;
         var prior = DagFacadeApprovedHistory.TextAt(root, contract.GetProperty("base").GetString()!, path);
         Sha256(prior).Should().Be(row.GetProperty("beforeSha256").GetString());
         return prior;
