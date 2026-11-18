@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Current",
+    "kind": "normal",
+    "config": "Current.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Settlement",
+    "kind": "normal",
+    "config": "Settlement.cfg",
+    "expected": ""
+  },
+  {
+    "name": "AttemptFenced",
+    "kind": "normal",
+    "config": "AttemptFenced.cfg",
+    "expected": ""
+  },
+  {
+    "name": "UnfencedAppend",
+    "kind": "mutation",
+    "config": "UnfencedAppend.cfg",
+    "expected": "SingleCommit"
+  },
+  {
+    "name": "LateRetryReclaim",
+    "kind": "witness",
+    "config": "LateRetryReclaim.cfg",
+    "expected": "NoLateRetryReclaim"
+  },
+  {
+    "name": "LateReleaseNoOp",
+    "kind": "witness",
+    "config": "LateReleaseNoOp.cfg",
+    "expected": "NoLateReleaseNoOp"
+  },
+  {
+    "name": "EarlyRetryReclaim",
+    "kind": "witness",
+    "config": "EarlyRetryReclaim.cfg",
+    "expected": "NoEarlyRetryReclaim"
+  },
+  {
+    "name": "EarlyReleaseReclaim",
+    "kind": "witness",
+    "config": "EarlyReleaseReclaim.cfg",
+    "expected": "NoEarlyReleaseReclaim"
+  }
+]
