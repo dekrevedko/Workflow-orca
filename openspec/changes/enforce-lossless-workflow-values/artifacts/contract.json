@@ -1,0 +1,134 @@
+{
+  "change": "enforce-lossless-workflow-values",
+  "base": "499b901846fa44059add42ab3c5e7176e2f5f743",
+  "successors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Implementation package boundaries use exact internal friends",
+      "predecessor": "admit-dag-public-handle-seam",
+      "operation": "MODIFIED",
+      "beforeSha256": "a55739a1ab663d7d5f3671d7c0bf1360273f708be9871c8d001fe9a861de02f0",
+      "afterSha256": "2102429a1d26f6a272357363f62ae05dacdd381476b93d00964782f772254526"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Generated workflow metadata preserves the fixed codec",
+      "predecessor": "support-ephemeral-native-aot",
+      "operation": "MODIFIED",
+      "beforeSha256": "5a48a32329aa0c350153c96abc3f4734ffc4a761d7264a7ee41dc082014dff25",
+      "afterSha256": "dfeb99e730122b8ffed606f5e9ca8cd311e407338bb8ef60d0345925ec60459a"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Ephemeral native support requires six successful native cells",
+      "predecessor": "support-ephemeral-native-aot",
+      "operation": "MODIFIED",
+      "beforeSha256": "621ef30a992a14d7a77e5f5dd243a6390d2ef76324dc594ba9bc3e4f993329ce",
+      "afterSha256": "b2d3906e69555df6a00cbc2f32c9e0c042931776404a0639c7f28ae7f5ae190f"
+    }
+  ],
+  "additions": [
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Shared codec fidelity is exercised at application boundaries",
+      "operation": "ADDED",
+      "sha256": "c34c8214327e6addd11cbe699aff85b18a606386a8c1f50c49c7ea70740d0fed"
+    },
+    {
+      "capability": "workflow-authoring",
+      "requirement": "Attempt-local replacements preserve serialized state",
+      "operation": "ADDED",
+      "sha256": "56d46d18769e18bd7835b58d7ea32cf5e103377d071d62b7a23b294e87acdbe1"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow values preserve their fixed-codec representation",
+      "operation": "ADDED",
+      "sha256": "b95114abdd3a6d6a651751b6e36c1d83836b3915c7149b14d6f9b6055934b53b"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/specs/03-domain-model-and-glossary.md",
+      "beforeSha256": "5750f167b24f5d3b66368583690c011372c706d9f3ad26dbafb3520571ef09bc",
+      "afterSha256": "9d3a0d2d6816bffdc8f983dfdd86a4544b73f3c9dd254769ae9fe16b140caa0a",
+      "changes": [
+        {
+          "before": "",
+          "after": "\n**Workflow value representation.** A boundary captures the fixed-codec bytes for the declared type. A faithful detached value re-encodes to exactly those bytes, including ordered collections. Application equality and unencoded CLR members do not define this representation.\n",
+          "line": 423
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/04-requirements-core-runtime.md",
+      "beforeSha256": "22493af147d83051294af947a89b90a17f776faef1c1861e57101df55a910671",
+      "afterSha256": "96c57737ebd57be0bbff96841e3516ff3411b85b2ec839c025698dc2d04a849b",
+      "changes": [
+        {
+          "before": "",
+          "after": "\n### CR-005b Workflow input and state fidelity\n\nBefore accepting an input or committing replacement state, the engine SHALL require that its declared fixed-codec representation survives reconstruction byte-for-byte. An unstable submission SHALL fail before start-key binding or instance creation. A lossy replacement produced by running code SHALL fail through its owning execution path before replacing committed state. [AC-328]\n",
+          "line": 473
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/08-requirements-composition.md",
+      "beforeSha256": "e2a4f23bd62ba9bd162a4eef537e3f5101f34e5b3f002ee6eab18b4761bc40a3",
+      "afterSha256": "ca79d58c2ab8ff535bd767f0838502a34c6353fb5dcb9ad2adb8e34e4b0d2cd6",
+      "changes": [
+        {
+          "before": "",
+          "after": "\n### CP-021a DAG input representation fidelity\n\nRun inputs and mapped node inputs SHALL pass the shared declared-type byte-stability rule before admission. Reopening a run retains the binding and integrity checks of CP-021. An invalid mapped value SHALL fail its owning mapping before the child is admitted. [AC-328]\n",
+          "line": 294
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/10-provider-model-and-extensibility.md",
+      "beforeSha256": "a6bb0847f2f481760cd4be19ecf59c826b196852b4957f2843734e074b13070a",
+      "afterSha256": "f9df3595e3ef2aa7fb78d50b07bf51653bbc5fd85609fa3b9702713e5ad2486f",
+      "changes": [
+        {
+          "before": "no omission policy and genuine constructor-bound/mutable controls stay admitted.\nOnly the common admitted shapes share rejection/byte/value parity. Unconfigured\nlegacy JIT acceptance is unchanged; the context never enters a fingerprint.\n",
+          "after": "no omission policy and genuine constructor-bound/mutable controls remain eligible.\nBoth modes check each submitted representation for byte-stable reconstruction. A\nconditionally omitted value that reconstructs with different bytes is rejected,\nincluding under legacy JIT. The context never enters a fingerprint.\n",
+          "line": 335
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "8c54677a7fb59325fb0a29cafeb374aa0379017172f261e126467bd3328e17a4",
+      "afterSha256": "0660208fa499ed2ce10ed8e8cbb148d22c820c9e1aa68d943e37fc254dbf50ea",
+      "changes": [
+        {
+          "before": "- **AC-568** NS-06: Exact codec bytes, fingerprints and detached values agree on common admitted shapes, with strong values, ordered collections and failure trees. Mandatory NS-06a–f cover root/nested omitted/present F1 rejection, admitted positional/mutable/constructor-bound controls, metadata-only classification and unused excluded context roots. [NF-034] Supplemental NS-06g–h cover all eleven strong-string types through ordinary external Metadata/Default root/nested/collection contracts, literal bytes/value/fingerprint parity, the exact public factory and unsupported direct requests without registration/seal effects.\n",
+          "after": "- **AC-568** NS-06: Exact codec bytes, fingerprints and detached values agree on common admitted shapes, with strong values, ordered collections and failure trees. Mandatory NS-06a–f cover root/nested omitted/present F1 rejection, byte-stable positional/mutable/constructor-bound controls and rejection of unstable conditional omission, metadata-only classification and unused excluded context roots. [NF-034] Supplemental NS-06g–h cover all eleven strong-string types through ordinary external Metadata/Default root/nested/collection contracts, literal bytes/value/fingerprint parity, the exact public factory and unsupported direct requests without registration/seal effects.\n",
+          "line": 772
+        },
+        {
+          "before": "",
+          "after": "\n- **AC-328** A lossy private setter, transforming setter or constructor, or conditionally omitted value is rejected when its declared decode and re-encoding changes the submitted bytes. Exercise durable starts, ephemeral detached state, DAG run and mapped inputs and public event materialization. Verify the owning failure, absence of invalid state/start-key mutation, positive detached values and preserved DAG reopen classifications. [CR-005b, CP-021a, PR-016]\n",
+          "line": 841
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "beforeSha256": "eeb0f5ce3e173b7bb1d7f8cb247b6cd300a664ef7b74537dcdd5f3a1ae05042a",
+      "afterSha256": "ee84903bf093f206c2c45c2e00a6fef4aa365dd14ac50e77a95010138f11e190",
+      "changes": [
+        {
+          "before": "throws `NotSupportedException` before a run is committed or a start key is bound. This rule covers\nthe DAG run input only; mapped node inputs, child outputs and ordinary workflow inputs retain\ntheir existing rules. Byte equality protects representation, not meaning; changed semantics\n",
+          "after": "throws `NotSupportedException` before a run is committed or a start key is bound. The same shared representation check covers mapped node inputs, child outputs\nand ordinary workflow values. A lossy mapped input fails its owning mapping before child admission. Byte equality protects representation, not meaning; changed semantics\n",
+          "line": 1629
+        },
+        {
+          "before": "The rule covers omitted and present values, never changes legacy Reflection\nround trips and never bans a positional value state merely for its initializer\nflag. Missing contracts use SFE-TYPE-003 with type/context/remedy. An unused\n",
+          "after": "The generated shape rule covers omitted and present values. In both modes a\nvalue that passes shape admission must also reconstruct byte-for-byte. Legacy\nReflection rejects an omitted zero that reconstructs as 42. A positional value\nstate remains eligible regardless of its initializer flag alone. Missing contracts use SFE-TYPE-003 with type/context/remedy. An unused\n",
+          "line": 3283
+        }
+      ]
+    }
+  ]
+}

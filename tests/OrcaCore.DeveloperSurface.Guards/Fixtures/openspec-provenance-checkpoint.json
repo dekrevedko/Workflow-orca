@@ -1,11 +1,11 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 228,
-  "recordBytes": 60833,
-  "recordSha256": "d147b1e8f3fa390bf31ad7c2c06bec9cd059159022eb8616ac586df10e274452",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 234,
+  "recordBytes": 62310,
+  "recordSha256": "651afc19911270dbdbf10c3de6ad41cc1208c381d25892c4c8d97b430e4af782",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [{"capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "quality-and-verification", "count": 2, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "workflow-authoring", "count": 1, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "workflow-contracts", "count": 2, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -172,11 +172,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 44,
-  "capabilityDirectoryBytes": 3560,
-  "capabilityDirectorySha256": "f52d414d03f8288a95f50582c94dfb2892b32009868d88c28b420459dfdf6542",
-  "artifactPath": "openspec/changes/repair-runtime-correctness/artifacts/sync-openspec-provenance-2026-11-16.md",
-  "artifactNormalizedSha256": "bd1deb8b66871d3d785c9b07bb98a8eb6c999819082e99c1295dda78a76f05ab",
+  "capabilityDirectoryCount": 48,
+  "capabilityDirectoryBytes": 3876,
+  "capabilityDirectorySha256": "d9c73f3eba334ab9fef8d81618739b8640b445699945b2dd43f5917d45200dea",
+  "artifactPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/proposed-openspec-provenance-2026-11-17.md",
+  "artifactNormalizedSha256": "ec04c6ad8d874bd1c2320cdfa2d8d1b2456f96b375bdc4d7c94bd06976201091",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",

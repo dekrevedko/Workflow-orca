@@ -11,7 +11,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 
 [Trait(GuardTraits.Phase, GuardTraits.Phase0)]
 [Trait(GuardTraits.Disposition, GuardTraits.Infrastructure)]
-public sealed class OpenSpecCorpusGuards
+public sealed partial class OpenSpecCorpusGuards
 {
     private const string OpenTaskState = "Open";
     private const string CompleteTaskState = "Complete";
@@ -306,7 +306,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "bd1deb8b66871d3d785c9b07bb98a8eb6c999819082e99c1295dda78a76f05ab";
+        "ec04c6ad8d874bd1c2320cdfa2d8d1b2456f96b375bdc4d7c94bd06976201091";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -351,9 +351,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 36;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 37;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "3aac8caa7adaa97a4ebaf1498d6d9133b4b081559813aefcee574871c2083396";
+        "8f86eb52ad542dc9f688f8ffb881a4aeec2b7a1809cc84bb7dcba92d79b2f26c";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -428,7 +428,9 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md",
                 "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4"),
             ("openspec/changes/repair-runtime-correctness/artifacts/proposed-openspec-provenance-2026-11-16.md",
-                "64767fcef038d42e14ce53d153a6e6c5ffc4dd6434b12f4a166bddb0d8ac6acc")
+                "64767fcef038d42e14ce53d153a6e6c5ffc4dd6434b12f4a166bddb0d8ac6acc"),
+            ("openspec/changes/repair-runtime-correctness/artifacts/sync-openspec-provenance-2026-11-16.md",
+                "bd1deb8b66871d3d785c9b07bb98a8eb6c999819082e99c1295dda78a76f05ab")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -1706,11 +1708,15 @@ public sealed class OpenSpecCorpusGuards
 
         var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
+        var fidelity = ReadFidelityContract(root);
+        var previous = PriorValueFidelityCanonical(root, canonicalRequirements, fidelity);
+        var predecessors = activeDeltaRequirements.Where(item => item.Change != ValueFidelityChange).ToArray();
         var registeredSuccessorKeys = ValidateProposedRequirementSuccessors(
             root,
-            canonicalRequirements,
-            activeDeltaRequirements,
+            previous,
+            predecessors,
             postGateCheckpoint);
+        registeredSuccessorKeys.UnionWith(ValidateValueFidelityOwners(root, activeDeltaRequirements, canonicalRequirements, fidelity));
 
         var duplicateOwners = activeRequirementOwners
             .GroupBy(
@@ -5083,11 +5089,10 @@ public sealed class OpenSpecCorpusGuards
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
         var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
+        var fidelity = ReadFidelityContract(root);
+        var previous = PriorValueFidelityCanonical(root, canonicalRequirements, fidelity);
         var rows = activeDeltaRequirements
-            .Select(requirement => ClassifyPostGateProvenance(root,
-                canonicalRequirements,
-                requirement,
-                postGateCheckpoint))
+            .Select(requirement => ClassifyValueFidelityProvenance(root, canonicalRequirements, previous, requirement, postGateCheckpoint))
             .OrderBy(row => row.RecordLine, StringComparer.Ordinal)
             .ToArray();
         var record = string.Join('\n', rows.Select(row => row.RecordLine)) + "\n";
@@ -5120,7 +5125,7 @@ public sealed class OpenSpecCorpusGuards
                 .OrderBy(item => item.Capability, StringComparer.Ordinal)
                 .Select(item => new ProvenanceCapabilityCount(item.Capability, item.Count)));
 
-        ValidatePostGateAmendmentPath(root, canonicalRequirements, postGateCheckpoint);
+        ValidatePostGateAmendmentPath(root, previous, postGateCheckpoint);
         foreach (var operation in checkpoint.PendingCanonicalOperations)
         {
             var taskLedger = File.ReadAllText(Path.Combine(

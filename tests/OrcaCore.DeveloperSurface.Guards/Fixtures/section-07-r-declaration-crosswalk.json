@@ -3,9 +3,9 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 398,
+    "physicalFiles": 399,
     "physicalDeclarations": 1677,
-    "activeFiles": 242,
+    "activeFiles": 243,
     "activeDeclarations": 989,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
@@ -934,6 +934,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 16
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.WorkflowValueFidelity.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 0
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
