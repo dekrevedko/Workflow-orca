@@ -17,8 +17,109 @@ public sealed class WaitOwnershipModelTests
     private static readonly DateTimeOffset Now = new(2026, 11, 16, 12, 0, 0, TimeSpan.Zero);
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CallerCancellationDuringSuccessorSelection_PreservesCommittedMatch(bool reuseKey)
+    {
+        using var services = CreateServices();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        using var releaseSelector = new ManualResetEventSlim();
+        var selectorEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nextKey = reuseKey ? Key : CorrelationId.Create("second");
+        var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new State(value))
+            .Wait(Ready, _ => Key)
+            .Wait(Ready, _ =>
+            {
+                selectorEntered.TrySetResult();
+                if (!releaseSelector.Wait(Guard, TestContext.Current.CancellationToken))
+                    throw new TimeoutException("Pilot selector barrier was not released.");
+                return nextKey;
+            })
+            .End().Build();
+        var handle = services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync("input", StartIdempotencyKey.Create("pilot"),
+            TestContext.Current.CancellationToken)).GetHandleOrThrow();
+        var router = new ProcessLocalEventRouter(services);
+        var first = (await instance.GetSnapshotAsync(Token)).ActiveWaits.Single();
+        var inbound = ProcessLocalInboundEvent.Create(EventId.Create("pilot-event"), Ready.EventName, Key, Now);
+        using (var cancelled = new CancellationTokenSource())
+        {
+            cancelled.Cancel();
+            Func<Task> preAdmission = async () => await router.RouteByCorrelationAsync(
+                definition.DefinitionId, inbound, cancelled.Token);
+            await preAdmission.Should().ThrowAsync<OperationCanceledException>();
+            (await instance.GetSnapshotAsync(Token)).ActiveWaits.Single().WaitId.Should().Be(first.WaitId);
+        }
+
+        var delivery = Task.Run(async () => await router.RouteByCorrelationAsync(definition.DefinitionId,
+            inbound, cancellation.Token), Token);
+        try
+        {
+            await selectorEntered.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
+            cancellation.Cancel();
+        }
+        finally { releaseSelector.Set(); }
+        (await delivery.WaitAsync(Guard, Token)).Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        var successor = (await instance.GetSnapshotAsync(Token)).ActiveWaits.Should().ContainSingle().Which;
+        successor.WaitId.Should().NotBe(first.WaitId);
+        successor.CorrelationId.Should().Be(nextKey);
+        if (reuseKey)
+        {
+            (await router.RouteByCorrelationAsync(definition.DefinitionId, inbound, Token))
+                .Status.Should().Be(ProcessLocalEventRouteStatus.Duplicate);
+            (await instance.GetSnapshotAsync(Token)).ActiveWaits.Single().WaitId.Should().Be(successor.WaitId);
+        }
+        var next = ProcessLocalInboundEvent.Create(EventId.Create("second-event"), Ready.EventName, nextKey, Now);
+        (await router.RouteByCorrelationAsync(definition.DefinitionId, next, Token))
+            .Status.Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        (await instance.GetSnapshotAsync(Token)).Status.Should().Be(WorkflowInstanceStatus.Completed);
+    }
+
     [Fact]
-    public async Task CallerCancellationAfterSuccessorRegistration_PreservesUniqueActiveWait()
+    public async Task ThrowingPredicateAfterMatch_PublishesTerminalFailure()
+    {
+        using var services = CreateServices();
+        var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new State(value))
+            .Wait(Ready, _ => Key)
+            .If(_ => throw new InvalidOperationException("predicate failed"),
+                then => then.Wait(Ready, _ => Key))
+            .End().Build();
+        var handle = services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
+        var instance = (await handle.StartOrGetAsync("input", StartIdempotencyKey.Create("predicate"), Token))
+            .GetHandleOrThrow();
+        var router = new ProcessLocalEventRouter(services);
+        var inbound = ProcessLocalInboundEvent.Create(EventId.Create("predicate"), Ready.EventName, Key, Now);
+        (await router.RouteByCorrelationAsync(definition.DefinitionId, inbound, Token)).Status
+            .Should().Be(ProcessLocalEventRouteStatus.Accepted);
+        var snapshot = await instance.GetSnapshotAsync(Token);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Failed);
+        snapshot.ActiveWaits.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task CallbackEscapingAfterRegisteringSuccessor_CannotRestorePredecessor()
+    {
+        var index = new EphemeralRoutingIndex();
+        var instance = Create(index, DefinitionId.New());
+        RuntimeWaitRecord? successor = null;
+        AddWait(instance, (_, _) =>
+        {
+            successor = AddWait(instance);
+            throw new InvalidOperationException("after handover");
+        });
+        var original = Envelope("one");
+        Func<Task> deliver = () => instance.RaiseEventAsync(original, Now, Token);
+        await deliver.Should().ThrowAsync<InvalidOperationException>();
+        await deliver();
+        instance.ToSnapshot().ActiveWaits.Single().WaitId.Should().Be(successor!.WaitId);
+        await instance.RaiseEventAsync(Envelope("two"), Now, Token);
+        index.FindUniqueOwner(instance.DefinitionId, Ready, Key).Should().BeNull();
+    }
+
+    private static ServiceProvider CreateServices()
     {
         var collection = new ServiceCollection();
         collection.AddOrcaCoreEphemeralEngine(new EphemeralEngineHostOptions
@@ -29,41 +130,7 @@ public sealed class WaitOwnershipModelTests
             },
             TransientPools = []
         });
-        using var services = collection.BuildServiceProvider();
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
-        using var releaseSelector = new ManualResetEventSlim();
-        var selectorEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var definition = Workflow.Ephemeral<State>(DefinitionId.New(), DefinitionVersion.Initial)
-            .Init<string>(value => new State(value))
-            .Wait(Ready, _ => Key)
-            .Wait(Ready, _ =>
-            {
-                selectorEntered.TrySetResult();
-                if (!releaseSelector.Wait(Guard, TestContext.Current.CancellationToken))
-                    throw new TimeoutException("Pilot selector barrier was not released.");
-                return Key;
-            })
-            .End().Build();
-        var handle = services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
-        var instance = (await handle.StartOrGetAsync("input", StartIdempotencyKey.Create("pilot"),
-            TestContext.Current.CancellationToken)).GetHandleOrThrow();
-        var router = new ProcessLocalEventRouter(services);
-        var delivery = Task.Run(async () => await router.RouteByCorrelationAsync(definition.DefinitionId,
-            ProcessLocalInboundEvent.Create(EventId.Create("pilot-event"), Ready.EventName, Key,
-                Now), cancellation.Token), TestContext.Current.CancellationToken);
-        try
-        {
-            await selectorEntered.Task.WaitAsync(Guard, TestContext.Current.CancellationToken);
-            cancellation.Cancel();
-        }
-        finally { releaseSelector.Set(); }
-        Func<Task> observe = async () => await delivery.WaitAsync(Guard, TestContext.Current.CancellationToken);
-        await observe.Should().ThrowAsync<OperationCanceledException>();
-        services.GetRequiredService<EphemeralWorkflowEngine>()
-            .TryGetFacadeInstance(instance.InstanceId, out var runtime).Should().BeTrue();
-        // Inspect actual state: the published snapshot can hide the restored predecessor.
-        var actual = ((WorkflowInstance<State>)runtime!).ToSnapshot();
-        actual.ActiveWaits.Should().ContainSingle("WOP-002 forbids two active occurrences for the same key");
+        return collection.BuildServiceProvider();
     }
 
     [Fact]

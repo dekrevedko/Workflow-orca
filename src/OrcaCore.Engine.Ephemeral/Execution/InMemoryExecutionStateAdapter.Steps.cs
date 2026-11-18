@@ -29,7 +29,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
         var deadline = instruction.WaitTimeout.HasValue
             ? registeredAt.Add(instruction.WaitTimeout.Value)
             : (DateTimeOffset?)null;
-        RuntimeWaitRecord runtimeWait;
+        RuntimeWaitRecord? runtimeWait = null;
         try
         {
             runtimeWait = instance.EnterWait(
@@ -39,7 +39,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 registeredAt,
                 instruction.Path,
                 deadline,
-                (matched, resumeToken) => ResumeFiberAsync(fiber.Id, matched, resumeToken),
+                (matched, resumeToken) => ResumeFiberAsync(fiber.Id, runtimeWait!, matched, resumeToken),
                 fiber.Id,
                 fiber.OwningScopeId);
         }

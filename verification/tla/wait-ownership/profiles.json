@@ -132,10 +132,10 @@
     "config": "Witness-isolation.cfg"
   },
   {
-    "name": "Witness-successor-failure",
+    "name": "Witness-committed-handover",
     "kind": "witness",
     "expected": "NotWitness",
-    "config": "Witness-successor-failure.cfg"
+    "config": "Witness-committed-handover.cfg"
   },
   {
     "name": "Control-NoReturn",
@@ -172,5 +172,35 @@
     "kind": "witness",
     "expected": "NotControlComplete",
     "config": "Witness-ControlComplete.cfg"
+  },
+  {
+    "name": "Mutant-UncommittedSuccessor",
+    "kind": "mutation",
+    "expected": "HandoverOrder",
+    "config": "Mutant-UncommittedSuccessor.cfg"
+  },
+  {
+    "name": "HandoverSafety",
+    "kind": "normal",
+    "expected": "",
+    "config": "HandoverSafety.cfg"
+  },
+  {
+    "name": "HandoverProgress",
+    "kind": "normal",
+    "expected": "",
+    "config": "HandoverProgress.cfg"
+  },
+  {
+    "name": "Witness-RetryPredecessor",
+    "kind": "witness",
+    "config": "Witness-RetryPredecessor.cfg",
+    "expected": "NoRecoveredPredecessor"
+  },
+  {
+    "name": "Mutant-SkipConsumption",
+    "kind": "mutation",
+    "config": "Mutant-SkipConsumption.cfg",
+    "expected": "HandoverOrder"
   }
 ]

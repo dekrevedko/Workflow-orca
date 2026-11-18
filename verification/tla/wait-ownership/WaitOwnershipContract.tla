@@ -7,7 +7,7 @@ UniqueActive(s, Occ, Key(_)) ==
                        Key(a[1]) = Key(b[1])) => a = b
 
 Reservations(s, Occ, Keys, Key(_)) ==
-  /\ \A o \in Occ : s.phase[o] \in {"active", "event", "timer", "settled"}
+  /\ \A o \in Occ : s.phase[o] \in {"active", "event", "accepted", "timer", "settled"}
                          => o \in s.held
   /\ \A k \in Keys :
        LET holders == {o \in s.held : Key(o[1]) = k} IN

@@ -1,6 +1,6 @@
 ----------------------- MODULE EphemeralWaitOwnership -----------------------
 EXTENDS Naturals, FiniteSets, Sequences, TLC, WaitOwnershipContract
-CONSTANTS Fault, Isolation, Witness, RollbackMode
+CONSTANTS Fault, Isolation, Witness
 Instances == {1,2}
 Slots == {1,2}
 Events == {1,2}
@@ -13,7 +13,7 @@ Keys == {Key(i) : i \in Instances}
 VARIABLE s
 vars == <<s>>
 Active(i) == {o \in Occ : o[1] = i /\ s.phase[o] = "active"}
-Busy(i) == {o \in Occ : o[1] = i /\ s.phase[o] \in {"event","timer","settled"}}
+Busy(i) == {o \in Occ : o[1] = i /\ s.phase[o] \in {"event","accepted","timer","settled"}}
 Live(i) == {o \in s.held : o[1] = i}
 Available(o) == s.phase[o] = "new" /\ ~s.cancel[o[1]] /\
   s.index[Key(o[1])] \in {0,o[1]} /\
@@ -110,21 +110,30 @@ StaleTimer(o) ==
                       THEN IF targets # {} THEN "stale-timer" ELSE "event-first"
                       ELSE "stale-cancel")]
 
-\* Same-instance continuation can install its next wait before releasing the old reservation.
+\* The fiber accepts the envelope before executing more workflow code. Its
+\* reservation remains held until the continuation leaves the instance lane.
+AcceptEvent(o) ==
+  /\ s.phase[o] = "event"
+  /\ s' = [s EXCEPT !.phase[o] = "accepted", !.wins[o] = @ + 1,
+       !.consumed[o[1]][s.event[o]] = IF Fault = "skip-consumption" THEN @ ELSE @ + 1,
+       !.timer[o] = FALSE]
+
+\* A successor becomes eligible only after the predecessor's event commits.
 Successor(o,n) ==
-  /\ s.phase[o] = "event" /\ n[1] = o[1] /\ n # o /\ Available(n)
+  /\ (s.phase[o] = "accepted" \/ (Fault = "uncommitted-successor" /\ s.phase[o] = "event")) /\ n[1] = o[1] /\ n # o /\ Available(n)
   /\ s' = [s EXCEPT !.phase[n] = "active", !.held = @ \cup {n},
        !.count[Key(n[1])] = @ + 1, !.published[n[1]] = TRUE,
        !.seen = Hit("handover")]
 
 Return(i) ==
   /\ Busy(i) # {} /\ ~s.returned[i]
-  /\ s' = [s EXCEPT !.returned[i] = TRUE]
+  /\ s' = [s EXCEPT !.returned[i] = TRUE,
+       !.seen = Hit(IF Active(i) # {} /\ (\E o \in Busy(i) : s.phase[o] = "accepted")
+                    THEN "committed-handover" ELSE "return")]
 
 Escape(o) ==
   /\ s.phase[o] \in {"event","timer"} /\ s.returned[o[1]] /\ s.failures[o] < 1
   /\ LET successors == Active(o[1]) IN
-     /\ (RollbackMode = "source" \/ successors = {})
      /\ s' = [s EXCEPT !.phase[o] = "active", !.failures[o] = @ + 1,
           !.restored = @ \cup {o}, !.returned[o[1]] = FALSE,
           !.dispatched = @ \ {o},
@@ -133,9 +142,9 @@ Escape(o) ==
           !.seen = Hit(IF successors # {} THEN "successor-failure" ELSE "rollback")]
 
 Settle(o) ==
-  /\ s.phase[o] \in {"event","timer"} /\ s.returned[o[1]]
-  /\ s' = [s EXCEPT !.phase[o] = "settled", !.wins[o] = @ + 1,
-       !.consumed[o[1]] = IF s.event[o] # 0 THEN [@ EXCEPT ![s.event[o]] = @ + 1] ELSE @,
+  /\ s.phase[o] \in {"event","accepted","timer"} /\ s.returned[o[1]]
+  /\ s' = [s EXCEPT !.phase[o] = "settled", !.wins[o] = 1,
+       !.consumed[o[1]] = IF s.event[o] # 0 THEN [@ EXCEPT ![s.event[o]] = IF s.phase[o] = "accepted" THEN @ ELSE @ + 1] ELSE @,
        !.timer[o] = FALSE]
 Release(o) ==
   /\ s.phase[o] = "settled"
@@ -162,7 +171,7 @@ DualWinner(o) ==
   /\ s' = [s EXCEPT !.wins[o] = 2]
 
 Work ==
-  \/ \E o \in Occ : Register(o) \/ Reject(o) \/ QueueTimer(o) \/ Timer(o) \/ StaleTimer(o) \/ Escape(o) \/ Settle(o) \/ Release(o) \/ DualWinner(o)
+  \/ \E o \in Occ : Register(o) \/ AcceptEvent(o) \/ Reject(o) \/ QueueTimer(o) \/ Timer(o) \/ StaleTimer(o) \/ Escape(o) \/ Settle(o) \/ Release(o) \/ DualWinner(o)
   \/ \E o,n \in Occ : Successor(o,n)
   \/ \E i \in Instances : Observe(i) \/ Enqueue(i) \/ Deliver(i) \/ Return(i) \/ RequestCancel(i) \/ Cleanup(i)
   \/ \E i \in Instances, e \in Events, k \in Keys : Lookup(i,e,k)
@@ -188,8 +197,27 @@ ControlProgressSpec == ControlInit /\ [][ControlNext]_vars /\ ControlFairness /\
 NoReturnSpec == ControlInit /\ [][ControlNext]_vars /\ ControlFairness
 NoSchedulingSpec == ControlInit /\ [][ControlNext]_vars /\ ReturnFairness
 
+\* Focused exhaustive projection starts with one admitted delivery and permits
+\* its retry/duplicate, a fresh event, one successor, and a competing owner.
+HandoverNext ==
+  LET a == <<1,1>>  b == <<1,2>>  c == <<2,1>> IN
+    \/ \E o \in {a,b} : AcceptEvent(o) \/ Escape(o) \/ Settle(o) \/ Release(o)
+    \/ Successor(a,b) \/ Return(1)
+    \/ Register(c) \/ Reject(c) \/ RequestCancel(2) \/ Cleanup(2)
+    \/ \E e \in Events : Lookup(1,e,Key(1))
+    \/ Observe(1) \/ Enqueue(1) \/ Deliver(1) \/ Quiescent
+HandoverInit ==
+  s = [InitialState EXCEPT !.phase[<<1,1>>] = "event", !.held = {<<1,1>>},
+         !.index[Key(1)] = 1, !.count[Key(1)] = 1, !.event[<<1,1>>] = 1,
+         !.published[1] = TRUE, !.attempts[1][1] = 1,
+         !.offered[1] = 1, !.observed[1] = TRUE]
+HandoverSpec == HandoverInit /\ [][HandoverNext]_vars
+NoRecoveredPredecessor == ~(s.failures[<<1,1>>] > 0 /\ s.phase[<<1,1>>] = "accepted"
+                            /\ s.event[<<1,1>>] = 1 /\ s.consumed[1][1] = 1)
+HandoverProgressSpec == HandoverSpec /\ ReturnFairness /\ ControlFairness
+
 TypeOK ==
-  /\ s.phase \in [Occ -> {"new","active","event","timer","settled","done","cancelled"}]
+  /\ s.phase \in [Occ -> {"new","active","event","accepted","timer","settled","done","cancelled"}]
   /\ s.held \subseteq Occ /\ s.restored \subseteq Occ
   /\ s.count \in [Keys -> 0..4] /\ s.index \in [Keys -> {0,1,2}]
   /\ s.wins \in [Occ -> 0..2] /\ s.event \in [Occ -> {0,1,2}]
@@ -197,14 +225,19 @@ TypeOK ==
   /\ s.due \subseteq Occ /\ s.dispatched \subseteq s.due
   /\ \A i \in Instances : s.attempts[i] \in [Events -> 0..2] /\ Len(s.queue[i]) <= 4
 UniqueActiveWait == UniqueActive(s, Occ, Key)
+HandoverOrder ==
+  \A i \in Instances : Active(i) # {} => (\A o \in Busy(i) :
+    /\ s.phase[o] # "event"
+    /\ (s.event[o] # 0 => (s.wins[o] = 1 /\ s.consumed[i][s.event[o]] = 1)))
 ReservationOwnership == Reservations(s, Occ, Keys, Key)
 SingleResolution == Resolutions(s, Occ, Instances, Events)
 ExactRelease == ReleaseIntegrity(s, Occ, Keys, Key)
 RollbackConsistency == RollbackIntegrity(s, Occ)
 KeyAndOccurrenceIsolation == IsolationIntegrity(s, Occ, Key)
 ConditionalSettlement ==
-  /\ \A o \in Occ : (s.phase[o] \in {"event","timer","settled"}) ~> (s.phase[o] \notin {"event","timer","settled"})
+  /\ \A o \in Occ : (s.phase[o] \in {"event","accepted","timer","settled"}) ~> (s.phase[o] \notin {"event","accepted","timer","settled"})
   /\ \A i \in Instances : s.cancel[i] ~> Live(i) = {}
+HandoverSettlement == \A o \in Occ : (o \in Busy(1)) ~> (o \notin Busy(1))
 ConditionalReuse == \A o \in Occ : (<>[](Available(o) /\ Busy(o[1]) = {})) => <> (s.phase[o] # "new")
 NotWitness == ~s.seen
 NotControlComplete == s.phase[<<1,1>>] # "done"

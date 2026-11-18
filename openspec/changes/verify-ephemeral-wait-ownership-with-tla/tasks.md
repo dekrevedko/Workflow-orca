@@ -24,7 +24,7 @@
 
 - [x] 4.1 Verify and run the cited `ConcurrentStartTests`, `StructuredFiberExecutionPublicTests`, `WaitMatchingTests`, `LoopWaitTests`, and `TimerEventRaceTests`; credit only assertions and schedules that match the crosswalk.
 - [x] 4.2 Add missing deterministic witnesses for reservation handover/release, rollback, duplicate delivery, cancellation, and isolation using barriers/task completion sources and controlled time; cover public structured and dynamic paths with no sleep-based ordering or public test hooks.
-- [ ] 4.3 Minimize and classify every actionable counterexample. For an implementation defect, retain a failing deterministic regression on the affected revision and track a separately scoped fix plus passing rerun; for abstraction errors, correct the model and rerun affected qualification. Record an explicit no-defect result when applicable.
+- [x] 4.3 Minimize and classify every actionable counterexample. For an implementation defect, retain a failing deterministic regression on the affected revision and track a separately scoped fix plus passing rerun; for abstraction errors, correct the model and rerun affected qualification. Record an explicit no-defect result when applicable.
 - [x] 4.4 Independently review source/action/test correspondence and unresolved discrepancies, then run the full ephemeral test project and applicable repository guards for any changed source/tests. Preserve the distinction between selected-schedule evidence and whole-program proof.
 
 ## 5. Add reproducible local and CI execution
@@ -40,7 +40,7 @@
 - [x] 6.2 Independently review the final evidence and classify the result as passed within stated scope, failed, or inconclusive. Grant qualification only when all mandatory profiles, controls, witnesses, mappings, and regressions satisfy the capability spec without unresolved in-scope discrepancies.
 - [x] 6.3 Record measured cost/benefit and an extend/narrow/stop recommendation; keep any durable wait/handoff work in a separate proposal and run strict OpenSpec validation before archival consideration.
 
-## Execution status (2026-11-17)
+## Original diagnostic verdict (2026-11-17)
 
 The diagnostic implementation and all 29 configured runs are complete. Qualification
 is **failed**, not granted: normal configurations stop at WOP-F001, and one deterministic
@@ -55,3 +55,14 @@ record performed checks, including failures, and do not imply runtime qualificat
 
 See `verification/tla/wait-ownership/verification-report.md` for commands, exact
 bounds, retained evidence, review scope, and the failed verdict.
+
+
+## Handover correction
+
+The separately scoped runtime correction passes the C# regression, including
+same-key and cross-key successors, pre-admission cancellation, post-admission
+caller cancellation, duplicate delivery and failure after a committed match.
+Both focused model searches complete at 5,025 distinct states. All eight seeded
+faults and fifteen witnesses give the expected traces. The original six broad
+profiles reached their 300-second limits. Task 2.5 stays open and the verdict at
+the full pilot bounds is inconclusive. See the current wait-ownership README.

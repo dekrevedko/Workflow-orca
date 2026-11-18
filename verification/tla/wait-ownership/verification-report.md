@@ -1,5 +1,7 @@
 # Wait-ownership pilot verification report
 
+Historical pilot baseline. See the [current implementation and results](README.md#current-implementation).
+
 Date: 2026-11-17. Verdict: **FAILED runtime qualification; useful diagnostic pilot**.
 
 The pilot found a source-backed ownership defect, WOP-F001. Caller cancellation

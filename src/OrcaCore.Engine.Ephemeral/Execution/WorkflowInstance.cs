@@ -37,6 +37,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private DateTimeOffset lastActiveAt;
     private DateTimeOffset? stuckDetectedAt;
     private string? stuckStepPath;
+    // Nested matches of buffered events run on the same lane.
+    private (RuntimeWaitRecord Wait, EventEnvelope Event)? currentDelivery;
     private long nextWaitSequence;
     private EphemeralRoutingIndex? correlationIndex;
     private EphemeralWorkflowInstanceSnapshot? publishedSnapshot;
@@ -202,6 +204,15 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             fiberId,
             scopeId);
         wait.ReleaseCorrelation = correlationIndex?.Reserve(DefinitionId, InstanceId, wait);
+        if (currentDelivery is { } predecessor)
+        {
+            try { CommitWaitEvent(predecessor.Wait, predecessor.Event); }
+            catch
+            {
+                wait.ReleaseCorrelation?.Invoke();
+                throw;
+            }
+        }
         Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
         UpdatedAt = registeredAt;
         CurrentStatusEnteredAt = registeredAt;
@@ -449,6 +460,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         bool removePendingAfterCommit,
         CancellationToken cancellationToken)
     {
+        cancellationToken.ThrowIfCancellationRequested();
         wait.MarkMatched();
         activeWaits.Remove(wait);
         FireOrThrow(LifecycleTrigger.MatchWait);
@@ -460,11 +472,14 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         var removedPendingEvent = removePendingAfterCommit &&
             pendingEvents.RemoveAll(candidate => candidate.EventId.Equals(envelope.EventId)) > 0;
 
+        var previousDelivery = currentDelivery;
+        currentDelivery = (wait, envelope);
         try
         {
             await wait.ResumeAsync(envelope, cancellationToken).ConfigureAwait(false);
+            CommitWaitEvent(wait, envelope);
         }
-        catch
+        catch when (!wait.EventCommitted)
         {
             wait.MarkActive();
             if (!activeWaits.Contains(wait))
@@ -482,11 +497,12 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             CurrentStatusEnteredAt = wait.RegisteredAt;
             throw;
         }
+        finally
+        {
+            currentDelivery = previousDelivery;
+            if (wait.EventCommitted) wait.ReleaseCorrelation?.Invoke();
+        }
 
-        wait.ReleaseCorrelation?.Invoke();
-        wait.CancelLoser();
-        RecordConsumedEvent(envelope.EventId);
-        consumedWaits.Add(new WaitSignature(wait.EventContract, wait.CorrelationId, wait.BranchId));
         if (Status == global::OrcaCore.WorkflowInstanceStatus.Running && (activeWaits.Count > 0 || activeTimers.Count > 0))
         {
             Status = global::OrcaCore.WorkflowInstanceStatus.Waiting;
@@ -494,6 +510,17 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
 
         return ToSnapshot();
+    }
+
+    // Called on the instance lane when the continuation takes ownership of the envelope.
+    // Keep the correlation reservation through the turn so a competitor cannot steal it.
+    internal void CommitWaitEvent(RuntimeWaitRecord wait, EventEnvelope envelope)
+    {
+        if (wait.EventCommitted) return;
+        RecordConsumedEvent(envelope.EventId);
+        consumedWaits.Add(new WaitSignature(wait.EventContract, wait.CorrelationId, wait.BranchId));
+        wait.MarkEventCommitted();
+        wait.CancelLoser();
     }
 
     internal void RecordCompositionBranchOutcome(

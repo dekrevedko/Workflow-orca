@@ -1,5 +1,7 @@
 # Wait ownership: requirements, model, and implementation
 
+Historical pilot baseline. See the [current implementation and results](README.md#current-implementation).
+
 Source baseline: `323d741d4c33178430250729b4fa34f1eeb61703` (proposal commit; production source inherited from `ba2b057d7898f516845e90323b4288fb0c1744d8`). Exact run inputs are hashed by the runner in `source-manifest.json`; a revision alone does not cover new uncommitted model/test files.
 
 ## Scope and observable boundaries

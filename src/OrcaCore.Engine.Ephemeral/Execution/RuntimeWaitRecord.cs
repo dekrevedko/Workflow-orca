@@ -73,8 +73,9 @@ internal sealed class RuntimeWaitRecord
 
     internal void CancelLoser()
     {
-        cancelLoser?.Invoke();
+        var cancel = cancelLoser;
         cancelLoser = null;
+        cancel?.Invoke();
     }
 
     internal bool Matches(EventEnvelope envelope)
@@ -88,6 +89,10 @@ internal sealed class RuntimeWaitRecord
     {
         Status = "Matched";
     }
+
+    internal bool EventCommitted { get; private set; }
+
+    internal void MarkEventCommitted() => EventCommitted = true;
 
     internal void MarkActive()
     {
