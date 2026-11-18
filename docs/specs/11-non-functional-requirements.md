@@ -161,7 +161,9 @@ The selected ephemeral path SHALL qualify .NET 10 self-contained untrimmed JIT,
 full-trim JIT and Native AOT on native windows-2025/win-x64 and Ubuntu 24.04/linux-x64.
 Trimmed/AOT artifacts SHALL retain and assert SDK-default disabled reflection JSON.
 Every original AOT-01–16 assertion plus NS-01–12 and mandatory NS-02a–c/NS-06a–f
-SHALL pass in each applicable cell. A successful publish, skipped case or
+SHALL pass in each applicable cell. NS-06 omission controls in Reflection mode SHALL reject an
+omitted zero that reconstructs as 42 and retain a present seven. An ordinary mutable
+member with this behavior SHALL reject unstable zero in both modes. A successful publish, skipped case or
 Unsupported classification SHALL NOT complete this support issue. Legacy JIT
 remains a separate control. NF-033's original assessment remains historical.
 
@@ -170,7 +172,7 @@ be enforced without replacing the fixed codec. Generated mode's explicit .NET 10
 omittable synthetic-initializer restriction SHALL reject declared closures with
 SFE-TYPE-002 before effects, for omitted and present values; SFE-TYPE-003 SHALL
 identify missing metadata. Common admitted shapes SHALL retain exact bytes,
-fingerprints and detached values. No DI/scope disposal or admission rule changes.
+fingerprints and detached values. DI and scope disposal follow their existing ownership rules.
 
 Each generator/trim/AOT warning SHALL have an individual disposition; supported
 OrcaCore paths SHALL be remediated. No blanket suppression, reflection-enabling

@@ -291,3 +291,7 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+### CP-021a DAG input representation fidelity
+
+Run inputs and mapped node inputs SHALL pass the shared declared-type byte-stability rule before admission. Reopening a run retains the binding and integrity checks of CP-021. An invalid mapped value SHALL fail its owning mapping before the child is admitted. [AC-328]

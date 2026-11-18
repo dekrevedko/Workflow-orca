@@ -332,9 +332,10 @@ JsonIgnore condition exists and is not Never. Reject before effects for omitted
 and present values; use SFE-TYPE-002, not the missing-metadata SFE-TYPE-003.
 No model construction/getter/sample deserialization may classify it. Unused
 excluded context roots do not invalidate registration. Positional records with
-no omission policy and genuine constructor-bound/mutable controls stay admitted.
-Only the common admitted shapes share rejection/byte/value parity. Unconfigured
-legacy JIT acceptance is unchanged; the context never enters a fingerprint.
+no omission policy and genuine constructor-bound/mutable controls remain eligible.
+Both modes check each submitted representation for byte-stable reconstruction. A
+conditionally omitted value that reconstructs with different bytes is rejected,
+including under legacy JIT. The context never enters a fingerprint.
 The selected three-package closure gains no durable/DAG/provider support claim.
 [NF-034, AC-563–574]
 

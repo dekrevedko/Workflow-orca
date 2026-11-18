@@ -1,7 +1,7 @@
 ## 1. Contract
 
-- [ ] 1.1 Independently review the Phase B contract, numbered requirements and exact owner-chain changes.
-- [ ] 1.2 Synchronize `developer-facing-surface` (1), `quality-and-verification` (2), `workflow-authoring` (1) and `workflow-contracts` (2). Verify the declaration projection and provenance guards.
+- [x] 1.1 Independently review the Phase B contract, numbered requirements and exact owner-chain changes.
+- [x] 1.2 Synchronize `developer-facing-surface` (1), `quality-and-verification` (2), `workflow-authoring` (1) and `workflow-contracts` (2). Verify the declaration projection and provenance guards.
 
 ## 2. Implementation and qualification
 

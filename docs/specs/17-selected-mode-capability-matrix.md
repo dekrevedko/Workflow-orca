@@ -1626,9 +1626,8 @@ before installation. Applications register their plans again at every host start
 
 Before creating a run or accepting a replay, the durable side encodes the submitted run input,
 decodes it with its declared type and requires byte-identical re-encoding. A value that fails
-throws `NotSupportedException` before a run is committed or a start key is bound. This rule covers
-the DAG run input only; mapped node inputs, child outputs and ordinary workflow inputs retain
-their existing rules. Byte equality protects representation, not meaning; changed semantics
+throws `NotSupportedException` before a run is committed or a start key is bound. The same shared representation check covers mapped node inputs, child outputs
+and ordinary workflow values. A lossy mapped input fails its owning mapping before child admission. Byte equality protects representation, not meaning; changed semantics
 require a definition-version bump.
 
 `StartOrGetAsync` resolves the authoritative start-key owner, including after a competing create.
@@ -3280,9 +3279,10 @@ common-admitted-shape values remain fixed. Generated mode on .NET 10 rejects
 reachable JSON members where AssociatedParameter.IsMemberInitializer=true and
 JsonIgnore.Condition is present and not Never. Known closure fails Build/TryBuild
 with SFE-TYPE-002 before effects; direct boundaries use NotSupportedException.
-The rule covers omitted and present values, never changes legacy Reflection
-round trips and never bans a positional value state merely for its initializer
-flag. Missing contracts use SFE-TYPE-003 with type/context/remedy. An unused
+The generated shape rule covers omitted and present values. In both modes a
+value that passes shape admission must also reconstruct byte-for-byte. Legacy
+Reflection rejects an omitted zero that reconstructs as 42. A positional value
+state remains eligible regardless of its initializer flag alone. Missing contracts use SFE-TYPE-003 with type/context/remedy. An unused
 excluded context root does not invalidate Register.
 
 Baked enum policy and handwritten renamed-property contexts reject before

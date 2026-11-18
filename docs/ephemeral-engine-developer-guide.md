@@ -285,12 +285,20 @@ event/value materialization. Same-context repeats do not reconstruct it; late or
 different registration fails. Missing metadata after sealing needs a corrected
 context and process restart. No DI/provider/scope is captured or disposed.
 
-The fixed codec is unchanged. On .NET 10 Generated mode excludes an omittable
+Each workflow value must reconstruct with its declared type and re-encode to
+the exact original JSON bytes. A private setter without a matching constructor
+can serialize 17 and reconstruct as zero. This input fails before admission.
+Use a writable member or a constructor that preserves the submitted value.
+Attempt-local state replacements use the same check before committing state.
+
+On .NET 10 Generated mode excludes an omittable
 synthetic member initializer: AssociatedParameter.IsMemberInitializer=true plus
 a JsonIgnore condition other than Never. The example init Count=42 with
 WhenWritingDefault is rejected by declared shape for both submitted zero and
-seven; use an ordinary setter, a genuine JSON-constructor-bound member, or remove
-the omission policy. A normal positional ValueState without omission stays
+seven. Removing the omission policy or binding the member to a genuine JSON
+constructor can preserve the submitted value. An ordinary setter permits shape
+admission, but an omitted zero that reconstructs as 42 still fails at the value
+boundary in either metadata mode. A normal positional ValueState without omission stays
 admitted. Known shape errors use SFE-TYPE-002; missing metadata uses SFE-TYPE-003.
 Direct boundaries use NotSupportedException before event consumption/mutation.
 Baked enum conversion and handwritten contexts are rejected even if their options

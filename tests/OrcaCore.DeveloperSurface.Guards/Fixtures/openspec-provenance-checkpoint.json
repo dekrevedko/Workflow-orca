@@ -2,10 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 234,
-  "recordBytes": 62310,
-  "recordSha256": "4c41516a02ac429262f2baab5e6f674bef00b785471f606aa4f819fcc9ea5a91",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [{"capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "quality-and-verification", "count": 2, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "workflow-authoring", "count": 1, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "workflow-contracts", "count": 2, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}],
+  "recordBytes": 62520,
+  "recordSha256": "0a98dac4bc084f10b1e6fa872b22445a74b78dd9b2767c845360bd4b5e7291e8",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -175,8 +175,8 @@
   "capabilityDirectoryCount": 48,
   "capabilityDirectoryBytes": 3876,
   "capabilityDirectorySha256": "d9c73f3eba334ab9fef8d81618739b8640b445699945b2dd43f5917d45200dea",
-  "artifactPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/revised-proposed-openspec-provenance-2026-11-17.md",
-  "artifactNormalizedSha256": "c3f3ed9a5660e02a6eb0608041f03a20cb5d620270b3c1840e5854be8177bf21",
+  "artifactPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/sync-openspec-provenance-2026-11-17.md",
+  "artifactNormalizedSha256": "851f5e377924c8fe05d70e98aea5d3944dddd017005ce985886f93134f21d1d3",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
