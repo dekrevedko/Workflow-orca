@@ -18,7 +18,7 @@ using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.ProviderCertification;
 
-public abstract class EventStoreCertificationTests
+public abstract partial class EventStoreCertificationTests
 {
     protected abstract IProviderCertificationFixture CreateFixture();
 
@@ -2050,6 +2050,17 @@ public interface IProviderCertificationFixture
 
 public sealed class FakeEventStoreCertificationTests : EventStoreCertificationTests
 {
+    [Theory]
+    [ClassData(typeof(ExpiredOwnerDispositions))]
+    [Trait("Verification", "ContinuationLeaseCharacterization")]
+    public Task ContinuationLease_ExpiredOwnerDisposition(bool retry, bool afterDispatch, OutboxRecordState expectedState) =>
+        CheckExpiredOwnerDisposition(retry, afterDispatch, expectedState);
+
+    [Fact]
+    [Trait("Verification", "ContinuationLeaseCharacterization")]
+    public Task ContinuationLease_ReopenedSignalIsDrainedByReplacementPump() =>
+        CheckReopenedSignalIsDrainedByReplacementPump();
+
     protected override IProviderCertificationFixture CreateFixture()
     {
         return new FakeProviderCertificationFixture(new FakeWorkflowEventStore());

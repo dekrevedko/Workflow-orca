@@ -21,6 +21,17 @@ namespace OrcaCore.Providers.PostgreSql.Tests;
 [Trait(Traits.Container, "PostgreSql")]
 public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertificationTests, IAsyncLifetime
 {
+    [Theory]
+    [ClassData(typeof(ExpiredOwnerDispositions))]
+    [Trait("Verification", "ContinuationLeaseCharacterization")]
+    public Task ContinuationLease_ExpiredOwnerDisposition(bool retry, bool afterDispatch, OutboxRecordState expectedState) =>
+        CheckExpiredOwnerDisposition(retry, afterDispatch, expectedState);
+
+    [Fact]
+    [Trait("Verification", "ContinuationLeaseCharacterization")]
+    public Task ContinuationLease_ReopenedSignalIsDrainedByReplacementPump() =>
+        CheckReopenedSignalIsDrainedByReplacementPump();
+
     private readonly PostgreSqlContainer container = new PostgreSqlBuilder("postgres:17-alpine")
         .WithDatabase("orcacore")
         .WithUsername("orcacore")
