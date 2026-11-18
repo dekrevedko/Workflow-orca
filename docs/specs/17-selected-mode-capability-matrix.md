@@ -3388,3 +3388,14 @@ no public receipt; external/step ownership or completed host join remains necess
 Per-instance success does not authorize root DI disposal or join fire-and-forget
 child processes. The new source must retain every issue #13 native journey and
 prove type-name parity in all six cells before claiming new qualification.
+
+## Workflow position-fact protocol addition
+
+The advanced `OrcaCore.Runtime.Protocol` assembly admits this exact additional declaration:
+
+```csharp
+namespace OrcaCore.Abstractions.Durable;
+public sealed record WorkflowExecutionPositionChangedEvent : WorkflowEvent;
+```
+
+It adds no payload members beyond inherited `WorkflowEvent` identity, instance, command, causation, occurrence-time and optional `ParentInstanceId`/`RootInstanceId` lineage fields. The fixed codec discriminator is `WorkflowExecutionPositionChangedEvent`, the twenty-second workflow mapping. The prior 21 workflow mappings and `orcacore-json-v1` bytes and the separate DAG framing remain unchanged. Yield/fiber-failure checkpoint commits include this fact as an optimistic concurrency fence; the fact does not contain or reconstruct the replacement envelope. Providers use the existing atomic expected-version append contract. This is an advanced provider/custom-host record, not an application authoring node or public repair operation. Matched binaries and fresh/reset stores are required for this greenfield addition.

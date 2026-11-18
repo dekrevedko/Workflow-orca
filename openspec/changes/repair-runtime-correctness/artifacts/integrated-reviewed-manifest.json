@@ -1,0 +1,716 @@
+{
+  "base": "2bb31ee317f71bfc60bbbb06780c2bcdcb6a0264",
+  "merge": "a822b215fe1dc1d0fea4f498ab0ea0a29d44203d",
+  "tree": "b56068a8cd3bdb1306b3c118bb42bb2978e7390d",
+  "rehearsalCommit": "8907d2cd9ae6463d0a873b46e6b1eecac4407ca0",
+  "files": [
+    {
+      "path": "CLAUDE.md",
+      "sha256": "2ed3489d3479d03003d39096c0da8b864d73a7fd913f6385448c8a57097bf0c4"
+    },
+    {
+      "path": "OrcaCore.slnx",
+      "sha256": "38b88e66f5a227b7a53f902d6a8beab9b3349a90a655b396701bfd9eeb8f857a"
+    },
+    {
+      "path": "docs/implementation/00-stack-decisions.md",
+      "sha256": "1b39a38f880bc6f37d1ce8fd3fbf46361f9f4d1cdde1ff3f78e5c648bedc4471"
+    },
+    {
+      "path": "docs/implementation/01-solution-architecture.md",
+      "sha256": "79307afab283a4e0afd4a750800f9c83f6eeadf6e62fbb5c5b04916f9428131e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-dirty-manifest-2026-11-15.txt",
+      "sha256": "22cf8890c694fb73e7db255dc5ad9f9cfde56e96dd5a951467717919512a631d"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-independent-review-request-2026-11-15.md",
+      "sha256": "d649bdfbd8228c2a72fb2ba17e3ef3ad07f047165f565bbd7519d14d9675fa5b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-1-remediation-dirty-manifest-2026-11-15.txt",
+      "sha256": "c3cc6523dabc83c42e88dc59198d73d6f57a6df0fb4f85e3527453618bc0502e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-1-remediation-independent-review-request-2026-11-15.md",
+      "sha256": "d893ddb442284b6fbf944986e531064b610affe46f2968153b100f3a453d5e4a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-2-remediation-dirty-manifest-2026-11-15.txt",
+      "sha256": "71f8809eeecc411baa4076a7a9b8ef6179a1a5488d64997e5789b0298fcfedd9"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-2-remediation-independent-review-request-2026-11-15.md",
+      "sha256": "3f51be7b4a5b55f04a9a5f97a194a5dcc8086f74ed59e39cb6b541c8aa343d41"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-3-dirty-manifest-2026-11-15.txt",
+      "sha256": "4c48b4f26e9f5d60e87c9498167cea84a3a17ce70587393db8af5a78b9d6e978"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-3-independent-review-request-2026-11-15.md",
+      "sha256": "d4692ad13011d621a69432ad318b4b0561b1e4d0e060d0247c0734aa62edae50"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-4-dirty-manifest-2026-11-15.txt",
+      "sha256": "20addc1d75abaaa0d9bc0e7f1e1fd963a5ce287ecb289ead4e31e8aa6d216fe1"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-draft-rv-4-independent-review-request-2026-11-15.md",
+      "sha256": "5b367066ec52807dc3dc99794fceb54790387db701f1dee9ed03c208875d0ab6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-dirty-manifest-2026-11-15.txt",
+      "sha256": "253e97c5b2dd6f57e0237d7b8cee7aed5f2a86ac806ed6a835c92b4cc5b22d33"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-request-2026-11-15.md",
+      "sha256": "75ead35729684cdeff6ba76b62778511d7bb4a998d3583642802e8808460e76a"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-implementation-independent-review-verdict-2026-11-16.md",
+      "sha256": "c64747716a1ddb35757919525cefb5aee509cde948c41d63c1f7fea899884600"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-dirty-manifest-2026-11-16.txt",
+      "sha256": "ab66354f7ab458a41a239efddafc64f132819a60fe0f2d27b0398f2d7bbcf665"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-independent-review-request-2026-11-16.md",
+      "sha256": "98a0c26d030f40257d32c1049290ad44bf9335dc668df13779696e700ed63f1f"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-integration-remediation-independent-review-verdict-2026-11-16.md",
+      "sha256": "e9c5feddb651cbb570d289027b6c43b27eebc08b92dec2cd907a784468366074"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-dirty-manifest-2026-11-15.txt",
+      "sha256": "fcdc9e3aaa4e47c870c81240a53ae851ef19be9436f3dea8b9478e9ba5a813b6"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-process-independent-review-request-2026-11-15.md",
+      "sha256": "7949969baef963abe83f795211cbfeed9acff5c6ec9f9050e7bad267aade8e36"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-dirty-manifest-2026-11-16.txt",
+      "sha256": "95bdb057358f6e5f3d26431b2bbcefadb2b8bd1756dcd53d9d71346804e62631"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-request-2026-11-16.md",
+      "sha256": "c4f6e0e71b2d48801b03d131c45928d73509133f41557525e3e03e160bf4f38e"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-independent-review-verdict-2026-11-16.md",
+      "sha256": "83470a2ca984ab1347d9b0958e1df23013ad3aeb44213e30bf7189eea537566b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-dirty-manifest-2026-11-16.txt",
+      "sha256": "e6c00a2fe71f839fe187325e6293115ca2cc6dbabcbcd17fd63e1d7671c4d5fa"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-r1-reviewed-review-request-2026-11-16.md",
+      "sha256": "020397b35a52109561f87347ae8de361ba8ca87b9b96625a93d3a101845c540b"
+    },
+    {
+      "path": "docs/review/developer-facing-interface-section-08-task-8-6-dag-public-handle-seam-task-3-2-complete-activation-review-verdict-2026-11-16.md",
+      "sha256": "844d0767cd1c3b49a212f261eaddf6e08beadcff8aa3be03c8fcaaa798872f75"
+    },
+    {
+      "path": "docs/specs/04-requirements-core-runtime.md",
+      "sha256": "22493af147d83051294af947a89b90a17f776faef1c1861e57101df55a910671"
+    },
+    {
+      "path": "docs/specs/06-requirements-durable-execution.md",
+      "sha256": "c17dd46db77ee4b59047895f308c4771bc6e35fd17372d4be71916a0d9033644"
+    },
+    {
+      "path": "docs/specs/08-requirements-composition.md",
+      "sha256": "e2a4f23bd62ba9bd162a4eef537e3f5101f34e5b3f002ee6eab18b4761bc40a3"
+    },
+    {
+      "path": "docs/specs/09-requirements-management-operations.md",
+      "sha256": "faa6626fb9dddd964ae412a63adf5005766f597674dc757167c4b9f3432ce274"
+    },
+    {
+      "path": "docs/specs/10-provider-model-and-extensibility.md",
+      "sha256": "a6bb0847f2f481760cd4be19ecf59c826b196852b4957f2843734e074b13070a"
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "sha256": "8c54677a7fb59325fb0a29cafeb374aa0379017172f261e126467bd3328e17a4"
+    },
+    {
+      "path": "docs/specs/16-requirements-durable-driver.md",
+      "sha256": "3d1fc347706569d394dedcc0d25ee270280864ada64cbee54c22ff581bdb1c9d"
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "sha256": "eeb0f5ce3e173b7bb1d7f8cb247b6cd300a664ef7b74537dcdd5f3a1ae05042a"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/.openspec.yaml",
+      "sha256": "95a9a7d17f5cbd573f5ec85bba1fef77465d4658dc49a60203cbef4f4af5f8df"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/combined-delivery-owner-direction-and-substrate-2026-11-15.md",
+      "sha256": "fb10d511af22c90adc1edf9cb6835c0acf9e1fc83d4f197cc4f9b806139d9fe7"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-candidate-openspec-provenance-2026-11-15.md",
+      "sha256": "253b87d542f75f07fa7ba9d32144b3b2935f07ccaac9b60a9aa6e1c9372b60bb"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-review-record-2026-11-16.json",
+      "sha256": "8c70ceb10212907da0f08fe106b0075d5acfc1e477fdc38fd1de1635d23ff2c5"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-review-record-2026-11-16.md",
+      "sha256": "37b488e3526a7390a47e33573340ec94f12a220a47a70061e653629da15c6b7a"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-self-review-log-2026-11-15.md",
+      "sha256": "12ae4e1cd7b33c276bc9699f0f78ba6d7092b60250bb05d8b8b19ed3ffd78989"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-test-results-2026-11-15.json",
+      "sha256": "f8defd307d9c24af3a06843186ad13139653d542c0ba207563f31c8bf764c5a5"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/implementation-validation-2026-11-15.md",
+      "sha256": "e241bf9465370e2a07ba747c0706470ae65e8a2285dfb230ef1da4b90f10c1d4"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/integration-byte-verification-2026-11-16.json",
+      "sha256": "9935a8f945fd6b0a6fbf471af79a90710fe31e15d6dedd862a3403e01d3a0d43"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/integration-candidate-openspec-provenance-2026-11-16.md",
+      "sha256": "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/integration-remediation-self-review-2026-11-16.md",
+      "sha256": "3e6e2bad9c40488cf90b9029e1c90ae3e7d77f96431a3362a07c5951756726a7"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/integration-remediation-validation-2026-11-16.json",
+      "sha256": "58c31123b6b1414e1a920a029796a3909f763f61e16311b2729dc8e6575844c7"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/process-openspec-provenance-2026-11-15.md",
+      "sha256": "79b126a92190a24641047a83beba1fa255d3518355ab21b5041aa141feb776b7"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/delta-developer-facing-surface.md",
+      "sha256": "cfe5dc09267be8893c79e07cfb1d71d695d363905af03a8c7355a2da25af9393"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/delta-repository-foundation.md",
+      "sha256": "e9fb199787124b3bfd16f3ae0e5333a89893d16f0154edf2284e98f83dfa19d1"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/design.md",
+      "sha256": "1dbb686ee6e413c69f0f6fb06b5dd8fb72a2545e8f6b077840e2b14c4da79191"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/proposal.md",
+      "sha256": "4b253dd91de88e646a6a5b6e0e27bd11723b29b380c9ee3c35870c762c881f5f"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-pre-gate-draft-2026-11-15/tasks.md",
+      "sha256": "de1ecd638b40791f112d35600825480f039bd4777b847676a268e6956ab0c746"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/delta-developer-facing-surface.md",
+      "sha256": "7f398337359d0c06de6236964e37ca285d907dd6e02094fb9ae6c3977656c432"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/delta-management-and-querying.md",
+      "sha256": "b26378278d4a1751eb7424c01fb6304de430936fe1126789af94b2091a1979c4"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/delta-repository-foundation.md",
+      "sha256": "5165c0950048f6fe79c84ae4849f62c9d0726b5d6cbffd13e93643daa7a73f09"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/design.md",
+      "sha256": "b28944be3be04fdd96af1f177c608e671af30a73f435cb84fd75c8746ec7fbf1"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/proposal.md",
+      "sha256": "1f6cdadbba159f62c558b3649a364a51507919da402a447c94dde814c3fa2272"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/rejected-rv-1-draft-2026-11-15/tasks.md",
+      "sha256": "faa267efcd8b0d33d57d620d60a3c36a12358f765076ad58d34a572b6c537717"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/delta-developer-facing-surface.md",
+      "sha256": "26c6c30c30c9e3043a625260bf79860a57417e36b463aa74d5364473953bb0be"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/delta-management-and-querying.md",
+      "sha256": "d293d3a45d7d899ee7e5630a9e970a19bda9418daf025fcbf5cb2a7f6654f142"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/delta-repository-foundation.md",
+      "sha256": "a354809bb42d68b2a9c485d230ec42c7364a10fe1410a1e80af23a0997e3e39e"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/design.md",
+      "sha256": "38e4d3748b31c128763a1e04c79e6bb5e6053ea792281b949ace9a0efc860fbd"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/proposal.md",
+      "sha256": "7ae03e352303691d910b6e9232bfca284a0678dfa974603a35e6c6bf1b7d9588"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-2-draft-2026-11-15/tasks.md",
+      "sha256": "76bc4d2d365dbd28ce22734115009c3a91cdef65b7f4a6413aa111d0fcf444f3"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/delta-developer-facing-surface.md",
+      "sha256": "ae281611724ed6c84481128efd217bb4ecaa3985e1ff7d82d728ca6f34125b88"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/delta-management-and-querying.md",
+      "sha256": "d293d3a45d7d899ee7e5630a9e970a19bda9418daf025fcbf5cb2a7f6654f142"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/delta-repository-foundation.md",
+      "sha256": "a354809bb42d68b2a9c485d230ec42c7364a10fe1410a1e80af23a0997e3e39e"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/design.md",
+      "sha256": "fc8cd03414f1c0e1e0decb4572e4aec51f7c3c4e787a8491f53d8913d6dddcce"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/proposal.md",
+      "sha256": "41e240c61e975b10fa4adce86562d24cbb182992407dfe24dd1ddf7224793b6d"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/task-1-1-public-handle-seam-prototype-evidence-2026-11-15.md",
+      "sha256": "e9c6d408a8b7fb82634ca7894171783cb73446c0c11c00cb92889578dac2dbaf"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/superseded-rv-3-draft-2026-11-15/tasks.md",
+      "sha256": "b1cc23a096e149ed80f4a0f2a1c81634a9bbc03cac5a294b275a5c107e616083"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-0-1-process-gate-execution-plan-2026-11-15.md",
+      "sha256": "df8658832841d6d3adfb3b3ec9cd9cf31fc455e2971b8d51bfc668ce70b967ff"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-0-1-process-gate-validation-2026-11-15.md",
+      "sha256": "74c2f3e255a21d4f16c3299ee0bffb6db116e8688692d71e1381be1be8850595"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-current-documentation-reconciliation-2026-11-15.md",
+      "sha256": "c5db6dc5c62dd5c16b6bc10658b9beb594e5046a2a2e2b8581ebe54fecfe488f"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-proof-dag-2026-11-15.cs",
+      "sha256": "4efd9dc2855beea3be98a504348f96a949bf14fce4f82266f23424fadc5a8239"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-proof-hosting-2026-11-15.cs",
+      "sha256": "bc43eff741afad40bafa5e5f6ce527c9f6d55ffd028f1dbfc4800ab625524a11"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-prototype-evidence-2026-11-15.md",
+      "sha256": "c01beb3b85da971560d19d2256edb82d92dfe7f4d410e559c6cf03c2c6f0967d"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-1-proof-dag-2026-11-15.cs",
+      "sha256": "d6a7590ad691b7712b0f1db79492a9bd4ffffc7452d77fcf6143682ad689a2c0"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-1-proof-hosting-2026-11-15.cs",
+      "sha256": "78e36acc5a4b0408be990ef0fa8c578bcb5746c234f0e6be5be0f0b4e581e7cf"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-2-proof-dag-2026-11-15.cs",
+      "sha256": "f914ad5fae3f5d86726b8e0186e02f0482f2b599741e48503f6fd834d4894167"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-1-1-public-handle-seam-rv-2-proof-hosting-2026-11-15.cs",
+      "sha256": "8f74f2bebd71bd52957fe1496862bf7a307f48d8bd96eec27e512620f5e80cf9"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-review-findings-and-remediation-2026-11-16.md",
+      "sha256": "bbd39398a5a6a26f6e0f8d0c75be8698cb177924b8f1669cafd653f0ccf67786"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-review-validation-2026-11-16.json",
+      "sha256": "19fe860338421d23fba42d5be36754bec5639ae3112479fe72b8ae01c7ddb433"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-activation-validation-2026-11-16.json",
+      "sha256": "a523b8e09ff179be60459713a912aa7f08d34abb68e1e57a10440d903b8f91bb"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-author-self-review-2026-11-16.md",
+      "sha256": "3fbac8a8301295ccca9f34ba3f57663dbb3f94e217dded584c341d33ed2e351c"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md",
+      "sha256": "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-original-29-path-target-2026-11-16.patch",
+      "sha256": "3d95954d36b0d322e489f3672ac881e9f37dad049e8aacdf9ae4117e6e3605b2"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-owner-authority-2026-11-16.md",
+      "sha256": "5ebb2522aa95ee2a38e240991ba3299e2075391551806754a8672772abf41655"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/design.md",
+      "sha256": "6b15dbcadcae533a83ac53f96cf4c940a8588cc026fbb043b592146db509c42a"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/proposal.md",
+      "sha256": "80acf23a6ae08e720c1cfab8501433db4dc2bb3b2b0e93bb6a26d9440cde09af"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/specs/developer-facing-surface/spec.md",
+      "sha256": "139a834822a1ee65fcf1c6317404997b3b81228255f861e539e04b021b7ec9b6"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/specs/management-and-querying/spec.md",
+      "sha256": "d293d3a45d7d899ee7e5630a9e970a19bda9418daf025fcbf5cb2a7f6654f142"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/specs/repository-foundation/spec.md",
+      "sha256": "a354809bb42d68b2a9c485d230ec42c7364a10fe1410a1e80af23a0997e3e39e"
+    },
+    {
+      "path": "openspec/changes/admit-dag-public-handle-seam/tasks.md",
+      "sha256": "e0cd7033e6160e37054ce60df9820c3a06072689cc5665ccdcf154c33f1db1a6"
+    },
+    {
+      "path": "openspec/changes/harmonize-downstream-capability-specs/artifacts/task-7-3-active-documentation-reconciliation-2026-09-18.md",
+      "sha256": "a1b897a8035e189ec9d418a5eef99285b996d5da32c021b001346585afcc047e"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/amendment.json",
+      "sha256": "0a0396ab38328c653441d6e6fa30461a9ac2a01e637664a8e939657a22f39d20"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/contract-independent-review.md",
+      "sha256": "6242652f47ee3a4412820d83ea58ae8164ef3e6e52316e9f8e1eee7837757e01"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/contract-reviewed-manifest.json",
+      "sha256": "590babd066ce1949f257062173c70e429c332171e3e76ea2e12a8da14f959da9"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/artifacts/sync-openspec-provenance-2026-11-16.md",
+      "sha256": "bd1deb8b66871d3d785c9b07bb98a8eb6c999819082e99c1295dda78a76f05ab"
+    },
+    {
+      "path": "openspec/changes/repair-runtime-correctness/tasks.md",
+      "sha256": "344acd5297138baa690e18ff6bd30c00d0f563aa7200dc190ac729cd6f4ffa57"
+    },
+    {
+      "path": "openspec/changes/reshape-developer-facing-interfaces/artifacts/task-8-0-section-8-requirement-gate-2026-09-26.md",
+      "sha256": "52d0f179016832fb541ca52567a57eca23a22594830dbbc2a0f5708f0fff8543"
+    },
+    {
+      "path": "openspec/changes/reshape-developer-facing-interfaces/tasks.md",
+      "sha256": "104cc85002eefc1b3c0e0035f0f8735862a5cbfcd436c671457d256d44767bb2"
+    },
+    {
+      "path": "openspec/specs/developer-facing-surface/spec.md",
+      "sha256": "a689f95e3ee229af0799c0a2a734f90661cbb9978603f49d4687f3ef2a6c5bb0"
+    },
+    {
+      "path": "openspec/specs/durable-persistence-and-outbox/spec.md",
+      "sha256": "3ac341bc16c216425967b1efe180fd17b8c935e63990b70863ecc01b036a6e55"
+    },
+    {
+      "path": "openspec/specs/durable-runtime/spec.md",
+      "sha256": "9bdd2093e6c1687687f43fbbaf1b9e7d15753c0e02c0736ea4c4974c4aef198d"
+    },
+    {
+      "path": "openspec/specs/management-and-querying/spec.md",
+      "sha256": "48902205918408124ff7045ad4561bc65efd14df1643cf45b9d9121becea6b7e"
+    },
+    {
+      "path": "openspec/specs/quality-and-verification/spec.md",
+      "sha256": "bb6531aa2d8948bde1f5074e0b96c70014fba1f3fd292af0113a23db613681b1"
+    },
+    {
+      "path": "openspec/specs/repository-foundation/spec.md",
+      "sha256": "2c1704b36100e21cf8245628e1d67b5105597926fff31fb026e61d83ff5fd2df"
+    },
+    {
+      "path": "openspec/specs/workflow-contracts/spec.md",
+      "sha256": "45851d7de576a8d15d90cea1bfec912687575f65e99b6ba0ff0f442833455dff"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/DagCoordinator.cs",
+      "sha256": "923ebcd059ca8d5ba3b08fe0c04f1ce7dace88727337ff0b262d8598f0146893"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/DagFacadeRegistry.cs",
+      "sha256": "23d4195a89ecd2d302b1dc5a6c34ddf3634d70c56c3417f0dfff3e1f8dad0cab"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/DagHostingServices.cs",
+      "sha256": "832106e7106f271d1ca4deec6a27f96ab691ec02308a84b463fc73d532456d0f"
+    },
+    {
+      "path": "src/OrcaCore.Dag.Hosting/OrcaCoreDagHostingServiceCollectionExtensions.cs",
+      "sha256": "fbb9220bef9d8fb099687a47b455443befb41c243f3204738b572d6943782a6d"
+    },
+    {
+      "path": "src/OrcaCore.Dag/DagFacade.cs",
+      "sha256": "b62b4663b25a1236ebcfb1bd700b5de008cb9a1e1fd302616da58457054ab40f"
+    },
+    {
+      "path": "src/OrcaCore.Dag/DagFailureContracts.cs",
+      "sha256": "2bacc01d5b5a0b3164993c6614a40f58d62335aca0314972671e30e424dfe03a"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagFacade.cs",
+      "sha256": "c70b3c747c3f0b1a0132e813a079a787e9a7a250c7218bc1443855948d0c7686"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagMappingReader.cs",
+      "sha256": "ca6531a303c1be943e24f4fde6b0a1332c190b810b47bba94a10fd87d3f364d0"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunCancellation.cs",
+      "sha256": "9cdbd7e472838809271cc3d71d9a19649fd7b9e97b7c5373e5b35b6483278be4"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunInputCatalog.cs",
+      "sha256": "8012f560fa84f204b5894e65a9fb5bbc42be8087a032f90529ea334f3374745c"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/Dag/DurableDagRunStore.cs",
+      "sha256": "4782a64b192c76a0f8502c87f6dc2c2522cc59420182fa906760f4aea400dfa5"
+    },
+    {
+      "path": "src/OrcaCore.Durable.Hosting/OrcaCoreDurableEngineServiceCollectionExtensions.cs",
+      "sha256": "b0ece5ad5015a229e60540d5c00d6da06f67d891d1cea67a0f62d1b833245c67"
+    },
+    {
+      "path": "src/OrcaCore.Engine.Durable/Dag/DurableDagValues.cs",
+      "sha256": "91ee5744e9e61043b802b0533c489d547a2af67dbaac1fb448fadca349689543"
+    },
+    {
+      "path": "src/OrcaCore.Providers.PostgreSql/Migrations/001_initial.sql",
+      "sha256": "0da6637bb208a74ed57197f85b98e76a407df549319cc83b22d284752d632bd9"
+    },
+    {
+      "path": "src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs",
+      "sha256": "0c02cf44af5b930a42c9dbbac86383a74dab1033de65bb63b5f9ddd779bb5440"
+    },
+    {
+      "path": "tests/OrcaCore.Core.Tests/Compilation/OutcomeFingerprintTests.cs",
+      "sha256": "0bca3f663aa288a8ef79b9d50db655e3ab6c3184714af1b15d515ac60cc9a73d"
+    },
+    {
+      "path": "tests/OrcaCore.Core.Tests/RepositoryGuardTests.cs",
+      "sha256": "c49ccf9cf3073f3121d0eedca7110aea565a2382bac1cc29bd54866a601a35c8"
+    },
+    {
+      "path": "tests/OrcaCore.Dag.ProcessProbe/OrcaCore.Dag.ProcessProbe.csproj",
+      "sha256": "0269944e925fe5c7c43b831290c71646032b4813096724c051f17fced6e2ef28"
+    },
+    {
+      "path": "tests/OrcaCore.Dag.ProcessProbe/Program.cs",
+      "sha256": "e02390b0e2cd217f13a348fd9b6c49d7a0bfbe304b6ab2e428107e81630bbdfa"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/DagFacadeReviewCandidate.cs",
+      "sha256": "8c8fbed3ffe884883b20ab2b3a9df46434b9ffa39e09d613cecec865545693a2"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/DagPumpSliceGuards.cs",
+      "sha256": "72a57351fdb6961186d8bc8a0d1ad2ad8253ec1bc380e6efbfa15381e327528d"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/DagRuntimeViewBoundaryGuards.cs",
+      "sha256": "ab9157c5b66150f2fb1c83753e76c7d62c993bc01808f1d619b6799f3a39bee5"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs",
+      "sha256": "29ef24bf684a80bd1dfc921be29d306f49c25ba9af575700e2fc142a62ed30ca"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralFailureSettlementTransitionGuards.cs",
+      "sha256": "8b30f341f8c333194299709a2e628c1ceb66d13efc7f07026451c964a04ae1e5"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/EphemeralShutdownTransitionGuards.cs",
+      "sha256": "c12342a0a660ddf6cd2aa562b1bed7781eb37862e180769e6640c5516c8dffc0"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Dag.api.txt",
+      "sha256": "9f44d4e813934a52ec0c8af8705b03681b61a6cd073d68ce22cdd32450578eeb"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Engine.Ephemeral.api.txt",
+      "sha256": "bd2e70daa1f188110d816ae20f28aea12248af71fc10de426fcc2cc56a330c5e"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/OrcaCore.Runtime.Protocol.api.txt",
+      "sha256": "eb8fa266b12974596e8685fd4c065bda9a97545e97253aad612281fc34eaedf8"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-bridge-references.txt",
+      "sha256": "39e156fa651c647087f5b19cbda362b840a2f33eab12849325b5e2cc15a3a64a"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-review-candidate.json",
+      "sha256": "003dfd97665358213a6d6dd517f9cd271f62eea617f95642c80fec3ebc961bb6"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/immutable-document-history.json",
+      "sha256": "e5af088c3ca70552a99baec9fca0d60d9bec24c714f4e4ae5ce135409ebcc6a5"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json",
+      "sha256": "4291e34d0dd0a493508acc45ed12086dc37867e81f5f92b72021aab750cb9bad"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-consumer-fixtures.json",
+      "sha256": "8790177676bc1301b61f1b0fcd3bca67fcaa7dc8a77d4225102f9436b198f8b9"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/package-source-provenance.json",
+      "sha256": "1ad0e9e90fa2d18c9b2fe9afb170a4dc05c6b3aba4bee78c212b3f8b53ac6aac"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json",
+      "sha256": "ac3b10dc0f5f11c94c05d63e3139652578099a6190115173b8f54158352d5dc2"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/section-07-r-declaration-crosswalk.json",
+      "sha256": "1c67d63ff1bfb8e14cf3eff0da107a84350dcbe8cb7cd619b63fd6b6314459b9"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/v1-public-contract.json",
+      "sha256": "13e0b4eaa3c02dc6cd1c85fee2488d77e6f73036d1c434c660625829e9446ab0"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/NativeSupportTransitionGuards.cs",
+      "sha256": "e93086fb522ad4401a6dcb4f166af4cadfd55b6f39abcf3d1308bc975e09ffc0"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/NormativeContractGuards.cs",
+      "sha256": "a228e05d350067ea01260bc79b034c32216bd50e4832bdb07dd85ed99b62418b"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
+      "sha256": "754d5ddc0dc07d9757d8d6367de2057d452c26b315ade22a295e336aee1b058e"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/Program.cs",
+      "sha256": "42f4d2605b2ef220565b169012d9c13472fa899250920022012add9bcdbc4ee6"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/RecoveryCrosswalkGuards.cs",
+      "sha256": "8734d0211a6bff59ebebc149b31a6f3283eb187aca539debd95e5bd892c5c2f7"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/RuntimeCorrectnessDeclarationGuards.cs",
+      "sha256": "309bf3336d3445cab09f166e559d52b39474bd4aa6ac6b7d83a401bde3891cd6"
+    },
+    {
+      "path": "tests/OrcaCore.DeveloperSurface.Guards/TaskAccountingGuards.cs",
+      "sha256": "32298e13d5973a969800e9c568aced2409a0e3bdb82c1e29fe0339d390d777b3"
+    },
+    {
+      "path": "tests/OrcaCore.Engine.Durable.Tests/Events/DurableCoherentLoadTests.cs",
+      "sha256": "ae68e76d8a2a83fd7b6acc241073cb0c206d5d679b1350a2eed3e295113efdd2"
+    },
+    {
+      "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StepDeadlineElectionTests.cs",
+      "sha256": "3a9ad7e3aeea9b84ec36d91934e2fd74ab6eba78e063a3b9cf9332162466a12f"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/DagEventStoreProbe.cs",
+      "sha256": "1de5d15cfc0add9ca13280f9407783ce56150f1d6ee4f27fd42ba45c25448535"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/DagFacadeBindingTests.cs",
+      "sha256": "2d3a72cbcab0aa1539a6d5200f1e23517a55ebfd136d63fd9c591eea7a179043"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs",
+      "sha256": "1453042f19f2e023cb342820f8188a05b91c35700c1e5001d5aa5442bb2ddfcd"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/DagRunCreationTests.cs",
+      "sha256": "1c0a74d9c902144d9aba73343eb824f15bfeca77da6f3df39c560a65cbad674c"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/DagRunInputBindingTests.cs",
+      "sha256": "b6c6ff61bff6d6a18a8c0edd4fdcd5408e69a135fd813881a8764dd61f0f24c1"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/DagSchedulerTests.cs",
+      "sha256": "0b97298965ea5ea130a98f130f3db39d1ade3c83650dcf05278406cc018cbfb0"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/EngineRegistrationProfileTests.cs",
+      "sha256": "046b278b104520fa19d2c93e5b927c3fd559abd51f6d60a1f9b9484f150b51e8"
+    },
+    {
+      "path": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "sha256": "80138e52693ffe8214b33702e60de236f34f7a8d7cdd32e47d1ae2e3a34b04b5"
+    },
+    {
+      "path": "tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs",
+      "sha256": "3684dd6391aeab8057bd12388aa164fc0b29a8909c2976bbb58582a719148ed5"
+    },
+    {
+      "path": "tests/OrcaCore.ProviderCertification/DagProcessRestartCertification.cs",
+      "sha256": "143bfbe49d96ef748f8a3ccae503d024e1b580d9e9f996d014637cf4cca91d1f"
+    },
+    {
+      "path": "tests/OrcaCore.ProviderCertification/DagRunCertification.cs",
+      "sha256": "dc3cc82ef5dc3acbefc806725aca9c844c9ec7fa9f7c3f5186e45f348f3d965d"
+    },
+    {
+      "path": "tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.cs",
+      "sha256": "1d2490c71a93aed8c38310fb849f8fd4b059712b4c020a48def107e56d34cdd3"
+    },
+    {
+      "path": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "sha256": "e2601db5c8cda80b969c9aec5bd6931dc318bf79e82542ff982bf52d397acc9c"
+    },
+    {
+      "path": "tests/OrcaCore.ProviderCertification/RuntimePositionCertification.cs",
+      "sha256": "11194b26f9aa4056d47ca83518b0a916b3064f66747afb0d85eba7d7d83c7c77"
+    },
+    {
+      "path": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
+      "sha256": "93be931e0bc5911c63e6e1746f779934312dc3e28319ffc63d696396999346ef"
+    },
+    {
+      "path": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlEventStoreTests.cs",
+      "sha256": "b4fb42c802849dc8cf81dbcea701d4c93500c88949df0362bf81e788ec82ce50"
+    },
+    {
+      "path": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
+      "sha256": "b65b9ee8fbc0edef45357f50423ede72c7f33c7c4b4229b1a7034de0331171ec"
+    },
+    {
+      "path": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
+      "sha256": "aa1c7797fec60e200218e52f4ba13749a440ee6d2b7aa5b22d47ae5f23ff8788"
+    },
+    {
+      "path": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
+      "sha256": "ef3a97b6fee9f0b8f70cf6d4d86b3c0b40097c086297758abd85f9d59e240d53"
+    },
+    {
+      "path": "tests/OrcaCore.TestSupport/DagFacadeWire.cs",
+      "sha256": "0bb9ac6652f677f4db573e9c97544cdeb47a3a4400a32a1bfc524093592ba56e"
+    }
+  ]
+}

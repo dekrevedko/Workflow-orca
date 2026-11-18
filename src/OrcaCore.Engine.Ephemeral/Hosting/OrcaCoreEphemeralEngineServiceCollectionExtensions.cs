@@ -16,11 +16,10 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(options);
         var copied = EphemeralWorkflowEngineOptions.FromHostOptions(options);
         global::OrcaCore.Core.Authoring.TypedAuthoringBootstrap.Initialize();
-        var fingerprint = ProfileFingerprint(copied);
         if (EngineRoleRegistration.RequireAvailableOrSame(
                 services,
                 "ephemeral-engine",
-                fingerprint))
+                copied))
         {
             return new OrcaCoreEphemeralEngineBuilder(services);
         }
@@ -47,27 +46,10 @@ public static class OrcaCoreEphemeralEngineServiceCollectionExtensions
         services.TryAddSingleton<EphemeralWorkflowEventRouter>();
         services.TryAddEnumerable(
             ServiceDescriptor.Singleton<IHostedService, OrcaCoreEphemeralWorkflowCatalogReadinessHostedService>());
-        services.AddSingleton(new EngineRoleRegistration("ephemeral-engine", fingerprint));
+        services.AddSingleton(new EngineRoleRegistration("ephemeral-engine", copied));
         return new OrcaCoreEphemeralEngineBuilder(services);
     }
 
-    private static string ProfileFingerprint(EphemeralWorkflowEngineOptions options)
-    {
-        var throttles = options.StepThrottles
-            .OrderBy(pair => pair.Key.AssemblyQualifiedName, StringComparer.Ordinal)
-            .Select(pair => $"{pair.Key.AssemblyQualifiedName}={pair.Value}");
-        var pools = options.TransientPools
-            .OrderBy(pair => pair.Key, StringComparer.Ordinal)
-            .Select(pair => $"{pair.Key}={pair.Value}");
-        return string.Join(
-            "|",
-            options.MaxConcurrentExecutionPathsPerInstance,
-            string.Join(",", throttles),
-            string.Join(",", pools),
-            options.TerminalRetention is { } policy
-                ? $"retention:{policy.MaxRetainedInstances}:{policy.MaxAge.Ticks}:{policy.SweepInterval.Ticks}"
-                : "retention:disabled");
-    }
 }
 
 /// <summary>Stages immutable ephemeral definitions for one engine host.</summary>
@@ -118,12 +100,12 @@ internal sealed class OrcaCoreEphemeralWorkflowCatalogReadinessHostedService : I
     }
 }
 
-internal sealed record EngineRoleRegistration(string Role, string OptionsFingerprint)
+internal sealed record EngineRoleRegistration(string Role, EphemeralWorkflowEngineOptions Options)
 {
     internal static bool RequireAvailableOrSame(
         IServiceCollection services,
         string requestedRole,
-        string optionsFingerprint)
+        EphemeralWorkflowEngineOptions options)
     {
         if (services.Any(descriptor =>
                 descriptor.ServiceType.FullName == "OrcaCore.Hosting.DurableEngineRoleRegistration"))
@@ -142,7 +124,7 @@ internal sealed record EngineRoleRegistration(string Role, string OptionsFingerp
         }
 
         if (string.Equals(existing.Role, requestedRole, StringComparison.Ordinal) &&
-            string.Equals(existing.OptionsFingerprint, optionsFingerprint, StringComparison.Ordinal))
+            SameProfile(existing.Options, options))
         {
             return true;
         }
@@ -150,4 +132,12 @@ internal sealed record EngineRoleRegistration(string Role, string OptionsFingerp
         throw new InvalidOperationException(
             $"OrcaCore engine role '{existing.Role}' is already registered; '{requestedRole}' cannot be combined with it.");
     }
+
+    private static bool SameProfile(EphemeralWorkflowEngineOptions left, EphemeralWorkflowEngineOptions right) =>
+        left.MaxConcurrentExecutionPathsPerInstance == right.MaxConcurrentExecutionPathsPerInstance &&
+        left.TerminalRetention == right.TerminalRetention &&
+        left.StepThrottles.Count == right.StepThrottles.Count &&
+        left.StepThrottles.All(pair => right.StepThrottles.TryGetValue(pair.Key, out var value) && value == pair.Value) &&
+        left.TransientPools.Count == right.TransientPools.Count &&
+        left.TransientPools.All(pair => right.TransientPools.TryGetValue(pair.Key, out var value) && value == pair.Value);
 }

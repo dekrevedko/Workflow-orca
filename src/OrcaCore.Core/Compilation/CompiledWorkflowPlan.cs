@@ -69,7 +69,7 @@ internal sealed record CompiledWorkflowPlan
     /// <summary>
     /// Gets the compiled-plan serialization format version.
     /// </summary>
-    public int FormatVersion => 1;
+    public int FormatVersion => 2;
 
     /// <summary>
     /// Gets the runtime-affecting compiler profile owned by the persisted compiler format.

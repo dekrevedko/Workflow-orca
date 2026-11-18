@@ -1,4 +1,5 @@
 {
+  "runtimeCorrectnessAmendment": "openspec/changes/repair-runtime-correctness/artifacts/amendment.json",
   "schemaVersion": 26,
   "requiredStages": [
     "amendment-approval",

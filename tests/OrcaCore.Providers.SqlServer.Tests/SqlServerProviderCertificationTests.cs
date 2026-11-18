@@ -65,6 +65,30 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             TestContext.Current.CancellationToken);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-322")]
+    public async Task PositionOnlyCommitRejectsASecondHostAtTheOldVersion(bool fiberFailure)
+    {
+        var documents = await container.CreateDocumentsAsync(certificationDocuments!.Schema);
+        var other = new SqlServerWorkflowStore(documents, TimeProvider.System);
+        await RuntimePositionCertification.PositionOnlyCommitRejectsASecondHostAtTheOldVersion(
+            certificationStore!, other, fiberFailure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-323")]
+    public async Task InterleavedCheckpointLoadMustNotCommitPublishTwice(bool afterTail)
+    {
+        var documents = await container.CreateDocumentsAsync(certificationDocuments!.Schema);
+        var other = new SqlServerWorkflowStore(documents, TimeProvider.System);
+        await RuntimePositionCertification.InterleavedCheckpointLoadMustNotCommitPublishTwice(
+            certificationStore!, other, certificationStore!, afterTail);
+    }
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(

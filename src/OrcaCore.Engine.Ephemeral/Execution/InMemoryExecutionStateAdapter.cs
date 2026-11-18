@@ -406,27 +406,39 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
 
         await using var ownedGovernanceLease = governanceLease;
         var timedOut = 0;
-        TaskCompletionSource? timeoutReached = instruction.Policy.Timeout.HasValue
-            ? new(TaskCreationOptions.RunContinuationsAsynchronously) : null;
         using var timeoutCancellation = instance.Lifetime.CreateCancellationScope(cancellationToken);
-        using var timeoutTimer = instruction.Policy.Timeout is { } timeout
-            ? timeProvider.CreateTimer(
+        var decision = instruction.Policy.Timeout is { } duration
+            ? new StepAttemptDecision(timeProvider, timeProvider.GetUtcNow() + duration, () =>
+            {
+                Interlocked.Exchange(ref timedOut, 1);
+                _ = timeoutCancellation.CancelAsync();
+            })
+            : null;
+        Task<TResult> ObserveAsync<TResult>(Func<Task<TResult>> operation) =>
+            decision is null ? operation() : decision.ObserveAsync(operation);
+        ITimer? timeoutTimer = null;
+        using var ownedTimeoutTimer = instruction.Policy.Timeout.HasValue
+            ? timeoutTimer = timeProvider.CreateTimer(
                 _ =>
                 {
                     if (!instance.Lifetime.TryEnterCallback(out var callback)) return;
                     using var callbackOwnership = callback;
                     using var sourceOwnership = timeoutCancellation.TryOwn();
                     if (sourceOwnership is null) return;
-                    Interlocked.Exchange(ref timedOut, 1);
-                    // Deliver cancellation before waking the turn: otherwise it can
-                    // dispose this source while the timer callback still needs it.
-                    _ = timeoutCancellation.CancelAsync();
-                    timeoutReached?.TrySetResult();
+                    if (decision!.OnTimer() is { } remaining)
+                    {
+                        // Timers may arrive before the absolute deadline, including after
+                        // a wall-clock adjustment. Keep a wake scheduled for the remainder.
+                        try { timeoutTimer!.Change(remaining, Timeout.InfiniteTimeSpan); }
+                        catch (ObjectDisposedException) { /* The result settled concurrently. */ }
+                    }
                 },
                 null,
-                timeout,
+                Timeout.InfiniteTimeSpan,
                 Timeout.InfiniteTimeSpan)
             : null;
+        if (instruction.Policy.Timeout is { } timeout)
+            ownedTimeoutTimer!.Change(timeout, Timeout.InfiniteTimeSpan);
         var executionToken = timeoutTimer is null ? cancellationToken : timeoutCancellation.Token;
         var maxAttempts = instruction.Policy.Retry?.MaxAttempts ?? 1;
         var attempt = checked(updatedFiber.RetryAttempt + 1);
@@ -478,12 +490,9 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     timeProvider,
                     forEachItem);
                 var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
-                    () => timeoutCancellation.RunAsync(() => InvokeBusinessStepAsync(
-                        () => rootStep.ExecuteAsync(stepContext, executionToken).AsTask())));
-                if (timeoutReached is not null &&
-                    await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
-                        timeoutReached.Task &&
-                    !physicalAttempt.IsCompleted)
+                    () => timeoutCancellation.RunAsync(() => ObserveAsync(() => InvokeBusinessStepAsync(
+                        () => rootStep.ExecuteAsync(stepContext, executionToken).AsTask()))));
+                if (decision is not null && !await decision.WaitForResultAsync(physicalAttempt).ConfigureAwait(false))
                 {
                     _ = instance.Lifetime.RunAsync(EphemeralWorkKind.CapacityRelease,
                         () => ownedGovernanceLease.RetainUntil(physicalAttempt));
@@ -521,7 +530,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 var localState = codec.Deserialize(localPayload) ??
                     throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException("Branch state deserialized to null.");
                 var physicalAttempt = instance.Lifetime.RunAsync(EphemeralWorkKind.PhysicalAttempt,
-                    () => timeoutCancellation.RunAsync(() => StructuredInvocationCache.ExecuteStepAsync(
+                    () => timeoutCancellation.RunAsync(() => ObserveAsync(() => StructuredInvocationCache.ExecuteStepAsync(
                     branch.Input.BranchStateType,
                     step,
                     localState,
@@ -531,11 +540,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                     forEachItem,
                     resourceLease: null,
                     cancellationToken: executionToken, wrapExceptions: false,
-                    stepFailure: static error => new BusinessStepException(error)).AsTask()));
-                if (timeoutReached is not null &&
-                    await Task.WhenAny(physicalAttempt, timeoutReached.Task).ConfigureAwait(false) ==
-                        timeoutReached.Task &&
-                    !physicalAttempt.IsCompleted)
+                    stepFailure: static error => new BusinessStepException(error)).AsTask())));
+                if (decision is not null && !await decision.WaitForResultAsync(physicalAttempt).ConfigureAwait(false))
                 {
                     _ = instance.Lifetime.RunAsync(EphemeralWorkKind.CapacityRelease,
                         () => ownedGovernanceLease.RetainUntil(physicalAttempt));

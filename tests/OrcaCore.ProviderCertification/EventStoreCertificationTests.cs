@@ -1065,6 +1065,8 @@ public abstract class EventStoreCertificationTests
         var fixture = CreateFixture();
         var instanceId = InstanceId.Parse(Guid.CreateVersion7().ToString());
         var runtimeState = FullyPopulatedRuntimeState(instanceId);
+        var parent = InstanceId.Parse(Guid.CreateVersion7().ToString());
+        var root = InstanceId.Parse(Guid.CreateVersion7().ToString());
 
         var result = await fixture.EventStore.AppendAsync(
             new ProviderCommitBatch
@@ -1087,7 +1089,9 @@ public abstract class EventStoreCertificationTests
                 Checkpoint = new CheckpointWrite(instanceId, new StreamVersion(1), "application/json", [1])
                 {
                     Status = WorkflowStatus.Running,
-                    RuntimeState = runtimeState
+                    RuntimeState = runtimeState,
+                    ParentInstanceId = parent,
+                    RootInstanceId = root
                 }
             },
             TestContext.Current.CancellationToken);
@@ -1097,10 +1101,38 @@ public abstract class EventStoreCertificationTests
 
         result.IsSuccess.Should().BeTrue();
         checkpoint.HasValue.Should().BeTrue();
+        checkpoint.Value.ParentInstanceId.Should().Be(parent);
+        checkpoint.Value.RootInstanceId.Should().Be(root);
         checkpoint.Value.RuntimeState.Should().BeEquivalentTo(
             runtimeState,
             "every current runtime collection must survive checkpoint compaction, " +
             "or rehydrated aggregates silently lose in-flight state");
+        foreach (var lineage in new (InstanceId? Parent, InstanceId? Root)[]
+        {
+            (InstanceId.Parse(Guid.CreateVersion7().ToString()), InstanceId.Parse(Guid.CreateVersion7().ToString())), (null, null)
+        })
+        {
+            var next = checkpoint.Value with
+            {
+                StreamVersion = checkpoint.Value.StreamVersion.Next(),
+                ParentInstanceId = lineage.Parent, RootInstanceId = lineage.Root
+            };
+            var replaced = await fixture.EventStore.AppendAsync(new ProviderCommitBatch
+            {
+                StreamId = new WorkflowStreamId(instanceId), ExpectedVersion = checkpoint.Value.StreamVersion,
+                Events = [new WorkflowExecutionPositionChangedEvent
+                {
+                    EventId = EventId.Create(Guid.CreateVersion7().ToString()), InstanceId = instanceId,
+                    CommandId = CommandId.New(), CausationId = CausationId.New(), OccurredAt = Timestamp(2),
+                    ParentInstanceId = lineage.Parent, RootInstanceId = lineage.Root
+                }],
+                Checkpoint = next
+            }, TestContext.Current.CancellationToken);
+            replaced.IsSuccess.Should().BeTrue();
+            checkpoint = await fixture.EventStore.LoadCheckpointAsync(instanceId, TestContext.Current.CancellationToken);
+            checkpoint.HasValue.Should().BeTrue();
+            checkpoint.Value.Should().BeEquivalentTo(next);
+        }
     }
 
     [Fact]
@@ -1816,6 +1848,12 @@ public abstract class EventStoreCertificationTests
                 DefinitionId = DefinitionId.New(),
                 DefinitionVersion = DefinitionVersion.Initial,
                 IdempotencyKey = "start-key"
+            },
+            new WorkflowExecutionPositionChangedEvent
+            {
+                EventId = nextEventId(), InstanceId = instanceId, CommandId = commandId(),
+                CausationId = causationId(), OccurredAt = occurredAt(),
+                ParentInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString()), RootInstanceId = InstanceId.Parse(Guid.CreateVersion7().ToString())
             },
             new WorkflowContinuedAsNewEvent
             {

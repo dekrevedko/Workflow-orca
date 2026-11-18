@@ -829,3 +829,12 @@ contract lane or the original unsupported assessment supplies no execution credi
 - **AC-638** FS-20: Six native profiles with unchanged old journeys plus new witnesses. Actual jobs and aggregate run, package/source identities agree, legacy/v2/type/original/settlement controls succeed, no private rooting or reflection switch. Every native cell asserts ExceptionType text equals JIT for the same error types. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
 
 Each assertion remains a source/package/native obligation, with both retention modes where applicable. This transition supplies no runtime acceptance credit.
+
+## Runtime concurrency and identity acceptance (AC-322–327)
+
+- **AC-322** *Position-only fencing* — **[provider, advanced]** Two independently constructed stores sharing one database/schema reject the stale host after yield and fiber-failure checkpoint commits; the winning position and lineage survive. [DU-013a, PR-024a]
+- **AC-323** *Coherent publication* — **[provider, advanced]** Deterministic competing-host commits between checkpoint/tail reads and after tail capture produce one logical outbound event, with no stale checkpoint publication. [DR-012a]
+- **AC-324** *Integrity quarantine* — Identical unreconciled positions quarantine with an offending-event diagnostic; a conflicted park reloads; cancellation remains authoritative; rearm without repair parks again while preserving checkpoint and bad tail. [DR-012a]
+- **AC-325** *Absolute deadline election* — Controlled-clock root/branch/item cases cover before/at/after deadline, early/delayed timers, wrapper failure and election-to-notification delay. An elected winner remains stable and losing work keeps physical ownership until settlement. [CR-018]
+- **AC-326** *Structural identity* — Both workflow modes distinguish field punctuation, null/absent/named outcomes and accepted Unicode code units; cultures cannot change schema ordering. Normalized equivalent host profiles are idempotent and all behavior-affecting conflicts reject before service mutation. [CR-004a, PR-040]
+- **AC-327** *Measured qualification boundaries* — Long-loop evidence at small/default command budgets counts added facts, serialized bytes and commit boundaries. Evidence records the exact source, compiled scope and actual results without claiming untested migration, mixed-version, process-crash or storage-scale guarantees. [DU-013a, PR-024a]

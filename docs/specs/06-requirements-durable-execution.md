@@ -275,3 +275,8 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 Checkpointed internal slices: typed identity and provider persistence (c93411e, f62b0aaf), pumps (2fd7a7d), bridge/scheduler (e955f3a) and scheduler/schema follow-up (3f6d11bf). The registry remains ApprovedPending: full certification and public Task 8.6 are not complete. See the [Task 2.4/3.1 evidence inventory](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md).
 <!-- dag-run-contract-proposal:end -->
+
+## Runtime correctness clarification
+
+### DU-013a Position facts fence checkpoint changes
+Every committed execution-envelope change SHALL advance the optimistic workflow stream version. Yield and fiber failure SHALL append `WorkflowExecutionPositionChangedEvent` atomically with their checkpoint, even without another fact. Providers SHALL round-trip the new discriminator with all inherited workflow-event fields and preserve checkpoint parent/root lineage through replacement and null clearing. The original 21 workflow mappings and their bytes and the separate DAG framing remain unchanged. The twenty-second workflow mapping is additive; matched protocol/provider binaries and fresh/reset stores are the qualification target. No mixed-version rollout or applied-migration compatibility is implied. See DR-012a and the exact advanced declaration in document 17.

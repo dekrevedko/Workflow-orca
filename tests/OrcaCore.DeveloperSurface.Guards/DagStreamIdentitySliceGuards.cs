@@ -14,7 +14,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "a25ded5d8e1277de39c84e4d1ecbab07cb19341e84acd62bc07a58de22ce888a";
+    private const string CanonicalContentRecordSha256 = "5e8912767a76359985618550eb412789c06512ee731cd116d39ca24598d2bfb9";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
     private const string BaseCommit = "89e3b18aed62446583211478f1eb8545e4fb85ed";
     private static readonly TransitionEvidence ApprovedTransition = new(
@@ -129,7 +129,8 @@ public sealed class DagStreamIdentitySliceGuards
         {
             var path = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/" + assembly + ".api.txt";
             var before = ApiKeys(Normalize(Git(root, "show", "82811cd41aae577d8a1ae13258790d3da0c30d72:" + path)));
-            var actual = ApiKeys(Normalize(File.ReadAllText(Path.Combine(root, path))));
+            // This proves the historical DAG admission; exhaustive live API guards cover later additions.
+            var actual = ApiKeys(DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.Merge, path));
             before.Except(actual).Should().BeEmpty("this slice removes no existing public key");
             var allowed = CatalogApiKeys(candidate.Split("## " + assembly + "\n", StringSplitOptions.None)[1].Split("\n## ", StringSplitOptions.None)[0]);
             actual.Except(before).Should().BeEquivalentTo(allowed.Except(before));

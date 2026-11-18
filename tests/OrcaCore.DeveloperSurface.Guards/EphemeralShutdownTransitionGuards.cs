@@ -76,6 +76,7 @@ public sealed class EphemeralShutdownTransitionGuards
         current.GetProperty("schemaVersion").GetInt32().Should().Be(26);
         var before = JsonNode.Parse(Git("show", SourceVerdictCommit + ":" + Registry))!.AsObject();
         var after = JsonNode.Parse(current.GetRawText())!.AsObject();
+        RuntimeCorrectnessDeclarationGuards.ProjectRegistryExtension(after);
         OpenSpecCorpusGuards.ProjectDagFacadeSeamRegistryExtension(after);
         // The native-support extension is independently validated, including unchanged prior records.
         after.Remove("nativeSupportContractEvidence");

@@ -48,6 +48,12 @@ public abstract record WorkflowEvent
 }
 
 /// <summary>
+/// Fences a checkpoint position change that need not complete a business step.
+/// Recovery must load the accompanying checkpoint before executing this position.
+/// </summary>
+public sealed record WorkflowExecutionPositionChangedEvent : WorkflowEvent;
+
+/// <summary>
 /// Records that a workflow instance started and bound to a definition version.
 /// </summary>
 public sealed record WorkflowStartedEvent : WorkflowEvent

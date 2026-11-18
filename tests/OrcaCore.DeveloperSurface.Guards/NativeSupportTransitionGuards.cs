@@ -93,6 +93,7 @@ public sealed class NativeSupportTransitionGuards
         root.GetProperty("schemaVersion").GetInt32().Should().Be(26);
         var old = JsonNode.Parse(Git("show", VerdictCommit + ":" + Registry));
         var current = JsonNode.Parse(root.GetRawText())!.AsObject();
+        RuntimeCorrectnessDeclarationGuards.ProjectRegistryExtension(current);
         OpenSpecCorpusGuards.ProjectDagFacadeSeamRegistryExtension(current);
         current.Remove("nativeSupportContractEvidence");
         current.Remove("nativeSupportPendingAmendments");

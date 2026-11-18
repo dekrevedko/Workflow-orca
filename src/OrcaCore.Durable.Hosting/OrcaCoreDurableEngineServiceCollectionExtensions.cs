@@ -35,8 +35,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         ArgumentNullException.ThrowIfNull(options);
         var copied = options.ValidateAndCopy();
         RequireProviderRole(services);
-        var fingerprint = ProfileFingerprint(copied);
-        if (RequireAvailableOrSame(services, "durable-engine", fingerprint))
+        if (RequireAvailableOrSame(services, "durable-engine", copied))
         {
             return new OrcaCoreDurableEngineBuilder(services);
         }
@@ -114,7 +113,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         services.TryAddSingleton<IDurableResourceLeaseDiagnostics, HostedDurableResourceLeaseDiagnostics>();
 
         AddProgressionLoops(services);
-        services.AddSingleton(new DurableEngineRoleRegistration("durable-engine", fingerprint));
+        services.AddSingleton(new DurableEngineRoleRegistration("durable-engine", copied));
         return new OrcaCoreDurableEngineBuilder(services);
     }
 
@@ -126,7 +125,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
     {
         ArgumentNullException.ThrowIfNull(services);
         RequireProviderRole(services);
-        if (RequireAvailableOrSame(services, "durable-event-ingress", "v1"))
+        if (RequireAvailableOrSame(services, "durable-event-ingress", null))
         {
             return services;
         }
@@ -148,7 +147,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
                 provider.GetRequiredService<IWorkflowInboxStore>(),
                 driveAfterAcceptance: false);
         });
-        services.AddSingleton(new DurableEngineRoleRegistration("durable-event-ingress", "v1"));
+        services.AddSingleton(new DurableEngineRoleRegistration("durable-event-ingress", null));
         return services;
     }
 
@@ -280,7 +279,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
     private static bool RequireAvailableOrSame(
         IServiceCollection services,
         string requestedRole,
-        string optionsFingerprint)
+        ValidatedDurableEngineHostOptions? options)
     {
         if (services.Any(descriptor =>
                 descriptor.ServiceType.FullName == "OrcaCore.Hosting.EngineRoleRegistration"))
@@ -299,7 +298,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
         }
 
         if (string.Equals(existing.Role, requestedRole, StringComparison.Ordinal) &&
-            string.Equals(existing.OptionsFingerprint, optionsFingerprint, StringComparison.Ordinal))
+            SameProfile(existing.Options, options))
         {
             return true;
         }
@@ -308,22 +307,17 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
             $"OrcaCore durable role '{existing.Role}' is already registered; '{requestedRole}' cannot be combined with it.");
     }
 
-    private static string ProfileFingerprint(ValidatedDurableEngineHostOptions options)
+    private static bool SameProfile(ValidatedDurableEngineHostOptions? left, ValidatedDurableEngineHostOptions? right)
     {
-        var throttles = options.StructuredExecution.StepThrottles
-            .OrderBy(throttle => throttle.StepType.AssemblyQualifiedName, StringComparer.Ordinal)
-            .Select(throttle =>
-                $"{throttle.StepType.AssemblyQualifiedName}={throttle.MaxConcurrency}");
-        var pools = options.ResourcePools.Values
-            .OrderBy(pool => pool.Name.Value, StringComparer.Ordinal)
-            .Select(pool =>
-                $"{pool.Name.Value}={pool.Capacity}:{pool.ReviewAfter.Ticks}");
-        return string.Join(
-            "|",
-            options.StructuredExecution.MaxConcurrentExecutionPathsPerInstance,
-            string.Join(",", throttles),
-            options.PartitionId.Value,
-            string.Join(",", pools));
+        if (left is null || right is null) return left is null && right is null;
+        return left.StructuredExecution.MaxConcurrentExecutionPathsPerInstance == right.StructuredExecution.MaxConcurrentExecutionPathsPerInstance &&
+            string.Equals(left.PartitionId.Value, right.PartitionId.Value, StringComparison.Ordinal) &&
+            left.StructuredExecution.StepThrottles.Count == right.StructuredExecution.StepThrottles.Count &&
+            left.StructuredExecution.StepThrottles.All(throttle => right.StructuredExecution.StepThrottles.Any(candidate =>
+                candidate.StepType == throttle.StepType && candidate.MaxConcurrency == throttle.MaxConcurrency)) &&
+            left.ResourcePools.Count == right.ResourcePools.Count &&
+            left.ResourcePools.All(pair => right.ResourcePools.TryGetValue(pair.Key, out var pool) &&
+                pool.Capacity == pair.Value.Capacity && pool.ReviewAfter == pair.Value.ReviewAfter);
     }
 }
 
@@ -371,4 +365,4 @@ internal sealed class OrcaCoreDurableWorkflowCatalogReadinessHostedService : IHo
 
 internal sealed record DurableEngineRoleRegistration(
     string Role,
-    string OptionsFingerprint);
+    ValidatedDurableEngineHostOptions? Options);

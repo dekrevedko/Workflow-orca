@@ -354,3 +354,8 @@ fiber/checkpoint/outbox/projection/provider stored failure bytes must match base
 can use the exact legacy/v2 reader without changing durable error production.
 The normative companion changes in task 2.1; executable assembly/compile/package
 baselines change only with task 3 source. Contract text is not an installed API.
+
+## Runtime correctness provider qualification
+
+### PR-024a Position-fact and checkpoint-lineage certification
+Every retained durable provider SHALL certify the additive workflow position event, atomic expected-version fencing of position-only yield and fiber-failure commits, and checkpoint parent/root lineage on insert, replacement and clearing. Tests SHALL use two independently constructed stores/runtimes against the same database/schema for checkpoint/tail and post-tail publication races. Full provider suites supplement these cases; a single store object or in-memory success alone is insufficient evidence. PostgreSQL qualification includes the reviewed lineage columns/read/upsert change. SQL Server correctness does not qualify its whole-document/history scaling or change the separately selected support scope. Fresh-store tests do not certify migration of an already-journaled initial schema.

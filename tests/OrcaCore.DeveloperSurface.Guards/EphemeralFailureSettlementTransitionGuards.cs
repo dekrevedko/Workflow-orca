@@ -27,6 +27,7 @@ public sealed class EphemeralFailureSettlementTransitionGuards
         const string registryPath = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json";
         var previous = JsonNode.Parse(Git(root, ["show", ContractVerdictCommit + ":" + registryPath]))!.AsObject();
         var current = JsonNode.Parse(File.ReadAllText(Path.Combine(root, registryPath)))!.AsObject();
+        RuntimeCorrectnessDeclarationGuards.ProjectRegistryExtension(current);
         OpenSpecCorpusGuards.ProjectDagFacadeSeamRegistryExtension(current);
         DagStreamIdentitySliceGuards.ProjectTask21RegistryExtension(previous, current);
         JsonNode.DeepEquals(previous, current).Should().BeTrue("the independently reviewed DAG extension cannot change other registry entries");

@@ -306,7 +306,7 @@ public sealed class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4";
+        "bd1deb8b66871d3d785c9b07bb98a8eb6c999819082e99c1295dda78a76f05ab";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -351,9 +351,9 @@ public sealed class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 34;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 36;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "4e80db80c5d70f78c24af9aae1e1d8c81e25c2a2041dc185acf1f1132614d7ee";
+        "3aac8caa7adaa97a4ebaf1498d6d9133b4b081559813aefcee574871c2083396";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -424,7 +424,11 @@ public sealed class OpenSpecCorpusGuards
             ("openspec/changes/clarify-ephemeral-start-shutdown/artifacts/sync-openspec-provenance-2026-11-15.md",
                 "3d3fd01f1c547eb5addb117d3b653a4e506dc868290764c097cf5937d31fd043"),
             ("openspec/changes/admit-dag-public-handle-seam/artifacts/integration-candidate-openspec-provenance-2026-11-16.md",
-                "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4")
+                "b274ab59f4ab98d16733b1c855d6e9cb4c069530e6c3e83df50eb8073ac710f4"),
+            ("openspec/changes/admit-dag-public-handle-seam/artifacts/task-3-2-complete-openspec-provenance-2026-11-16.md",
+                "536d2026616dab29647659128c22e1f817d2c419e1b860a48e5e4a566a2b5ad4"),
+            ("openspec/changes/repair-runtime-correctness/artifacts/proposed-openspec-provenance-2026-11-16.md",
+                "64767fcef038d42e14ce53d153a6e6c5ffc4dd6434b12f4a166bddb0d8ac6acc")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -2024,6 +2028,8 @@ public sealed class OpenSpecCorpusGuards
 
     internal static string BeforeShutdownStartReservationSync(string root, string path, string current)
     {
+        var live = current;
+        current = RuntimeCorrectnessDeclarationGuards.BeforeSynchronization(root, path, current);
         if (path is not (
             "openspec/specs/management-and-querying/spec.md" or
             "docs/specs/09-requirements-management-operations.md" or
@@ -2037,7 +2043,7 @@ public sealed class OpenSpecCorpusGuards
             .Single(item => item.GetProperty("path").GetString() == path);
         // The live after-state must be the exact merged document. Pre-sync text
         // is accepted only by explicit commit-based historical readers, never here.
-        current.Should().Be(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
+        live.Should().Be(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
         current.Should().Be(DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.Merge, path));
         var integrated = DagFacadeApprovedHistory.TextAt(root, DagFacadeApprovedHistory.IntegrationTip, path);
         Sha256(integrated).Should().Be(row.GetProperty("afterSha256").GetString());
@@ -3870,9 +3876,8 @@ public sealed class OpenSpecCorpusGuards
 
         var documents = Task73ActiveDocumentationPaths.ToDictionary(
             path => path,
-            path => NormalizeLineEndings(File.ReadAllText(Path.Combine(
-                root,
-                path.Replace('/', Path.DirectorySeparatorChar)))),
+            path => RuntimeCorrectnessDeclarationGuards.BeforeSynchronization(root, path,
+                NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path)))),
             StringComparer.Ordinal);
         var corpusGuardSource = NormalizeLineEndings(File.ReadAllText(Path.Combine(
             root,

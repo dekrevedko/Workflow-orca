@@ -13,6 +13,7 @@ namespace OrcaCore.Abstractions.Serialization;
 [JsonSerializable(typeof(WorkflowStartedEvent))]
 [JsonSerializable(typeof(WorkflowContinuedAsNewEvent))]
 [JsonSerializable(typeof(WorkflowStepCompletedEvent))]
+[JsonSerializable(typeof(WorkflowExecutionPositionChangedEvent))]
 [JsonSerializable(typeof(WorkflowStepFailedEvent))]
 [JsonSerializable(typeof(WorkflowWaitRegisteredEvent))]
 [JsonSerializable(typeof(WorkflowWaitMatchedEvent))]

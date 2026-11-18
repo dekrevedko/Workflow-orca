@@ -13,6 +13,7 @@ public static class WorkflowEventCodec
     private static readonly WorkflowEventCodecEntry[] Entries =
     [
         Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStartedEvent, "WorkflowStartedEvent"),
+        Entry(OrcaCoreJsonSerializerContext.Default.WorkflowExecutionPositionChangedEvent, "WorkflowExecutionPositionChangedEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.WorkflowContinuedAsNewEvent, "WorkflowContinuedAsNewEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStepCompletedEvent, "WorkflowStepCompletedEvent"),
         Entry(OrcaCoreJsonSerializerContext.Default.WorkflowStepFailedEvent, "WorkflowStepFailedEvent"),
