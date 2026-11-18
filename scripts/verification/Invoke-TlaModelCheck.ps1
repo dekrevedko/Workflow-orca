@@ -29,7 +29,7 @@ $revision = (& git -C $repo rev-parse HEAD).Trim()
 if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve source revision.' }
 $dirty = (& git -C $repo diff --binary HEAD | Out-String)
 $dirtyHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($dirty)))
-$sourceFiles = @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Engine.Ephemeral src/OrcaCore.Abstractions src/OrcaCore.Core tests/OrcaCore.Engine.Ephemeral.Tests tests/OrcaCore.TestSupport verification/tla scripts/verification .github/workflows/wait-ownership.yml .github/workflows/start-idempotency.yml openspec/changes/verify-ephemeral-wait-ownership-with-tla docs/specs/05-requirements-events-waits-timers.md docs/specs/09-requirements-management-operations.md openspec/specs/event-routing-and-waits openspec/specs/management-and-querying Directory.* global.json)
+$sourceFiles = @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Engine.Durable src/OrcaCore.Providers.InMemory src/OrcaCore.Provider.Abstractions tests/OrcaCore.Engine.Durable.Tests src/OrcaCore.Engine.Ephemeral src/OrcaCore.Abstractions src/OrcaCore.Core tests/OrcaCore.Engine.Ephemeral.Tests tests/OrcaCore.TestSupport verification/tla scripts/verification .github/workflows/wait-ownership.yml .github/workflows/start-idempotency.yml .github/workflows/durable-wait-handoff.yml openspec/changes/verify-ephemeral-wait-ownership-with-tla docs/specs/05-requirements-events-waits-timers.md docs/specs/16-requirements-durable-driver.md docs/specs/09-requirements-management-operations.md openspec/specs/durable-runtime openspec/specs/event-routing-and-waits openspec/specs/management-and-querying Directory.* global.json)
 $hashes = @($sourceFiles | Sort-Object -Unique | Where-Object { $_ -notlike '*/evidence/*' -and $_ -notlike '*_TTrace*' -and (Test-Path -LiteralPath (Join-Path $repo $_) -PathType Leaf) } | ForEach-Object {
     [ordered]@{ path = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $repo $_) -Algorithm SHA256).Hash }
 })
@@ -41,7 +41,8 @@ foreach ($entry in $selected) {
     New-Item -ItemType Directory -Force $run | Out-Null
     Get-ChildItem -LiteralPath $ModelDirectory -Filter '*.tla' | Where-Object Name -NotLike '*_TTrace*' | Copy-Item -Destination $run
     Copy-Item -LiteralPath (Join-Path $ModelDirectory $entry.config) -Destination $run
-    $arguments = @("-Xmx${HeapMb}m", '-XX:+UseParallelGC', '-cp', $tools.Jar, 'tlc2.TLC', '-workers', '1', '-seed', '1', '-fp', '0', '-metadir', (Join-Path $run 'states'), '-config', $entry.config, "$ModuleName.tla")
+    $javaTemp = New-Item -ItemType Directory -Force (Join-Path $run 'java-tmp')
+    $arguments = @("-Djava.io.tmpdir=$($javaTemp.FullName)", "-Xmx${HeapMb}m", '-XX:+UseParallelGC', '-cp', $tools.Jar, 'tlc2.TLC', '-workers', '1', '-seed', '1', '-fp', '0', '-metadir', (Join-Path $run 'states'), '-config', $entry.config, "$ModuleName.tla")
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $tools.Java
     $info.WorkingDirectory = $run
