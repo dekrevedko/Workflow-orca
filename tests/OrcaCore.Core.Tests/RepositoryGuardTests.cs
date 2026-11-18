@@ -28,7 +28,7 @@ public sealed partial class RepositoryGuardTests
         ["AC-319"] = "Split-host continuation is implemented and tested by reshape-developer-facing-interfaces tasks 2.7 and 6.6.",
         ["AC-320"] = "Worker-reported external-job failure is implemented by reshape-developer-facing-interfaces tasks 6.3-6.5.",
         ["AC-321"] = "Compiled create-or-observe identity evidence across retry and split hosts is pending reshape-developer-facing-interfaces tasks 8.9 and 8.10; task 6.3 supplies the durable operation-identity substrate.",
-        ["AC-327"] = "The long-loop event-volume experiment is recorded in docs/implementation/architecture-remediation-phase-a-evidence-2026-11-16.md; it is measured qualification evidence, not a permanent timing or throughput test.",
+        ["AC-327"] = "The long-loop event-volume experiment is recorded in openspec/changes/repair-runtime-correctness/artifacts/architecture-remediation-phase-a-evidence-2026-11-16.md; it is measured qualification evidence, not a permanent timing or throughput test.",
         ["AC-523"] = "Application-safe remediation and runtime time ownership are implemented by reshape-developer-facing-interfaces tasks 6.7 and 7.8.",
         ["AC-524"] = "The three concurrency lifetimes are implemented across the structured-fiber and interface-reshape resource slices.",
         ["AC-525"] = "Lease ancestry authoring and runtime defenses are implemented by reshape-developer-facing-interfaces tasks 6.5 and 6.10.",

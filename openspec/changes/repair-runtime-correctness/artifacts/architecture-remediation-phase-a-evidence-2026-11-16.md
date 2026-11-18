@@ -1,6 +1,6 @@
 # Phase A correctness evidence
 
-This is the historical source/experiment record for checkpoint `c27b0b4e` and its review follow-up. The open obligations described below were subsequently closed by the [reviewed Phase A qualification record](../../openspec/changes/repair-runtime-correctness/artifacts/phase-a-qualification-2026-11-17.md), which contains the integrated source and real-provider results. This historical record alone is not provider qualification or approval to merge. The governing plan is `architecture-remediation-plan-2026-11-16.md` on the planning branch at `51753582`.
+This record covers source checkpoint `c27b0b4e` and its review follow-up. It is evidence for a still-open implementation phase, not provider qualification or approval to merge. The governing plan is `architecture-remediation-plan-2026-11-16.md` on the planning branch at `51753582`.
 
 ## Reviewed behavior
 
@@ -39,7 +39,7 @@ The baseline is `ba2b057d`. The 100-iteration measurements were collected during
 
 Reproduction starts from `DurableCoherentLoadTests.LongLoopCountsPositionFactsWithoutAddingCommitBoundaries` in the candidate. For 10,000 iterations, change only the iteration limit and increase the test's maximum drive-turn guard proportionally in a disposable checkout. The baseline probe uses the same loop and counting store, omits candidate-only assertions that every position checkpoint has an event, and identifies position events by their CLR name so it compiles against the older protocol. The initial large-loop run hit the original 1,000-turn test guard at budget 1 in both versions; after scaling that harness guard, both budgets passed in both versions. Raw TRX files and disposable probes are held locally and are not committed.
 
-## Historical qualification boundaries before closeout
+## Qualification boundaries
 
 The original source checkpoint built with zero warnings/errors. Author full-suite evidence after its review remediation: Core 396, Durable 127, Ephemeral 426, Hosting 68, Acceptance 37 and in-memory ProviderCertification 116 passed. Independent remediation checks passed 14 durable and 151 deadline/ownership cases, including the original adversarial cancellation and backoff probes. The newer follow-up has separate focused red/green evidence; these original counts do not certify changed follow-up source.
 
