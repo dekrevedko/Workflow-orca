@@ -7,6 +7,7 @@ namespace OrcaCore.Core.Tests.Contracts;
 public sealed class EventEnvelopeContractTests
 {
     [Fact]
+    [Trait("AC", "AC-328")]
     public void EventFactory_RejectsUnreconstructablePayloadAndStartInput()
     {
         var loss = new ShiftingValue(16);
@@ -29,6 +30,7 @@ public sealed class EventEnvelopeContractTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public void Envelope_DistinguishesPresentJsonNullFromAMissingPayload()
     {
         var contract = WorkflowEventContract<int?>.Create(EventName.Create("optional"), EventContractVersion.Initial);

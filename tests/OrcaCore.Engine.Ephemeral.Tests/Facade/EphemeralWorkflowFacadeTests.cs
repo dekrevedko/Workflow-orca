@@ -8,6 +8,7 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Facade;
 public sealed class EphemeralWorkflowFacadeTests
 {
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task InitReceivesTheDetachedInputWhoseBytesBoundTheStartKey()
     {
         var token = TestContext.Current.CancellationToken;
@@ -24,6 +25,7 @@ public sealed class EphemeralWorkflowFacadeTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task LossyDetachedReplacementFailsItsStepAndPreservesCommittedState()
     {
         var token = TestContext.Current.CancellationToken;

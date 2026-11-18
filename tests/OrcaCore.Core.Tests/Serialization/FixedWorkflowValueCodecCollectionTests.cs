@@ -68,6 +68,7 @@ public sealed class FixedWorkflowValueCodecCollectionTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public void FixedCodec_RejectsLossyValuesUnderTheirDeclaredType()
     {
         var value = PrivateSetter.Create(17);
@@ -87,6 +88,7 @@ public sealed class FixedWorkflowValueCodecCollectionTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public void FixedCodec_DetachesTheCapturedValueAndPreservesConstructorAndComputedMembers()
     {
         var original = new Dictionary<string, Immutable> { ["β"] = new(17) };

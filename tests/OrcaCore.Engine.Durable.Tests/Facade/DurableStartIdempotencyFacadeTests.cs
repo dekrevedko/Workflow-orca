@@ -10,6 +10,7 @@ namespace OrcaCore.Engine.Durable.Tests.Facade;
 public sealed class DurableStartIdempotencyFacadeTests
 {
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task LossyInputIsRejectedBeforeBindingANewOrExistingStartKey()
     {
         var token = TestContext.Current.CancellationToken;
@@ -27,6 +28,7 @@ public sealed class DurableStartIdempotencyFacadeTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task StartKeyAndInitUseTheSameCapturedInputBytesAcrossHosts()
     {
         var token = TestContext.Current.CancellationToken;
@@ -50,6 +52,7 @@ public sealed class DurableStartIdempotencyFacadeTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task ExplicitNullInputPersistsTheBytesThatBoundTheStartKey()
     {
         var token = TestContext.Current.CancellationToken;
@@ -75,6 +78,7 @@ public sealed class DurableStartIdempotencyFacadeTests
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task LossyDetachedReplacementFailsItsDurableStepAndPreservesTheCheckpoint()
     {
         var token = TestContext.Current.CancellationToken;

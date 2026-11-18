@@ -72,6 +72,7 @@ public sealed partial class DagFacadeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task LossyMappedInput_FailsTheNodeBeforeAChildStarts()
     {
         using var deadline = Deadline();
@@ -96,6 +97,7 @@ public sealed partial class DagFacadeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task LossyRunInput_IsRejectedBeforeAnyRunExists()
     {
         using var deadline = Deadline();
@@ -129,6 +131,7 @@ public sealed partial class DagFacadeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task StoredInputThatNoLongerRoundTrips_IsSkippedNotFailed_AndACompatibleHostFinishesIt()
     {
         using var deadline = Deadline(90);
