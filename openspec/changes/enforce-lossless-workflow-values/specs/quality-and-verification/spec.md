@@ -13,7 +13,7 @@ Issue #13 support SHALL require external PackageReference-only candidate consume
 
 #### Scenario: The converter catalogue amendment is qualified through public packages
 - **WHEN** the approved 2026-10-25 converter catalogue amendment is implemented
-- **THEN** all six cells and the legacy JIT control retain every existing AOT/NS assertion and additionally pass NS-02d/NS-06g–h from the amendment: ordinary external strong-value DTO generation, the complete eleven-type root/nested/collection byte/value/fingerprint corpus, unsupported direct-factory requests and explicit-converter rejection/retry; SYSLIB1220/SYSLIB1030 or any newly reached supported-path diagnostic cannot be hidden by a root omission, suppression, private bridge or reflection switch
+- **THEN** all six cells and the legacy JIT control retain every original AOT assertion and each NS assertion with the updated omission-control outcomes specified above and additionally pass NS-02d/NS-06g–h from the amendment: ordinary external strong-value DTO generation, the complete eleven-type root/nested/collection byte/value/fingerprint corpus, unsupported direct-factory requests and explicit-converter rejection/retry; SYSLIB1220/SYSLIB1030 or any newly reached supported-path diagnostic cannot be hidden by a root omission, suppression, private bridge or reflection switch
 
 #### Scenario: The public-only native recipe does not imply new event capabilities
 - **WHEN** all six cells exercise the approved bounded public recipe

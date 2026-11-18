@@ -9,7 +9,7 @@ public sealed partial class OpenSpecCorpusGuards
     private const string ValueFidelityChange = "enforce-lossless-workflow-values";
     private const string ValueFidelityContractPath = "openspec/changes/" + ValueFidelityChange + "/artifacts/contract.json";
     private const string ValueFidelityStage = "Proposed";
-    private const string ValueFidelityContractHash = "bbc6ad64c55ee313d9e1b002bf954e674275bb3a0981f1081fb0dfd856a35dc0";
+    private const string ValueFidelityContractHash = "18406e9549dad916e955ea9acd8baa02f0f7049464789a32bfe7a085dfdc8bc9";
 
     internal static void ProjectValueFidelityRegistry(JsonObject current)
     {

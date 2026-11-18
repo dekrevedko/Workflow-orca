@@ -3,7 +3,7 @@
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 234,
   "recordBytes": 62310,
-  "recordSha256": "651afc19911270dbdbf10c3de6ad41cc1208c381d25892c4c8d97b430e4af782",
+  "recordSha256": "4c41516a02ac429262f2baab5e6f674bef00b785471f606aa4f819fcc9ea5a91",
   "semanticApprovalEligible": false,
   "pendingCanonicalOperations": [{"capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "quality-and-verification", "count": 2, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "workflow-authoring", "count": 1, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}, {"capability": "workflow-contracts", "count": 2, "turnsGreenChange": "enforce-lossless-workflow-values", "turnsGreenTask": "1.2"}],
   "activeNewCapabilitiesOutsideCanonical": [
@@ -175,8 +175,8 @@
   "capabilityDirectoryCount": 48,
   "capabilityDirectoryBytes": 3876,
   "capabilityDirectorySha256": "d9c73f3eba334ab9fef8d81618739b8640b445699945b2dd43f5917d45200dea",
-  "artifactPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/proposed-openspec-provenance-2026-11-17.md",
-  "artifactNormalizedSha256": "ec04c6ad8d874bd1c2320cdfa2d8d1b2456f96b375bdc4d7c94bd06976201091",
+  "artifactPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/revised-proposed-openspec-provenance-2026-11-17.md",
+  "artifactNormalizedSha256": "c3f3ed9a5660e02a6eb0608041f03a20cb5d620270b3c1840e5854be8177bf21",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",

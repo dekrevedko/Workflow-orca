@@ -24,7 +24,7 @@
       "predecessor": "support-ephemeral-native-aot",
       "operation": "MODIFIED",
       "beforeSha256": "621ef30a992a14d7a77e5f5dd243a6390d2ef76324dc594ba9bc3e4f993329ce",
-      "afterSha256": "b2d3906e69555df6a00cbc2f32c9e0c042931776404a0639c7f28ae7f5ae190f"
+      "afterSha256": "797378efb336b8d891c3fb4ff3b6c2052f86fffa93edc1753fc763c3083830b9"
     }
   ],
   "additions": [
@@ -51,8 +51,13 @@
     {
       "path": "docs/specs/03-domain-model-and-glossary.md",
       "beforeSha256": "5750f167b24f5d3b66368583690c011372c706d9f3ad26dbafb3520571ef09bc",
-      "afterSha256": "9d3a0d2d6816bffdc8f983dfdd86a4544b73f3c9dd254769ae9fe16b140caa0a",
+      "afterSha256": "cf8fd2d5899fdaa22cac1689f1f6195cc07e6c0df21e2bce201fdb4fc073240c",
       "changes": [
+        {
+          "before": "admission policy; SFE-TYPE-003 reports missing generated metadata. Legacy\nReflection behavior and common-admitted-shape bytes/values remain unchanged.\n",
+          "after": "admission policy; SFE-TYPE-003 reports missing generated metadata. Reflection mode checks the value for byte-stable reconstruction. The bytes and detached values of faithful submissions remain unchanged.\n",
+          "line": 395
+        },
         {
           "before": "",
           "after": "\n**Workflow value representation.** A boundary captures the fixed-codec bytes for the declared type. A faithful detached value re-encodes to exactly those bytes, including ordered collections. Application equality and unencoded CLR members do not define this representation.\n",
@@ -93,6 +98,23 @@
           "before": "no omission policy and genuine constructor-bound/mutable controls stay admitted.\nOnly the common admitted shapes share rejection/byte/value parity. Unconfigured\nlegacy JIT acceptance is unchanged; the context never enters a fingerprint.\n",
           "after": "no omission policy and genuine constructor-bound/mutable controls remain eligible.\nBoth modes check each submitted representation for byte-stable reconstruction. A\nconditionally omitted value that reconstructs with different bytes is rejected,\nincluding under legacy JIT. The context never enters a fingerprint.\n",
           "line": 335
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/11-non-functional-requirements.md",
+      "beforeSha256": "d7f6fa1add6e6b4368a45e5e0743f1bf3a5c4094d534dbeb1206912bdca3ac9a",
+      "afterSha256": "2d7e2307f8af07f4102d2fb60ed78f9a0f6245f480aa5dfc6816299277f247e6",
+      "changes": [
+        {
+          "before": "SHALL pass in each applicable cell. A successful publish, skipped case or\n",
+          "after": "SHALL pass in each applicable cell. NS-06 omission controls in Reflection mode SHALL reject an\nomitted zero that reconstructs as 42 and retain a present seven. An ordinary mutable\nmember with this behavior SHALL reject unstable zero in both modes. A successful publish, skipped case or\n",
+          "line": 164
+        },
+        {
+          "before": "fingerprints and detached values. No DI/scope disposal or admission rule changes.\n",
+          "after": "fingerprints and detached values. DI and scope disposal follow their existing ownership rules.\n",
+          "line": 173
         }
       ]
     },
