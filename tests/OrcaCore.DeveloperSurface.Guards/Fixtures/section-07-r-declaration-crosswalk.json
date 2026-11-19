@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 399,
-    "physicalDeclarations": 1692,
+    "physicalDeclarations": 1696,
     "activeFiles": 243,
-    "activeDeclarations": 1004,
+    "activeDeclarations": 1008,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1425,7 +1425,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableStartIdempotencyFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 6
+      "declarations": 9
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableWorkflowCatalogTests.cs",
@@ -1743,7 +1743,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 6
+      "declarations": 7
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Failures/OriginalStepFailureTests.cs",

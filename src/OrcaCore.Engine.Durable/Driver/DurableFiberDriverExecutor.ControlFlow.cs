@@ -1,20 +1,84 @@
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Errors;
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Compilation;
+using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
+using OrcaCore.Core.Internal;
+using OrcaCore.Engine.Durable.Aggregates;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
 internal sealed partial class DurableFiberDriverExecutor<TState>
 {
-    private (StructuredExecutionState Execution, TState State) ExecuteInitInstruction(
+    private async ValueTask<InitializationResult> ExecuteInitInstructionAsync(
         DurableDriverContext context,
         StructuredExecutionState execution,
         FiberRecord fiber,
-        CompiledInstruction instruction)
+        CompiledInstruction instruction,
+        List<DurableOwnedObligationState> ownedObligations,
+        StreamVersion currentVersion,
+        CancellationToken cancellationToken)
     {
-        return (
-            MoveTo(execution, fiber, RequiredNext(instruction)),
-            Initialize(context));
+        cancellationToken.ThrowIfCancellationRequested();
+        if (DeadlineExpired())
+        {
+            return await TimeoutBeforeStateAsync().ConfigureAwait(false);
+        }
+
+        var init = definition.RootSequence.Children.OfType<InitNode<TState>>().Single();
+        object? input = null;
+        if (context.Aggregate.StartInputPayload is { } payload &&
+            context.Aggregate.StartInputContentType is { } contentType)
+        {
+            input = context.Serializer.Deserialize(new SerializedPayload(contentType, payload), init.InputType);
+            cancellationToken.ThrowIfCancellationRequested();
+            if (DeadlineExpired())
+            {
+                return await TimeoutBeforeStateAsync().ConfigureAwait(false);
+            }
+        }
+
+        TState state = default!;
+        Exception? failure = null;
+        try
+        {
+            state = (TState)CoreWorkflowValueCodec.Detach(init.CreateState(input), typeof(TState))!;
+        }
+        catch (Exception error) when (error is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
+        {
+            failure = error;
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var now = context.TimeProvider.GetUtcNow();
+        if (execution.WorkflowDeadline <= now)
+        {
+            return await TimeoutBeforeStateAsync().ConfigureAwait(false);
+        }
+        if (failure is null)
+        {
+            return new InitializationResult(MoveTo(execution, fiber, RequiredNext(instruction)), state, ownedObligations, null);
+        }
+
+        var failed = await context.Processor.ProcessAsync(
+            new DurableFailCommand(CommandId.New(), context.InstanceId, now,
+                $"WF-RUNTIME-FAILED: Init at '{instruction.Path}' failed: {failure.Message}")
+            {
+                ExpectedStreamVersion = currentVersion
+            }, cancellationToken).ConfigureAwait(false);
+        return new InitializationResult(null, default!, ownedObligations,
+            failed.Outcome == DurableCommandOutcome.Committed ? DurableSegmentResult.Terminal : Conflict(failed));
+
+        bool DeadlineExpired() => execution.WorkflowDeadline is { } deadline && deadline <= context.TimeProvider.GetUtcNow();
+
+        async ValueTask<InitializationResult> TimeoutBeforeStateAsync()
+        {
+            var timedOut = await TimeoutWorkflowAsync(context, execution.WorkflowDeadline!.Value, currentVersion, envelope: null,
+                preserveOwnership: false).ConfigureAwait(false);
+            return new InitializationResult(null, default!, ownedObligations, timedOut);
+        }
     }
 
     private StructuredExecutionState ExecuteConditionInstruction(

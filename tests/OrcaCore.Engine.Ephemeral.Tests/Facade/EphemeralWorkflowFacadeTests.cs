@@ -9,6 +9,23 @@ public sealed class EphemeralWorkflowFacadeTests
 {
     [Fact]
     [Trait("AC", "AC-328")]
+    public async Task LossyInitReleasesTheEphemeralStartKey()
+    {
+        var token = TestContext.Current.CancellationToken;
+        using var services = CreateServices().BuildServiceProvider();
+        var definition = Workflow.Ephemeral<LossyState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(LossyState.Of).End().Build();
+        var handle = services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
+        var key = StartIdempotencyKey.Create("lossy-init");
+        await Assert.ThrowsAsync<NotSupportedException>(() => handle.StartOrGetAsync(17, key, token).AsTask());
+        var started = Assert.IsType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>(
+            await handle.StartOrGetAsync(0, key, token));
+        Assert.False(started.WasExisting);
+        Assert.Equal(0, (await started.Handle.GetStateAsync<LossyState>(token)).Value);
+    }
+
+    [Fact]
+    [Trait("AC", "AC-328")]
     public async Task InitReceivesTheDetachedInputWhoseBytesBoundTheStartKey()
     {
         var token = TestContext.Current.CancellationToken;

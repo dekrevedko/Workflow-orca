@@ -30,7 +30,7 @@
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "123571cbf85af8c7af84b7567b59812f27da362565496a6049b260a365f7bbfc"
+      "sourceSha256": "7e8711cd48241841b6e5197a425d147458fe27bb15e9dd2aac41564443477d61"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",

@@ -635,8 +635,8 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
             return new WorkflowOutputResult<TOutput>.Pending();
         }
 
-        var envelope = await GetEnvelopeAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false);
-        if (snapshot.Status == WorkflowInstanceStatus.Completed && envelope.Output is { } output)
+        if (snapshot.Status == WorkflowInstanceStatus.Completed &&
+            (await GetEnvelopeAsync(binding.InstanceId, cancellationToken).ConfigureAwait(false)).Output is { } output)
         {
             var detached = (TOutput)CoreWorkflowValueCodec.Deserialize(output.Payload, typeof(TOutput))!;
             return new WorkflowOutputResult<TOutput>.Available(detached);

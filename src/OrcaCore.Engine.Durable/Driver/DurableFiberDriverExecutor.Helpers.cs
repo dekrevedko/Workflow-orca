@@ -16,21 +16,6 @@ namespace OrcaCore.Engine.Durable.Driver;
 
 internal sealed partial class DurableFiberDriverExecutor<TState>
 {
-    private TState Initialize(DurableDriverContext context)
-    {
-        var init = definition.RootSequence.Children.OfType<InitNode<TState>>().Single();
-        object? input = null;
-        if (context.Aggregate.StartInputPayload is { } payload &&
-            context.Aggregate.StartInputContentType is { } contentType)
-        {
-            input = context.Serializer.Deserialize(
-                new SerializedPayload(contentType, payload),
-                init.InputType);
-        }
-
-        return init.CreateState(input);
-    }
-
     private async ValueTask<ExecutedStep> ExecuteStepAsync(
         StructuredExecutionState execution,
         FiberRecord fiber,
