@@ -855,7 +855,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                 context,
                                 execution,
                                 state,
-                                ownedObligations);
+                                ownedObligations,
+                                completionState: executed.CompletionState);
                             var completed = await context.Processor.ProcessAsync(
                                 new DurableStepCompletedCommand(
                                     CommandId.New(),

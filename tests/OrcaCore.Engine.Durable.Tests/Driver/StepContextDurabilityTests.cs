@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Engine.Durable.Definitions;
+using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.Tests.Support;
 using Xunit;
@@ -12,6 +13,47 @@ namespace OrcaCore.Engine.Durable.Tests.Driver;
 
 public sealed class StepContextDurabilityTests
 {
+    [Fact]
+    public async Task CompletedRootStepPersistsTheVerifiedCaptureWithoutReconstructingItAgain()
+    {
+        var token = TestContext.Current.CancellationToken;
+        using var store = new DurableTestStore();
+        var step = new CountConstructionsStep();
+        using var services = new ServiceCollection().AddSingleton(step).BuildServiceProvider();
+        var runtime = new DurableWorkflowRuntime(new DurableCommandProcessor(store),
+            new DurableDefinitionRegistry(services), TimeProvider.System, new DurableDriverBudget(1, TimeSpan.FromMinutes(1)));
+        var definition = Workflow.Durable<CountedState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(_ => new CountedState()).Then<CountConstructionsStep>().End().Build();
+        runtime.RegisterDefinition(definition);
+        var started = await runtime.StartOrGetAsync<int, CountedState>("single-capture", definition.DefinitionId,
+            definition.DefinitionVersion, 0, token);
+        // The first segment persisted admission. A one-command budget leaves the subsequent
+        // completed-step checkpoint available before End can materialize another state.
+        var completion = await runtime.DriveAsync(started.InstanceId, token);
+        Assert.Equal(DurableSegmentOutcome.BudgetExhausted, completion.Outcome);
+        Assert.Equal(1, CountedState.Constructions - step.ConstructionsAtReturn);
+        var checkpoint = (await store.LoadCheckpointAsync(started.InstanceId, token)).Value;
+        Assert.Equal("""{"Value":17}"""u8.ToArray(), DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload).StatePayload);
+    }
+
+    private sealed class CountedState
+    {
+        internal static int Constructions;
+        public CountedState() => Interlocked.Increment(ref Constructions);
+        public int Value { get; set; }
+    }
+
+    private sealed class CountConstructionsStep : IStep<CountedState>
+    {
+        internal int ConstructionsAtReturn { get; private set; }
+        public ValueTask<StepResult> ExecuteAsync(StepContext<CountedState> context, CancellationToken token)
+        {
+            context.State.Value = 17;
+            ConstructionsAtReturn = CountedState.Constructions;
+            return ValueTask.FromResult<StepResult>(new StepResult.Completed());
+        }
+    }
+
     private static readonly WorkflowEventContract<ResumePayload> TypedDynamicResume =
         WorkflowEventContract<ResumePayload>.Create(
             EventName.Create("typed-dynamic-resume"),

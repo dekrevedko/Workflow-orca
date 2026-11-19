@@ -63,12 +63,15 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 forEachItem,
                 resourceLease: leaseContext);
             var result = await rootStep.ExecuteAsync(stepContext, cancellationToken).ConfigureAwait(false);
-            var nextState = result is StepResult.Failed
-                ? rootState
-                : plan.DetachedAttemptState
-                    ? (TState)CoreWorkflowValueCodec.Detach(stepContext.State, typeof(TState))!
-                    : stepContext.State;
-            return new ExecutedStep(execution, fiber, result, nextState);
+            if (result is not StepResult.Failed && plan.DetachedAttemptState)
+            {
+                var bytes = CoreWorkflowValueCodec.Serialize(stepContext.State, typeof(TState), out var detached);
+                var completionState = result is StepResult.Completed
+                    ? new SerializedPayload(CoreWorkflowValueCodec.Format, bytes)
+                    : null;
+                return new ExecutedStep(execution, fiber, result, (TState)detached!, completionState);
+            }
+            return new ExecutedStep(execution, fiber, result, result is StepResult.Failed ? rootState : stepContext.State);
         }
 
         var branch = ResolveBranch(execution, fiber);
@@ -267,7 +270,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                         executed.Fiber,
                         executed.State,
                         executed.Result,
-                        OperatorCancelled: false);
+                        OperatorCancelled: false,
+                        CompletionState: executed.CompletionState);
                 }
 
                 return new PolicyExecutedStep(
@@ -741,13 +745,14 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         StructuredExecutionState execution,
         TState state,
         IReadOnlyList<DurableOwnedObligationState> ownedObligations,
-        DurableWorkflowOutputState? output = null)
+        DurableWorkflowOutputState? output = null,
+        SerializedPayload? completionState = null)
     {
         execution = ReconcileAdmission(execution);
         var envelope = DurableFiberEnvelopeMapper.ToEnvelope(
             execution,
             plan,
-            context.Serializer.Serialize(state),
+            completionState ?? context.Serializer.Serialize(state),
             ownedObligations,
             output);
         var serialized = envelope.Serialize();
@@ -1140,6 +1145,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         FiberRecord Fiber,
         TState State,
         StepResult Result,
-        bool OperatorCancelled);
+        bool OperatorCancelled,
+        SerializedPayload? CompletionState = null);
 
 }
