@@ -106,7 +106,7 @@ public sealed class DagChildRecoveryTests
             KindSelector = OutboxKindSelector.Including("dag-child-join-v1")
         }, token);
         var join = pending.Should().ContainSingle().Subject;
-        await outbox.ReleaseAsync(join.OutboxRecordId, token);
+        await outbox.ReleaseAsync(join.OutboxRecordId, join.DispatchAttempt, token);
 
         (await pump.PumpOnceAsync(Request(), token)).Should().Be(0, "wrong-schema bytes cannot acknowledge a child join");
         var dispatch = (await outbox.GetDispatchSnapshotAsync(join.OutboxRecordId, token)).Value;

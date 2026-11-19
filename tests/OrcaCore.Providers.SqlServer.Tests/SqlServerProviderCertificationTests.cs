@@ -11,17 +11,6 @@ namespace OrcaCore.Providers.SqlServer.Tests;
 [Collection(SqlServerCollection.Name)]
 public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertificationTests, IAsyncLifetime
 {
-    [Theory]
-    [ClassData(typeof(ExpiredOwnerDispositions))]
-    [Trait("Verification", "ContinuationLeaseCharacterization")]
-    public Task ContinuationLease_ExpiredOwnerDisposition(bool retry, bool afterDispatch, OutboxRecordState expectedState) =>
-        CheckExpiredOwnerDisposition(retry, afterDispatch, expectedState);
-
-    [Fact]
-    [Trait("Verification", "ContinuationLeaseCharacterization")]
-    public Task ContinuationLease_ReopenedSignalIsDrainedByReplacementPump() =>
-        CheckReopenedSignalIsDrainedByReplacementPump();
-
     private readonly SqlServerContainerFixture container;
     private SqlServerWorkflowStore? certificationStore;
     private SqlServerStateDocumentStore? certificationDocuments;

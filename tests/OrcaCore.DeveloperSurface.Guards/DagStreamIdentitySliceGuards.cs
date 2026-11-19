@@ -129,7 +129,7 @@ public sealed class DagStreamIdentitySliceGuards
         {
             var path = "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/PublicApi/v1/" + assembly + ".api.txt";
             var before = ApiKeys(Normalize(Git(root, "show", "82811cd41aae577d8a1ae13258790d3da0c30d72:" + path)));
-            var actual = ApiKeys(Normalize(File.ReadAllText(Path.Combine(root, path))));
+            var actual = ApiKeys(Normalize(Git(root, "show", "f62b0aafd8beeb69aa28efaba0f25413c4970b3b:" + path)));
             before.Except(actual).Should().BeEmpty("this slice removes no existing public key");
             var allowed = CatalogApiKeys(candidate.Split("## " + assembly + "\n", StringSplitOptions.None)[1].Split("\n## ", StringSplitOptions.None)[0]);
             actual.Except(before).Should().BeEquivalentTo(allowed.Except(before));

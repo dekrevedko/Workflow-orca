@@ -149,9 +149,9 @@ public sealed class DagRunCreationTests
         var faulted = await bridge.RecordIntegrityFaultAsync(run.RunId, "DAG_PROTOCOL_INVALID", grant.Fence, grant.Version, token);
         faulted.Outcome.Should().Be(DurableDagMutationOutcomeV1.Committed);
         await bridge.EndTurnAsync(grant, token);
-        await outbox.ClaimAsync(new OutboxClaimRequest(100, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(30))
+        var claims = await outbox.ClaimAsync(new OutboxClaimRequest(100, DateTimeOffset.UtcNow, TimeSpan.FromSeconds(30))
             { KindSelector = OutboxKindSelector.Including("dag-child-start-v1") }, token);
-        await outbox.MarkPoisonedAsync(write.OutboxRecordId, "DAG_PROTOCOL_INVALID", "old diagnostic", token);
+        await outbox.MarkPoisonedAsync(write.OutboxRecordId, claims.Single(c => c.OutboxRecordId == write.OutboxRecordId).DispatchAttempt, "DAG_PROTOCOL_INVALID", "old diagnostic", token);
 
         var request = fault with { RequestId = Guid.NewGuid() };
         grant = (await bridge.BeginTurnAsync(request, token)).Turn!;

@@ -39,7 +39,7 @@ internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOu
             if (write.Kind != DurableDagKinds.Ready ||
                 (write.RecipientHostId is { } recipient && recipient != host.HostId))
             {
-                await outbox.ReleaseAsync(write.OutboxRecordId, token).ConfigureAwait(false);
+                await outbox.ReleaseAsync(write.OutboxRecordId, write.DispatchAttempt, token).ConfigureAwait(false);
                 continue;
             }
             DurableDagReadyNoticeV1 notice;
@@ -52,12 +52,12 @@ internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOu
             }
             catch (Exception exception) when (exception is InvalidDataException or JsonException or FormatException)
             {
-                await outbox.MarkPoisonedAsync(write.OutboxRecordId, "DAG_READY_HINT_INVALID", exception.Message, token).ConfigureAwait(false);
+                await outbox.MarkPoisonedAsync(write.OutboxRecordId, write.DispatchAttempt, "DAG_READY_HINT_INVALID", exception.Message, token).ConfigureAwait(false);
                 continue;
             }
             catch
             {
-                await outbox.ReleaseAsync(write.OutboxRecordId, CancellationToken.None).ConfigureAwait(false);
+                await outbox.ReleaseAsync(write.OutboxRecordId, write.DispatchAttempt, CancellationToken.None).ConfigureAwait(false);
                 throw;
             }
             try
@@ -70,7 +70,7 @@ internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOu
                     {
                         // The local subscription has ended; don't acknowledge it as
                         // progression. Its release allows observer maintenance to purge it.
-                        await outbox.ReleaseAsync(write.OutboxRecordId, token).ConfigureAwait(false);
+                        await outbox.ReleaseAsync(write.OutboxRecordId, write.DispatchAttempt, token).ConfigureAwait(false);
                         continue;
                     }
                 }
@@ -78,19 +78,18 @@ internal sealed class DurableDagReadyPump(IWorkflowEventStore store, IWorkflowOu
                 var acknowledged = false;
                 try
                 {
-                    await outbox.MarkAsync(write.OutboxRecordId, OutboxRecordState.Dispatched, token).ConfigureAwait(false);
-                    acknowledged = true;
+                    acknowledged = await outbox.MarkAsync(write.OutboxRecordId, write.DispatchAttempt, OutboxRecordState.Dispatched, token).ConfigureAwait(false);
                 }
                 finally
                 {
                     if (notice.SubscriptionId is null && sink is IDurableDagProgressionLoop loop)
                         loop.CompleteWake(notice, acknowledged);
                 }
-                count++;
+                if (acknowledged) count++;
             }
             catch
             {
-                await outbox.ReleaseAsync(write.OutboxRecordId, CancellationToken.None).ConfigureAwait(false);
+                await outbox.ReleaseAsync(write.OutboxRecordId, write.DispatchAttempt, CancellationToken.None).ConfigureAwait(false);
                 throw;
             }
         }

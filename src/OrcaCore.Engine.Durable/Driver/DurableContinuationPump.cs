@@ -80,12 +80,12 @@ internal sealed class DurableContinuationPump(
             return 0;
         }
 
-        var recordsByInstance = new Dictionary<InstanceId, List<OutboxRecordId>>();
+        var recordsByInstance = new Dictionary<InstanceId, List<OutboxWrite>>();
         foreach (var record in records)
         {
             if (!string.Equals(record.Kind, OutboxKinds.Continue, StringComparison.Ordinal))
             {
-                await outboxStore.ReleaseAsync(record.OutboxRecordId, cancellationToken).ConfigureAwait(false);
+                await outboxStore.ReleaseAsync(record.OutboxRecordId, record.DispatchAttempt, cancellationToken).ConfigureAwait(false);
                 continue;
             }
             DurableContinuationSignal signal;
@@ -97,25 +97,25 @@ internal sealed class DurableContinuationPump(
             {
                 // An unreadable signal can never advance anything; retrying it would loop.
                 await outboxStore
-                    .MarkAsync(record.OutboxRecordId, OutboxRecordState.Poisoned, cancellationToken)
+                    .MarkAsync(record.OutboxRecordId, record.DispatchAttempt, OutboxRecordState.Poisoned, cancellationToken)
                     .ConfigureAwait(false);
                 continue;
             }
 
             if (signal.NotBefore is { } notBefore && notBefore > timeProvider.GetUtcNow())
             {
-                await outboxStore.ReleaseAsync(record.OutboxRecordId, cancellationToken).ConfigureAwait(false);
+                await outboxStore.ReleaseAsync(record.OutboxRecordId, record.DispatchAttempt, cancellationToken).ConfigureAwait(false);
                 continue;
             }
 
             await ObserveContinuationStartedAsync(signal, cancellationToken).ConfigureAwait(false);
 
-            if (!recordsByInstance.TryGetValue(signal.InstanceId, out var recordIds))
+            if (!recordsByInstance.TryGetValue(signal.InstanceId, out var claims))
             {
-                recordsByInstance[signal.InstanceId] = recordIds = [];
+                recordsByInstance[signal.InstanceId] = claims = [];
             }
 
-            recordIds.Add(record.OutboxRecordId);
+            claims.Add(record);
         }
 
         var processed = 0;
@@ -137,7 +137,7 @@ internal sealed class DurableContinuationPump(
 
     private async Task<int> AdvanceAsync(
         InstanceId instanceId,
-        IReadOnlyList<OutboxRecordId> recordIds,
+        IReadOnlyList<OutboxWrite> claims,
         CancellationToken cancellationToken)
     {
         DurableSegmentResult result;
@@ -146,7 +146,7 @@ internal sealed class DurableContinuationPump(
             var before = await aggregateLoader.LoadAsync(instanceId, cancellationToken).ConfigureAwait(false);
             if (before.ContinuationRetryNotBefore is { } notBefore && notBefore > timeProvider.GetUtcNow())
             {
-                await ReleaseAllAsync(recordIds, cancellationToken).ConfigureAwait(false);
+                await ReleaseAllAsync(claims, cancellationToken).ConfigureAwait(false);
                 return 0;
             }
 
@@ -156,20 +156,20 @@ internal sealed class DurableContinuationPump(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, CancellationToken.None)
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, CancellationToken.None)
                 .ConfigureAwait(false);
             throw;
         }
         catch (Exception exception)
         {
-            return await HandleDriveFailureAsync(instanceId, recordIds, exception).ConfigureAwait(false);
+            return await HandleDriveFailureAsync(instanceId, claims, exception).ConfigureAwait(false);
         }
 
         if (result.Outcome == DurableSegmentOutcome.Conflict)
         {
             // Another mutator kept moving the stream past the driver's bounded retries; the
             // signal stays claimable and a later cycle re-reads the committed position.
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, cancellationToken).ConfigureAwait(false);
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, cancellationToken).ConfigureAwait(false);
             return 0;
         }
 
@@ -177,7 +177,7 @@ internal sealed class DurableContinuationPump(
         {
             // No progress commit means no successor continuation exists. Consuming this claim
             // would strand the runnable instance; keep the existing signal retryable instead.
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, cancellationToken)
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, cancellationToken)
                 .ConfigureAwait(false);
             return 0;
         }
@@ -186,7 +186,7 @@ internal sealed class DurableContinuationPump(
         {
             var inboxPoisoned = await TryMarkVersionBindingInboxPoisonAsync(
                     instanceId,
-                    recordIds,
+                    claims,
                     cancellationToken)
                 .ConfigureAwait(false);
             if (inboxPoisoned is null)
@@ -196,7 +196,7 @@ internal sealed class DurableContinuationPump(
 
             if (inboxPoisoned.Value)
             {
-                await MarkAllAsync(recordIds, OutboxRecordState.Poisoned, cancellationToken)
+                await MarkAllAsync(claims, OutboxRecordState.Poisoned, cancellationToken)
                     .ConfigureAwait(false);
                 return 0;
             }
@@ -204,17 +204,16 @@ internal sealed class DurableContinuationPump(
 
         if (!await ResetFailureStateAsync(instanceId, cancellationToken).ConfigureAwait(false))
         {
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, cancellationToken).ConfigureAwait(false);
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, cancellationToken).ConfigureAwait(false);
             return 0;
         }
 
-        await MarkAllAsync(recordIds, OutboxRecordState.Dispatched, cancellationToken).ConfigureAwait(false);
-        return recordIds.Count;
+        return await MarkAllAsync(claims, OutboxRecordState.Dispatched, cancellationToken).ConfigureAwait(false);
     }
 
     private async Task<bool?> TryMarkVersionBindingInboxPoisonAsync(
         InstanceId instanceId,
-        IReadOnlyList<OutboxRecordId> recordIds,
+        IReadOnlyList<OutboxWrite> claims,
         CancellationToken cancellationToken)
     {
         try
@@ -223,13 +222,13 @@ internal sealed class DurableContinuationPump(
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, CancellationToken.None)
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, CancellationToken.None)
                 .ConfigureAwait(false);
             throw;
         }
         catch (Exception exception)
         {
-            await HandleDriveFailureAsync(instanceId, recordIds, exception).ConfigureAwait(false);
+            await HandleDriveFailureAsync(instanceId, claims, exception).ConfigureAwait(false);
             return null;
         }
     }
@@ -266,7 +265,7 @@ internal sealed class DurableContinuationPump(
 
     private async Task<int> HandleDriveFailureAsync(
         InstanceId instanceId,
-        IReadOnlyList<OutboxRecordId> recordIds,
+        IReadOnlyList<OutboxWrite> claims,
         Exception exception)
     {
         DurableWorkflowAggregate aggregate;
@@ -280,7 +279,7 @@ internal sealed class DurableContinuationPump(
         }
         catch
         {
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, CancellationToken.None)
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, CancellationToken.None)
                 .ConfigureAwait(false);
             return 0;
         }
@@ -310,7 +309,7 @@ internal sealed class DurableContinuationPump(
             // failure decision, so continuation materialization may emit no successor. The
             // persisted ContinuationRetryNotBefore throttles this retained signal; when a
             // successor was also emitted, the next pump groups both by instance and drives once.
-            await MarkAllAsync(recordIds, OutboxRecordState.Retryable, CancellationToken.None)
+            await MarkAllAsync(claims, OutboxRecordState.Retryable, CancellationToken.None)
                 .ConfigureAwait(false);
             return 0;
         }
@@ -334,7 +333,7 @@ internal sealed class DurableContinuationPump(
         var parkedDisposition = parked.Outcome == DurableCommandOutcome.Conflict
             ? OutboxRecordState.Retryable
             : OutboxRecordState.Poisoned;
-        await MarkAllAsync(recordIds, parkedDisposition, CancellationToken.None)
+        await MarkAllAsync(claims, parkedDisposition, CancellationToken.None)
             .ConfigureAwait(false);
         return 0;
     }
@@ -426,23 +425,28 @@ internal sealed class DurableContinuationPump(
     }
 
     private async Task ReleaseAllAsync(
-        IReadOnlyList<OutboxRecordId> recordIds,
+        IReadOnlyList<OutboxWrite> claims,
         CancellationToken cancellationToken)
     {
-        foreach (var recordId in recordIds)
+        foreach (var claim in claims)
         {
-            await outboxStore.ReleaseAsync(recordId, cancellationToken).ConfigureAwait(false);
+            await outboxStore.ReleaseAsync(claim.OutboxRecordId, claim.DispatchAttempt, cancellationToken).ConfigureAwait(false);
         }
     }
 
-    private async Task MarkAllAsync(
-        IReadOnlyList<OutboxRecordId> recordIds,
+    private async Task<int> MarkAllAsync(
+        IReadOnlyList<OutboxWrite> claims,
         OutboxRecordState state,
         CancellationToken cancellationToken)
     {
-        foreach (var recordId in recordIds)
+        var applied = 0;
+        foreach (var claim in claims)
         {
-            await outboxStore.MarkAsync(recordId, state, cancellationToken).ConfigureAwait(false);
+            if (await outboxStore.MarkAsync(claim.OutboxRecordId, claim.DispatchAttempt, state, cancellationToken).ConfigureAwait(false))
+            {
+                applied++;
+            }
         }
+        return applied;
     }
 }

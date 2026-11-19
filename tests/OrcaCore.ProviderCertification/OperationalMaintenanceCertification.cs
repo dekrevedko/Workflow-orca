@@ -120,6 +120,7 @@ public static class OperationalMaintenanceCertification
             .Pressure.ExternalOutboxClaimedCount.Should().Be(1);
         await outboxStore.MarkPoisonedAsync(
             externalId,
+            claimed.Single().DispatchAttempt,
             "operator-certification-permanent",
             "certified permanent failure",
             cancellationToken).ConfigureAwait(false);

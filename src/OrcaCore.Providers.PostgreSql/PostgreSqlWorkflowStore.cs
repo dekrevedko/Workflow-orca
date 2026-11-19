@@ -4,6 +4,7 @@ using System.Text.Json;
 using Npgsql;
 using NpgsqlTypes;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
@@ -374,6 +375,11 @@ internal sealed partial class PostgreSqlWorkflowStore :
         catch (PostgresException exception) when (exception.SqlState == PostgresErrorCodes.UniqueViolation)
         {
             await RollbackQuietlyAsync(transaction, cancellationToken).ConfigureAwait(false);
+            if (exception.ConstraintName == "orcacore_outbox_pkey")
+            {
+                return Result<AppendEventsResult>.Failure(new WorkflowConcurrencyException("Outbox record already exists."));
+            }
+
             if (batch.StartIdempotencyOperations.FirstOrDefault() is { } startWrite)
             {
                 var existingStart = await GetStartedAsync(startWrite.IdempotencyKey, cancellationToken)
@@ -1957,8 +1963,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public async Task MarkAsync(
+    public async Task<bool> MarkAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         OutboxRecordState state,
         CancellationToken cancellationToken)
     {
@@ -1973,19 +1980,19 @@ internal sealed partial class PostgreSqlWorkflowStore :
                     else null
                 end
             where outbox_record_id = @outbox_record_id
-              and state <> @poisoned;
+              and state = @claimed and dispatch_attempt = @attempt and @attempt > 0;
             """,
             connection);
         command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
         command.Parameters.AddWithValue("state", state.ToString());
         command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
-        command.Parameters.AddWithValue("poisoned", OutboxRecordState.Poisoned.ToString());
 
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        command.Parameters.AddWithValue("attempt", dispatchAttempt);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
 
     /// <inheritdoc />
-    public async Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+    public async Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken)
     {
         await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
@@ -1995,14 +2002,15 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 state = @retryable,
                 claimed_until = null
             where outbox_record_id = @outbox_record_id
-              and state = @claimed;
+              and state = @claimed and dispatch_attempt = @attempt and @attempt > 0;
             """,
             connection);
         command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
         command.Parameters.AddWithValue("retryable", OutboxRecordState.Retryable.ToString());
         command.Parameters.AddWithValue("claimed", OutboxRecordState.Claimed.ToString());
 
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        command.Parameters.AddWithValue("attempt", dispatchAttempt);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
 
     /// <inheritdoc />
@@ -2667,8 +2675,9 @@ internal sealed partial class PostgreSqlWorkflowStore :
     }
 
     /// <inheritdoc />
-    public async Task MarkPoisonedAsync(
+    public async Task<bool> MarkPoisonedAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         string code,
         string? detail,
         CancellationToken cancellationToken)
@@ -2684,7 +2693,7 @@ internal sealed partial class PostgreSqlWorkflowStore :
                 poison_code = @poison_code,
                 poison_detail = @poison_detail
             where outbox_record_id = @outbox_record_id
-              and state = @claimed;
+              and state = @claimed and dispatch_attempt = @attempt and @attempt > 0;
             """,
             connection);
         command.Parameters.AddWithValue("outbox_record_id", outboxRecordId.Value);
@@ -2693,7 +2702,8 @@ internal sealed partial class PostgreSqlWorkflowStore :
         command.Parameters.AddWithValue("poison_code", code);
         command.Parameters.Add("poison_detail", NpgsqlDbType.Text).Value = (object?)detail ?? DBNull.Value;
 
-        await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
+        command.Parameters.AddWithValue("attempt", dispatchAttempt);
+        return await command.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false) == 1;
     }
 
     private static async Task MarkStartIntentMaterializedAsync(

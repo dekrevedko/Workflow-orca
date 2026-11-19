@@ -582,7 +582,7 @@ public sealed class DurableRecoveryTests
         claimed.Should().NotBeEmpty();
         foreach (var record in claimed)
         {
-            await store.ReleaseAsync(record.OutboxRecordId, TestContext.Current.CancellationToken);
+            await store.ReleaseAsync(record.OutboxRecordId, record.DispatchAttempt, TestContext.Current.CancellationToken);
         }
 
         var replacement = CreateFacade(eventStore, store, eventStore, driveAfterDelivery: false, clock.TimeProvider);

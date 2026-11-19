@@ -218,10 +218,13 @@ public static class DagRunCertification
             return store.ClaimAsync(request with { MaxCount = batchSize }, token);
         }
         public Task<Option<OutboxRecordState>> GetStateAsync(OutboxRecordId id, CancellationToken token) => store.GetStateAsync(id, token);
-        public Task MarkAsync(OutboxRecordId id, OutboxRecordState state, CancellationToken token) => store.MarkAsync(id, state, token);
-        public Task MarkPoisonedAsync(OutboxRecordId id, string code, string? detail, CancellationToken token) =>
-            store.MarkPoisonedAsync(id, code, detail, token);
-        public Task ReleaseAsync(OutboxRecordId id, CancellationToken token) => store.ReleaseAsync(id, token);
+        public Task<bool> MarkAsync(OutboxRecordId id, int dispatchAttempt, OutboxRecordState state, CancellationToken token) => store.MarkAsync(id, dispatchAttempt, state, token);
+        public Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(OutboxRecordId id, CancellationToken token) =>
+            store.GetDispatchSnapshotAsync(id, token);
+
+        public Task<bool> MarkPoisonedAsync(OutboxRecordId id, int dispatchAttempt, string code, string? detail, CancellationToken token) =>
+            store.MarkPoisonedAsync(id, dispatchAttempt, code, detail, token);
+        public Task<bool> ReleaseAsync(OutboxRecordId id, int dispatchAttempt, CancellationToken token) => store.ReleaseAsync(id, dispatchAttempt, token);
     }
 
     public static async Task CreationAndReplayAsync(IWorkflowEventStore store, CancellationToken token)
@@ -484,13 +487,13 @@ public static class DagRunCertification
         (await store.AppendAsync(second, token)).IsSuccess.Should().BeTrue();
         var next = await outbox.ClaimAsync(request with { ClaimedAt = now() }, token);
         var poisoned = next.Single(w => w.DagRunSubscriptionId == nextSubscription.SubscriptionId);
-        await outbox.MarkPoisonedAsync(poisoned.OutboxRecordId, "DAG_PROTOCOL_INVALID",
+        await outbox.MarkPoisonedAsync(poisoned.OutboxRecordId, poisoned.DispatchAttempt, "DAG_PROTOCOL_INVALID",
             "retain corrupt observer evidence", token);
         var children = await outbox.ClaimAsync(new OutboxClaimRequest(1000, now(), TimeSpan.FromSeconds(5))
             { KindSelector = OutboxKindSelector.Including(["dag-child-start-v1"]) }, token);
         children.Should().HaveCount(2);
-        await outbox.MarkAsync(children[0].OutboxRecordId, OutboxRecordState.Retryable, token);
-        await outbox.MarkPoisonedAsync(children[1].OutboxRecordId, "DAG_PROTOCOL_INVALID", "retain child work", token);
+        await outbox.MarkAsync(children[0].OutboxRecordId, children[0].DispatchAttempt, OutboxRecordState.Retryable, token);
+        await outbox.MarkPoisonedAsync(children[1].OutboxRecordId, children[1].DispatchAttempt, "DAG_PROTOCOL_INVALID", "retain child work", token);
         advance(TimeSpan.FromSeconds(6));
         (await store.PruneExpiredDagRunObserversAsync(100, token)).Should()
             .Be(0, "poison is durable evidence, not routine cleanup");

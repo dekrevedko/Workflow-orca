@@ -614,8 +614,13 @@ public sealed class ObservabilityIntegrationTests
             cancellationToken);
         append.IsSuccess.Should().BeTrue();
 
-        await workflowProvider.MarkAsync(retryable, OutboxRecordState.Retryable, cancellationToken);
-        await workflowProvider.MarkAsync(claimed, OutboxRecordState.Claimed, cancellationToken);
+        var claims = await workflowProvider.ClaimAsync(
+            new OutboxClaimRequest(2, DateTimeOffset.UtcNow, TimeSpan.FromMinutes(5))
+            {
+                KindSelector = OutboxKindSelector.Including("retryable-kind", "claimed-kind")
+            }, cancellationToken);
+        var retry = claims.Single(record => record.OutboxRecordId == retryable);
+        await workflowProvider.ReleaseAsync(retry.OutboxRecordId, retry.DispatchAttempt, cancellationToken);
     }
 
     private static async Task SeedResourcePoolPressureAsync(

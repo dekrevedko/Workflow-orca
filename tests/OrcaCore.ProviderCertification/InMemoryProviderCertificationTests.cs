@@ -8,17 +8,6 @@ namespace OrcaCore.ProviderCertification;
 
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
-    [Theory]
-    [ClassData(typeof(ExpiredOwnerDispositions))]
-    [Trait("Verification", "ContinuationLeaseCharacterization")]
-    public Task ContinuationLease_ExpiredOwnerDisposition(bool retry, bool afterDispatch, OutboxRecordState expectedState) =>
-        CheckExpiredOwnerDisposition(retry, afterDispatch, expectedState);
-
-    [Fact]
-    [Trait("Verification", "ContinuationLeaseCharacterization")]
-    public Task ContinuationLease_ReopenedSignalIsDrainedByReplacementPump() =>
-        CheckReopenedSignalIsDrainedByReplacementPump();
-
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(

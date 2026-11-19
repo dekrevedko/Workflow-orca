@@ -1,5 +1,6 @@
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Diagnostics;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
@@ -117,8 +118,7 @@ internal sealed partial class InMemoryWorkflowProvider :
                 return Task.FromResult(EventStoreConflict.InboxRouteChanged(route));
             }
 
-            var stream = GetStream(batch.StreamId);
-            var actualVersion = new StreamVersion(stream.Count);
+            var actualVersion = new StreamVersion(streams.TryGetValue(batch.StreamId, out var existingStream) ? existingStream.Count : 0);
             if (actualVersion != batch.ExpectedVersion)
             {
                 return Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(
@@ -137,6 +137,20 @@ internal sealed partial class InMemoryWorkflowProvider :
             {
                 return Task.FromResult(EventStoreConflict.StartIdempotencyKeyAlreadyExists(incompatiblePendingStart));
             }
+            if (batch.OutboxRecords.Count > 0)
+            {
+                var newIds = new HashSet<OutboxRecordId>();
+                foreach (var write in batch.OutboxRecords)
+                {
+                    if (outbox.ContainsKey(write.OutboxRecordId) || !newIds.Add(write.OutboxRecordId))
+                    {
+                        return Task.FromResult(Result<AppendEventsResult>.Failure(
+                            new WorkflowConcurrencyException($"Outbox record '{write.OutboxRecordId}' already exists.")));
+                    }
+                }
+            }
+
+            var stream = existingStream ?? GetStream(batch.StreamId);
             stream.AddRange(batch.Events);
             ApplyInboxOperations(batch.StreamId.InstanceId, batch.InboxOperations);
             AdvanceInboxRoutes(batch.InboxRouteMutations);
@@ -936,8 +950,9 @@ internal sealed partial class InMemoryWorkflowProvider :
     }
 
     /// <inheritdoc />
-    public Task MarkAsync(
+    public Task<bool> MarkAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         OutboxRecordState state,
         CancellationToken cancellationToken)
     {
@@ -946,22 +961,25 @@ internal sealed partial class InMemoryWorkflowProvider :
         lock (gate)
         {
             if (outbox.TryGetValue(outboxRecordId, out var record) &&
-                record.State != OutboxRecordState.Poisoned)
+                record.State == OutboxRecordState.Claimed &&
+                dispatchAttempt > 0 && record.Write.DispatchAttempt == dispatchAttempt)
             {
                 outbox[outboxRecordId] = record with
                 {
                     State = state,
                     ClaimedUntil = state == OutboxRecordState.Claimed ? record.ClaimedUntil : null
                 };
+                return Task.FromResult(true);
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     /// <inheritdoc />
-    public Task MarkPoisonedAsync(
+    public Task<bool> MarkPoisonedAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         string code,
         string? detail,
         CancellationToken cancellationToken)
@@ -972,7 +990,8 @@ internal sealed partial class InMemoryWorkflowProvider :
         lock (gate)
         {
             if (outbox.TryGetValue(outboxRecordId, out var record) &&
-                record.State == OutboxRecordState.Claimed)
+                record.State == OutboxRecordState.Claimed &&
+                dispatchAttempt > 0 && record.Write.DispatchAttempt == dispatchAttempt)
             {
                 outbox[outboxRecordId] = record with
                 {
@@ -981,31 +1000,34 @@ internal sealed partial class InMemoryWorkflowProvider :
                     PoisonCode = code,
                     PoisonDetail = detail
                 };
+                return Task.FromResult(true);
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     /// <inheritdoc />
-    public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+    public Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (gate)
         {
             if (outbox.TryGetValue(outboxRecordId, out var record) &&
-                record.State == OutboxRecordState.Claimed)
+                record.State == OutboxRecordState.Claimed &&
+                dispatchAttempt > 0 && record.Write.DispatchAttempt == dispatchAttempt)
             {
                 outbox[outboxRecordId] = record with
                 {
                     State = OutboxRecordState.Retryable,
                     ClaimedUntil = null
                 };
+                return Task.FromResult(true);
             }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     /// <inheritdoc />

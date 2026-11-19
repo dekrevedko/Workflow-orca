@@ -87,7 +87,7 @@ internal sealed class DurableOutboxPump(
                 dispatchRequest.KindSelector is { } selector && !selector.Matches(record.Kind))
             {
                 await outboxStore
-                    .ReleaseAsync(record.OutboxRecordId, cancellationToken)
+                    .ReleaseAsync(record.OutboxRecordId, record.DispatchAttempt, cancellationToken)
                     .ConfigureAwait(false);
                 continue;
             }
@@ -135,11 +135,13 @@ internal sealed class DurableOutboxPump(
                     null,
                     cancellationToken)
                     .ConfigureAwait(false);
+                bool applied;
                 if (result == DispatchResult.PermanentFailure && outcome.FailureCode is { } failureCode)
                 {
-                    await outboxStore
+                    applied = await outboxStore
                         .MarkPoisonedAsync(
                             record.OutboxRecordId,
+                            record.DispatchAttempt,
                             failureCode,
                             outcome.FailureDetail,
                             cancellationToken)
@@ -147,16 +149,16 @@ internal sealed class DurableOutboxPump(
                 }
                 else
                 {
-                    await outboxStore
-                        .MarkAsync(record.OutboxRecordId, ToState(result), cancellationToken)
+                    applied = await outboxStore
+                        .MarkAsync(record.OutboxRecordId, record.DispatchAttempt, ToState(result), cancellationToken)
                         .ConfigureAwait(false);
                 }
-                dispatched++;
+                if (applied) dispatched++;
             }
             catch (OperationCanceledException)
             {
                 await outboxStore
-                    .ReleaseAsync(record.OutboxRecordId, CancellationToken.None)
+                    .ReleaseAsync(record.OutboxRecordId, record.DispatchAttempt, CancellationToken.None)
                     .ConfigureAwait(false);
                 throw;
             }
@@ -177,7 +179,7 @@ internal sealed class DurableOutboxPump(
                     CancellationToken.None)
                     .ConfigureAwait(false);
                 await outboxStore
-                    .MarkAsync(record.OutboxRecordId, OutboxRecordState.Retryable, CancellationToken.None)
+                    .MarkAsync(record.OutboxRecordId, record.DispatchAttempt, OutboxRecordState.Retryable, CancellationToken.None)
                     .ConfigureAwait(false);
             }
         }
