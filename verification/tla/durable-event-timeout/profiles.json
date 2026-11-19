@@ -1,0 +1,56 @@
+[
+  {
+    "name": "Safety",
+    "kind": "normal",
+    "config": "Safety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "RetargetTimer",
+    "kind": "mutation",
+    "config": "RetargetTimer.cfg",
+    "expected": "TimerOwnership"
+  },
+  {
+    "name": "ForgetApplied",
+    "kind": "mutation",
+    "config": "ForgetApplied.cfg",
+    "expected": "EventOwnership"
+  },
+  {
+    "name": "TimerFirst",
+    "kind": "witness",
+    "config": "TimerFirst.cfg",
+    "expected": "NoTimerFirst"
+  },
+  {
+    "name": "TimerThenReplay",
+    "kind": "witness",
+    "config": "TimerThenReplay.cfg",
+    "expected": "NoTimerThenReplay"
+  },
+  {
+    "name": "ReplayThenTimer",
+    "kind": "witness",
+    "config": "ReplayThenTimer.cfg",
+    "expected": "NoReplayThenTimer"
+  },
+  {
+    "name": "FreshWin",
+    "kind": "witness",
+    "config": "FreshWin.cfg",
+    "expected": "NoFreshWin"
+  },
+  {
+    "name": "OwnTimeout",
+    "kind": "witness",
+    "config": "OwnTimeout.cfg",
+    "expected": "NoOwnTimeout"
+  },
+  {
+    "name": "ReplayAppliesPending",
+    "kind": "witness",
+    "config": "ReplayAppliesPending.cfg",
+    "expected": "NoReplayAppliesPending"
+  }
+]
