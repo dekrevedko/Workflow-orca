@@ -1,32 +1,29 @@
 # Durable continuation lease expiry
 
-Worker A claims a `continue` record and pauses. Worker B claims the same record at A's expiry, commits the runnable position, and marks the record `Dispatched`. A still holds the record ID. Its delayed call has the following effects on the in-memory, PostgreSQL and SQL Server providers. [Scope](proposal.md) · [Model](ContinuationLease.tla) · [Provider tests](../../../tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.ContinuationLease.cs)
+A worker retains the dispatch attempt it received when claiming an outbox record. If B reclaims A's record, A's mark, poison or release returns false. B keeps its lease and can dispatch the record. After dispatch, even a retry with B's own matching attempt returns false because the row is terminal. [Model](ContinuationLease.tla) · [Provider contract and migration](../../../docs/durable-driver-lane-host.md#upgrading-hosts-and-providers-for-outbox-claim-fencing)
 
-| Delayed call by A | While B holds attempt 2 | After B marks the record dispatched |
+| A's late call | While B holds attempt 2 | After B dispatches |
 |---|---|---|
-| Mark retryable | Clears B's lease. A poll inside that lease obtains attempt 3. | Reopens the record. A poll obtains attempt 3. |
-| Release | Clears B's lease. A poll inside that lease obtains attempt 3. | Leaves the record dispatched. A poll returns no record. |
+| Mark retryable | B remains claimed until its own deadline. | The row stays dispatched. |
+| Release | B remains claimed until its own deadline. | The row stays dispatched. |
 
-The provider checks the claim request's timestamp against the stored expiry and increments the attempt on each successful claim. The continuation pump passes only the record ID to its disposition methods. A retry mark can update any non-poisoned row. Release changes only a currently claimed row. A's first attempt and B's second attempt therefore identify the same target for both writes. [Provider port](../../../src/OrcaCore.Provider.Abstractions/ProviderPorts.cs) · [Pump](../../../src/OrcaCore.Engine.Durable/Driver/DurableContinuationPump.cs) · [In-memory implementation](../../../src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs) · [PostgreSQL implementation](../../../src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs) · [SQL Server state engine](../../../src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStateEngine.cs)
+The original diagnostic at commit `29bfdbf6` showed an extra claim after a stale retry. The corrected pump passes the attempt for each record to the provider and counts dispositions that actually applied. The provider checks the attempt and current row state in a single write. Reclaim eligibility still uses the claim request timestamp. The store rejects an append that would reuse a retained ID and reset its attempt. Allocate fresh IDs after retention as well. [Pump](../../../src/OrcaCore.Engine.Durable/Driver/DurableContinuationPump.cs) · [In-memory](../../../src/OrcaCore.Providers.InMemory/InMemoryWorkflowProvider.cs) · [PostgreSQL](../../../src/OrcaCore.Providers.PostgreSql/PostgreSqlWorkflowStore.cs) · [SQL Server](../../../src/OrcaCore.Providers.SqlServer/Internal/SqlServerWorkflowStateEngine.cs)
 
-### What TLC checked
+### Model checks
 
-The model covers one record, one runnable position, one expired lease, one delayed call, and at most three successful claims. B and the third claimant can read the same position before either appends. A late claimant that reads a completed position has nothing to append.
+The model starts with one record and one runnable stream position. A's claim expires once, B reclaims, and A makes one delayed retry or release. A separate action replays a retry from B after its successful dispatch. The model covers one retained record lifetime. Provider tests exercise poison diagnostics, batch atomicity, lease timestamps and grouped pump calls.
 
-| Profiles | Local result |
+| Profiles | Result |
 |---|---|
-| Current safety and fair settlement | Each exhausted 60 distinct states. Dispatch requires committed progress. At most one append commits. With weak fairness for the finite set of steps, the record eventually settles as dispatched. |
-| Four ordering witnesses | All four reached their named trace. The early traces reach attempt 3 before B dispatches. After dispatch, the retry trace reaches a second dispatch after a no-op drive. The release trace settles at attempt 2. |
-| Append guard disabled | Two drivers read the original version and both append. The injected fault violates `SingleCommit`. |
-| Hypothetical attempt-checked dispositions | Exhausted 17 distinct states. B's claim and dispatch survive A's stale writes. The implementation cost would be carrying the acquired attempt through mark and release and checking it atomically in each store. |
+| Current safety and fair settlement | Each exhausted 21 states. B retains its active claim, dispatch requires progress, and at most one workflow append commits. Weak fairness for the enabled steps yields a dispatched record and one commit. |
+| Five witnesses | Both late operations reach the active-claim and post-dispatch boundaries. B's own terminal replay also occurs. |
+| Attempt comparison removed | A changes B's claimed record to retryable. |
+| State comparison removed | B's matching-attempt replay changes its dispatched record to retryable. |
+| Attempt and stream-version comparisons removed | A stale disposition admits a third claim and two drivers append at the original position. Both comparisons are disabled to expose this scheduling case. |
 
-DR-034 requires harmless duplicate continuation processing. It does not specify that dispatch is irreversible or that disposition must carry the claim generation. The observed extra poll is real. It produced no duplicate committed workflow transition in this experiment. Models with further expiries, repeated stale writers, crashes, poison or non-transactional business effects would need additional evidence. [Durable driver requirements](../../../docs/specs/16-requirements-durable-driver.md#dr-034-restart-safe-continuation-signal)
+### Provider correspondence
 
-### What ran against providers
-
-Five shared cases passed on each of the in-memory provider, PostgreSQL 17 and SQL Server 2022. The test fake passed the same five cases separately. Four cases use a five-second lease. They claim at second 10, check exclusion at 14, reclaim at 15, and probe before B's expiry at 20. They check the same record ID, the dispatch attempt, the immediate state, and the committed event. In the two pre-dispatch cases, a competing append at the original version must fail.
-
-The fifth case starts a real budget-limited workflow and runs the replacement continuation pump on the same store. After completion it drains any successor signals, confirms an empty poll, and applies A's retry. The next pump call processes exactly one record and marks it dispatched. The full ordered event IDs match the history after completion. This exercises the actual no-op drive on each provider.
+Four shared certification schedules claim at second 10, exclude a second worker at 14, and reclaim at expiry at 15. The tests check A's rejected write, B's state and diagnostics, an empty poll inside B's lease, B's successful dispatch and an unchanged terminal state on replay. A collision test checks rollback of a whole append, another reclaim at the original second-20 deadline, and poison detail from the third owner. A real replacement pump settles a group containing attempts 1 and 2. The test applies A's late retry after completion and checks an empty poll and the exact ordered workflow event IDs. [Certification cases](../../../tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.ContinuationLease.cs)
 
 ### Reproduce
 
@@ -41,4 +38,4 @@ foreach ($project in $projects) {
 }
 ```
 
-The [durable verification workflow](../../../.github/workflows/durable-wait-handoff.yml) retains model traces and process-local test results. The [provider job](../../../.github/workflows/ci.yml) runs the shared cases in the SQL projects. The disposition assertions characterize the current providers. Revisit those expectations alongside the model if the outbox contract gains attempt checks.
+The [durable verification workflow](../../../.github/workflows/durable-wait-handoff.yml) retains model traces and process-local test results. The [provider job](../../../.github/workflows/ci.yml) runs the shared cases in the SQL projects.

@@ -7,7 +7,7 @@ Use TLA+ when a requirement depends on the order of operations across callers, l
 | [Ephemeral starts](start-idempotency/README.md) | Who can own a start key, and which result can waiting callers observe? | Complete bounded safety and progress checks, fault controls, and executable facade tests |
 | [Wait ownership](wait-ownership/README.md) | Which wait owns a correlation key during handover, cancellation, and rollback? | Focused handover checks and regression tests pass. Six broader searches reached their time limit. |
 | [Durable wait handoff](durable-wait-handoff/README.md) | Can two workers lose or duplicate a committed resume across a crash? | Bounded safety, conditional recovery and in-memory recovery tests |
-| [Durable continuation lease expiry](durable-continuation-lease/README.md) | What can an expired worker change after a replacement claims and dispatches the record? | Four ordering witnesses and a real pump replay on in-memory, PostgreSQL and SQL Server providers |
+| [Durable continuation lease expiry](durable-continuation-lease/README.md) | What can an expired worker change after a replacement claims and dispatches the record? | Fenced dispositions, terminal replay controls and a real replacement pump on in-memory, PostgreSQL and SQL Server providers |
 
 Run the checks from the repository root with PowerShell 7 on Windows or Linux x64.
 

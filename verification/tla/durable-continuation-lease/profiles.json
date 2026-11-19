@@ -12,10 +12,16 @@
     "expected": ""
   },
   {
-    "name": "AttemptFenced",
-    "kind": "normal",
-    "config": "AttemptFenced.cfg",
-    "expected": ""
+    "name": "MissingAttemptCheck",
+    "kind": "mutation",
+    "config": "MissingAttemptCheck.cfg",
+    "expected": "LiveClaimPreserved"
+  },
+  {
+    "name": "MissingStateCheck",
+    "kind": "mutation",
+    "config": "MissingStateCheck.cfg",
+    "expected": "DispatchPreserved"
   },
   {
     "name": "UnfencedAppend",
@@ -24,10 +30,22 @@
     "expected": "SingleCommit"
   },
   {
-    "name": "LateRetryReclaim",
+    "name": "EarlyRetryNoOp",
     "kind": "witness",
-    "config": "LateRetryReclaim.cfg",
-    "expected": "NoLateRetryReclaim"
+    "config": "EarlyRetryNoOp.cfg",
+    "expected": "NoEarlyRetryNoOp"
+  },
+  {
+    "name": "EarlyReleaseNoOp",
+    "kind": "witness",
+    "config": "EarlyReleaseNoOp.cfg",
+    "expected": "NoEarlyReleaseNoOp"
+  },
+  {
+    "name": "LateRetryNoOp",
+    "kind": "witness",
+    "config": "LateRetryNoOp.cfg",
+    "expected": "NoLateRetryNoOp"
   },
   {
     "name": "LateReleaseNoOp",
@@ -36,15 +54,9 @@
     "expected": "NoLateReleaseNoOp"
   },
   {
-    "name": "EarlyRetryReclaim",
+    "name": "TerminalReplay",
     "kind": "witness",
-    "config": "EarlyRetryReclaim.cfg",
-    "expected": "NoEarlyRetryReclaim"
-  },
-  {
-    "name": "EarlyReleaseReclaim",
-    "kind": "witness",
-    "config": "EarlyReleaseReclaim.cfg",
-    "expected": "NoEarlyReleaseReclaim"
+    "config": "TerminalReplay.cfg",
+    "expected": "NoTerminalReplay"
   }
 ]
