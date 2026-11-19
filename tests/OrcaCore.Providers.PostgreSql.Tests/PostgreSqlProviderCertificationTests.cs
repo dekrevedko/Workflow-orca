@@ -53,6 +53,11 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             certificationStore ?? throw new InvalidOperationException("PostgreSQL certification store is not initialized."));
     }
 
+    [Theory]
+    [ClassData<DurableEventTimeoutCertification.Schedules>]
+    public Task DurableEventTimeout_ReusedKey(DurableEventTimeoutCertification.Schedule schedule) =>
+        DurableEventTimeoutCertification.RunAsync(CreateFixture(), certificationStore!, schedule);
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(

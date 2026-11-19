@@ -8,6 +8,7 @@ Use TLA+ when a requirement depends on the order of operations across callers, l
 | [Wait ownership](wait-ownership/README.md) | Which wait owns a correlation key during handover, cancellation, and rollback? | Focused handover checks and regression tests pass. Six broader searches reached their time limit. |
 | [Durable wait handoff](durable-wait-handoff/README.md) | Can two workers lose or duplicate a committed resume across a crash? | Bounded safety, conditional recovery and in-memory recovery tests |
 | [Durable continuation lease expiry](durable-continuation-lease/README.md) | What can an expired worker change after a replacement claims and dispatches the record? | Fenced dispositions, terminal replay controls and a real replacement pump on in-memory, PostgreSQL and SQL Server providers |
+| [Durable event versus timeout](durable-event-timeout/README.md) | Can an old timeout or redelivery of E1 affect the next wait on the same key? | Occurrence-specific arbitration, retained inbox identity and replay with a fresh pending E2 |
 
 Run the checks from the repository root with PowerShell 7 on Windows or Linux x64.
 

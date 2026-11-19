@@ -9,11 +9,10 @@
 
 The [continuation lease checks](durable-continuation-lease/README.md) exposed an extra poll when an expired worker reopened a dispatched record. The current provider contract fences mark, poison and release by the acquired attempt. The replacement worker keeps its active lease or its dispatched result, and the stale caller receives false.
 
-## Remaining candidates, in priority order
+The [durable event versus timeout checks](durable-event-timeout/README.md) distinguish occurrence ownership from what prompts delivery. A's late timeout leaves B active. Under EV-043 and EV-051, a direct redelivery of applied E1 can prompt a match of a separately accepted E2. The journal identifies E2 as B's winner and retains A's original E1 match. This distinction matters when interpreting a duplicate ingress acknowledgement.
+
+## Remaining candidate
 
 | Priority | Protocol and specific question | How to test a counterexample |
 |---|---|---|
-| 1 | **Durable event versus timeout across same-key reuse.** After E1 consumes A and B becomes active, can A's already-claimed timeout or E1's redelivery consume or clear B? | Use two WaitIds, two EventIds, and one delayed timer claim. Compare durable history, timer cancellation, inbox state, and which exact occurrence remains active. EV-043 and EV-051 supply the expected outcomes. |
-| 2 | **Ephemeral start-key retirement.** Can a caller that pins an old binding race retirement and creation of a replacement under the same key? | Extend the existing start model with two instance generations, retain/pin/release, and one sweep. Compare replay identity and replacement count against the retirement tests. [Canonical retirement requirement](../../openspec/specs/management-and-querying/spec.md#requirement-ephemeral-start-idempotency-expires-with-atomic-retirement) |
-
-Both candidates extend models with known source mappings and observable failure cases.
+| 1 | **Ephemeral start-key retirement.** Can a caller that pins an old binding race retirement and creation of a replacement under the same key? | Extend the existing start model with two instance generations, retain/pin/release, and one sweep. Compare replay identity and replacement count against the retirement tests. [Canonical retirement requirement](../../openspec/specs/management-and-querying/spec.md#requirement-ephemeral-start-idempotency-expires-with-atomic-retirement) |

@@ -34,6 +34,11 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             certificationStore
             ?? throw new InvalidOperationException("SQL Server certification store is not initialized."));
 
+    [Theory]
+    [ClassData<DurableEventTimeoutCertification.Schedules>]
+    public Task DurableEventTimeout_ReusedKey(DurableEventTimeoutCertification.Schedule schedule) =>
+        DurableEventTimeoutCertification.RunAsync(CreateFixture(), certificationStore!, schedule);
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(

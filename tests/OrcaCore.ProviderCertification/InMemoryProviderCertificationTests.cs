@@ -8,6 +8,14 @@ namespace OrcaCore.ProviderCertification;
 
 public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificationTests
 {
+    [Theory]
+    [ClassData<DurableEventTimeoutCertification.Schedules>]
+    public async Task DurableEventTimeout_ReusedKey(DurableEventTimeoutCertification.Schedule schedule)
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DurableEventTimeoutCertification.RunAsync(new InMemoryProviderCertificationFixture(provider), provider.TimerScheduler, schedule);
+    }
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
