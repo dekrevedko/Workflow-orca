@@ -50,13 +50,11 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
             var now = context.TimeProvider.GetUtcNow();
             if (workflowDeadline <= now)
             {
+                QuarantineCapacityReservations(ownedObligations);
                 return await TimeoutWorkflowAsync(
-                    context,
-                    execution,
-                    state,
-                    ownedObligations,
-                    currentVersion,
-                    cancellationToken).ConfigureAwait(false);
+                    context, workflowDeadline, currentVersion,
+                    BuildEnvelope(context, execution, state, ownedObligations),
+                    HasQuarantinedCapacity(ownedObligations)).ConfigureAwait(false);
             }
 
             if (execution.WorkflowDeadlineTimerId is null)
@@ -179,8 +177,18 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
             switch (instruction.Kind)
             {
                 case CompiledInstructionKind.Init:
-                    (execution, state) = ExecuteInitInstruction(context, execution, fiber, instruction);
+                {
+                    var initialized = await ExecuteInitInstructionAsync(
+                        context, execution, fiber, instruction, ownedObligations, currentVersion, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (initialized.Terminal is { } failure)
+                    {
+                        return failure;
+                    }
+                    execution = initialized.Execution!;
+                    state = initialized.State;
                     break;
+                }
                 case CompiledInstructionKind.Wait:
                 {
                     if (instruction.Operation is null ||
@@ -847,7 +855,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                                 context,
                                 execution,
                                 state,
-                                ownedObligations);
+                                ownedObligations,
+                                completionState: executed.CompletionState);
                             var completed = await context.Processor.ProcessAsync(
                                 new DurableStepCompletedCommand(
                                     CommandId.New(),

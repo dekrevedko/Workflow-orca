@@ -1,4 +1,3 @@
-using OrcaCore.Core.Internal;
 using OrcaCore.Engine.Ephemeral.Execution;
 using LegacyStatus = OrcaCore.WorkflowInstanceStatus;
 using System.Security.Cryptography;
@@ -20,18 +19,9 @@ internal sealed class EphemeralWorkflowEventRouter(
         CancellationToken cancellationToken = default)
     {
         using var admission = Admit(inboundEvent, cancellationToken);
-        return await RouteCoreAsync(inboundEvent, payloadBytes: null, cancellationToken).ConfigureAwait(false);
-    }
-
-    internal async ValueTask<EphemeralEventRouteResult> RouteAsync<TPayload>(
-        WorkflowInboundEvent<TPayload> inboundEvent,
-        CancellationToken cancellationToken = default)
-    {
-        using var admission = Admit(inboundEvent, cancellationToken);
-        return await RouteCoreAsync(
-            inboundEvent,
-            CoreWorkflowValueCodec.Serialize(inboundEvent.Payload, typeof(TPayload)),
-            cancellationToken).ConfigureAwait(false);
+        var bytes = inboundEvent.PayloadBytes;
+        return await RouteCoreAsync(inboundEvent, bytes.IsEmpty ? null : bytes.ToArray(), cancellationToken)
+            .ConfigureAwait(false);
     }
 
     private global::OrcaCore.Hosting.EphemeralHostLifetime.Lease Admit(WorkflowInboundEvent inboundEvent, CancellationToken token)

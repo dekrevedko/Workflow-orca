@@ -112,6 +112,7 @@ public sealed class RuntimeCorrectnessDeclarationGuards
     // Older approval snapshots predate this separately validated additive registry pointer.
     internal static void ProjectRegistryExtension(JsonObject current)
     {
+        OpenSpecCorpusGuards.ProjectValueFidelityRegistry(current);
         current["runtimeCorrectnessAmendment"]!.GetValue<string>().Should().Be(RecordPath);
         current.Remove("runtimeCorrectnessAmendment");
     }
@@ -120,6 +121,7 @@ public sealed class RuntimeCorrectnessDeclarationGuards
     // The complete current document and its recovered predecessor are both hash checked.
     internal static string BeforeSynchronization(string root, string path, string current)
     {
+        current = OpenSpecCorpusGuards.BeforeValueFidelitySynchronization(root, path, current);
         using var document = Read(root, RecordPath);
         var record = document.RootElement;
         if (record.GetProperty("stage").GetString() is "Proposed" or "ContractApproved") return current;

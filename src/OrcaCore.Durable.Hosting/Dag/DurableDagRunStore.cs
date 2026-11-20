@@ -61,7 +61,7 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
         }
 
         // All user value serialization happens before any append or lease.
-        var input = DurableDagValues.NormalizeRunInput(request.Graph.RunInputContractKey, request.Input, inputType);
+        var input = DurableDagValues.Normalize(request.Graph.RunInputContractKey, request.Input, inputType);
         token.ThrowIfCancellationRequested();
         var existing = await FindExistingAsync(request, input, token).ConfigureAwait(false);
         if (existing is not null) return existing;

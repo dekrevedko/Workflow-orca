@@ -108,17 +108,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             : new BranchReturnCommit(execution, currentVersion, Conflict(committed));
     }
 
-    private void EnsureSerializedResultSize(byte[] payload)
-    {
-        if (payload.Length > plan.CompilerOptions.MaxSerializedResultBytes)
-        {
-            throw new StructuredExecutionLimitException(
-                StructuredExecutionLimitCodes.SerializedResultExceeded,
-                $"Serialized structured result is {payload.Length} bytes, exceeding the configured " +
-                $"limit of {plan.CompilerOptions.MaxSerializedResultBytes} bytes.");
-        }
-    }
-
     private async Task<DurableSegmentResult> FailBranchReturnLimitAsync(
         DurableDriverContext context,
         StructuredExecutionState execution,

@@ -363,7 +363,7 @@ internal sealed record DurableTimeoutCommand(
     InstanceId InstanceId,
     DateTimeOffset RequestedAt,
     string ErrorSummary,
-    DurableCheckpointPayload Envelope)
+    DurableCheckpointPayload? Envelope)
 {
     public StreamVersion? ExpectedStreamVersion { get; init; }
 

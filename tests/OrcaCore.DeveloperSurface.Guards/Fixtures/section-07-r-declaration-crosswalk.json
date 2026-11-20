@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 398,
-    "physicalDeclarations": 1677,
-    "activeFiles": 242,
-    "activeDeclarations": 989,
+    "physicalFiles": 399,
+    "physicalDeclarations": 1697,
+    "activeFiles": 243,
+    "activeDeclarations": 1009,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -297,7 +297,7 @@
       "source": "tests/OrcaCore.Core.Tests/Contracts/EventEnvelopeContractTests.cs",
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "active",
-      "declarations": 4
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Core.Tests/Contracts/IdContractTests.cs",
@@ -531,7 +531,7 @@
       "source": "tests/OrcaCore.Core.Tests/Serialization/FixedWorkflowValueCodecCollectionTests.cs",
       "ownerProject": "tests/OrcaCore.Core.Tests/OrcaCore.Core.Tests.csproj",
       "status": "active",
-      "declarations": 2
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Core.Tests/Serialization/WorkflowEventCodecTests.cs",
@@ -936,6 +936,12 @@
       "declarations": 16
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.WorkflowValueFidelity.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
@@ -1275,7 +1281,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Driver/StepContextDurabilityTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Driver/ThrottleCapacityTests.cs",
@@ -1407,7 +1413,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableEventDeduplicationFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 8
+      "declarations": 10
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableLifecycleFacadeTests.cs",
@@ -1419,7 +1425,7 @@
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableStartIdempotencyFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
-      "declarations": 2
+      "declarations": 9
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableWorkflowCatalogTests.cs",
@@ -1737,7 +1743,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 4
+      "declarations": 7
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Failures/OriginalStepFailureTests.cs",
@@ -1941,7 +1947,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 5
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DagOutboxPumpTests.cs",

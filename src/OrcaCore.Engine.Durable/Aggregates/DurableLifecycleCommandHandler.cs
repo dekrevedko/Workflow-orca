@@ -487,7 +487,8 @@ internal static class DurableLifecycleCommandHandler
                 CommandId = command.CommandId,
                 CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
                 OccurredAt = command.RequestedAt,
-                Status = WorkflowStatus.Failed
+                Status = WorkflowStatus.Failed,
+                ErrorSummary = command.ErrorSummary
             });
 
         var checkpoint = command.Envelope is { } envelope
@@ -533,16 +534,10 @@ internal static class DurableLifecycleCommandHandler
             Status = WorkflowStatus.TimedOut,
             ErrorSummary = command.ErrorSummary
         });
-        return new DurableDecision(
-            events,
-            CreateEnvelopeCheckpoint(
-                aggregate,
-                command.InstanceId,
-                events,
-                command.Envelope,
-                aggregate.LastStepPath,
-                command.ErrorSummary),
-            true);
+        var checkpoint = command.Envelope is { } envelope
+            ? CreateEnvelopeCheckpoint(aggregate, command.InstanceId, events, envelope, aggregate.LastStepPath, command.ErrorSummary)
+            : null;
+        return new DurableDecision(events, checkpoint, true);
     }
 
     internal static DurableDecision Handle(DurableWorkflowAggregate aggregate, DurableParkCommand command)

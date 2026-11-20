@@ -182,6 +182,7 @@ public sealed class ProcessLocalEventRouter(IServiceProvider services)
             return await InvokeAsync(
                 durableIngress,
                 "AcceptAsync",
+                FindPayloadType(inboundEvent.GetType()),
                 inboundEvent,
                 directInstanceId,
                 cancellationToken).ConfigureAwait(false);
@@ -196,6 +197,7 @@ public sealed class ProcessLocalEventRouter(IServiceProvider services)
         return await InvokeAsync(
             router,
             "RouteAsync",
+            payloadType: null,
             inboundEvent,
             directInstanceId,
             cancellationToken).ConfigureAwait(false);
@@ -204,11 +206,11 @@ public sealed class ProcessLocalEventRouter(IServiceProvider services)
     private static async ValueTask<ProcessLocalEventRouteResult> InvokeAsync(
         object target,
         string methodName,
+        Type? payloadType,
         WorkflowInboundEvent inboundEvent,
         InstanceId? directInstanceId,
         CancellationToken cancellationToken)
     {
-        var payloadType = FindPayloadType(inboundEvent.GetType());
         var method = target.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
             .Single(candidate =>
                 candidate.Name == methodName &&

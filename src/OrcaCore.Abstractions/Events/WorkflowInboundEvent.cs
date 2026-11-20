@@ -30,14 +30,12 @@ public abstract record WorkflowEventRoute
             ArgumentNullException.ThrowIfNull(DefinitionId);
             ArgumentNullException.ThrowIfNull(DefinitionVersion);
             ArgumentNullException.ThrowIfNull(StartIdempotencyKey);
-            _ = FixedWorkflowValueCodec.Serialize(WorkflowInput, typeof(TInput));
         }
 
-        WorkflowEventRoute IWorkflowEventRouteNormalizer.Normalize()
+        WorkflowEventRoute IWorkflowEventRouteNormalizer.Normalize(out byte[] bytes)
         {
-            var bytes = FixedWorkflowValueCodec.Serialize(WorkflowInput, typeof(TInput));
-            var detached = (TInput?)FixedWorkflowValueCodec.Deserialize(bytes, typeof(TInput));
-            return this with { WorkflowInput = detached! };
+            bytes = FixedWorkflowValueCodec.Serialize(WorkflowInput, typeof(TInput), out var detached);
+            return this with { WorkflowInput = (TInput)detached! };
         }
     }
 }
@@ -51,15 +49,25 @@ public class WorkflowInboundEvent
         CorrelationId correlationId,
         EventId? causationEventId,
         DateTimeOffset occurredAt,
-        WorkflowEventRoute route)
+        WorkflowEventRoute route,
+        ReadOnlyMemory<byte> payloadBytes = default)
     {
         EventContract = eventContract;
         EventId = eventId;
         CorrelationId = correlationId;
         CausationEventId = causationEventId;
         OccurredAt = occurredAt;
-        Route = route;
+        PayloadBytes = payloadBytes;
+        if (route is IWorkflowEventRouteNormalizer normalizer)
+        {
+            Route = normalizer.Normalize(out var bytes);
+            StartInputBytes = bytes;
+        }
+        else Route = route;
     }
+
+    internal ReadOnlyMemory<byte> StartInputBytes { get; }
+    internal ReadOnlyMemory<byte> PayloadBytes { get; }
 
     /// <summary>Gets the exact name and version accepted by a matching wait.</summary>
     public WorkflowEventContract EventContract { get; }
@@ -102,7 +110,7 @@ public class WorkflowInboundEvent
             correlationId,
             causationEventId,
             occurredAt.ToUniversalTime(),
-            NormalizeRoute(route));
+            route);
     }
 
     internal static void Validate(
@@ -132,11 +140,6 @@ public class WorkflowInboundEvent
         ValidateRoute(route);
     }
 
-    internal static WorkflowEventRoute NormalizeRoute(WorkflowEventRoute route)
-    {
-        return route is IWorkflowEventRouteNormalizer normalizer ? normalizer.Normalize() : route;
-    }
-
     private static void ValidateRoute(WorkflowEventRoute route)
     {
         switch (route)
@@ -162,8 +165,6 @@ public class WorkflowInboundEvent
 /// <summary>One immutable typed event submitted to durable ingress.</summary>
 public sealed class WorkflowInboundEvent<TPayload> : WorkflowInboundEvent
 {
-    private readonly byte[] payloadBytes;
-
     private WorkflowInboundEvent(
         WorkflowEventContract<TPayload> eventContract,
         EventId eventId,
@@ -173,11 +174,10 @@ public sealed class WorkflowInboundEvent<TPayload> : WorkflowInboundEvent
         WorkflowEventRoute route,
         TPayload payload,
         byte[] payloadBytes)
-        : base(eventContract, eventId, correlationId, causationEventId, occurredAt, route)
+        : base(eventContract, eventId, correlationId, causationEventId, occurredAt, route, payloadBytes)
     {
         EventContract = eventContract;
         Payload = payload;
-        this.payloadBytes = payloadBytes;
     }
 
     /// <summary>Gets the exact typed event contract.</summary>
@@ -197,20 +197,18 @@ public sealed class WorkflowInboundEvent<TPayload> : WorkflowInboundEvent
         TPayload payload)
     {
         Validate(eventContract, eventId, correlationId, causationEventId, occurredAt, route);
-        var bytes = FixedWorkflowValueCodec.Serialize(payload, typeof(TPayload));
-        var detached = (TPayload?)FixedWorkflowValueCodec.Deserialize(bytes, typeof(TPayload));
+        var bytes = FixedWorkflowValueCodec.Serialize(payload, typeof(TPayload), out var detached);
         return new WorkflowInboundEvent<TPayload>(
             eventContract,
             eventId,
             correlationId,
             causationEventId,
             occurredAt.ToUniversalTime(),
-            NormalizeRoute(route),
-            detached!,
+            route,
+            (TPayload)detached!,
             bytes);
     }
 
-    internal ReadOnlyMemory<byte> PayloadBytes => payloadBytes;
 }
 
 /// <summary>Describes why durable ingress could not acquire ownership of an event.</summary>
@@ -249,5 +247,5 @@ internal interface IWorkflowEventRouteNormalizer
 {
     void Validate();
 
-    WorkflowEventRoute Normalize();
+    WorkflowEventRoute Normalize(out byte[] bytes);
 }

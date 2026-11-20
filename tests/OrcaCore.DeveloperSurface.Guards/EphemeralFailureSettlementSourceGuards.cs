@@ -135,7 +135,8 @@ internal static class EphemeralFailureSettlementSourceReview
         {
             DocumentationHash(Git(root, "show", SourceCheckpoint + ":" + file.Name))
                 .Should().Be(file.Value.GetProperty("beforeSha256").GetString());
-            DocumentationHash(File.ReadAllText(Path.Combine(root, file.Name)))
+            DocumentationHash(OpenSpecCorpusGuards.BeforeValueFidelitySynchronization(root, file.Name,
+                File.ReadAllText(Path.Combine(root, file.Name)).Replace("\r\n", "\n", StringComparison.Ordinal)))
                 .Should().Be(file.Value.GetProperty("afterSha256").GetString());
         }
 

@@ -271,7 +271,8 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
         ArgumentNullException.ThrowIfNull(idempotencyKey);
         cancellationToken.ThrowIfCancellationRequested();
         using var startOwnership = engine.HostLifetime.AdmitStart();
-        var inputFingerprint = FacadeValueFactory.PayloadFingerprint(input);
+        var inputBytes = CoreWorkflowValueCodec.Serialize(input, typeof(TInput), out var detached);
+        var inputFingerprint = FacadeValueFactory.PayloadFingerprint(inputBytes);
 
         TaskCompletionSource? reservation = null;
         LegacySnapshot? provisional = null;
@@ -322,7 +323,7 @@ internal sealed partial class EphemeralWorkflowDefinitionRegistry : IWorkflowDef
 
             IEphemeralDefinitionRuntime typedRuntime;
             lock (gate) typedRuntime = registrations[new DefinitionKey(definitionId, definitionVersion)].Runtime;
-            var snapshot = await typedRuntime.StartAsync(definitionId, definitionVersion, input, cancellationToken).ConfigureAwait(false);
+            var snapshot = await typedRuntime.StartAsync(definitionId, definitionVersion, (TInput)detached!, cancellationToken).ConfigureAwait(false);
             provisional = snapshot;
             if (!engine.TryGetFacadeInstance(snapshot.InstanceId, out var runtime))
                 throw FacadeValueFactory.InstanceNotFound(snapshot.InstanceId);
@@ -589,11 +590,8 @@ file static class FacadeHandleFactory
 
 internal static class FacadeValueFactory
 {
-    internal static PayloadFingerprint PayloadFingerprint<T>(T value)
-    {
-        var bytes = CoreWorkflowValueCodec.Serialize(value, typeof(T));
-        return new PayloadFingerprint(Convert.ToHexString(SHA256.HashData(bytes)));
-    }
+    internal static PayloadFingerprint PayloadFingerprint(ReadOnlySpan<byte> bytes) =>
+        new(Convert.ToHexString(SHA256.HashData(bytes)));
 
     internal static DefinitionRegistrationConflict RegistrationConflict(
         DefinitionId definitionId,

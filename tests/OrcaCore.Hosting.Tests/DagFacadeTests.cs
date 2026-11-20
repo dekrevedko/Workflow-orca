@@ -72,6 +72,32 @@ public sealed partial class DagFacadeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
+    public async Task LossyMappedInput_FailsTheNodeBeforeAChildStarts()
+    {
+        using var deadline = Deadline();
+        var token = deadline.Token;
+        var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<Lossy>(input => input.Value).End(value => value.Value).Build();
+        var dag = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        dag.Node(DagNodeId.Create("child"), child.Reference).MapInput(input => Lossy.Create(input.RunInput));
+        using var host = CreateHost(1, _ => { });
+        host.Services.GetRequiredService<IWorkflowDefinitionRegistry>().Register(child).GetHandleOrThrow();
+        await host.StartAsync(token);
+        try
+        {
+            var handle = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(dag.Build()).GetHandleOrThrow();
+            var run = (await handle.StartOrGetAsync(17, StartIdempotencyKey.Create("lossy-map"), token)).GetHandleOrThrow();
+            var node = (await run.WaitForTerminalAsync(token)).Nodes.Single();
+            node.Failure!.Code.Should().Be("DAG_INPUT_MAPPING_INVALID");
+            node.ChildInstanceId.Should().BeNull();
+            node.MappedInputFingerprint.Should().BeNull();
+        }
+        finally { await StopAsync(host); }
+    }
+
+    [Fact]
+    [Trait("AC", "AC-328")]
     public async Task LossyRunInput_IsRejectedBeforeAnyRunExists()
     {
         using var deadline = Deadline();
@@ -105,6 +131,7 @@ public sealed partial class DagFacadeTests(ITestOutputHelper output)
     }
 
     [Fact]
+    [Trait("AC", "AC-328")]
     public async Task StoredInputThatNoLongerRoundTrips_IsSkippedNotFailed_AndACompatibleHostFinishesIt()
     {
         using var deadline = Deadline(90);
