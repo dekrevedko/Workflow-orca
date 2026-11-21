@@ -7,7 +7,11 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed partial class OpenSpecCorpusGuards
 {
     private const string ObservationChange = "bound-runtime-observation";
-    private const string ObservationStage = "ApprovedPending";
+    private const string ObservationStage = "Complete";
+    private const string ObservationImplementation = "3e96c8cfe652f03d4f482b2515f59354033d22f3";
+    private const string ObservationImplementationTree = "31bb381b5a13e0d789f21e442cba7c5774515b69";
+    private const string ObservationQualification = "openspec/changes/" + ObservationChange + "/artifacts/qualification.md";
+    private const string ObservationQualificationHash = "5a379a66992c5ba43065ce8a161077a950385bd2a88e0803ab20f3f265f0116f";
     internal const string ObservationProposal = "b857386dd7d43bbe1d0a51e9ce8e331fa4b17b82";
     private const string ObservationVerdict = "openspec/changes/bound-runtime-observation/artifacts/contract-approval.md";
     private const string ObservationVerdictHash = "a090616a8f89cb7cb5394d2f51589f0d0b43de7f373f0a784bb96e0455ffa380";
@@ -26,7 +30,10 @@ public sealed partial class OpenSpecCorpusGuards
     private static void ProjectObservationRegistry(JsonObject current)
     {
         var row = current["durableOutputObservation"]!.AsObject();
-        row.Count.Should().Be(7);
+        row.Count.Should().Be(10);
+        row["implementationCheckpoint"]!.GetValue<string>().Should().Be(ObservationImplementation);
+        row["qualificationPath"]!.GetValue<string>().Should().Be(ObservationQualification);
+        row["qualificationSha256"]!.GetValue<string>().Should().Be(ObservationQualificationHash);
         row["reviewedCheckpoint"]!.GetValue<string>().Should().Be(ObservationProposal);
         row["verdictPath"]!.GetValue<string>().Should().Be(ObservationVerdict);
         row["verdictSha256"]!.GetValue<string>().Should().Be(ObservationVerdictHash);
@@ -50,6 +57,15 @@ public sealed partial class OpenSpecCorpusGuards
             .And.Contain($"Reviewed normalized contract SHA-256: `{ObservationContractHash}`");
         ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "1.1", CompleteTaskState));
         ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "1.2", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "2.1", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "2.2", CompleteTaskState));
+        RunGit(root, "merge-base", "--is-ancestor", ObservationProposal, ObservationImplementation).ExitCode.Should().Be(0);
+        RunGit(root, "merge-base", "--is-ancestor", ObservationImplementation, "HEAD").ExitCode.Should().Be(0);
+        RunGit(root, "show", "-s", "--format=%T", ObservationImplementation).StandardOutput.Trim().Should().Be(ObservationImplementationTree);
+        var qualification = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, ObservationQualification)));
+        Sha256(qualification).Should().Be(ObservationQualificationHash);
+        qualification.Should().Contain(ObservationImplementation).And.Contain(ObservationImplementationTree);
+
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in contract.GetProperty("successors").EnumerateArray())
         {

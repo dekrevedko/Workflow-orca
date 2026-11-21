@@ -5,5 +5,5 @@
 
 ## 2. Implementation and qualification
 
-- [ ] 2.1 Repair durable output waiting, cover local/remote reads, typed outcomes, read rate and lifecycle, then independently review and commit the source and tests.
-- [ ] 2.2 Verify the integrated change and record actual qualification, cost, limits and independent disposition. Keep broader DAG observer bounds open.
+- [x] 2.1 Repair durable output waiting, cover local/remote reads, typed outcomes, read rate and lifecycle, then independently review and commit the source and tests.
+- [x] 2.2 Verify the integrated change and record actual qualification, cost, limits and independent disposition. Keep broader DAG observer bounds open.
