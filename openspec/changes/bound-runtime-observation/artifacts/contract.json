@@ -1,0 +1,159 @@
+{
+  "change": "bound-runtime-observation",
+  "base": "5ceb13c86f69da5077b16cd73f18bb6ea5ce94c0",
+  "successors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Completion waits are notification-driven and race-free",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "expose-ephemeral-failures-and-settlement",
+        "admit-dag-public-handle-seam",
+        "bound-runtime-observation"
+      ],
+      "beforeSha256": "14f49ff22a1fb51f913ce431dadb15d9f77557fdb30cfdce5dfa4c9d6791b07a",
+      "afterSha256": "01813d9907085fc4798de67490ba8de71d6477f38a8cff35057191cba5c7f649"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Workflow success projections and output waits are typed",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "expose-ephemeral-failures-and-settlement",
+        "bound-runtime-observation"
+      ],
+      "beforeSha256": "aa35a7e882a3a3d62ba6840a90ea021148ce0fbec909d9f21f50e6b6bcad2174",
+      "afterSha256": "897ca0ce6c0d33aa8cce691313f742b2323f9cf06e731e7f9a106cd2f9b45a2c"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Typed committed root state and output are queryable",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "expose-ephemeral-failures-and-settlement",
+        "bound-runtime-observation"
+      ],
+      "beforeSha256": "903b32810c655cfa6622c16e04e5277c3c39236adc1c46ddc6b11b9cd9b7460c",
+      "afterSha256": "0ff1c7ddd55bc0345dfedefd95b86acef5d5d4bb78a338406ef01e2c565cdc86"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "DAG terminal waiting is notification-driven",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "admit-dag-public-handle-seam",
+        "bound-runtime-observation"
+      ],
+      "beforeSha256": "02fb7fe339c68c23604c07aeede15d7e6ba1791425bc2d138abae582525c642e",
+      "afterSha256": "652eebe133efcada763bbd11ba9ae42e8cda1d2c922afd3c83d7e454d1a5d823"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Completion waits are notification-driven and race-free",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "bound-runtime-observation"
+      ],
+      "beforeSha256": "ce80f59ea8846772e5cdb95bb8d8fcfde8fa73a7881da2fc394fd2a0a967d2f5",
+      "afterSha256": "fcbbd408a88fac47bf0045712cc8beda5d3c0084d5d2d0d8819b9b5f3f75c10c"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/specs/03-domain-model-and-glossary.md",
+      "beforeSha256": "cf8fd2d5899fdaa22cac1689f1f6195cc07e6c0df21e2bce201fdb4fc073240c",
+      "afterSha256": "7af010a4b111ff11fe3a6558246004b1706b532a64f923c4d83a1707ac54d6f5",
+      "edits": [
+        {
+          "before": "  request plus termination. Resultful workflow handles/start results expose notification-driven\n  typed output waiting, and DAG-run handles expose notification-driven terminal-snapshot\n  waiting; both use subscribe/recheck without polling, and caller cancellation is local to the\n  wait. Durable `IWorkflowEventIngress` owns the closed four-route event union. Broad fluent\n",
+          "after": "  request plus termination. Workflow output waits subscribe before their first authoritative output read.\n  A pending DAG wait subscribes at its observed version and rechecks. Durable workflow output\n  also rechecks a pending result within one second under MG-003. Ephemeral output and DAG terminal waits use notifications without polling.\n  Caller cancellation is local to the wait. Durable `IWorkflowEventIngress` owns the closed four-route event union. Broad fluent\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/04-requirements-core-runtime.md",
+      "beforeSha256": "96c57737ebd57be0bbff96841e3516ff3411b85b2ec839c025698dc2d04a849b",
+      "afterSha256": "fe20a8a2c6f2a6b0c3bb9a16eda1b822b8e7c9df57e020866044b35e75f16240",
+      "edits": [
+        {
+          "before": "Resultful `WorkflowInstanceHandle<TOutput>` SHALL expose notification-driven\n",
+          "after": "Resultful `WorkflowInstanceHandle<TOutput>` SHALL expose typed\n"
+        },
+        {
+          "before": "`WaitForTerminalAsync(CancellationToken)`. Each wait registers its notification before one\nauthoritative recheck, completes without polling when terminality races registration, and never\nexposes live internal state. Caller cancellation cancels only that local wait and SHALL NOT\n",
+          "after": "`WaitForTerminalAsync(CancellationToken)`. Workflow output registers before its first authoritative output read. DAG\nterminal waiting may resolve its initial read directly; when pending, it registers at the observed\nversion and rechecks. The result is detached committed state. After a pending result, durable workflow output rechecks under MG-003\neven without a local hint. Ephemeral output and DAG terminal waits use notifications without polling. Caller cancellation cancels only that local wait and SHALL NOT\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/09-requirements-management-operations.md",
+      "beforeSha256": "faa6626fb9dddd964ae412a63adf5005766f597674dc757167c4b9f3432ce274",
+      "afterSha256": "00bf73b7fb81392eb577c1d1ccd09bfd615462591f6b70a930565bb89d94eaf3",
+      "edits": [
+        {
+          "before": "same success helper after `GetHandleOrThrow()`. Waiting SHALL subscribe before one authoritative\nrecheck, never poll, throw `WorkflowOutputUnavailableException` for terminal-without-output, and\ntreat caller cancellation as local to the wait. Ephemeral calls require retained-instance\n",
+          "after": "same success helper after `GetHandleOrThrow()`. Waiting SHALL subscribe before the first authoritative\nread, throw `WorkflowOutputUnavailableException` for terminal-without-output, and treat caller\ncancellation as local. After each completed Pending read the durable wait SHALL schedule its next\nauthoritative read within one second, subject to scheduler and provider availability. Local hints\nmay wake it sooner. Each waiter SHALL serialize reads and coalesce accumulated signals without\ncatch-up bursts. Caller cancellation, host stopping or owner disposal SHALL cancel the wait and signal an\noutstanding read. No further reads are scheduled. The waiter releases its timer and subscription\nwhen its outstanding query returns, including on query failure. A slow provider can delay cleanup. A missing projection throws `WorkflowInstanceNotFoundException`. Other query\nfailures propagate to the caller for retry. Ephemeral waits remain notification-driven without polling. Ephemeral calls require retained-instance\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "0660208fa499ed2ce10ed8e8cbb148d22c820c9e1aa68d943e37fc254dbf50ea",
+      "afterSha256": "d7677ec3c5d47cce7ddec59a0fd8eb09414a755fd44d68a31bc058ccf564e617",
+      "edits": [
+        {
+          "before": "  authoritative state, observes terminality at every registration race without polling or casts,\n  and caller cancellation cancels only the local wait. Terminal workflow without output throws\n",
+          "after": "  authoritative state and observes terminality at every registration race without casts.\n  Ephemeral output and DAG terminal waits need no periodic reads. A pending durable output wait\n  observes remote completion without a hint on the MG-003 one-second schedule. Deterministic\n  checks cover read counts, serialization, coalescing, cancellation, shutdown, disposal, deletion\n  and query failure. Caller cancellation cancels only the local wait. Terminal workflow without output throws\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/13-phasing-and-open-questions.md",
+      "beforeSha256": "6d018a7e3b6806956bbc4199568dc7474064a779334b583385df873ff3b48a08",
+      "afterSha256": "3317dd0466877681cab62e523b529af4020ac4afec2ab3119bbb9db78452ead4",
+      "edits": [
+        {
+          "before": "5. **Completion wait implementation detail** — the public contract is fixed as notification-driven,\n   race-free `WaitForOutputAsync`/`WaitForTerminalAsync` with caller-local cancellation and no\n   polling; implementation may choose the internal notification primitive.\n",
+          "after": "5. **Completion wait implementation detail** — workflow output subscribes before its first authoritative output read.\n   A DAG observer subscribes at a pending version and rechecks. Caller cancellation is local. Pending durable workflow output uses the\n   bounded recheck in MG-003. Ephemeral output and DAG terminal waits use notifications\n   without polling.\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/14-driving-scenario-eks-job-scheduler.md",
+      "beforeSha256": "a1378ecb50869d47a7a11c8e0e937e4cf303cd02dde8bbbd4d406cd609866800",
+      "afterSha256": "b08196a823c046919937627657167fc307959f3f4e16f54af3b315e4839fbc5b",
+      "edits": [
+        {
+          "before": "  and typed workflow output waiting use notification/recheck without polling or casts; caller\n  cancellation is local. Trusted lease diagnostics enumerate a quarantine even when the crash\n",
+          "after": "  uses notification/recheck without polling. Typed workflow output waiting needs no casts and\n  observes remote durable completion under MG-003. Caller cancellation is local. Trusted lease diagnostics enumerate a quarantine even when the crash\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "beforeSha256": "ee84903bf093f206c2c45c2e00a6fef4aa365dd14ac50e77a95010138f11e190",
+      "afterSha256": "39f6219a6778b6e87c45886ee53ca9ab19b14544e9b2001bede11f6c12abf3e9",
+      "edits": [
+        {
+          "before": "| Management and typed state | In-memory implementation | Durable implementation | Typed snapshot/state/output queries, notification-driven output wait, cancellation request, and termination only. Instance enumeration/bulk query plus pause/resume/retry/archive/purge are deferred public operations. |\n",
+          "after": "| Management and typed state | In-memory implementation | Durable implementation | Typed snapshot/state/output queries, mode-specific typed output wait (MG-003), cancellation request, and termination only. Instance enumeration/bulk query plus pause/resume/retry/archive/purge are deferred public operations. |\n"
+        },
+        {
+          "before": "a nonblocking pending/available/unavailable snapshot query. `WaitForOutputAsync` uses a\nnotification-driven subscribe-then-recheck protocol around the committed completion boundary,\nreturns the detached successful output, and throws `WorkflowOutputUnavailableException` carrying\nterminal status/failure when no output can exist. It never polls. Caller cancellation cancels only\n",
+          "after": "a nonblocking pending/available/unavailable snapshot query. `WaitForOutputAsync` subscribes\nbefore its first authoritative read, returns detached successful output, and throws\n`WorkflowOutputUnavailableException` carrying terminal status/failure when no output can exist.\nEphemeral output waits use notifications without polling. A pending durable output wait uses\nlocal hints and the one-second authoritative recheck under MG-003. Caller cancellation cancels only\n"
+        }
+      ]
+    },
+    {
+      "path": "docs/implementation/01-solution-architecture.md",
+      "beforeSha256": "79307afab283a4e0afd4a750800f9c83f6eeadf6e62fbb5c5b04916f9428131e",
+      "afterSha256": "5cad9ef00b9647d5d5997114d8a3d614250ef421351a6cee7617a3fd01f805ae",
+      "edits": [
+        {
+          "before": "  `GetHandleOrThrow()` helpers are only cast-free success projections. Output and DAG-terminal\n  waits are notification-driven subscribe-then-recheck operations; they never poll, and caller\n",
+          "after": "  `GetHandleOrThrow()` helpers are only cast-free success projections. Workflow output subscribes before its first authoritative\n  output read. A pending DAG observer subscribes at the observed version and rechecks.\n  Durable workflow output uses a local hint\n  and rechecks after one second of pending time even if a remote host supplies no hint.\n  Ephemeral output and DAG terminal waits rely on notifications without polling. Caller\n"
+        }
+      ]
+    }
+  ]
+}

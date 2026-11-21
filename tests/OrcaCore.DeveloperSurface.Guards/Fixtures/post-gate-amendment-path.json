@@ -1,4 +1,5 @@
 {
+  "durableOutputObservation": {"contract": "openspec/changes/bound-runtime-observation/artifacts/contract.json", "stage": "Proposed", "reviewTask": "1.1", "canonicalSyncTask": "1.2"},
   "workflowValueFidelity": {"contract": "openspec/changes/enforce-lossless-workflow-values/artifacts/contract.json", "stage": "Complete", "reviewTask": "1.1", "canonicalSyncTask": "1.2", "reviewedCheckpoint": "c05bdad7af594febd3b7c487d42dbccf65224a59", "verdictPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/contract-approval.md", "verdictSha256": "66c8fefd9869217ef20e0efa59f34d953a47a71ad01b7bf7e3b7e6928868111e", "implementationCheckpoint": "200d13a854677743b644e9bb1dbde2edb2318e05", "qualificationPath": "openspec/changes/enforce-lossless-workflow-values/artifacts/qualification.md", "qualificationSha256": "e74443200893868427982ea936c957c25453825531cd3697e40529eb4e7ed39f"},
   "runtimeCorrectnessAmendment": "openspec/changes/repair-runtime-correctness/artifacts/amendment.json",
   "schemaVersion": 26,
