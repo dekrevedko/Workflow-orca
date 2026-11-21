@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Safety",
+    "kind": "normal",
+    "config": "Safety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "IgnorePin",
+    "kind": "mutation",
+    "config": "IgnorePin.cfg",
+    "expected": "PinnedBinding"
+  },
+  {
+    "name": "Reread",
+    "kind": "mutation",
+    "config": "Reread.cfg",
+    "expected": "ResultIdentity"
+  },
+  {
+    "name": "EraseByKey",
+    "kind": "mutation",
+    "config": "EraseByKey.cfg",
+    "expected": "BoundGeneration"
+  },
+  {
+    "name": "FollowKey",
+    "kind": "mutation",
+    "config": "FollowKey.cfg",
+    "expected": "HandleIdentity"
+  },
+  {
+    "name": "PinnedReturn",
+    "kind": "witness",
+    "config": "PinnedReturn.cfg",
+    "expected": "NoPinnedReturn"
+  },
+  {
+    "name": "LateConflict",
+    "kind": "witness",
+    "config": "LateConflict.cfg",
+    "expected": "NoLateConflict"
+  },
+  {
+    "name": "CleanupAfterPublish",
+    "kind": "witness",
+    "config": "CleanupAfterPublish.cfg",
+    "expected": "NoCleanupAfterPublish"
+  },
+  {
+    "name": "ReplacementReplay",
+    "kind": "witness",
+    "config": "ReplacementReplay.cfg",
+    "expected": "NoReplacementReplay"
+  },
+  {
+    "name": "ReplacementConflict",
+    "kind": "witness",
+    "config": "ReplacementConflict.cfg",
+    "expected": "NoReplacementConflict"
+  }
+]
