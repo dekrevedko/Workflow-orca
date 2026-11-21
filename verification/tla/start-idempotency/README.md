@@ -2,6 +2,8 @@
 
 The open-host fragment checks independence of different start keys, rechecking admission after reservation release, and compatible replay during retention. See the [management requirements](../../../docs/specs/09-requirements-management-operations.md) and [canonical retained-key requirement](../../../openspec/specs/management-and-querying/spec.md#requirement-ephemeral-start-idempotency-expires-with-atomic-retirement).
 
+The [start-key retirement model](../start-key-retirement/README.md) extends this protocol across retirement and publication of a replacement under the same key.
+
 Four callers each make one start attempt against an open host. Callers 1 and 2 have matching requests. Caller 3 uses their key with a different fingerprint. Caller 4 uses another key. Each caller's number also stands for its prospective instance ID. The model covers the lifetime of a retained start binding. Retirement, restart, host shutdown, fingerprint computation and provisional cleanup internals are outside this bound.
 
 | Model action | Corresponding step in the ephemeral facade |

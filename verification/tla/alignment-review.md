@@ -11,8 +11,4 @@ The [continuation lease checks](durable-continuation-lease/README.md) exposed an
 
 The [durable event versus timeout checks](durable-event-timeout/README.md) distinguish occurrence ownership from what prompts delivery. A's late timeout leaves B active. Under EV-043 and EV-051, a direct redelivery of applied E1 can prompt a match of a separately accepted E2. The journal identifies E2 as B's winner and retains A's original E1 match. This distinction matters when interpreting a duplicate ingress acknowledgement.
 
-## Remaining candidate
-
-| Priority | Protocol and specific question | How to test a counterexample |
-|---|---|---|
-| 1 | **Ephemeral start-key retirement.** Can a caller that pins an old binding race retirement and creation of a replacement under the same key? | Extend the existing start model with two instance generations, retain/pin/release, and one sweep. Compare replay identity and replacement count against the retirement tests. [Canonical retirement requirement](../../openspec/specs/management-and-querying/spec.md#requirement-ephemeral-start-idempotency-expires-with-atomic-retirement) |
+The [ephemeral start-key retirement checks](start-key-retirement/README.md) confirm the canonical replay boundary. A pin preserves the inspected binding while the caller captures its decision. Once the pin is released, retirement and reuse can precede return of the original handle or conflict. A later ordinary lookup through that handle addresses the original instance ID. Elapsed age and the time at which a caller enters the API do not alone determine the result. [Canonical retention requirement](../../openspec/specs/management-and-querying/spec.md#requirement-ephemeral-start-idempotency-expires-with-atomic-retirement)
