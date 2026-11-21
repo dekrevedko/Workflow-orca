@@ -174,8 +174,11 @@ compilation.
   coordinator. Outbound workflow events use `IWorkflowEventDispatcher`, never the internal
   continuation dispatcher.
 - Workflow/DAG registration and start return inspectable closed result unions. Their typed
-  `GetHandleOrThrow()` helpers are only cast-free success projections. Output and DAG-terminal
-  waits are notification-driven subscribe-then-recheck operations; they never poll, and caller
+  `GetHandleOrThrow()` helpers are only cast-free success projections. Workflow output subscribes before its first authoritative
+  output read. A pending DAG observer subscribes at the observed version and rechecks.
+  Durable workflow output uses a local hint
+  and rechecks after one second of pending time even if a remote host supplies no hint.
+  Ephemeral output and DAG terminal waits rely on notifications without polling. Caller
   cancellation cancels only the local wait.
 - The four Phase 0 resource-governance crash barriers are friend-only test seams named
   `WorkflowPendingObligationCommitted`, `GovernanceReservationCommitted`,

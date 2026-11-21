@@ -2,10 +2,10 @@
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
   "recordCount": 239,
-  "recordBytes": 63869,
-  "recordSha256": "3668e28dd8eed5cf56ca7126f9bf2aac609e81c019e3f28c27797d80d58b8ad8",
-  "semanticApprovalEligible": false,
-  "pendingCanonicalOperations": [{"capability": "developer-facing-surface", "count": 1, "turnsGreenChange": "bound-runtime-observation", "turnsGreenTask": "1.2"}, {"capability": "management-and-querying", "count": 2, "turnsGreenChange": "bound-runtime-observation", "turnsGreenTask": "1.2"}, {"capability": "quality-and-verification", "count": 1, "turnsGreenChange": "bound-runtime-observation", "turnsGreenTask": "1.2"}, {"capability": "workflow-contracts", "count": 1, "turnsGreenChange": "bound-runtime-observation", "turnsGreenTask": "1.2"}],
+  "recordBytes": 63919,
+  "recordSha256": "63734ee0720fe66296df592b53b8299af2284f64df0884edbec73051be3e56df",
+  "semanticApprovalEligible": true,
+  "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -175,13 +175,13 @@
   "capabilityDirectoryCount": 52,
   "capabilityDirectoryBytes": 4169,
   "capabilityDirectorySha256": "ad687c431395141484843e51fa901d410764930de1a5dbfe0ae5e08014b974f2",
-  "artifactPath": "openspec/changes/bound-runtime-observation/artifacts/proposed-openspec-provenance-2026-11-21.md",
-  "artifactNormalizedSha256": "49538952f6b9ee87424446625821bd0667ddc5f7e0c966787ea4014f5f178ba2",
+  "artifactPath": "openspec/changes/bound-runtime-observation/artifacts/sync-openspec-provenance-2026-11-21.md",
+  "artifactNormalizedSha256": "1de561cf48e0686e10ec22a598ff1c2f7b47b1b53ab276708431e72def47ccf6",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
-      "bytes": 83164,
-      "sha256": "bbd887ad2a95b890914b08f14e3071bbc415a2c19cbc1952e1c5bc8f912e42be"
+      "bytes": 83561,
+      "sha256": "dd53ae69029688c497b803d54cd1fe863d54dab1bf2c27f195e575ebbdace815"
     },
     {
       "path": "openspec/specs/durable-persistence-and-outbox/spec.md",
@@ -205,13 +205,13 @@
     },
     {
       "path": "openspec/specs/management-and-querying/spec.md",
-      "bytes": 64162,
-      "sha256": "48902205918408124ff7045ad4561bc65efd14df1643cf45b9d9121becea6b7e"
+      "bytes": 66253,
+      "sha256": "ba17a526da58122f2d1e8fbb85172c92cf60c4f1ade642f0ead1542c154a604e"
     },
     {
       "path": "openspec/specs/quality-and-verification/spec.md",
-      "bytes": 68709,
-      "sha256": "bc6dff622432b6429dce6c88733068271b43adfd158852ab422345e6a325b8e6"
+      "bytes": 69960,
+      "sha256": "710d449ff3b708878aa665a3747782319b2238625f2a860d7e9561a5f25330f4"
     },
     {
       "path": "openspec/specs/repository-foundation/spec.md",
@@ -245,12 +245,12 @@
     },
     {
       "path": "openspec/specs/workflow-contracts/spec.md",
-      "bytes": 56212,
-      "sha256": "0f7607c7375a4439cbdec9bed979b2b379bc915d5b97777ac3b94852433aa6b0"
+      "bytes": 56334,
+      "sha256": "84cd0c0880f0090cbdb43a7f9b504a0d2d63a836c8da3aa3231594d612ba22fa"
     }
   ],
   "canonicalContentRecordFormat": "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF",
   "canonicalContentCount": 14,
   "canonicalContentBytes": 1635,
-  "canonicalContentSha256": "fbe6e9fda13d6fc15e43a91cfc1d2c1c6092f5647dd8d1090378162a1250ad35"
+  "canonicalContentSha256": "29d52b6fff13244113ebc2fb4a0a0d2cd259cac2198b7bbee94489d04cbab0cd"
 }

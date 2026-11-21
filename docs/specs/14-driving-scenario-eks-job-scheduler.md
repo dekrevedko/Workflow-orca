@@ -272,8 +272,8 @@ handles remain free of advanced ownership/ticket facts.
   a declared dependency and gates its dependant, but exposes no output and rejects `OutputOf`.
   [JS-001]
 - **JS-AC-018** *Scheduler waits and quarantine discovery are reactive* — DAG terminal waiting
-  and typed workflow output waiting use notification/recheck without polling or casts; caller
-  cancellation is local. Trusted lease diagnostics enumerate a quarantine even when the crash
+  uses notification/recheck without polling. Typed workflow output waiting needs no casts and
+  observes remote durable completion under MG-003. Caller cancellation is local. Trusted lease diagnostics enumerate a quarantine even when the crash
   preceded Job-label persistence, allowing token-correlated reconciliation. [JS-002/009/010]
 
 ## 14.7 Deferred generic job surface

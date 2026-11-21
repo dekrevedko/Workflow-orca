@@ -253,10 +253,10 @@ output. Unnamed completion is represented by absence, not an empty/default name.
 - **First-release management surface** — typed definition handles register/start workflows;
   typed instance handles return immutable instance/active-wait snapshots, fixed-codec-detached
   committed root state, and typed output where declared, and expose cooperative cancellation
-  request plus termination. Resultful workflow handles/start results expose notification-driven
-  typed output waiting, and DAG-run handles expose notification-driven terminal-snapshot
-  waiting; both use subscribe/recheck without polling, and caller cancellation is local to the
-  wait. Durable `IWorkflowEventIngress` owns the closed four-route event union. Broad fluent
+  request plus termination. Workflow output waits subscribe before their first authoritative output read.
+  A pending DAG wait subscribes at its observed version and rechecks. Durable workflow output
+  also rechecks a pending result within one second under MG-003. Ephemeral output and DAG terminal waits use notifications without polling.
+  Caller cancellation is local to the wait. Durable `IWorkflowEventIngress` owns the closed four-route event union. Broad fluent
   selection, public instance enumeration/bulk retrieval, pause/resume, failed-instance retry,
   archive, and purge remain absent from the application surface; provider/operator maintenance
   owns durable retained statistics and retention policy. The ephemeral host separately owns

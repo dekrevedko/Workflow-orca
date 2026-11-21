@@ -36,9 +36,15 @@ private branch/item state or an in-flight attempt copy. Only resultful handles e
 `GetOutputAsync<TOutput>`, returning closed `Pending`, `Available`, or `Unavailable` variants;
 resultless handles have no output member. Resultful handles additionally expose
 `WaitForOutputAsync(CancellationToken)` returning `TOutput`, and typed start results expose the
-same success helper after `GetHandleOrThrow()`. Waiting SHALL subscribe before one authoritative
-recheck, never poll, throw `WorkflowOutputUnavailableException` for terminal-without-output, and
-treat caller cancellation as local to the wait. Ephemeral calls require retained-instance
+same success helper after `GetHandleOrThrow()`. Waiting SHALL subscribe before the first authoritative
+read, throw `WorkflowOutputUnavailableException` for terminal-without-output, and treat caller
+cancellation as local. After each completed Pending read the durable wait SHALL schedule its next
+authoritative read within one second, subject to scheduler and provider availability. Local hints
+may wake it sooner. Each waiter SHALL serialize reads and coalesce accumulated signals without
+catch-up bursts. Caller cancellation, host stopping or owner disposal SHALL cancel the wait and signal an
+outstanding read. No further reads are scheduled. The waiter releases its timer and subscription
+when its outstanding query returns, including on query failure. A slow provider can delay cleanup. A missing projection throws `WorkflowInstanceNotFoundException`. Other query
+failures propagate to the caller for retry. Ephemeral waits remain notification-driven without polling. Ephemeral calls require retained-instance
 admission under MG-057: an admitted wait pins its instance, but a successful start alone does
 not reserve a future wait or guarantee a minimum observation window.
 

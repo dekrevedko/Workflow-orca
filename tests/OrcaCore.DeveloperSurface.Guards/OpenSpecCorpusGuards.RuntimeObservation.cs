@@ -7,7 +7,10 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed partial class OpenSpecCorpusGuards
 {
     private const string ObservationChange = "bound-runtime-observation";
-    private const string ObservationStage = "Proposed";
+    private const string ObservationStage = "ApprovedPending";
+    internal const string ObservationProposal = "b857386dd7d43bbe1d0a51e9ce8e331fa4b17b82";
+    private const string ObservationVerdict = "openspec/changes/bound-runtime-observation/artifacts/contract-approval.md";
+    private const string ObservationVerdictHash = "a090616a8f89cb7cb5394d2f51589f0d0b43de7f373f0a784bb96e0455ffa380";
     private const string ObservationContractPath = "openspec/changes/" + ObservationChange + "/artifacts/contract.json";
     private const string ObservationContractHash = "f6c715c0f33770d198885a10d09116fc45287a257590fee2aa4eaeb908b34594";
     private static bool ObservationSynchronized => ObservationStage != "Proposed";
@@ -23,7 +26,10 @@ public sealed partial class OpenSpecCorpusGuards
     private static void ProjectObservationRegistry(JsonObject current)
     {
         var row = current["durableOutputObservation"]!.AsObject();
-        row.Count.Should().Be(4);
+        row.Count.Should().Be(7);
+        row["reviewedCheckpoint"]!.GetValue<string>().Should().Be(ObservationProposal);
+        row["verdictPath"]!.GetValue<string>().Should().Be(ObservationVerdict);
+        row["verdictSha256"]!.GetValue<string>().Should().Be(ObservationVerdictHash);
         row["stage"]!.GetValue<string>().Should().Be(ObservationStage);
         row["contract"]!.GetValue<string>().Should().Be(ObservationContractPath);
         row["reviewTask"]!.GetValue<string>().Should().Be("1.1");
@@ -33,8 +39,17 @@ public sealed partial class OpenSpecCorpusGuards
 
     private static HashSet<string> ValidateObservationOwners(string root, List<DeltaRequirement> active, JsonElement contract)
     {
-        ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "1.1", OpenTaskState));
-        ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "1.2", OpenTaskState));
+        DagFacadeApprovedHistory.TextAt(root, ObservationProposal, ObservationContractPath)
+            .Should().Be(NormalizeLineEndings(File.ReadAllText(Path.Combine(root, ObservationContractPath))));
+        RunGit(root, "merge-base", "--is-ancestor", contract.GetProperty("base").GetString()!, ObservationProposal).ExitCode.Should().Be(0);
+        RunGit(root, "merge-base", "--is-ancestor", ObservationProposal, "HEAD").ExitCode.Should().Be(0);
+        var verdict = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, ObservationVerdict)));
+        Sha256(verdict).Should().Be(ObservationVerdictHash);
+        verdict.Split('\n').Should().Contain("Verdict: ACCEPT").And.Contain("Scope: bound-runtime-observation contract and owner routing")
+            .And.Contain($"Reviewed proposal checkpoint: `{ObservationProposal}`")
+            .And.Contain($"Reviewed normalized contract SHA-256: `{ObservationContractHash}`");
+        ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "1.1", CompleteTaskState));
+        ValidateTaskReference(root, new PostGateTaskReference(ObservationChange, "1.2", CompleteTaskState));
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in contract.GetProperty("successors").EnumerateArray())
         {
@@ -96,7 +111,35 @@ public sealed partial class OpenSpecCorpusGuards
     {
         var contract = ReadObservationContract(root);
         var row = contract.GetProperty("documents").EnumerateArray().SingleOrDefault(item => item.GetProperty("path").GetString() == path);
-        return row.ValueKind == JsonValueKind.Undefined ? current : ProjectObservationDocument(root, path, current, contract, row);
+        if (row.ValueKind != JsonValueKind.Undefined)
+            return ProjectObservationDocument(root, path, current, contract, row);
+        return BeforeObservationCanonicalFile(root, path, current, contract);
+    }
+
+    internal static string BeforeObservationCanonicalFile(string root, string path, string current)
+        => BeforeObservationCanonicalFile(root, path, current, ReadObservationContract(root));
+
+    private static string BeforeObservationCanonicalFile(string root, string path, string current, JsonElement contract)
+    {
+        var replacements = contract.GetProperty("successors").EnumerateArray()
+            .Where(row => path == $"openspec/specs/{row.GetProperty("capability").GetString()}/spec.md").ToArray();
+        if (replacements.Length == 0) return current;
+        var prior = DagFacadeApprovedHistory.TextAt(root, ObservationProposal, path);
+        var expected = prior;
+        foreach (var row in replacements)
+        {
+            var cap = row.GetProperty("capability").GetString()!;
+            var heading = row.GetProperty("requirement").GetString()!;
+            var chain = row.GetProperty("ownerChain").Deserialize<string[]>()!;
+            var before = ReadResolvedPostGateOwner(root, chain[^2], cap, heading);
+            var after = ReadResolvedPostGateOwner(root, chain[^1], cap, heading);
+            Sha256(before.Block).Should().Be(row.GetProperty("beforeSha256").GetString());
+            Sha256(after.Block).Should().Be(row.GetProperty("afterSha256").GetString());
+            expected.Split(before.Block, StringSplitOptions.None).Should().HaveCount(2);
+            expected = expected.Replace(before.Block, after.Block, StringComparison.Ordinal);
+        }
+        current.Should().Be(expected, "the five successor blocks are the only approved canonical edits");
+        return prior;
     }
 
     private static string ProjectObservationDocument(string root, string path, string current, JsonElement contract, JsonElement row)

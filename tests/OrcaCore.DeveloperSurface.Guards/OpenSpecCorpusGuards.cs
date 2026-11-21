@@ -306,7 +306,7 @@ public sealed partial class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "49538952f6b9ee87424446625821bd0667ddc5f7e0c966787ea4014f5f178ba2";
+        "1de561cf48e0686e10ec22a598ff1c2f7b47b1b53ab276708431e72def47ccf6";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -351,9 +351,9 @@ public sealed partial class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 40;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 41;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "77a96b7f60d169634387197ce4078b84c170cb7a7e37904aaa74dbd7114140b2";
+        "56dda6ad3e37a0b1dc9bbce6a6428799fd1abbf5a0a6fe9b5ea2693adea045af";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -436,7 +436,9 @@ public sealed partial class OpenSpecCorpusGuards
             ("openspec/changes/enforce-lossless-workflow-values/artifacts/revised-proposed-openspec-provenance-2026-11-17.md",
                 "c3f3ed9a5660e02a6eb0608041f03a20cb5d620270b3c1840e5854be8177bf21"),
             ("openspec/changes/enforce-lossless-workflow-values/artifacts/sync-openspec-provenance-2026-11-17.md",
-                "851f5e377924c8fe05d70e98aea5d3944dddd017005ce985886f93134f21d1d3")
+                "851f5e377924c8fe05d70e98aea5d3944dddd017005ce985886f93134f21d1d3"),
+            ("openspec/changes/bound-runtime-observation/artifacts/proposed-openspec-provenance-2026-11-21.md",
+                "49538952f6b9ee87424446625821bd0667ddc5f7e0c966787ea4014f5f178ba2")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";

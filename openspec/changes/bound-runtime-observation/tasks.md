@@ -1,7 +1,7 @@
 ## 1. Contract
 
-- [ ] 1.1 Independently review the proposed five successors, lifecycle, budget and numbered declarations.
-- [ ] 1.2 Synchronize the reviewed requirements and numbered documents. Resolve `developer-facing-surface` (1), `management-and-querying` (2), `quality-and-verification` (1), and `workflow-contracts` (1). Bind the exact proposal checkpoint and verdict.
+- [x] 1.1 Independently review the proposed five successors, lifecycle, budget and numbered declarations.
+- [x] 1.2 Synchronize the reviewed requirements and numbered documents. Resolve `developer-facing-surface` (1), `management-and-querying` (2), `quality-and-verification` (1), and `workflow-contracts` (1). Bind the exact proposal checkpoint and verdict.
 
 ## 2. Implementation and qualification
 
