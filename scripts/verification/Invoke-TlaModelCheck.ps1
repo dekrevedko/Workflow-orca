@@ -33,6 +33,9 @@ $sourceFiles = @(& git -C $repo ls-files --cached --others --exclude-standard --
 if ($ModuleName -in @('ContinuationLease','EventTimeout')) {
     $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Providers.PostgreSql src/OrcaCore.Providers.SqlServer src/OrcaCore.Runtime.Protocol src/OrcaCore.Durable.Hosting tests/OrcaCore.Hosting.Tests tests/OrcaCore.ProviderCertification tests/OrcaCore.Providers.PostgreSql.Tests tests/OrcaCore.Providers.SqlServer.Tests docs/durable-driver-lane-host.md .github/workflows/ci.yml)
 }
+if ($ModuleName -eq 'DagChildJoin') {
+    $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Runtime.Protocol src/OrcaCore.Durable.Hosting tests/OrcaCore.Hosting.Tests docs/specs/08-requirements-composition.md)
+}
 $hashes = @($sourceFiles | Sort-Object -Unique | Where-Object { $_ -notlike '*/evidence/*' -and $_ -notlike '*_TTrace*' -and (Test-Path -LiteralPath (Join-Path $repo $_) -PathType Leaf) } | ForEach-Object {
     [ordered]@{ path = $_; sha256 = (Get-FileHash -LiteralPath (Join-Path $repo $_) -Algorithm SHA256).Hash }
 })
