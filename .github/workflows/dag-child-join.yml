@@ -1,0 +1,67 @@
+name: DAG child join recovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'verification/tla/dag-child-join/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/dag-child-join.yml'
+      - 'docs/specs/08-requirements-composition.md'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Durable.Hosting/Dag/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - 'verification/tla/dag-child-join/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/dag-child-join.yml'
+      - 'docs/specs/08-requirements-composition.md'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Durable.Hosting/Dag/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Check join classification and replay with private Java
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/dag-child-join -ModuleName DagChildJoin -OutputDirectory .codex-run/dag-model
+      - name: Exercise hosting recovery schedules
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj -c Release --filter "FullyQualifiedName~DagChildRecoveryTests" --logger "trx;LogFileName=recovery.trx" --results-directory .codex-run/dag-tests
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dag-child-join-evidence
+          include-hidden-files: true
+          path: |
+            .codex-run/dag-model/*.json
+            .codex-run/dag-model/*/tlc.log
+            .codex-run/dag-model/*/*.cfg
+            .codex-run/dag-model/*/*.tla
+            .codex-run/dag-tests/*.trx
