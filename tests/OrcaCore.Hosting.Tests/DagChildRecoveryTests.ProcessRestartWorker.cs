@@ -131,7 +131,8 @@ public sealed partial class DagChildRecoveryTests
         do
         {
             delivered = await pump.PumpOnceAsync(Request(), token);
-            if (recorder.Handled.Count == 0) await Task.Delay(100, token);
+            if (recorder.Handled.Count == 0)
+                await Task.Delay(TimeSpan.FromMilliseconds(100), TimeProvider.System, token);
         } while (recorder.Handled.Count == 0);
         var notice = recorder.Handled.Should().ContainSingle().Which;
         notice.Kind.Should().Be("dag-child-join-v1");

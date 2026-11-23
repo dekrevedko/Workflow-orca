@@ -49,3 +49,4 @@ Unrelated == <> (x = 1)
     Write-Host "$($case.name): classification verified ($actual)"
 }
 $results | ConvertTo-Json | Set-Content (Join-Path $OutputDirectory 'self-test-results.json')
+exit 0

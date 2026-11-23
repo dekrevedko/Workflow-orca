@@ -3,6 +3,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 using DotNet.Testcontainers.Containers;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.TestSupport;
 using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Xunit;
@@ -17,12 +18,14 @@ public sealed partial class DagChildRecoveryTests
     [Theory(Explicit = true)]
     [InlineData(true)]
     [InlineData(false)]
+    [Trait(Traits.Container, "PostgreSql")]
     public Task PostgreSqlProcessRestart(bool loseAcknowledgement) =>
         RunProcessRestartAsync(RestartDatabase.PostgreSql, loseAcknowledgement);
 
     [Theory(Explicit = true)]
     [InlineData(true)]
     [InlineData(false)]
+    [Trait(Traits.Container, "SqlServer")]
     public Task SqlServerProcessRestart(bool loseAcknowledgement) =>
         RunProcessRestartAsync(RestartDatabase.SqlServer, loseAcknowledgement);
 
@@ -86,7 +89,7 @@ public sealed partial class DagChildRecoveryTests
             {
                 var marker = Path.Combine(directory, "seed.json");
                 while (!File.Exists(marker) && !worker.HasExited)
-                    await Task.Delay(50, token);
+                    await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, token);
 
                 if (worker.HasExited)
                     throw new InvalidOperationException($"Seed exited before the crash boundary: {await stdout} {await stderr}");
