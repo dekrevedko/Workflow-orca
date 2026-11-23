@@ -74,8 +74,8 @@ public sealed partial class RetentionInterleavingTests
         var old = (await definition.StartOrGetAsync("old", key, Token)).GetHandleOrThrow();
         var oldConflict = (await definition.StartOrGetAsync("new", key, Token))
             .Should().BeOfType<StartResult.Conflict>().Which.Error;
-        oldConflict.ExistingInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint("old"));
-        oldConflict.AttemptedInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint("new"));
+        oldConflict.ExistingInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint("\"old\""u8));
+        oldConflict.AttemptedInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint("\"new\""u8));
         host.Clock.Advance(TimeSpan.FromMilliseconds(9500));
         host.Clock.Advance(TimeSpan.FromMilliseconds(500));
         host.Engine.TryGetFacadeInstance(old.InstanceId, out var retained).Should().BeTrue();
@@ -160,15 +160,18 @@ public sealed partial class RetentionInterleavingTests
         else
         {
             var conflict = result.Should().BeOfType<StartResult.Conflict>().Which.Error;
-            conflict.ExistingInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint(new FingerprintInput("new")));
-            conflict.AttemptedInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint(new FingerprintInput("old")));
+            conflict.ExistingInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint("""{"Value":"new"}"""u8));
+            conflict.AttemptedInputFingerprint.Should().Be(FacadeValueFactory.PayloadFingerprint("""{"Value":"old"}"""u8));
         }
         starts.Should().Be(2);
     }
 
-    public sealed class FingerprintInput(string value, Action? onRead = null)
+    public sealed class FingerprintInput(string value)
     {
-        private Action? observe = onRead;
+        private Action? observe;
+
+        internal FingerprintInput(string value, Action onRead) : this(value) => observe = onRead;
+
         public string Value
         {
             get
