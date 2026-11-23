@@ -1,11 +1,11 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 245,
-  "recordBytes": 65371,
-  "recordSha256": "9d73687f2b797fefb1ee69a4a99686f3f83f224d4387ebfa5e2fe62f3f253725",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 248,
+  "recordBytes": 66202,
+  "recordSha256": "f6897bf54f4a72b42389ec6c3e882b08bb385dc7a741b19540686c3196270ade",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [{"capability": "durable-runtime", "count": 1, "turnsGreenChange": "recover-latest-governance-state", "turnsGreenTask": "1.2"}, {"capability": "management-and-querying", "count": 1, "turnsGreenChange": "recover-latest-governance-state", "turnsGreenTask": "1.2"}, {"capability": "quality-and-verification", "count": 1, "turnsGreenChange": "recover-latest-governance-state", "turnsGreenTask": "1.2"}],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -178,11 +178,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 53,
-  "capabilityDirectoryBytes": 4268,
-  "capabilityDirectorySha256": "b30e34edf1a0e122bce52e4ff4cb91e76af8ef484994f903597be77cf2b1d264",
-  "artifactPath": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/artifacts/observation-merge-openspec-provenance-2026-11-23.md",
-  "artifactNormalizedSha256": "12001cd888b0a1fd51f37c50c05725a344ccf19e037a0e04b787d87780ddfc08",
+  "capabilityDirectoryCount": 56,
+  "capabilityDirectoryBytes": 4501,
+  "capabilityDirectorySha256": "27920fd1ae4d4c44f5f8cc763b42e035c594fe2330da531f101d239d09712134",
+  "artifactPath": "openspec/changes/recover-latest-governance-state/artifacts/proposed-openspec-provenance-2026-11-23.md",
+  "artifactNormalizedSha256": "81ac3a3ea69d38df85549c0f8dfe9c83ad582f1b9a5d1dc206b1c844a866a8fe",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
