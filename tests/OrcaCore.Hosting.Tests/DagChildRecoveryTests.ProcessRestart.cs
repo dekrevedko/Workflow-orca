@@ -1,6 +1,9 @@
 using System.Diagnostics;
 using System.Text.Json;
 using AwesomeAssertions;
+using DotNet.Testcontainers.Containers;
+using OrcaCore.Abstractions.Providers;
+using Testcontainers.MsSql;
 using Testcontainers.PostgreSql;
 using Xunit;
 
@@ -8,30 +11,48 @@ namespace OrcaCore.Hosting.Tests;
 
 public sealed partial class DagChildRecoveryTests
 {
-    private sealed record RestartCoordinates(int SeedPid, Guid RunId, Guid? OriginalClaimId);
-
-    // Run explicitly with the standalone xUnit runner:
-    // dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method "OrcaCore.Hosting.Tests.DagChildRecoveryTests.PostgreSqlProcessRestart"
+    private enum RestartDatabase { PostgreSql, SqlServer }
+    private sealed record RestartCoordinates(int SeedPid, Guid RunId, Guid SiblingChildId, Guid? OriginalClaimId);
+    private sealed record RecoveryObservation(int WorkerPid, int JoinCount, Guid SiblingChildId, int Attempt, OutboxRecordState NoticeState);
     [Theory(Explicit = true)]
     [InlineData(true)]
     [InlineData(false)]
-    public async Task PostgreSqlProcessRestart(bool loseAcknowledgement)
+    public Task PostgreSqlProcessRestart(bool loseAcknowledgement) =>
+        RunProcessRestartAsync(RestartDatabase.PostgreSql, loseAcknowledgement);
+
+    [Theory(Explicit = true)]
+    [InlineData(true)]
+    [InlineData(false)]
+    public Task SqlServerProcessRestart(bool loseAcknowledgement) =>
+        RunProcessRestartAsync(RestartDatabase.SqlServer, loseAcknowledgement);
+
+    private static async Task RunProcessRestartAsync(RestartDatabase provider, bool loseAcknowledgement)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(5));
         var token = deadline.Token;
-        await using var postgres = new PostgreSqlBuilder("postgres:17-alpine").Build();
-        await postgres.StartAsync(token);
+        await using IDatabaseContainer database = provider switch
+        {
+            RestartDatabase.PostgreSql => new PostgreSqlBuilder("postgres:17-alpine").Build(),
+            RestartDatabase.SqlServer => new MsSqlBuilder("mcr.microsoft.com/mssql/server:2022-latest").Build(),
+            _ => throw new ArgumentOutOfRangeException(nameof(provider))
+        };
+        await database.StartAsync(token);
         deadline.CancelAfter(TimeSpan.FromMinutes(2));
         var directory = Directory.CreateTempSubdirectory("orca-dag-restart-");
         try
         {
-            var seedPid = await RunRestartWorkerAsync("seed", postgres.GetConnectionString(), directory.FullName,
+            var seedPid = await RunRestartWorkerAsync("seed", provider, database.GetConnectionString(), directory.FullName,
                 loseAcknowledgement, token);
-            var recoveryPid = await RunRestartWorkerAsync("recover", postgres.GetConnectionString(), directory.FullName,
+            var recoveryPid = await RunRestartWorkerAsync("recover", provider, database.GetConnectionString(), directory.FullName,
                 loseAcknowledgement, token);
             recoveryPid.Should().NotBe(seedPid);
-            TestContext.Current.TestOutputHelper!.WriteLine($"Killed worker {seedPid}, recovered in {recoveryPid}.");
+            var observation = JsonSerializer.Deserialize<RecoveryObservation>(
+                await File.ReadAllTextAsync(Path.Combine(directory.FullName, "recovered.json"), token))!;
+            observation.WorkerPid.Should().Be(recoveryPid);
+            TestContext.Current.TestOutputHelper!.WriteLine(
+                $"{provider}: killed worker {seedPid}, recovered in {recoveryPid}. ChildJoined={observation.JoinCount}, " +
+                $"B retained={observation.SiblingChildId:D}, attempt={observation.Attempt}, notice={observation.NoticeState}.");
         }
         finally
         {
@@ -39,7 +60,7 @@ public sealed partial class DagChildRecoveryTests
         }
     }
 
-    private static async Task<int> RunRestartWorkerAsync(string phase, string connection, string directory,
+    private static async Task<int> RunRestartWorkerAsync(string phase, RestartDatabase provider, string connection, string directory,
         bool loseAcknowledgement, CancellationToken token)
     {
         var start = new ProcessStartInfo("dotnet")
@@ -50,7 +71,8 @@ public sealed partial class DagChildRecoveryTests
         start.ArgumentList.Add("-explicit");
         start.ArgumentList.Add("only");
         start.ArgumentList.Add("-method");
-        start.ArgumentList.Add($"{typeof(DagChildRecoveryTests).FullName}.{nameof(PostgreSqlRestartWorker)}");
+        start.ArgumentList.Add($"{typeof(DagChildRecoveryTests).FullName}.{nameof(DatabaseRestartWorker)}");
+        start.Environment["ORCA_DAG_RESTART_PROVIDER"] = provider.ToString();
         start.Environment["ORCA_DAG_RESTART_PHASE"] = phase;
         start.Environment["ORCA_DAG_RESTART_CONNECTION"] = connection;
         start.Environment["ORCA_DAG_RESTART_DIRECTORY"] = directory;
@@ -75,11 +97,7 @@ public sealed partial class DagChildRecoveryTests
             }
             await worker.WaitForExitAsync(token);
             if (phase == "recover")
-            {
                 worker.ExitCode.Should().Be(0, "{0} {1}", await stdout, await stderr);
-                (await File.ReadAllTextAsync(Path.Combine(directory, "recovered.pid"), token))
-                    .Should().Be(worker.Id.ToString(System.Globalization.CultureInfo.InvariantCulture));
-            }
             return worker.Id;
         }
         finally

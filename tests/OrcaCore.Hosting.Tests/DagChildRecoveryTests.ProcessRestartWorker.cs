@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Text.Json;
 using AwesomeAssertions;
 using AwesomeAssertions.Execution;
@@ -10,6 +9,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Durable.Hosting.Dag;
 using OrcaCore.Providers.PostgreSql;
+using OrcaCore.Providers.SqlServer;
 using Xunit;
 
 namespace OrcaCore.Hosting.Tests;
@@ -18,8 +18,8 @@ public sealed partial class DagChildRecoveryTests
 {
     public static bool IsRestartWorker => Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PHASE") is "seed" or "recover";
 
-    [Fact(Explicit = true, SkipUnless = nameof(IsRestartWorker), Skip = "Run through PostgreSqlProcessRestart.")]
-    public async Task PostgreSqlRestartWorker()
+    [Fact(Explicit = true, SkipUnless = nameof(IsRestartWorker), Skip = "Run through the database restart tests.")]
+    public async Task DatabaseRestartWorker()
     {
         var token = TestContext.Current.CancellationToken;
         var directory = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_DIRECTORY")!;
@@ -27,8 +27,22 @@ public sealed partial class DagChildRecoveryTests
         var workflow = Workflow.Durable<int>(DefinitionId.Parse("824a2e15-67cb-4fa6-8695-725c7266cd28"), DefinitionVersion.Initial)
             .Init<int>(value => value).End(state => state.Value).Build();
         var collection = new ServiceCollection();
-        collection.AddOrcaCorePostgreSqlDurableProvider(new PostgreSqlDurableProviderOptions(
-            Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_CONNECTION")!, "public"));
+        var connection = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_CONNECTION")!;
+        var provider = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PROVIDER");
+        Type providerOptions;
+        switch (provider)
+        {
+            case nameof(RestartDatabase.PostgreSql):
+                collection.AddOrcaCorePostgreSqlDurableProvider(new(connection, "public"));
+                providerOptions = typeof(PostgreSqlDurableProviderOptions);
+                break;
+            case nameof(RestartDatabase.SqlServer):
+                collection.AddOrcaCoreSqlServerDurableProvider(new(connection, "dag_restart"));
+                providerOptions = typeof(SqlServerDurableProviderOptions);
+                break;
+            default:
+                throw new InvalidOperationException($"Unknown DAG restart provider '{provider}'.");
+        }
         collection.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
         {
             StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
@@ -37,7 +51,7 @@ public sealed partial class DagChildRecoveryTests
         await using var services = collection.BuildServiceProvider();
         // Initialize the provider schema while keeping competing background pumps stopped.
         await services.GetServices<IHostedService>().Single(service =>
-            service.GetType().Assembly == typeof(PostgreSqlDurableProviderOptions).Assembly).StartAsync(token);
+            service.GetType().Assembly == providerOptions.Assembly).StartAsync(token);
 
         var marker = Path.Combine(directory, "seed.json");
         if (Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PHASE") == "seed")
@@ -50,8 +64,8 @@ public sealed partial class DagChildRecoveryTests
         }
         var seed = JsonSerializer.Deserialize<RestartCoordinates>(await File.ReadAllTextAsync(marker, token))!;
         seed.SeedPid.Should().NotBe(Environment.ProcessId);
-        await VerifyAfterRestartAsync(services, seed, loseAck, token);
-        await File.WriteAllTextAsync(Path.Combine(directory, "recovered.pid"), Environment.ProcessId.ToString(CultureInfo.InvariantCulture), token);
+        var observation = await VerifyAfterRestartAsync(services, seed, loseAck, token);
+        await File.WriteAllTextAsync(Path.Combine(directory, "recovered.json"), JsonSerializer.Serialize(observation), token);
     }
 
     private static async Task<RestartCoordinates> SeedRestartAsync(ServiceProvider services,
@@ -80,16 +94,16 @@ public sealed partial class DagChildRecoveryTests
             var joined = await DagPumpRunFixture.ReadAsync(events, run.RunId, token);
             joined.State.Should().Be(DagRunStateV1.Running);
             joined.Nodes[0].FailureCode.Should().Be("CHILD_CANCELLED");
-            return new(Environment.ProcessId, run.RunId, claim.OutboxRecordId.Value);
+            return new(Environment.ProcessId, run.RunId, run.Nodes[1].ChildInstanceId!.Value, claim.OutboxRecordId.Value);
         }
         await RequestParentCancellationAsync(services, run.RunId, token);
         var history = await events.LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(run.RunId), StreamVersion.Empty, token);
         history.Select(record => record.Kind).Should().Contain(DagRunRecordKindV1.CancellationRequested)
             .And.NotContain(DagRunRecordKindV1.ChildJoined);
-        return new(Environment.ProcessId, run.RunId, null);
+        return new(Environment.ProcessId, run.RunId, run.Nodes[1].ChildInstanceId!.Value, null);
     }
 
-    private static async Task VerifyAfterRestartAsync(ServiceProvider services, RestartCoordinates seed,
+    private static async Task<RecoveryObservation> VerifyAfterRestartAsync(ServiceProvider services, RestartCoordinates seed,
         bool loseAck, CancellationToken token)
     {
         var events = services.GetRequiredService<IWorkflowEventStore>();
@@ -103,7 +117,7 @@ public sealed partial class DagChildRecoveryTests
         var barrier = await DagPumpRunFixture.ReadAsync(events, runId, token);
         barrier.State.Should().Be(DagRunStateV1.CancellationRequested);
         barrier.Nodes[1].State.Should().Be(DagNodeStateV1.CancellationRequested);
-        barrier.Nodes[1].ChildInstanceId.Should().NotBeNull();
+        barrier.Nodes[1].ChildInstanceId!.Value.Should().Be(seed.SiblingChildId);
 
         // Hold the cancellation notices under a separate claim while the recovery pump handles A's join.
         (await outbox.ClaimAsync(Request() with
@@ -126,7 +140,8 @@ public sealed partial class DagChildRecoveryTests
         if (loseAck) notice.OutboxRecordId.Value.Should().Be(seed.OriginalClaimId!.Value);
 
         var history = await events.LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(runId), StreamVersion.Empty, token);
-        var join = history.Where(record => record.Kind == DagRunRecordKindV1.ChildJoined).Should().ContainSingle().Which;
+        var joins = history.Where(record => record.Kind == DagRunRecordKindV1.ChildJoined).ToArray();
+        var join = joins.Should().ContainSingle().Which;
         var change = join.ChangedNodes.Should().ContainSingle().Which;
         var after = await DagPumpRunFixture.ReadAsync(events, runId, token);
         var dispatch = (await outbox.GetDispatchSnapshotAsync(notice.OutboxRecordId, token)).Value;
@@ -143,6 +158,7 @@ public sealed partial class DagChildRecoveryTests
         history.Select(record => record.Kind).Should().NotContain(DagRunRecordKindV1.IntegrityFaulted);
         delivered.Should().Be(1);
         dispatch.State.Should().Be(OutboxRecordState.Dispatched, $"dispatch recorded {dispatch.PoisonCode}: {dispatch.PoisonDetail}");
+        return new(Environment.ProcessId, joins.Length, after.Nodes[1].ChildInstanceId!.Value, notice.DispatchAttempt, dispatch.State);
     }
 
     private static async Task RequestParentCancellationAsync(ServiceProvider services, Guid runId, CancellationToken token) =>
