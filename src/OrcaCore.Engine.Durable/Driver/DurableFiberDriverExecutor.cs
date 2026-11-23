@@ -32,6 +32,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
         var execution = initialization.Execution!;
         var state = initialization.State;
         var ownedObligations = initialization.OwnedObligations;
+        await context.Processor.RecoverCommittedScopeExitsAsync(context.InstanceId, ownedObligations,
+            context.TimeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
         var currentVersion = context.Aggregate.StreamVersion;
         var leaseReconciliation = await ReconcileLeaseTicketsAsync(
             context,

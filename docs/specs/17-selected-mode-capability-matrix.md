@@ -2205,7 +2205,10 @@ public authoring/runtime API. `OrcaCore.Runtime.Protocol` owns the protocol reco
 expected-version atomic append for this single aggregate, and provider certification injects a
 crash/conflict at every boundary, multi-host contention, atomic multi-pool grant, FIFO admission,
 resize debt, quarantine, confirmation, and tombstone retention. A provider that can only append
-per-workflow streams does not satisfy v1 durable leasing.
+per-workflow streams does not satisfy v1 durable leasing. Scoped grant and FIFO promotion use
+the provider-facing `ICheckpointGuardedResourceGovernanceStore` extension. It additionally
+conditions the same governance append on the current versions of the admitted owners'
+workflow checkpoints. Cancellation requests advance the owner checkpoint in their commit.
 `ResourceGovernanceRecord.FromPersisted` copies payload bytes and validates one positive sequence,
 supported protocol format, and checksum. `ResourceGovernanceStream.Create` copies non-null records
 and requires version zero exactly for an empty stream or a complete ordered sequence `1..Version`

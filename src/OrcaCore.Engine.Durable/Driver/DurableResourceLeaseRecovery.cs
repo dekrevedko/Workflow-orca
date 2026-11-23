@@ -202,8 +202,10 @@ internal sealed class DurableResourceLeaseRecovery(
                 var evidence = await processor.GetResourceReleaseEvidenceAsync(
                     token,
                     cancellationToken).ConfigureAwait(false);
-                if (!evidence.HasValue)
+                if (!evidence.HasValue || evidence.Value.ReleasedTickets.Count == 0 ||
+                    candidate.Obligation.LeasePhase is nameof(DurableLeaseObligationPhase.Queued) or nameof(DurableLeaseObligationPhase.PendingCommit))
                 {
+                    // Pre-activation compensation publishes the exact governance receipt on the recovery path.
                     continue;
                 }
 

@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Ids;
 using Npgsql;
 using NpgsqlTypes;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
@@ -9,7 +10,7 @@ namespace OrcaCore.Providers.PostgreSql;
 /// Persists one serialized resource-governance aggregate stream per partition.
 /// </summary>
 internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSource)
-    : IDurableResourceGovernanceStore
+    : ICheckpointGuardedResourceGovernanceStore
 {
     private readonly SemaphoreSlim initializeGate = new(1, 1);
     private int initialized;
@@ -51,11 +52,16 @@ internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSou
     }
 
     /// <inheritdoc />
-    public async ValueTask<ResourceGovernanceAppendResult> AppendAsync(
+    public ValueTask<ResourceGovernanceAppendResult> AppendAsync(
         ResourceGovernancePartitionId partitionId,
         long expectedVersion,
         IReadOnlyList<ResourceGovernanceRecord> records,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        AppendIfCurrentAsync(partitionId, expectedVersion, records, new Dictionary<InstanceId, long>(), cancellationToken);
+
+    public async ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(
+        ResourceGovernancePartitionId partitionId, long expectedVersion, IReadOnlyList<ResourceGovernanceRecord> records,
+        IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(partitionId);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedVersion);
@@ -129,6 +135,15 @@ internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSou
         {
             await transaction.RollbackAsync(cancellationToken).ConfigureAwait(false);
             return new ResourceGovernanceAppendResult.Conflict(actualVersion);
+        }
+
+        foreach (var (instance, version) in checkpoints.OrderBy(pair => pair.Key.Value))
+        {
+            await using var check = new NpgsqlCommand(
+                "select stream_version from orcacore_checkpoints where instance_id = @id for share", connection, transaction);
+            check.Parameters.AddWithValue("id", instance.Value);
+            if (await check.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not long current || current != version)
+                return new ResourceGovernanceAppendResult.Conflict(actualVersion);
         }
 
         foreach (var record in copied)

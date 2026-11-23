@@ -1,6 +1,8 @@
 using System.Security.Cryptography;
 using System.Text.Json;
+using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Ids;
+using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
@@ -16,8 +18,9 @@ namespace OrcaCore.Hosting.ResourceLeases;
 /// </summary>
 internal sealed class SerializedResourceGovernanceAggregate(
     IDurableResourceGovernanceStore store,
-    DurableResourcePoolOptions options) :
-    IResourcePoolStore
+    DurableResourcePoolOptions options,
+    IWorkflowEventStore? workflows = null) :
+    IResourcePoolStore, IScopedReservationCloser
 {
     private const int MaxConflictRetries = 32;
     private const string StateCommitted = "state-committed";
@@ -216,6 +219,10 @@ internal sealed class SerializedResourceGovernanceAggregate(
                     "One or more resource pools do not exist.");
             }
 
+            if (request.ProtectionToken is { } token &&
+                state.ReleaseEvidence.Any(evidence => evidence.ProtectionToken == token.Value))
+                return new ResourcePoolAcquireResult(ResourcePoolAcquireStatus.Rejected, [], null, "Lease occurrence is closed.");
+
             var held = TicketsFor(state, request.HolderInstanceId, request.HolderKey);
             if (Satisfies(held, request.Requirements))
             {
@@ -236,10 +243,15 @@ internal sealed class SerializedResourceGovernanceAggregate(
                     null);
             }
 
+            var admissions = await ReadAdmissionsAsync([(request.HolderInstanceId, request.HolderKey, request.ProtectionToken?.Value)],
+                cancellationToken).ConfigureAwait(false);
+            if (request.ProtectionToken is { } requestedToken && !admissions.Allows(requestedToken.Value))
+                return new ResourcePoolAcquireResult(ResourcePoolAcquireStatus.Rejected, [], null, "Lease occurrence is no longer pending.");
+
             if (state.Waiters.Length == 0 && CanGrant(state, request.Requirements))
             {
                 var (grantedState, tickets) = Grant(state, request, request.RequestedAt);
-                if (await TryAppendAsync(stream.Version, "reservation-granted", grantedState, cancellationToken)
+                if (await TryAppendAsync(stream.Version, "reservation-granted", grantedState, cancellationToken, admissions.Versions)
                         .ConfigureAwait(false))
                 {
                     return new ResourcePoolAcquireResult(
@@ -264,7 +276,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 request.ScopeId?.Value,
                 request.ProtectionToken?.Value);
             var queuedState = state with { Waiters = [.. state.Waiters, waiter] };
-            if (await TryAppendAsync(stream.Version, "reservation-queued", queuedState, cancellationToken)
+            if (await TryAppendAsync(stream.Version, "reservation-queued", queuedState, cancellationToken, admissions.Versions)
                     .ConfigureAwait(false))
             {
                 return new ResourcePoolAcquireResult(
@@ -278,9 +290,14 @@ internal sealed class SerializedResourceGovernanceAggregate(
         throw SerializationFailure("acquisition");
     }
 
-    public async Task<ResourcePoolReleaseResult> ReleaseAsync(
-        ResourcePoolReleaseRequest request,
-        CancellationToken cancellationToken)
+    public Task<ResourcePoolReleaseResult> ReleaseAsync(ResourcePoolReleaseRequest request, CancellationToken cancellationToken) =>
+        ReleaseAsync(request, null, cancellationToken);
+
+    Task IScopedReservationCloser.CloseAsync(ResourcePoolReleaseRequest request, LeaseProtectionToken token,
+        CancellationToken cancellationToken) => ReleaseAsync(request, token.Value, cancellationToken);
+
+    private async Task<ResourcePoolReleaseResult> ReleaseAsync(
+        ResourcePoolReleaseRequest request, string? closingToken, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.HolderKey);
@@ -290,14 +307,39 @@ internal sealed class SerializedResourceGovernanceAggregate(
         {
             var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
             var state = Replay(stream);
+            ReleaseEvidenceDocument? prior = null;
+            if (closingToken is not null)
+            {
+                prior = state.ReleaseEvidence.SingleOrDefault(evidence => evidence.ProtectionToken == closingToken);
+                if (prior is not null)
+                {
+                    if (prior.InstanceId != request.HolderInstanceId.ToString() || prior.HolderKey != request.HolderKey)
+                        throw new InvalidOperationException("Lease closure conflicts with retained occurrence identity.");
+                    // Older writers could admit the same token again after release.
+                    // A committed closure also drains any remaining reservation of that occurrence.
+                    if (FindWaiter(state, request.HolderInstanceId, request.HolderKey) is null &&
+                        TicketsFor(state, request.HolderInstanceId, request.HolderKey).Length == 0)
+                        return new ResourcePoolReleaseResult([], []);
+                }
+
+                var waiter = FindWaiter(state, request.HolderInstanceId, request.HolderKey);
+                if ((waiter is not null && waiter.ProtectionToken != closingToken) ||
+                    TicketsFor(state, request.HolderInstanceId, request.HolderKey).Any(t => t.ProtectionToken != closingToken))
+                    throw new InvalidOperationException("Lease closure conflicts with current reservation identity.");
+            }
+
+            var admissions = await ReadWaiterAdmissionsAsync(state, cancellationToken).ConfigureAwait(false);
             var (working, released, granted) = ReleaseHolder(
                 state,
                 request.HolderInstanceId,
                 request.HolderKey,
                 request.ReleasedAt,
-                confirmationId: null);
+                confirmationId: null, admissions, closingToken);
 
-            var changed = released.Length != 0 ||
+            // Keep an earlier confirmation and its exact receipt if repairing an old duplicate.
+            if (prior is not null) working = working with { ReleaseEvidence = state.ReleaseEvidence };
+
+            var changed = closingToken is not null || released.Length != 0 ||
                 state.Waiters.Length != working.Waiters.Length ||
                 granted.Length != 0;
             if (!changed)
@@ -305,7 +347,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 return new ResourcePoolReleaseResult([], []);
             }
 
-            if (await TryAppendAsync(stream.Version, "holder-released", working, cancellationToken)
+            if (await TryAppendAsync(stream.Version, "holder-released", working, cancellationToken, admissions.ForPromotions(granted))
                     .ConfigureAwait(false))
             {
                 return new ResourcePoolReleaseResult(
@@ -404,12 +446,13 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 return ResourcePoolStopConfirmationStatus.TokenNotFound;
             }
 
-            var (releasedState, released, _) = ReleaseHolder(
+            var admissions = await ReadWaiterAdmissionsAsync(state, cancellationToken).ConfigureAwait(false);
+            var (releasedState, released, granted) = ReleaseHolder(
                 state,
                 request.HolderInstanceId,
                 request.HolderKey,
                 request.ConfirmedAt,
-                request.ConfirmationId.Value);
+                request.ConfirmationId.Value, admissions);
             releasedState = releasedState with
             {
                 ConfirmationBindings =
@@ -425,7 +468,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                         stream.Version,
                         "confirmed-holder-released",
                         releasedState,
-                        cancellationToken)
+                        cancellationToken, admissions.ForPromotions(granted))
                     .ConfigureAwait(false))
             {
                 return ResourcePoolStopConfirmationStatus.Released;
@@ -578,15 +621,60 @@ internal sealed class SerializedResourceGovernanceAggregate(
         }
     }
 
+    private sealed record AdmissionRead(HashSet<string> Tokens, Dictionary<InstanceId, long> Versions, bool CheckOwner)
+    {
+        internal Dictionary<InstanceId, long> ForPromotions(WaiterDocument[] granted) =>
+            granted.Where(w => w.ProtectionToken is not null).Select(w => InstanceId.Parse(w.InstanceId))
+                .Distinct().Where(Versions.ContainsKey).ToDictionary(id => id, id => Versions[id]);
+
+        internal bool Allows(string token) => !CheckOwner || Tokens.Contains(token);
+    }
+
+    private Task<AdmissionRead> ReadWaiterAdmissionsAsync(GovernanceDocument state, CancellationToken cancellationToken) =>
+        ReadAdmissionsAsync(state.Waiters.Where(w => w.ProtectionToken is not null)
+            .Select(w => (InstanceId.Parse(w.InstanceId), w.HolderKey, w.ProtectionToken)), cancellationToken);
+
+    private async Task<AdmissionRead> ReadAdmissionsAsync(IEnumerable<(InstanceId Instance, string Holder, string? Token)> candidates,
+        CancellationToken cancellationToken)
+    {
+        var result = new AdmissionRead([], [], workflows is not null);
+        if (workflows is null) return result;
+        foreach (var group in candidates.Where(c => c.Token is not null).GroupBy(c => c.Instance))
+        {
+            var current = await workflows.LoadCheckpointAsync(group.Key, cancellationToken).ConfigureAwait(false);
+            if (!current.HasValue || current.Value.ContentType != DurableExecutionEnvelopeV2.ContentType ||
+                (DurableScopedReservationRecovery.IsTerminal(current.Value) || current.Value.Status == WorkflowInstanceStatus.CancellationRequested)) continue;
+            var envelope = DurableExecutionEnvelopeV2.Deserialize(current.Value.Payload);
+            foreach (var candidate in group)
+            {
+                if (!envelope.OwnedObligations.Any(o => o.ProtectionToken == candidate.Token && o.HolderKey == candidate.Holder &&
+                        o.Kind == DurableOwnedObligationKind.Resource && o.LeasePhase is ("Queued" or "PendingCommit") &&
+                        envelope.Fibers.Any(f => f.FiberId == o.FiberId &&
+                            f.Phase is not (DurableFiberPhase.Completed or DurableFiberPhase.Failed or DurableFiberPhase.Cancelled)))) continue;
+                result.Tokens.Add(candidate.Token!);
+                result.Versions[group.Key] = current.Value.StreamVersion.Value;
+            }
+        }
+        return result;
+    }
+
     private async ValueTask<bool> TryAppendAsync(
         long expectedVersion,
         string operation,
         GovernanceDocument state,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<InstanceId, long>? checkpoints = null)
     {
         var record = CreateRecord(
             expectedVersion + 1,
             new GovernanceEnvelope(StateCommitted, operation, state));
+        if (checkpoints is { Count: > 0 })
+        {
+            if (store is not ICheckpointGuardedResourceGovernanceStore guarded)
+                throw new NotSupportedException("Scoped resource admission requires checkpoint-guarded governance writes.");
+            return await guarded.AppendIfCurrentAsync(options.PartitionId, expectedVersion, [record], checkpoints,
+                cancellationToken).ConfigureAwait(false) is ResourceGovernanceAppendResult.Committed;
+        }
         var append = await store.AppendAsync(
             options.PartitionId,
             expectedVersion,
@@ -674,7 +762,8 @@ internal sealed class SerializedResourceGovernanceAggregate(
             candidate.ReleaseEvidence.Any(evidence =>
                 string.IsNullOrWhiteSpace(evidence.InstanceId) ||
                 string.IsNullOrWhiteSpace(evidence.HolderKey) ||
-                evidence.ReleasedTickets.Length == 0) ||
+                (evidence.ReleasedTickets.Length == 0 &&
+                 (string.IsNullOrWhiteSpace(evidence.ProtectionToken) || evidence.ConfirmationId is not null))) ||
             candidate.ConfirmationBindings.Any(binding =>
                 string.IsNullOrWhiteSpace(binding.ConfirmationId) ||
                 string.IsNullOrWhiteSpace(binding.ProtectionToken)))
@@ -962,7 +1051,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
         InstanceId holderInstanceId,
         string holderKey,
         DateTimeOffset releasedAt,
-        string? confirmationId)
+        string? confirmationId, AdmissionRead admissions, string? closingToken = null)
     {
         var released = TicketsFor(state, holderInstanceId, holderKey);
         var remainingWaiters = state.Waiters
@@ -975,9 +1064,9 @@ internal sealed class SerializedResourceGovernanceAggregate(
             Tickets = state.Tickets.Except(released).ToArray(),
             Waiters = remainingWaiters.ToArray()
         };
-        if (released.Length != 0)
+        if (released.Length != 0 || closingToken is not null)
         {
-            var token = released.Select(ticket => ticket.ProtectionToken)
+            var token = closingToken ?? released.Select(ticket => ticket.ProtectionToken)
                 .Distinct(StringComparer.Ordinal)
                 .SingleOrDefault();
             working = working with
@@ -1004,6 +1093,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
         var granted = new List<WaiterDocument>();
         foreach (var waiter in remainingWaiters.ToArray())
         {
+            if (waiter.ProtectionToken is { } token && !admissions.Allows(token)) continue;
             var requirements = waiter.Requirements
                 .Select(requirement => new ResourcePoolRequirement(requirement.PoolName, requirement.Units))
                 .ToArray();

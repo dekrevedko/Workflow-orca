@@ -41,6 +41,13 @@ internal sealed partial class InMemoryWorkflowProvider :
     private readonly Dictionary<TimerId, InMemoryTimerSchedule> timers = [];
     private readonly TimeProvider timeProvider;
 
+    internal T WithCurrentCheckpoints<T>(IReadOnlyDictionary<InstanceId, long> expected, Func<T> append, T conflict)
+    {
+        lock (gate)
+            return expected.All(pair => checkpoints.TryGetValue(pair.Key, out var checkpoint) &&
+                checkpoint.StreamVersion.Value == pair.Value) ? append() : conflict;
+    }
+
     /// <summary>
     /// Initializes the in-memory workflow provider.
     /// </summary>

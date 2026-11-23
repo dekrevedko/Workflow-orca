@@ -132,6 +132,11 @@ internal sealed class DurableCommandProcessor
         return requirements.Count > 0;
     }
 
+    internal Task<StreamVersion> SettleStoppedReservationsAsync(CheckpointWrite checkpoint, DateTimeOffset now,
+        CancellationToken cancellationToken) => resourcePoolStore is IScopedReservationCloser
+        ? DurableScopedReservationRecovery.SettleAsync(eventStore, resourcePoolStore, checkpoint, now, cancellationToken)
+        : Task.FromResult(checkpoint.StreamVersion);
+
     internal Task<ResourcePoolReleaseResult> ReleaseConfirmedResourceHolderAsync(
         InstanceId instanceId,
         string holderKey,
@@ -169,6 +174,22 @@ internal sealed class DurableCommandProcessor
         return await RequiredResourcePoolStore()
             .ConfirmAndReleaseAsync(request, cancellationToken)
             .ConfigureAwait(false);
+    }
+
+    internal async Task RecoverCommittedScopeExitsAsync(InstanceId instanceId,
+        IReadOnlyList<DurableOwnedObligationState> obligations, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        if (resourcePoolStore is not IScopedReservationCloser closer) return;
+        var released = obligations.Where(o => o.Kind == DurableOwnedObligationKind.Resource &&
+            o.LeasePhase == nameof(Driver.DurableLeaseObligationPhase.Released) && o.HolderKey is not null &&
+            o.ProtectionToken is not null).ToArray();
+        if (released.Length == 0) return;
+        var pools = await resourcePoolStore.ListPoolsAsync(cancellationToken).ConfigureAwait(false);
+        var held = pools.SelectMany(p => p.HeldTickets).Where(t => t.HolderInstanceId.Equals(instanceId))
+            .Select(t => t.HolderKey).ToHashSet(StringComparer.Ordinal);
+        foreach (var o in released.Where(o => held.Contains(o.HolderKey!)))
+            await DurableScopedReservationRecovery.CloseAsync(closer, instanceId, o.HolderKey!,
+                LeaseProtectionToken.Parse(o.ProtectionToken!), now, cancellationToken).ConfigureAwait(false);
     }
 
     internal Task<IReadOnlyList<ResourcePoolSnapshot>> ListResourcePoolsAsync(
@@ -488,7 +509,7 @@ internal sealed class DurableCommandProcessor
             var disposition = DurableLifecycleDisposition.None;
             var result = await RunInLaneAsync(
                 command.InstanceId,
-                aggregate =>
+                async (aggregate, token) =>
                 {
                     if (aggregate.IsTerminal)
                     {
@@ -503,7 +524,14 @@ internal sealed class DurableCommandProcessor
                     }
 
                     disposition = DurableLifecycleDisposition.CancellationRequested;
-                    return aggregate.DecideCancel(command);
+                    var decision = aggregate.DecideCancel(command);
+                    var current = await eventStore.LoadCheckpointAsync(command.InstanceId, token).ConfigureAwait(false);
+                    if (!current.HasValue || current.Value.ContentType != DurableExecutionEnvelopeV2.ContentType)
+                        return decision;
+                    // A committed cancellation request wins admission before cooperative finalization.
+                    var payload = new DurableCheckpointPayload { ContentType = current.Value.ContentType, Payload = current.Value.Payload };
+                    return new DurableDecision(decision.Events, DurableLifecycleCommandHandler.CreateEnvelopeCheckpoint(
+                        aggregate, command.InstanceId, decision.Events, payload, aggregate.LastStepPath));
                 },
                 cancellationToken).ConfigureAwait(false);
 
@@ -745,23 +773,24 @@ internal sealed class DurableCommandProcessor
                     return obligation;
                 }
 
-                if (string.Equals(
-                        obligation.LeasePhase,
-                        nameof(Driver.DurableLeaseObligationPhase.Queued),
-                        StringComparison.Ordinal))
+                if (obligation.LeasePhase is nameof(Driver.DurableLeaseObligationPhase.Queued)
+                    or nameof(Driver.DurableLeaseObligationPhase.PendingCommit))
                 {
+                    if (obligation.ProtectionToken is not null && resourcePoolStore is IScopedReservationCloser)
+                    {
+                        // Publish the release from the governance receipt, including when no ticket was journalled.
+                        preserveHolderKeys.Add(obligation.HolderKey);
+                        return obligation;
+                    }
                     queuedCancellations.Add(new DurableQueuedResourceCancellation(
                         obligation.HolderKey,
                         new FiberId(obligation.FiberId),
                         obligation.ScopeId is null ? null : new ScopeId(obligation.ScopeId)));
-                    return obligation with
-                    {
-                        LeasePhase = nameof(Driver.DurableLeaseObligationPhase.CancelledBeforeGrant)
-                    };
+                    // Governance decides whether reservation or cancellation won.
+                    return obligation;
                 }
 
                 if (obligation.LeasePhase is
-                    nameof(Driver.DurableLeaseObligationPhase.PendingCommit) or
                     nameof(Driver.DurableLeaseObligationPhase.Held) or
                     nameof(Driver.DurableLeaseObligationPhase.ReviewMarked) or
                     nameof(Driver.DurableLeaseObligationPhase.AmbiguousHeld))
