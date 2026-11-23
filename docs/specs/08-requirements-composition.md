@@ -122,6 +122,14 @@ but retains its physical step-throttle/transient slot until it returns.
 ## 8.3 Typed DAG planning and execution
 
 ### CP-020 Separate package and dependency direction
+
+Current Task 8.6 extension: doc 17 §17.2.6 adds exactly two internal public-handle constructors
+to the existing fifteen runtime-view members (three non-public types, seventeen members, no new
+friend). Typed validation stays in Dag, projection in Dag.Hosting, and run-input losslessness,
+stored binding/integrity verification and opaque values on the durable side. The owner authorized
+one combined uncommitted implementation target for final independent review. Earlier dated
+runtime-view approvals below retain their original scope.
+
 `OrcaCore.Dag` SHALL be a separate project/package whose sole direct OrcaCore dependency is
 `OrcaCore`; its workflow references remain public contracts. The post-gate
 `admit-dag-authoring-friend-boundary` contract approves one authoring-only
@@ -283,3 +291,7 @@ RC-3 approved contract (2026-10-05; source pending): MaxConcurrentNodes remains 
 Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-3-1-4-rc-3-transition-addendum-2026-10-05.md). Mapping may be evaluated once per run/boot host on competing hosts and after the named precommit invalidation; no exactly-once mapper invocation is promised.
 
 <!-- dag-run-contract-proposal:end -->
+
+### CP-021a DAG input representation fidelity
+
+Run inputs and mapped node inputs SHALL pass the shared declared-type byte-stability rule before admission. Reopening a run retains the binding and integrity checks of CP-021. An invalid mapped value SHALL fail its owning mapping before the child is admitted. [AC-328]

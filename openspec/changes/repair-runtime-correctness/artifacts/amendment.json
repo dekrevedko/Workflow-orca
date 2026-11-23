@@ -1,0 +1,91 @@
+{
+  "change": "repair-runtime-correctness",
+  "stage": "Complete",
+  "contractReviewTask": "1.1",
+  "canonicalSyncTask": "1.2",
+  "providerTask": "2.1",
+  "closeoutTask": "2.2",
+  "contracts": [
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Position-only workflow commits have an explicit protocol fact",
+      "operation": "ADDED",
+      "sha256": "5bf02c4ed322cf24b13d65a1bb9840e206c28b0348ef1daeec8402ef4e1b86c7"
+    },
+    {
+      "capability": "durable-runtime",
+      "requirement": "Coherent execution loads bind versioned checkpoint positions",
+      "operation": "ADDED",
+      "sha256": "e448ab8509d317520e36a3c42aa1a8f275e3c511fae23cefb7ff778dda838ff9"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Runtime concurrency and identity invariants have adversarial coverage",
+      "operation": "ADDED",
+      "sha256": "ef95a59216cb1c0ed9aa79bb9ea6c5ccb64b6a00d6e151caa7ca7dbe45674c81"
+    },
+    {
+      "capability": "workflow-contracts",
+      "requirement": "Structural fingerprint fields have unambiguous encoding",
+      "operation": "ADDED",
+      "sha256": "94c197286ed2600a09311074db1090f6b04de326ba82e4a99f5c9f5111d472b6"
+    }
+  ],
+  "numberedAdditions": "openspec/changes/repair-runtime-correctness/artifacts/numbered-additions.json",
+  "numberedAdditionsSha256": "27428c6094149d6f474894c00c89d799b876742c7723da0550bb6b2e9570cd88",
+  "contractApproval": {
+    "checkpointCommit": "2bb31ee317f71bfc60bbbb06780c2bcdcb6a0264",
+    "verdictPath": "openspec/changes/repair-runtime-correctness/artifacts/contract-independent-review.md",
+    "verdictSha256": "6242652f47ee3a4412820d83ea58ae8164ef3e6e52316e9f8e1eee7837757e01",
+    "manifestPath": "openspec/changes/repair-runtime-correctness/artifacts/contract-reviewed-manifest.json",
+    "manifestSha256": "590babd066ce1949f257062173c70e429c332171e3e76ea2e12a8da14f959da9"
+  },
+  "synchronization": {
+    "dagPredecessorCommit": "a822b215fe1dc1d0fea4f498ab0ea0a29d44203d",
+    "documents": [
+      {
+        "path": "docs/specs/04-requirements-core-runtime.md",
+        "beforeSha256": "ad76459771d1101cda0adcd1ce17828cbec269d83a03d9457067f2d86d716744",
+        "afterSha256": "22493af147d83051294af947a89b90a17f776faef1c1861e57101df55a910671"
+      },
+      {
+        "path": "docs/specs/06-requirements-durable-execution.md",
+        "beforeSha256": "c726bcc03d1e5ae8f7afc34b4a54ed50ef63da54f9c50f486779292197f00a08",
+        "afterSha256": "c17dd46db77ee4b59047895f308c4771bc6e35fd17372d4be71916a0d9033644"
+      },
+      {
+        "path": "docs/specs/10-provider-model-and-extensibility.md",
+        "beforeSha256": "3fb89caac6345f6acc9c9f48be738b13aa29b9923fa8ae7bc63618026ef89dde",
+        "afterSha256": "a6bb0847f2f481760cd4be19ecf59c826b196852b4957f2843734e074b13070a"
+      },
+      {
+        "path": "docs/specs/12-acceptance-criteria.md",
+        "beforeSha256": "46e576a1102919383c2647323275e4534da45334c9408011add9d8674cb834aa",
+        "afterSha256": "8c54677a7fb59325fb0a29cafeb374aa0379017172f261e126467bd3328e17a4"
+      },
+      {
+        "path": "docs/specs/16-requirements-durable-driver.md",
+        "beforeSha256": "2f7e9845b13d25c5e9cb11898d669c911368a08d4c87c9f2843a4ff56e258ffe",
+        "afterSha256": "3d1fc347706569d394dedcc0d25ee270280864ada64cbee54c22ff581bdb1c9d"
+      },
+      {
+        "path": "docs/specs/17-selected-mode-capability-matrix.md",
+        "beforeSha256": "c33fb5e245fb25fab5eb55c336c4703f9850ad94b7b4237cc752e586a68eeade",
+        "afterSha256": "eeb0f5ce3e173b7bb1d7f8cb247b6cd300a664ef7b74537dcdd5f3a1ae05042a"
+      }
+    ]
+  },
+  "providerQualification": {
+    "path": "openspec/changes/repair-runtime-correctness/artifacts/phase-a-qualification-2026-11-17.md",
+    "sha256": "c99456711773d32c71d3e8e387547e0235dd43546206739cf747055a0a152d6a",
+    "sourceCheckpoint": "edf464f1c83d76d70121252bff81f51a9dae9708",
+    "sourceTree": "b56068a8cd3bdb1306b3c118bb42bb2978e7390d"
+  },
+  "integrationApproval": {
+    "checkpointCommit": "edf464f1c83d76d70121252bff81f51a9dae9708",
+    "verdictPath": "openspec/changes/repair-runtime-correctness/artifacts/integrated-independent-review.md",
+    "verdictSha256": "fd65fd4af14a1e1630a4ec9b61a5d6f8c3d21921d5c3f3e7a71bdbb572eb3b3a",
+    "manifestPath": "openspec/changes/repair-runtime-correctness/artifacts/integrated-reviewed-manifest.json",
+    "manifestSha256": "b882b0c1ca8ba9b41a174702bc1a7714c4028b0c33f32574c6f6fb343feca42e"
+  }
+}

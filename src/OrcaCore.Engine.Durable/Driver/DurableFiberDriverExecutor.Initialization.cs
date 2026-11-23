@@ -63,20 +63,22 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             {
                 WorkflowDeadline = workflowDeadline
             };
-            TState initialState = default!;
             if (workflowDeadline is not null &&
                 plan.Instructions[0] is { Kind: CompiledInstructionKind.Init } init)
             {
-                (initialExecution, initialState) = ExecuteInitInstruction(
+                return await ExecuteInitInstructionAsync(
                     context,
                     initialExecution,
                     initialExecution.Fibers[initialExecution.RootFiberId],
-                    init);
+                    init,
+                    ownedObligations,
+                    context.Aggregate.StreamVersion,
+                    cancellationToken).ConfigureAwait(false);
             }
 
             return new InitializationResult(
                 initialExecution,
-                initialState,
+                default!,
                 ownedObligations,
                 null);
         }

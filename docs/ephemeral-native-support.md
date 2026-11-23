@@ -182,15 +182,20 @@ valid retry before workflow use; construction failures preserve their cause.
 The registry does not capture or dispose a provider/scope, and host stop cannot
 reset it. There is no public reset; a corrected sealed configuration needs restart.
 
-`orcacore-json-v1` options, common-shape bytes/fingerprints, product converters,
-limits, detachment and existing rejection rules stay fixed. The finite generated
-closure adds the explicitly approved .NET 10 omission restriction: reject a
-reachable JSON member when `AssociatedParameter.IsMemberInitializer` is true
-and its `JsonIgnore.Condition` is present and not `Never`. For example, an init-only
-Count initialized to 42 with WhenWritingDefault is rejected for both submitted
-zero and seven. Use an ordinary setter, a genuine JSON-constructor-bound member,
-or remove that omission policy. Ordinary positional records without omission,
-mutable/constructor-bound controls and unconfigured legacy JIT remain supported.
+The preview.3 qualification above covers the published package and its original
+omission controls. Generated mode excludes a reachable JSON member when
+`AssociatedParameter.IsMemberInitializer` is true and its `JsonIgnore.Condition`
+is present and differs from `Never`. An init-only `Count` initialized to 42
+with `WhenWritingDefault` fails declared-shape admission for both zero and seven.
+
+In the Phase B source, both metadata modes also check each submitted value that
+passes shape admission. Changing `Count` to an ordinary setter allows a submitted
+seven to round-trip. A submitted zero encodes as `{}`, reconstructs with 42 and
+fails the byte check in both modes. Use a constructor that restores the serialized
+value or remove the omission policy when zero must be retained. Immutable
+constructor-bound and ordinary writable models remain supported for values that
+reproduce their fixed-codec bytes. The preview.3 native reports cover the earlier
+behavior. Qualification of Phase B uses its own source and package identities.
 An unused excluded type in an otherwise valid context does not reject registration.
 
 - `SFE-TYPE-002`: unsupported declared shape, including that Generated-mode rule.

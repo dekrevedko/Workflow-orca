@@ -26,7 +26,7 @@ public sealed class DagRuntimeViewBoundaryGuards
         "OrcaCore.Dag.DagRuntimeNodeDescriptor",
         "OrcaCore.Dag.DagRuntimeView`1"
     ];
-    private static readonly string[] AllowedMembers =
+    private static readonly string[] RuntimeViewMembers =
     [
         "OrcaCore.Dag.WorkflowDagPlan`1::GetRuntimeView():[OrcaCore.Dag]OrcaCore.Dag.DagRuntimeView`1<!0>",
         "OrcaCore.Dag.DagRuntimeView`1::get_Nodes():[System.Runtime]System.Collections.Generic.IReadOnlyList`1<[OrcaCore.Dag]OrcaCore.Dag.DagRuntimeNodeDescriptor>",
@@ -43,6 +43,13 @@ public sealed class DagRuntimeViewBoundaryGuards
         "OrcaCore.Dag.DagMappedInputResult::get_Input():Object",
         "OrcaCore.Dag.DagMappedInputResult::get_InputType():[System.Runtime]System.Type",
         "OrcaCore.Dag.DagMappedInputResult::get_FailureCode():String"
+    ];
+
+    private static readonly string[] AllowedMembers =
+    [
+        .. RuntimeViewMembers,
+        "OrcaCore.Dag.DagDefinitionHandle`1::.ctor([OrcaCore]OrcaCore.DefinitionId,[OrcaCore]OrcaCore.DefinitionVersion,[OrcaCore]OrcaCore.DefinitionFingerprint,[System.Runtime]System.Func`4<!0,[OrcaCore]OrcaCore.StartIdempotencyKey,[System.Runtime]System.Threading.CancellationToken,[System.Runtime]System.Threading.Tasks.ValueTask`1<[OrcaCore.Dag]OrcaCore.Dag.DagStartResult>>,[System.Runtime]System.Func`3<[OrcaCore.Dag]OrcaCore.Dag.DagRunId,[System.Runtime]System.Threading.CancellationToken,[System.Runtime]System.Threading.Tasks.ValueTask`1<[System.Runtime]System.ValueTuple`5<[OrcaCore.Dag]OrcaCore.Dag.DagRunHandle,[OrcaCore]OrcaCore.DefinitionId,[OrcaCore]OrcaCore.DefinitionVersion,[OrcaCore]OrcaCore.DefinitionFingerprint,Boolean>>>):Void",
+        "OrcaCore.Dag.DagRunHandle::.ctor([OrcaCore.Dag]OrcaCore.Dag.DagRunId,[System.Runtime]System.Collections.Generic.IReadOnlyList`1<[OrcaCore.Dag]OrcaCore.Dag.DagNodeRef>,[System.Runtime]System.Func`2<[System.Runtime]System.Threading.CancellationToken,[System.Runtime]System.Threading.Tasks.ValueTask`1<[OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot>>,[System.Runtime]System.Func`3<[OrcaCore.Dag]OrcaCore.Dag.DagNodeRef,[System.Runtime]System.Threading.CancellationToken,[System.Runtime]System.Threading.Tasks.ValueTask`1<[System.Runtime]System.ValueTuple`4<[OrcaCore.Dag]OrcaCore.Dag.DagNodeStatus,Boolean,Object,[OrcaCore]OrcaCore.WorkflowFailure>>>,[System.Runtime]System.Func`2<[System.Runtime]System.Threading.CancellationToken,[System.Runtime]System.Threading.Tasks.ValueTask`1<[OrcaCore.Dag]OrcaCore.Dag.DagRunSnapshot>>,[System.Runtime]System.Func`2<[System.Runtime]System.Threading.CancellationToken,[System.Runtime]System.Threading.Tasks.ValueTask`1<[System.Runtime]System.Nullable`1<[OrcaCore.Dag]OrcaCore.Dag.DagCancellationRequestStatus>>>):Void"
     ];
 
     [Fact]
@@ -66,17 +73,17 @@ public sealed class DagRuntimeViewBoundaryGuards
         forbidden.Should().BeEmpty("Dag.Hosting must never bypass the Durable.Hosting bridge through a provider port");
         var actual = references.Types.Select(type => "type " + type)
             .Concat(references.Members.Select(member => "member " + member)).ToArray();
-        var candidate = Path.Combine(root, "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-2-3-bridge-references.txt");
+        var candidate = Path.Combine(root, "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/dag-task-8-6-bridge-references.txt");
         File.Exists(candidate).Should().BeTrue("the complete compiled inventory is:\n{0}", string.Join('\n', actual));
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
             File.ReadAllText(candidate).Replace("\r\n", "\n", StringComparison.Ordinal)))).Should()
-            .Be("bd7d2d52f25a3c09660c1eb45567ce8ef5e33b74bedce20906c4ad5e81b2ad4d");
+            .Be("39e156fa651c647087f5b19cbda362b840a2f33eab12849325b5e2cc15a3a64a");
         actual.Should().Equal(File.ReadAllLines(candidate),
             "each compiled type, overload and getter must be explicitly reviewable");
     }
 
     [Fact]
-    public void Hosting_ConsumesExactlyTheThreeTypesAndFifteenReviewedSignatures()
+    public void Hosting_ConsumesExactlyTheThreeTypesAndSeventeenReviewedSignatures()
     {
         var validation = File.ReadAllText(Path.Combine(FixtureDefinitions.RepositoryRoot(),
             "openspec", "changes", "admit-dag-hosting-runtime-view", "artifacts",
@@ -112,7 +119,7 @@ public sealed class DagRuntimeViewBoundaryGuards
             var references = Inspect(dll, typeof(OrcaCore.Dag.Dag).Assembly.Location);
             references.Types.Should().Equal(AllowedTypes.Order(StringComparer.Ordinal),
                 "the linked behavior harness must obey the shipped adapter's exact type boundary");
-            references.Members.Should().Equal(AllowedMembers.Order(StringComparer.Ordinal),
+            references.Members.Should().Equal(RuntimeViewMembers.Order(StringComparer.Ordinal),
                 "the harness must not gain extra access merely by using the Hosting assembly name");
             AssertNoReflection(references.Reflection);
             var result = Run("dotnet", directory, dll);

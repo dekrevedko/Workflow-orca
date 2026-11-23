@@ -29,7 +29,9 @@ create table if not exists orcacore_checkpoints (
     error_summary text null,
     outcome_name text null,
     continue_as_new_generation integer not null default 0,
-    runtime_state jsonb null
+    runtime_state jsonb null,
+    parent_instance_id uuid null,
+    root_instance_id uuid null
 );
 
 create sequence if not exists orcacore_inbox_delivery_sequence;

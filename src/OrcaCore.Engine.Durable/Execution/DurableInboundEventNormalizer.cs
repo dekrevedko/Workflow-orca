@@ -1,7 +1,6 @@
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Durable;
 using OrcaCore.Abstractions.Providers;
-using OrcaCore.Core.Internal;
 
 namespace OrcaCore.Engine.Durable.Execution;
 
@@ -12,15 +11,10 @@ internal static class DurableInboundEventNormalizer
     internal static NormalizedDurableInboundEvent Normalize(WorkflowInboundEvent inboundEvent)
     {
         ArgumentNullException.ThrowIfNull(inboundEvent);
-        return Create(inboundEvent, payloadContentType: null, payload: null);
-    }
-
-    internal static NormalizedDurableInboundEvent Normalize<TPayload>(
-        WorkflowInboundEvent<TPayload> inboundEvent)
-    {
-        ArgumentNullException.ThrowIfNull(inboundEvent);
-        var payload = CoreWorkflowValueCodec.Serialize(inboundEvent.Payload, typeof(TPayload));
-        return Create(inboundEvent, JsonWorkflowPayloadSerializer.JsonContentType, payload);
+        var bytes = inboundEvent.PayloadBytes;
+        return bytes.IsEmpty
+            ? Create(inboundEvent, payloadContentType: null, payload: null)
+            : Create(inboundEvent, JsonWorkflowPayloadSerializer.JsonContentType, bytes.ToArray());
     }
 
     private static NormalizedDurableInboundEvent Create(
@@ -36,7 +30,7 @@ internal static class DurableInboundEventNormalizer
             CorrelationId = inboundEvent.CorrelationId,
             CausationEventId = inboundEvent.CausationEventId,
             OccurredAt = inboundEvent.OccurredAt.ToUniversalTime(),
-            Route = NormalizeRoute(inboundEvent.Route),
+            Route = NormalizeRoute(inboundEvent),
             PayloadContentType = payloadContentType,
             Payload = payload
         };
@@ -45,9 +39,9 @@ internal static class DurableInboundEventNormalizer
             DurableEventEnvelopeFingerprint.Create(envelope));
     }
 
-    private static DurableEventRouteEnvelope NormalizeRoute(WorkflowEventRoute route)
+    private static DurableEventRouteEnvelope NormalizeRoute(WorkflowInboundEvent inboundEvent)
     {
-        return route switch
+        return inboundEvent.Route switch
         {
             WorkflowEventRoute.Direct direct => new DurableEventRouteEnvelope
             {
@@ -64,11 +58,11 @@ internal static class DurableInboundEventNormalizer
                 Kind = InboxRouteKinds.DefinitionFanout,
                 DefinitionId = fanout.DefinitionId
             },
-            _ => NormalizeStartOrDeliver(route)
+            _ => NormalizeStartOrDeliver(inboundEvent.Route, inboundEvent.StartInputBytes)
         };
     }
 
-    private static DurableEventRouteEnvelope NormalizeStartOrDeliver(WorkflowEventRoute route)
+    private static DurableEventRouteEnvelope NormalizeStartOrDeliver(WorkflowEventRoute route, ReadOnlyMemory<byte> inputBytes)
     {
         var routeType = route.GetType();
         if (!routeType.IsGenericType ||
@@ -81,17 +75,17 @@ internal static class DurableInboundEventNormalizer
         var adapter = StartOrDeliverAdapters.GetOrAdd(inputType, static type =>
             (IStartOrDeliverRouteAdapter)Activator.CreateInstance(
                 typeof(StartOrDeliverRouteAdapter<>).MakeGenericType(type))!);
-        return adapter.Normalize(route);
+        return adapter.Normalize(route, inputBytes);
     }
 
     private interface IStartOrDeliverRouteAdapter
     {
-        DurableEventRouteEnvelope Normalize(WorkflowEventRoute route);
+        DurableEventRouteEnvelope Normalize(WorkflowEventRoute route, ReadOnlyMemory<byte> inputBytes);
     }
 
     private sealed class StartOrDeliverRouteAdapter<TInput> : IStartOrDeliverRouteAdapter
     {
-        public DurableEventRouteEnvelope Normalize(WorkflowEventRoute route)
+        public DurableEventRouteEnvelope Normalize(WorkflowEventRoute route, ReadOnlyMemory<byte> inputBytes)
         {
             var startOrDeliver = (WorkflowEventRoute.StartOrDeliver<TInput>)route;
             return new DurableEventRouteEnvelope
@@ -101,9 +95,7 @@ internal static class DurableInboundEventNormalizer
                 DefinitionVersion = startOrDeliver.DefinitionVersion,
                 StartIdempotencyKey = startOrDeliver.StartIdempotencyKey.Value,
                 WorkflowInputContentType = JsonWorkflowPayloadSerializer.JsonContentType,
-                WorkflowInputPayload = CoreWorkflowValueCodec.Serialize(
-                    startOrDeliver.WorkflowInput,
-                    typeof(TInput))
+                WorkflowInputPayload = inputBytes.ToArray()
             };
         }
     }

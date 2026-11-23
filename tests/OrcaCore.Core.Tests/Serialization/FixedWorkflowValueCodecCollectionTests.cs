@@ -1,5 +1,6 @@
 using System.Text;
 using AwesomeAssertions;
+using OrcaCore.Core.Execution;
 using OrcaCore.Core.Internal;
 using Xunit;
 
@@ -64,5 +65,98 @@ public sealed class FixedWorkflowValueCodecCollectionTests
 
     private sealed class CustomStringList : List<string>
     {
+    }
+
+    [Fact]
+    [Trait("AC", "AC-328")]
+    public void FixedCodec_RejectsLossyValuesUnderTheirDeclaredType()
+    {
+        var value = PrivateSetter.Create(17);
+        Action member = () => CoreWorkflowValueCodec.Serialize(value, typeof(PrivateSetter));
+        Action nested = () => CoreWorkflowValueCodec.Serialize(new[] { value }, typeof(PrivateSetter[]));
+        Action constructor = () => CoreWorkflowValueCodec.Serialize(new OffByOne(17), typeof(OffByOne));
+        Action unstable = () => CoreWorkflowValueCodec.Serialize(new ChangingGetter(), typeof(ChangingGetter));
+        Action rejectedConstructor = () => CoreWorkflowValueCodec.Serialize(CancellingConstructor.Create(), typeof(CancellingConstructor));
+        member.Should().Throw<NotSupportedException>().WithMessage("*PrivateSetter*round-trip*");
+        nested.Should().Throw<NotSupportedException>();
+        constructor.Should().Throw<NotSupportedException>();
+        unstable.Should().Throw<NotSupportedException>();
+        rejectedConstructor.Should().Throw<NotSupportedException>().WithInnerException<OperationCanceledException>();
+        var stored = """{"Value":17}"""u8.ToArray();
+        Action reopen = () => CoreWorkflowValueCodec.Deserialize(stored, typeof(PrivateSetter));
+        reopen.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    [Trait("AC", "AC-328")]
+    public void FixedCodec_DetachesTheCapturedValueAndPreservesConstructorAndComputedMembers()
+    {
+        var original = new Dictionary<string, Immutable> { ["β"] = new(17) };
+        var bytes = CoreWorkflowValueCodec.Serialize(original, original.GetType(), out var detached);
+        original.Clear();
+        var copy = Assert.IsType<Dictionary<string, Immutable>>(detached);
+        copy["β"].Twice.Should().Be(34);
+        CoreWorkflowValueCodec.Serialize(copy, original.GetType()).Should().Equal(bytes);
+        CoreWorkflowValueCodec.Serialize(null, typeof(int?), out detached).Should().Equal("null"u8.ToArray());
+        detached.Should().BeNull();
+        Action nullInteger = () => CoreWorkflowValueCodec.Serialize(null, typeof(int));
+        nullInteger.Should().Throw<NotSupportedException>();
+    }
+
+    private sealed class PrivateSetter
+    {
+        public int Value { get; private set; }
+        public static PrivateSetter Create(int value) => new() { Value = value };
+    }
+
+    [Fact]
+    public void ForEach_RejectsOversizeBeforeConstructingTheDetachedItems()
+    {
+        var value = SizeProbe.Create(new string('x', CoreWorkflowValueCodec.MaxEncodedValueBytes));
+        Action capture = () => ForEachSnapshotMaterializer.Materialize(new[] { value }, typeof(SizeProbe));
+        capture.Should().Throw<StructuredExecutionLimitException>().WithMessage("*exceeding*");
+    }
+
+    [Fact]
+    public void BranchResultsEnforceTheConfiguredByteLimitBeforeConstructingADetachedResult()
+    {
+        const int maximumBytes = 32;
+        var value = SizeProbe.Create(new string('x', maximumBytes));
+        Action capture = () => BranchResultMaterializer.Serialize(value, typeof(SizeProbe), maximumBytes);
+        capture.Should().Throw<StructuredExecutionLimitException>()
+            .Which.Code.Should().Be(StructuredExecutionLimitCodes.SerializedResultExceeded);
+        BranchResultMaterializer.Serialize("ab", typeof(string), 4).Should().Equal("\"ab\""u8.ToArray());
+    }
+
+    private sealed class SizeProbe
+    {
+        private SizeProbe() { }
+        public SizeProbe(string value) => throw new InvalidOperationException("Oversize input must not reach the decoder.");
+        public string Value { get; private set; } = string.Empty;
+        public static SizeProbe Create(string value) => new() { Value = value };
+    }
+
+    private sealed class OffByOne(int value)
+    {
+        public int Value { get; } = value + 1;
+    }
+
+    private sealed class ChangingGetter
+    {
+        private static int reads;
+        public int Value => Interlocked.Increment(ref reads);
+    }
+
+    private sealed class CancellingConstructor
+    {
+        private CancellingConstructor() { }
+        public CancellingConstructor(int value) => throw new OperationCanceledException();
+        public int Value => 17;
+        public static CancellingConstructor Create() => new();
+    }
+
+    private sealed record Immutable(int Value)
+    {
+        public int Twice => 2 * Value;
     }
 }

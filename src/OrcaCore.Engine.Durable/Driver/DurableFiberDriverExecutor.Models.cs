@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Compilation;
 using OrcaCore.Core.Execution;
 using OrcaCore.Core.Internal;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Engine.Durable.Driver;
 
@@ -31,7 +32,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         StructuredExecutionState Execution,
         FiberRecord Fiber,
         StepResult Result,
-        TState State);
+        TState State,
+        SerializedPayload? CompletionState = null);
 
     private sealed record BranchTerminalTransition(
         StructuredExecutionState State,

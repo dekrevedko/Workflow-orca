@@ -392,8 +392,7 @@ On .NET 10, an omittable synthetic member initializer is a generated JSON member
 with AssociatedParameter.IsMemberInitializer=true and an actual JsonIgnore
 condition other than Never. Its requested declared closure is unsupported in
 Generated mode, for present and omitted values alike. SFE-TYPE-002 reports this
-admission policy; SFE-TYPE-003 reports missing generated metadata. Legacy
-Reflection behavior and common-admitted-shape bytes/values remain unchanged.
+admission policy; SFE-TYPE-003 reports missing generated metadata. Reflection mode checks the value for byte-stable reconstruction. The bytes and detached values of faithful submissions remain unchanged.
 Root/nested/member names and a remedy accompany the error. [NF-034, AC-563–574]
 
 The 2026-10-25 catalogue amendment makes the existing sealed product strong-string converter factory accessible to ordinary external generated DTOs. Product type attribution is distinct from prohibited application converter settings; it does not add a codec hook or metadata/DI ownership.
@@ -420,3 +419,5 @@ The 2026-10-25 catalogue amendment makes the existing sealed product strong-stri
   does not wait for unrelated query pins or retirement-cleanup diagnostics. A
   terminal status, output wait, cancelled observer or failed unaccepted start does
   not substitute for physical proof. MG-070/071 and CR-014/016 govern this amendment.
+
+**Workflow value representation.** A boundary captures the fixed-codec bytes for the declared type. A faithful detached value re-encodes to exactly those bytes, including ordered collections. Application equality and unencoded CLR members do not define this representation.

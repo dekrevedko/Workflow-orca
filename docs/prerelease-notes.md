@@ -1,3 +1,40 @@
+## Unreleased — shared workflow value codec
+
+Durable inputs, ephemeral detached state and DAG inputs now use the same
+`orcacore-json-v1` check. Reconstructing a value with its declared type must
+produce the same JSON bytes when encoded again. For example, if a private setter
+causes `{"Value":17}` to decode as zero, the codec rejects a new submission
+before binding its start key. A writable member or a matching constructor can
+preserve 17.
+
+**Durable initialization.** After a durable start binds its key, an `Init`
+callback that throws or returns state the codec cannot round-trip now leaves
+the instance `Failed`. Retrying with the same key and input returns that instance
+with its recorded failure, including from another host. If the workflow deadline
+expires before initialization finishes, the instance becomes `TimedOut`.
+
+Both outcomes can occur before the first state checkpoint. In that case,
+`GetStateAsync<TState>()` with the declared state type throws
+`InvalidOperationException` because there is no readable committed state
+checkpoint. Earlier builds could run `Init` after the deadline and store its
+result, including a default value, in the timeout checkpoint. Use
+`GetSnapshotAsync()` to read the terminal status and diagnostic.
+
+**Existing durable stores.** A typed state or output query can fail when stored
+bytes cannot round-trip. The query leaves the stored record intact. A running
+workflow whose continuation repeatedly fails to load an incompatible value can
+park with a poison diagnostic. Re-arming retries the same bytes. A well-formed
+DAG run input that its installed definition cannot reconstruct makes the run
+unavailable on that host.
+
+If an earlier write already stored zero or omitted the business value, even a
+successful read cannot recover the original 17. Recovery needs the original
+input or another authoritative copy. For greenfield development, use a fresh
+store with matched binaries and recreate affected runs from that source. This
+change provides no automatic migration for older instances.
+
+## Published 0.1.0-preview.3
+
 OrcaCore `0.1.0-preview.3` for .NET 10. This prerelease adds bounded Native AOT
 and trimming support for the ephemeral engine from
 [issue #13](https://github.com/dekrevedko/Workflow-orca/issues/13) and

@@ -1,6 +1,7 @@
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Core.Building;
 using OrcaCore.Core.Definitions;
+using System.Text;
 
 namespace OrcaCore.Core.Compilation;
 
@@ -24,13 +25,15 @@ internal static partial class DefinitionCompiler
         }
 
         var lowered = LowerPlan(authoring.RootNodes, authoring.Mode, schemaIdentities);
-        var canonical = $"deadline:{authoring.WorkflowTimeout?.Ticks}|{DescribeSequence(authoring.RootNodes)}|" +
-            string.Join(',', schemaIdentities.OrderBy(pair => pair.Key.AssemblyQualifiedName).Select(pair => pair.Value));
+        var canonical = new StringBuilder("deadline:").AppendField(authoring.WorkflowTimeout?.Ticks)
+            .Append('|').Append(DescribeSequence(authoring.RootNodes)).Append('|');
+        foreach (var schema in schemaIdentities.OrderBy(pair => pair.Key.AssemblyQualifiedName, StringComparer.Ordinal))
+            canonical.AppendField(schema.Value);
         var plan = new CompiledWorkflowPlan(
             authoring.Mode,
             authoring.DefinitionId,
             authoring.DefinitionVersion,
-            canonical,
+            canonical.ToString(),
             lowered.Instructions,
             lowered.Scopes,
             lowered.AllowedInstructions,

@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Core.Execution;
+using OrcaCore.Core.Internal;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Engine.Ephemeral.Diagnostics;
 using OrcaCore.Engine.Ephemeral.Execution;
@@ -285,10 +286,13 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 "Start through an exact definition handle.");
         }
 
-        var snapshot = await StartCoreAsync<TInput, TState>(
+        cancellationToken.ThrowIfCancellationRequested();
+        using var ownership = HostLifetime.AdmitStart();
+        var detached = (TInput)CoreWorkflowValueCodec.Detach(input, typeof(TInput))!;
+        var snapshot = await StartDetachedCoreAsync<TInput, TState>(
             definitionId,
             matches[0],
-            input,
+            detached,
             cancellationToken).ConfigureAwait(false);
         if (!TryAcceptStart(snapshot.InstanceId, cancellationToken))
         {
@@ -302,7 +306,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     /// <summary>
     /// Starts an exact registered workflow version for a catalog-resolved definition handle.
     /// </summary>
-    internal async Task<EphemeralWorkflowInstanceSnapshot> StartCoreAsync<TInput, TState>(
+    internal async Task<EphemeralWorkflowInstanceSnapshot> StartDetachedCoreAsync<TInput, TState>(
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
         TInput input,

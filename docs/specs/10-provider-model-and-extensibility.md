@@ -38,6 +38,14 @@ SHALL expose no advanced type in public signatures. Engine/runtime implementatio
 reference both advanced packages; provider Adapters SHALL reference no engine implementation.
 
 ### PR-005 DAG and external integration boundary
+
+Current Task 8.6 extension: doc 17 §17.2.6 adds exactly two internal public-handle constructors
+to the existing fifteen runtime-view members (three non-public types, seventeen members, no new
+friend). Typed validation stays in Dag, projection in Dag.Hosting, and run-input losslessness,
+stored binding/integrity verification and opaque values on the durable side. The owner authorized
+one combined uncommitted implementation target for final independent review. Earlier dated
+runtime-view approvals below retain their original scope.
+
 `OrcaCore.Dag` SHALL be a separate package whose sole direct OrcaCore dependency is `OrcaCore`;
 its workflow references remain public contracts. The post-gate
 `admit-dag-authoring-friend-boundary` contract approves one authoring-only
@@ -324,9 +332,10 @@ JsonIgnore condition exists and is not Never. Reject before effects for omitted
 and present values; use SFE-TYPE-002, not the missing-metadata SFE-TYPE-003.
 No model construction/getter/sample deserialization may classify it. Unused
 excluded context roots do not invalidate registration. Positional records with
-no omission policy and genuine constructor-bound/mutable controls stay admitted.
-Only the common admitted shapes share rejection/byte/value parity. Unconfigured
-legacy JIT acceptance is unchanged; the context never enters a fingerprint.
+no omission policy and genuine constructor-bound/mutable controls remain eligible.
+Both modes check each submitted representation for byte-stable reconstruction. A
+conditionally omitted value that reconstructs with different bytes is rejected,
+including under legacy JIT. The context never enters a fingerprint.
 The selected three-package closure gains no durable/DAG/provider support claim.
 [NF-034, AC-563–574]
 
@@ -346,3 +355,8 @@ fiber/checkpoint/outbox/projection/provider stored failure bytes must match base
 can use the exact legacy/v2 reader without changing durable error production.
 The normative companion changes in task 2.1; executable assembly/compile/package
 baselines change only with task 3 source. Contract text is not an installed API.
+
+## Runtime correctness provider qualification
+
+### PR-024a Position-fact and checkpoint-lineage certification
+Every retained durable provider SHALL certify the additive workflow position event, atomic expected-version fencing of position-only yield and fiber-failure commits, and checkpoint parent/root lineage on insert, replacement and clearing. Tests SHALL use two independently constructed stores/runtimes against the same database/schema for checkpoint/tail and post-tail publication races. Full provider suites supplement these cases; a single store object or in-memory success alone is insufficient evidence. PostgreSQL qualification includes the reviewed lineage columns/read/upsert change. SQL Server correctness does not qualify its whole-document/history scaling or change the separately selected support scope. Fresh-store tests do not certify migration of an already-journaled initial schema.

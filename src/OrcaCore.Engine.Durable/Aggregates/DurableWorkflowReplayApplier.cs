@@ -23,11 +23,16 @@ internal static class DurableWorkflowReplayApplier
         ArgumentNullException.ThrowIfNull(aggregate);
         ArgumentNullException.ThrowIfNull(workflowEvent);
 
+        var cancellationRequested = aggregate.Status == WorkflowStatus.CancellationRequested;
         BeginReplay(aggregate, workflowEvent);
         foreach (var handler in ReplayHandlers)
         {
             if (handler(aggregate, workflowEvent))
             {
+                // Wakes and ownership/park metadata still update their projections during
+                // cancellation, but cannot restore runnable status before finalization.
+                if (cancellationRequested && aggregate.Status is WorkflowStatus.Running or WorkflowStatus.Waiting)
+                    aggregate.Status = WorkflowStatus.CancellationRequested;
                 return;
             }
         }
@@ -65,6 +70,8 @@ internal static class DurableWorkflowReplayApplier
     {
         switch (workflowEvent)
         {
+            case WorkflowExecutionPositionChangedEvent:
+                return true; // BeginReplay advances the concurrency version; the checkpoint owns the cursor.
             case WorkflowStartedEvent started:
                 aggregate.ParentInstanceId = started.ParentInstanceId;
                 aggregate.RootInstanceId = started.RootInstanceId ?? started.InstanceId;

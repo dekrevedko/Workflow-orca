@@ -58,8 +58,6 @@ public sealed class EventEnvelope
             throw new InvalidOperationException("The resumed event does not contain a payload.");
         }
 
-        return (TPayload?)FixedWorkflowValueCodec.Deserialize(payload, typeof(TPayload)) ??
-            throw new InvalidOperationException(
-                $"The resumed event payload materialized as null for '{typeof(TPayload).FullName}'.");
+        return (TPayload)FixedWorkflowValueCodec.Deserialize(payload, typeof(TPayload))!;
     }
 }

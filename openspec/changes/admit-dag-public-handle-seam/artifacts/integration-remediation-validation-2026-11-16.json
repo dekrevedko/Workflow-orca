@@ -1,0 +1,189 @@
+{
+  "date": "2026-11-16",
+  "configuration": "Release",
+  "builds": {
+    "Debug": "0 warnings / 0 errors",
+    "Release": "0 warnings / 0 errors"
+  },
+  "lanes": [
+    {
+      "lane": "hosting",
+      "results": {
+        "total": 79,
+        "passed": 79,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-hosting.trx",
+      "sha256": "a4ee2d0b867bf4c6399120443561a231600bc358d54643b195a5435b44ae7c15"
+    },
+    {
+      "lane": "durable",
+      "results": {
+        "total": 113,
+        "passed": 113,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-durable.trx",
+      "sha256": "4300ae38bd749e4070ed93ae6aa6ddfcc50a3a75930ff5dfe0aa1bc21ee2e932"
+    },
+    {
+      "lane": "ephemeral",
+      "results": {
+        "total": 414,
+        "passed": 414,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-ephemeral.trx",
+      "sha256": "0bc833d2621d0ddf0d699bccbdecc35285abab2c4b6dd45987d8d02aafd5a5c8"
+    },
+    {
+      "lane": "acceptance",
+      "results": {
+        "total": 37,
+        "passed": 37,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-acceptance.trx",
+      "sha256": "2ca1fa3ca4d1630a99aa18d515a7256896eda0435890173f01f32e0adf2a7a37"
+    },
+    {
+      "lane": "postgres",
+      "results": {
+        "total": 123,
+        "passed": 123,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-postgres.trx",
+      "sha256": "9004dfb4126afb73daea50c13bf78fc22f80fa34dba5e5ec79ca813de2cb8233"
+    },
+    {
+      "lane": "sqlserver",
+      "results": {
+        "total": 94,
+        "passed": 94,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-sqlserver.trx",
+      "sha256": "852c11f526a421e8eeb38f5a1dd3eb7c88a3768788cc566c4ff545b4653db39e"
+    },
+    {
+      "lane": "infrastructure",
+      "results": {
+        "total": 319,
+        "passed": 319,
+        "failed": 0,
+        "notExecuted": 0
+      },
+      "trx": "final-infrastructure.trx",
+      "sha256": "2ac23aba3d63793466e3be71f8a6a011c92699d52bb2726eace5f018273e12b1"
+    }
+  ],
+  "packageConsumers": "9/9",
+  "strictOpenSpec": "28/28 structural only",
+  "infrastructure": "319/319 with exact packed feed",
+  "expectedRed": "14/14 still red; no completion credit",
+  "mutations": {
+    "ownerInputIntegrity": {
+      "productionMutations": 1,
+      "killedLanes": 3,
+      "failingCases": 6,
+      "survived": 0,
+      "timeout": 0,
+      "compileError": 0,
+      "uncovered": 0,
+      "ignored": 0
+    },
+    "mergeScope": [
+      {
+        "probe": "integrated-source",
+        "outcome": "killed",
+        "testFailures": 1,
+        "message": "Expected Normalize(File.ReadAllText(Path.Combine(root, path))) to be the same string because only the exact integrated PR #23/#25 source is excluded from the DAG candidate, but they differ on line 1026 and column 1 (index 44329):\r\n                   "
+      },
+      {
+        "probe": "facade-source",
+        "outcome": "killed",
+        "testFailures": 1,
+        "message": "Expected Hash(File.ReadAllBytes(Path.Combine(root, row.Path))) to be the same string because the facade candidate pins src/OrcaCore.Durable.Hosting/Dag/DurableDagFacade.cs, but they differ at index 0:\r\n   \u2193 (actual)\r\n  \"7392fa25ac6812a7cd972baddf511a"
+      },
+      {
+        "probe": "unlisted-source",
+        "outcome": "killed",
+        "testFailures": 1,
+        "message": "Expected rows.Select(row => row.Path) to be equal to {\"src/OrcaCore.Dag.Hosting/DagCoordinator.cs\", \"src/OrcaCore.Dag.Hosting/DagFacadeRegistry.cs\", \"src/OrcaCore.Dag.Hosting/DagHostingServices.cs\", \"src/OrcaCore.Dag.Hosting/OrcaCoreDagHostingService"
+      }
+    ]
+  },
+  "limits": [
+    "Self-review is not independent approval.",
+    "Complete promotion and reshape 8.6 activation remain pending review of the merge/remediation target."
+  ],
+  "testResultDirectory": "X:/dag-seam-followup-20261116/results",
+  "behaviorAndGateTestedTree": "59deab996959b74fd5d20286e5d0a9093b6841c7",
+  "finalMetadataUpdate": "After the full guard pass, only this validation record and its freeze digest are updated; immutable-record and raw-manifest guards are rerun on the final target.",
+  "evidenceLogs": [
+    {
+      "path": "build-debug.log",
+      "sha256": "7503a764c0716b79de6e2c18d6f4a447c5bab7ca29b0a8327310ad9bbc10bfb6"
+    },
+    {
+      "path": "build-release.log",
+      "sha256": "d44a33212454ee52c858a7dd831dac5ad5776ca8d2098848fcf4b288d258f211"
+    },
+    {
+      "path": "guard-final-build.log",
+      "sha256": "de3b6917485a8ec6970af3499da0bacda821f2cc67d0af48844093f8da06dc1e"
+    },
+    {
+      "path": "package-consumers.log",
+      "sha256": "bf8f25c9e8303ac53b44d0f6ee5b4970e9db00f0f5a70e5216fb9f1838b3673a"
+    },
+    {
+      "path": "openspec-strict.log",
+      "sha256": "688cf28ce112577ad2cc2ac23fc7f748839a567d7c8eab4f62fc69fc27d1fd0b"
+    },
+    {
+      "path": "expected-red.log",
+      "sha256": "573c18adae340049803b80016db60641b068014df3c498d017ae024c0724fc74"
+    }
+  ],
+  "mutationResults": [
+    {
+      "path": "mutation-f1-hosting.trx",
+      "sha256": "69addf348cf65dc5cf0c36d4187d7990b4e264a35a830e65a8af81a6178bfd74",
+      "expectedFailures": 2
+    },
+    {
+      "path": "mutation-f1-postgres.trx",
+      "sha256": "2ab268550a45a68a9a0889ed5e12a2dce1a7e65dd7e1731b1c4da4bb8d6f93f1",
+      "expectedFailures": 2
+    },
+    {
+      "path": "mutation-f1-sqlserver.trx",
+      "sha256": "e0fdce4f8f5f7a732f885fc440e8cc574f92fb9f8944c8e9890adddd0a325b42",
+      "expectedFailures": 2
+    },
+    {
+      "path": "mutation-f2-facade-source.trx",
+      "sha256": "64668be67e78082c0737b69bf0f0b50e7a05e0efeaa4cbba007bb76b39af0f30",
+      "expectedFailures": 1
+    },
+    {
+      "path": "mutation-f2-integrated-source.trx",
+      "sha256": "9b2f1797dd55e8b09c5ca85d3f7e05082b374c3d1b3e3aa05644b89704d51e8a",
+      "expectedFailures": 1
+    },
+    {
+      "path": "mutation-f2-unlisted-source.trx",
+      "sha256": "22ca6794eb4aa6d423c3a8055976e19833ba894936e61634ae7fd8fcb472e000",
+      "expectedFailures": 1
+    }
+  ],
+  "providerProcesses": "Both provider full suites include DagFacade_RealProcessRestart, the four-process reopen/status certification."
+}

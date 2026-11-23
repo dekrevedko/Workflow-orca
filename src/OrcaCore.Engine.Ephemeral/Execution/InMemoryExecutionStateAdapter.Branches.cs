@@ -38,11 +38,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 "Branch return projection failed.", exception.InnerException);
         }
 
-        var resultPayload = codec.Serialize(
-            result,
-            branch.Result.ResultType,
-            branch.Result.ResultSchemaIdentity);
-        EnsureSerializedResultSize(plan, resultPayload.Payload);
+        var resultPayload = BranchResultMaterializer.Serialize(result, branch.Result.ResultType, plan.CompilerOptions.MaxSerializedResultBytes);
         if (scope.Kind == CompiledScopeKind.ForEach)
         {
             var transition = ScopeReducer.RecordForEachTerminal(
@@ -50,7 +46,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 scopePlan,
                 scopeId,
                 fiber.Id,
-                resultPayload.Payload,
+                resultPayload,
                 failure: null,
                 maxConcurrentExecutionPathsPerInstance);
             return new BranchTerminalTransition(
@@ -59,7 +55,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 transition.ScopeBecameJoinable);
         }
 
-        var returned = ScopeReducer.RecordBranchReturn(state, fiber, resultPayload.Payload);
+        var returned = ScopeReducer.RecordBranchReturn(state, fiber, resultPayload);
         return new BranchTerminalTransition(
             returned.State,
             returned.ScopeId,

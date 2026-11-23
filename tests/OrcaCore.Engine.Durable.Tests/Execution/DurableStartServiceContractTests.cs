@@ -38,11 +38,10 @@ public sealed class DurableStartServiceContractTests
     [Fact]
     public void WorkflowInputFingerprint_UsesOneByteIdenticalFixedCodecImplementation()
     {
-        const string input = "order-42";
-        var serializedPath = DurableWorkflowInputFingerprint.Create(input);
-        var applicationPath = DurableContractAdapter.PayloadFingerprint(input).Value;
-
-        applicationPath.Should().Be(serializedPath);
+        var input = DurableStartInput.Capture("order-42");
+        var digest = Convert.ToHexString(System.Security.Cryptography.SHA256.HashData("\"order-42\""u8));
+        input.Fingerprint.Value.Should().Be(digest);
+        DurableWorkflowInputFingerprint.Create(input.Payload.Payload).Should().Be(digest);
     }
 
     private sealed class LegacyInboxProvider : IWorkflowEventStore, IWorkflowInboxStore

@@ -735,8 +735,11 @@ either criterion.
   timestamps, and failure fields; ready ties use the same ordinal. [CP-027]
 - **AC-618** *DAG terminal wait is reactive* — `DagRunHandle.WaitForTerminalAsync` observes a
   terminal commit before/during/after notification registration through subscribe/recheck,
-  returns one authoritative terminal snapshot without polling, and caller cancellation cancels
-  only the local wait rather than the DAG or children. [CR-016, MG-005]
+  returns one authoritative terminal snapshot without polling, or throws `DagRunFaultedException`
+  when recheck observes an integrity-fault checkpoint. A fault reconciled before recheck is not
+  reported; a barrier test holds the waiter across both commits. Caller cancellation cancels only
+  the local wait rather than the DAG or children. Fault status derivation and stored-input
+  verification are exercised after a real process restart. [CR-016, MG-005]
 
 <!-- dag-run-contract-proposal:start -->
 #### Approved durable DAG run contract; source pending (2026-10-05)
@@ -766,7 +769,7 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 - **AC-567** NS-05: Throwing constructors/invalid options publish nothing and preserve their cause and retry before first use; both codec copies share one authoritative registration and seal. [NF-034]
 
-- **AC-568** NS-06: Exact codec bytes, fingerprints and detached values agree on common admitted shapes, with strong values, ordered collections and failure trees. Mandatory NS-06a–f cover root/nested omitted/present F1 rejection, admitted positional/mutable/constructor-bound controls, metadata-only classification and unused excluded context roots. [NF-034] Supplemental NS-06g–h cover all eleven strong-string types through ordinary external Metadata/Default root/nested/collection contracts, literal bytes/value/fingerprint parity, the exact public factory and unsupported direct requests without registration/seal effects.
+- **AC-568** NS-06: Exact codec bytes, fingerprints and detached values agree on common admitted shapes, with strong values, ordered collections and failure trees. Mandatory NS-06a–f cover root/nested omitted/present F1 rejection, byte-stable positional/mutable/constructor-bound controls and rejection of unstable conditional omission, metadata-only classification and unused excluded context roots. [NF-034] Supplemental NS-06g–h cover all eleven strong-string types through ordinary external Metadata/Default root/nested/collection contracts, literal bytes/value/fingerprint parity, the exact public factory and unsupported direct requests without registration/seal effects.
 
 - **AC-569** NS-07: Missing root/transitive metadata produces SFE-TYPE-003 and the existing Build/TryBuild result/exception shapes with exact root/missing type/context/remedy; no user step, admission, start-key binding or commit occurs. Unsupported shapes retain SFE-TYPE-002. [NF-034]
 
@@ -826,3 +829,14 @@ contract lane or the original unsupported assessment supplies no execution credi
 - **AC-638** FS-20: Six native profiles with unchanged old journeys plus new witnesses. Actual jobs and aggregate run, package/source identities agree, legacy/v2/type/original/settlement controls succeed, no private rooting or reflection switch. Every native cell asserts ExceptionType text equals JIT for the same error types. [CR-014/016, MG-070/071, CP-033, PR-042, NF-035]
 
 Each assertion remains a source/package/native obligation, with both retention modes where applicable. This transition supplies no runtime acceptance credit.
+
+## Runtime concurrency and identity acceptance (AC-322–327)
+
+- **AC-322** *Position-only fencing* — **[provider, advanced]** Two independently constructed stores sharing one database/schema reject the stale host after yield and fiber-failure checkpoint commits; the winning position and lineage survive. [DU-013a, PR-024a]
+- **AC-323** *Coherent publication* — **[provider, advanced]** Deterministic competing-host commits between checkpoint/tail reads and after tail capture produce one logical outbound event, with no stale checkpoint publication. [DR-012a]
+- **AC-324** *Integrity quarantine* — Identical unreconciled positions quarantine with an offending-event diagnostic; a conflicted park reloads; cancellation remains authoritative; rearm without repair parks again while preserving checkpoint and bad tail. [DR-012a]
+- **AC-325** *Absolute deadline election* — Controlled-clock root/branch/item cases cover before/at/after deadline, early/delayed timers, wrapper failure and election-to-notification delay. An elected winner remains stable and losing work keeps physical ownership until settlement. [CR-018]
+- **AC-326** *Structural identity* — Both workflow modes distinguish field punctuation, null/absent/named outcomes and accepted Unicode code units; cultures cannot change schema ordering. Normalized equivalent host profiles are idempotent and all behavior-affecting conflicts reject before service mutation. [CR-004a, PR-040]
+- **AC-327** *Measured qualification boundaries* — Long-loop evidence at small/default command budgets counts added facts, serialized bytes and commit boundaries. Evidence records the exact source, compiled scope and actual results without claiming untested migration, mixed-version, process-crash or storage-scale guarantees. [DU-013a, PR-024a]
+
+- **AC-328** A lossy private setter, transforming setter or constructor, or conditionally omitted value is rejected when its declared decode and re-encoding changes the submitted bytes. Exercise durable starts, ephemeral detached state, DAG run and mapped inputs and public event materialization. Verify the owning failure, absence of invalid state/start-key mutation, positive detached values and preserved DAG reopen classifications. [CR-005b, CP-021a, PR-016]

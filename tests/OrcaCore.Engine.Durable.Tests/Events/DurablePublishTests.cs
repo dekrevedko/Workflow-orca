@@ -18,19 +18,21 @@ public sealed class DurablePublishTests
     private static readonly DateTimeOffset PublishedAt =
         new(2026, 8, 7, 20, 15, 0, TimeSpan.Zero);
 
-    [Fact]
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     [Trait("AC", "AC-119")]
-    public async Task Publish_CommitsProgressionAndCompleteRuntimeOwnedOutboundEventAtomically()
+    public async Task Publish_CommitsProgressionAndCompleteRuntimeOwnedOutboundEventAtomically(bool emitNull)
     {
         var store = new InMemoryWorkflowProvider();
         var runtime = CreateRuntime(store, new FixedTimeProvider(PublishedAt));
-        var eventContract = WorkflowEventContract<PublishedPayload>.Create(
+        var eventContract = WorkflowEventContract<PublishedPayload?>.Create(
             EventName.Create("order-approved"),
             new EventContractVersion(2));
         var correlationId = CorrelationId.Create("order-42");
         var definition = Workflow.Durable<PublishState>(DefinitionId.New(), new DefinitionVersion(3))
             .Init<string>(value => new PublishState(value))
-            .Publish(eventContract, _ => correlationId, state => new PublishedPayload(state.Value.Value))
+            .Publish(eventContract, _ => correlationId, state => emitNull ? null : new PublishedPayload(state.Value.Value))
             .End()
             .Build();
         runtime.RegisterDefinition(definition);
@@ -70,7 +72,7 @@ public sealed class DurablePublishTests
         outbound.OriginDefinitionVersion.Should().Be(3);
         var applicationEvent = global::OrcaCore.Engine.Durable.Internal
             .DurableContractAdapter.WorkflowOutboundEvent(outbound);
-        applicationEvent.GetPayload(eventContract).Should().Be(new PublishedPayload("accepted"));
+        applicationEvent.GetPayload(eventContract).Should().Be(emitNull ? null : new PublishedPayload("accepted"));
     }
 
     [Fact]

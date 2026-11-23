@@ -41,9 +41,9 @@ try
         case "graph-members-generated":
         case "graph-members-legacy":
             if (args[0].EndsWith("generated", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<AppContext>();
-            MemberBoundary.Reads = 0;
-            _ = Materialize(new MemberBoundary());
-            Check(MemberBoundary.Reads == 1, "nonpublic JsonInclude getter runs only during serialization, never during the public-member graph check: " + MemberBoundary.Reads);
+            var memberBoundary = new MemberBoundary();
+            _ = Materialize(memberBoundary);
+            Check(memberBoundary.Reads == 1, "the submitted nonpublic JsonInclude getter runs only during serialization");
             break;
         case "foreach-array-missing":
             DispatchCases.MissingArray();
@@ -210,14 +210,14 @@ try
         case "f1-positive-generated":
         case "f1-positive-legacy":
             if (args[0].EndsWith("generated", StringComparison.Ordinal)) WorkflowJsonMetadata.Register<AppContext>();
-            foreach (var number in new[] { 0, 7 })
+            foreach (var number in new[] { 0, 7, 17 })
             {
                 Check(Materialize(new ValueState(number)).Number == number, "positional value-state initializer alone stays admitted");
-                Check(Materialize(new MutableState { Count = number }).Count == (number == 0 ? 42 : 7), "mutable omission/initializer retains legacy round trip");
                 Check(Materialize(new ConstructorState(number)).Count == number, "genuine constructor-bound omission retains legacy round trip");
-                if (args[0].EndsWith("legacy", StringComparison.Ordinal))
-                    Check(Materialize(new InitState { Count = number }).Count == (number == 0 ? 42 : 7), "legacy init-only behavior remains unchanged");
             }
+            CodecMemberCases.MutableOmissionFidelity();
+            if (args[0].EndsWith("legacy", StringComparison.Ordinal))
+                CodecMemberCases.LegacyInitOnlyFidelity();
             break;
         case "f1-member-metadata":
             WorkflowJsonMetadata.Register<AppContext>();
@@ -464,7 +464,7 @@ public partial class EmptyConvertersContext : JsonSerializerContext;
 
 public sealed class MemberBoundary
 {
-    public static int Reads;
+    internal int Reads;
     [JsonInclude]
     internal int Hidden { get { Reads++; return 7; } set { } }
 }

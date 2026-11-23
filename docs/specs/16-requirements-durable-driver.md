@@ -817,3 +817,12 @@ Transition addendum: [1.3/1.4 P3 dispositions](../../openspec/changes/admit-dura
 
 Checkpointed internal slices: typed identity and provider persistence (c93411e, f62b0aaf), pumps (2fd7a7d), bridge/scheduler (e955f3a) and scheduler/schema follow-up (3f6d11bf). The registry remains ApprovedPending: full certification and public Task 8.6 are not complete. See the [Task 2.4/3.1 evidence inventory](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-2-4-3-1-source-evidence-closeout-2026-11-15.md).
 <!-- dag-run-contract-proposal:end -->
+
+## Runtime correctness clarification
+
+### DR-012a One captured checkpoint and a fully classified tail
+The loader SHALL return the same captured checkpoint used to reconstruct the aggregate, with its ordered complete tail read from that version. The driver SHALL NOT advance an expected version while retaining an unreconciled position. Any position-changing fact that cannot be reconstructed from the captured envelope SHALL cause a full reload. Terminal/cancellation/park/retry state governs execution; every tail event must be classified. Changing contention has bounded retries and retains its continuation retry path.
+
+Consecutive identical checkpoint bytes/version and ordered immutable event identities at the same stream version, when still unreconciled, SHALL quarantine with the offending event type. A concurrent append that rejects the park SHALL cause reload. Quarantine writes no replacement checkpoint, and rearming unchanged bad state SHALL park again. The diagnostic SHALL state that no supported checkpoint repair exists and that an engine or provider defect is indicated. No public repair/rearm API is admitted.
+
+Current providers purge whole instances atomically; no supported retention trims a tail needed after a retained checkpoint. The ordered complete append-only provider guarantee is sufficient here. Counting tail objects is not sequence validation. A partial-history or weaker-consistency feature must revisit this guarantee before admission.

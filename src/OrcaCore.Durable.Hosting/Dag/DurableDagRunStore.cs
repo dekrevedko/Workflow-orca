@@ -11,7 +11,7 @@ internal sealed record DurableDagRunCreateV1(
     Guid RunId, DagRunStartKeyV1 StartKey, DagRunGraphV1 Graph, object? Input, Type InputType);
 internal enum DurableDagCreateOutcomeV1 { Created, Existing, BindingConflict }
 internal sealed record DurableDagCreateResultV1(
-    DurableDagCreateOutcomeV1 Outcome, DagRunSnapshotV1? Snapshot);
+    DurableDagCreateOutcomeV1 Outcome, DagRunSnapshotV1? Snapshot, string? AttemptedInputFingerprint = null);
 
 internal sealed class DurableDagDefinitionUnavailableException() :
     InvalidOperationException("The exact DAG plan or child workflow is not installed on this host.");
@@ -25,7 +25,10 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
     {
         var checkpoint = await events.LoadDagRunCheckpointAsync(WorkflowStreamId.ForDagRun(runId), token)
             .ConfigureAwait(false);
-        return checkpoint.HasValue ? DurableDagWire.Read(checkpoint.Value) : null;
+        if (!checkpoint.HasValue) return null;
+        var run = DurableDagWire.Read(checkpoint.Value);
+        _ = DurableDagValues.VerifiedRunInput(run.RunInput, run.Graph.RunInputContractKey);
+        return run;
     }
 
     internal async ValueTask<IReadOnlyList<DurableDagRecoverableRun>> DiscoverAsync(long afterSequence, int maxCount,
@@ -44,9 +47,7 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
         ArgumentNullException.ThrowIfNull(request.InputType);
         _ = WorkflowStreamId.ForDagRun(request.RunId);
         token.ThrowIfCancellationRequested();
-        Type? inputType;
-        try { inputType = inputs.Resolve(request.Graph); }
-        catch (InvalidDataException) { return Conflict(); }
+        var inputType = inputs.Resolve(request.Graph);
         if (inputType is null) throw new DurableDagDefinitionUnavailableException();
         if (inputType != request.InputType) return Conflict();
         foreach (var node in request.Graph.Nodes)
@@ -56,11 +57,12 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
             if (installed.Fingerprint != node.Workflow.Fingerprint ||
                 node.InputContractKey != DurableDagWire.ChildInputKey(node.Workflow) ||
                 node.OutputContractKey != (installed.OutputType is null ? null : DurableDagWire.ChildOutputKey(node.Workflow)))
-                return Conflict();
+                throw new DurableDagDefinitionUnavailableException();
         }
 
         // All user value serialization happens before any append or lease.
         var input = DurableDagValues.Normalize(request.Graph.RunInputContractKey, request.Input, inputType);
+        token.ThrowIfCancellationRequested();
         var existing = await FindExistingAsync(request, input, token).ConfigureAwait(false);
         if (existing is not null) return existing;
         var now = time.GetUtcNow().ToUniversalTime();
@@ -88,12 +90,20 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
         DagRunValueV1 input, CancellationToken token)
     {
         var keyOwner = await events.GetDagRunByStartKeyAsync(request.StartKey, token).ConfigureAwait(false);
-        if (keyOwner.HasValue && keyOwner.Value.RunId != request.RunId) return Conflict();
-        var saved = await ReadAsync(request.RunId, token).ConfigureAwait(false);
+        // A supplied run id is a separate unique coordinate: do not hide its collision
+        // just because another run owns this start key.
+        var byId = await ReadAsync(request.RunId, token).ConfigureAwait(false);
+        if (byId is not null && byId.StartKey != request.StartKey) return Conflict(byId, input);
+        var saved = keyOwner.HasValue
+            ? await ReadAsync(keyOwner.Value.RunId, token).ConfigureAwait(false)
+                ?? throw new InvalidDataException("DAG start-key owner has no checkpoint.")
+            : byId;
         if (saved is null) return null;
-        if (saved.StartKey != request.StartKey || !SameGraph(saved.Graph, request.Graph) ||
-            saved.RunInput.Fingerprint != input.Fingerprint || !saved.RunInput.Bytes.AsSpan().SequenceEqual(input.Bytes))
-            return Conflict();
+        if (saved.StartKey != request.StartKey)
+            throw new InvalidDataException("DAG start-key owner has a different recorded key.");
+        if (!SameGraph(saved.Graph, request.Graph) || saved.RunInput.Fingerprint != input.Fingerprint ||
+            !saved.RunInput.Bytes.AsSpan().SequenceEqual(input.Bytes))
+            return Conflict(saved, input);
         return new(DurableDagCreateOutcomeV1.Existing, saved);
     }
 
@@ -107,5 +117,6 @@ internal sealed class DurableDagRunStore(IWorkflowEventStore events, DurableDefi
             pair.First.OutputContractKey == pair.Second.OutputContractKey &&
             pair.First.DirectDependencies.SequenceEqual(pair.Second.DirectDependencies));
 
-    private static DurableDagCreateResultV1 Conflict() => new(DurableDagCreateOutcomeV1.BindingConflict, null);
+    private static DurableDagCreateResultV1 Conflict(DagRunSnapshotV1? owner = null, DagRunValueV1? input = null) =>
+        new(DurableDagCreateOutcomeV1.BindingConflict, owner, input?.Fingerprint);
 }

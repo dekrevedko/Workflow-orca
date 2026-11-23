@@ -976,11 +976,8 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         }
     }
 
-    private static TState CopyStateWithFixedCodec(TState state)
-    {
-        var payload = CoreWorkflowValueCodec.Serialize(state, typeof(TState));
-        return (TState)CoreWorkflowValueCodec.Deserialize(payload, typeof(TState))!;
-    }
+    private static TState CopyStateWithFixedCodec(TState state) =>
+        (TState)CoreWorkflowValueCodec.Detach(state, typeof(TState))!;
 
     EphemeralWorkflowInstanceSnapshot IWorkflowInstance.ToSnapshot()
     {

@@ -16,21 +16,6 @@ namespace OrcaCore.Engine.Durable.Driver;
 
 internal sealed partial class DurableFiberDriverExecutor<TState>
 {
-    private TState Initialize(DurableDriverContext context)
-    {
-        var init = definition.RootSequence.Children.OfType<InitNode<TState>>().Single();
-        object? input = null;
-        if (context.Aggregate.StartInputPayload is { } payload &&
-            context.Aggregate.StartInputContentType is { } contentType)
-        {
-            input = context.Serializer.Deserialize(
-                new SerializedPayload(contentType, payload),
-                init.InputType);
-        }
-
-        return init.CreateState(input);
-    }
-
     private async ValueTask<ExecutedStep> ExecuteStepAsync(
         StructuredExecutionState execution,
         FiberRecord fiber,
@@ -38,7 +23,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         TState rootState,
         EventEnvelope? resumedEvent,
         TimeProvider timeProvider,
-        JsonWorkflowPayloadSerializer serializer,
         IReadOnlyList<DurableOwnedObligationState> ownedObligations,
         CancellationToken cancellationToken)
     {
@@ -71,23 +55,23 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     $"IStep<{typeof(TState).Name}>.");
             }
 
-            var attemptState = plan.DetachedAttemptState
-                ? serializer.Deserialize<TState>(serializer.Serialize(rootState))
-                : rootState;
             var stepContext = StepContextContracts.Create(
-                attemptState,
+                rootState,
                 stepExecution,
                 resumedEvent,
                 timeProvider,
                 forEachItem,
                 resourceLease: leaseContext);
             var result = await rootStep.ExecuteAsync(stepContext, cancellationToken).ConfigureAwait(false);
-            var nextState = result is StepResult.Failed
-                ? rootState
-                : plan.DetachedAttemptState
-                    ? serializer.Deserialize<TState>(serializer.Serialize(stepContext.State))
-                    : stepContext.State;
-            return new ExecutedStep(execution, fiber, result, nextState);
+            if (result is not StepResult.Failed && plan.DetachedAttemptState)
+            {
+                var bytes = CoreWorkflowValueCodec.Serialize(stepContext.State, typeof(TState), out var detached);
+                var completionState = result is StepResult.Completed
+                    ? new SerializedPayload(CoreWorkflowValueCodec.Format, bytes)
+                    : null;
+                return new ExecutedStep(execution, fiber, result, (TState)detached!, completionState);
+            }
+            return new ExecutedStep(execution, fiber, result, result is StepResult.Failed ? rootState : stepContext.State);
         }
 
         var branch = ResolveBranch(execution, fiber);
@@ -188,7 +172,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     {
         var committedExecution = execution;
         var committedFiber = fiber;
-        var committedState = context.Serializer.Serialize(state);
+        var committedState = new SerializedPayload(CoreWorkflowValueCodec.Format,
+            CoreWorkflowValueCodec.Serialize(state, typeof(TState), out var detached));
+        var attemptState = plan.DetachedAttemptState && fiber.OwningScopeId is null ? (TState)detached! : state;
         var insideLease = ResolveLeaseExecutionContext(fiber, ownedObligations) is not null;
         DurableCommandRuntime.StepCancellationScope? stepCancellation = null;
         CancellationTokenSource? timeoutCancellation = null;
@@ -237,10 +223,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     execution,
                     fiber,
                     instruction,
-                    state,
+                    attemptState,
                     resumedEvent,
                     context.TimeProvider,
-                    context.Serializer,
                     ownedObligations,
                     policyToken).AsTask();
                 if (timeoutReached is not null)
@@ -285,7 +270,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                         executed.Fiber,
                         executed.State,
                         executed.Result,
-                        OperatorCancelled: false);
+                        OperatorCancelled: false,
+                        CompletionState: executed.CompletionState);
                 }
 
                 return new PolicyExecutedStep(
@@ -656,12 +642,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 exception.InnerException);
         }
 
-        var resultPayload = codec.Serialize(
-            result,
-            branch.Result.ResultType,
-            branch.Result.ResultSchemaIdentity);
-        EnsureSerializedResultSize(resultPayload.Payload);
-        return resultPayload.Payload;
+        return BranchResultMaterializer.Serialize(result, branch.Result.ResultType, plan.CompilerOptions.MaxSerializedResultBytes);
     }
 
     private (StructuredExecutionState Execution, TState State) MergeAndResume(
@@ -764,13 +745,14 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         StructuredExecutionState execution,
         TState state,
         IReadOnlyList<DurableOwnedObligationState> ownedObligations,
-        DurableWorkflowOutputState? output = null)
+        DurableWorkflowOutputState? output = null,
+        SerializedPayload? completionState = null)
     {
         execution = ReconcileAdmission(execution);
         var envelope = DurableFiberEnvelopeMapper.ToEnvelope(
             execution,
             plan,
-            context.Serializer.Serialize(state),
+            completionState ?? context.Serializer.Serialize(state),
             ownedObligations,
             output);
         var serialized = envelope.Serialize();
@@ -1163,6 +1145,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         FiberRecord Fiber,
         TState State,
         StepResult Result,
-        bool OperatorCancelled);
+        bool OperatorCancelled,
+        SerializedPayload? CompletionState = null);
 
 }

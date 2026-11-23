@@ -49,9 +49,38 @@ internal static class FixedWorkflowValueCodec
     }
 
     internal static byte[] Serialize(object? value, Type declaredType)
+        => Serialize(value, declaredType, out _);
+
+    internal static byte[] Serialize(object? value, Type declaredType, out object? detached,
+        Action<int>? checkEncodedLength = null)
     {
         ArgumentNullException.ThrowIfNull(declaredType);
         EnsureSupportedDeclaredType(declaredType);
+        if (value is null && declaredType.IsValueType && Nullable.GetUnderlyingType(declaredType) is null)
+            throw new NotSupportedException($"Null cannot round-trip through '{declaredType}' with {Format}.");
+
+        var bytes = Write(value, declaredType);
+        checkEncodedLength?.Invoke(bytes.Length);
+        // Values with a fixed, immutable integral representation are already detached.
+        if (value is null or bool or byte or sbyte or short or ushort or int or uint or long or ulong or Guid)
+        {
+            detached = value;
+            return bytes;
+        }
+
+        try
+        {
+            detached = ReadVerified(bytes, declaredType);
+        }
+        catch (Exception error) when (error is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
+        {
+            throw new NotSupportedException($"A value of '{declaredType}' does not round-trip losslessly through {Format}.", error);
+        }
+        return bytes;
+    }
+
+    private static byte[] Write(object? value, Type declaredType)
+    {
         ValidateGraph(value, declaredType, new HashSet<object>(ReferenceEqualityComparer.Instance));
         var options = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.Seal();
         if (options is not null) return JsonSerializer.SerializeToUtf8Bytes(value, options.GetTypeInfo(declaredType));
@@ -65,6 +94,21 @@ internal static class FixedWorkflowValueCodec
     {
         ArgumentNullException.ThrowIfNull(declaredType);
         EnsureSupportedDeclaredType(declaredType);
+        return ReadVerified(payload, declaredType);
+    }
+
+    // Verify the very object that will be returned to the caller. A second decode
+    // could invoke a different application constructor or setter.
+    private static object? ReadVerified(ReadOnlySpan<byte> payload, Type declaredType)
+    {
+        var result = Read(payload, declaredType);
+        if (!payload.SequenceEqual(Write(result, declaredType)))
+            throw new InvalidDataException($"The stored representation of '{declaredType}' does not round-trip through {Format}.");
+        return result;
+    }
+
+    private static object? Read(ReadOnlySpan<byte> payload, Type declaredType)
+    {
         var options = global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.Seal();
         if (options is not null) return JsonSerializer.Deserialize(payload, options.GetTypeInfo(declaredType));
         if (!global::OrcaCore.Internal.WorkflowJsonMetadataRegistry.DynamicCodeEnabled ||

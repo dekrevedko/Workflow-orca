@@ -39,6 +39,61 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
     public Task DurableEventTimeout_ReusedKey(DurableEventTimeoutCertification.Schedule schedule) =>
         DurableEventTimeoutCertification.RunAsync(CreateFixture(), certificationStore!, schedule);
 
+    [Theory]
+    [InlineData("key")]
+    [InlineData("json")]
+    public Task DagFacade_CanonicalInputIntegrity(string corruption)
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeCanonicalIntegrityAsync(() => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)), corruption, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFacade_RealProcessRestart() => DagProcessRestartCertification.RunAsync(
+        "sqlserver", container.ConnectionString, SqlServerContainerFixture.CreateSchemaName(), TestContext.Current.CancellationToken);
+
+    [Fact]
+    public Task DagFacade_BindingAndLosslessness()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeBindingsAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public Task DagFacade_LevelTriggeredFaults()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DagRunCertification.FacadeFaultsAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-322")]
+    public async Task PositionOnlyCommitRejectsASecondHostAtTheOldVersion(bool fiberFailure)
+    {
+        var documents = await container.CreateDocumentsAsync(certificationDocuments!.Schema);
+        var other = new SqlServerWorkflowStore(documents, TimeProvider.System);
+        await RuntimePositionCertification.PositionOnlyCommitRejectsASecondHostAtTheOldVersion(
+            certificationStore!, other, fiberFailure);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    [Trait("AC", "AC-323")]
+    public async Task InterleavedCheckpointLoadMustNotCommitPublishTwice(bool afterTail)
+    {
+        var documents = await container.CreateDocumentsAsync(certificationDocuments!.Schema);
+        var other = new SqlServerWorkflowStore(documents, TimeProvider.System);
+        await RuntimePositionCertification.InterleavedCheckpointLoadMustNotCommitPublishTwice(
+            certificationStore!, other, certificationStore!, afterTail);
+    }
+
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(

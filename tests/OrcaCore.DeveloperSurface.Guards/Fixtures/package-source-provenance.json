@@ -5,37 +5,37 @@
     {
       "id": "OrcaCore",
       "project": "src/OrcaCore.Abstractions/OrcaCore.csproj",
-      "sourceSha256": "c74e6779e9046cd96d93b295f2721788aca4093b74e9223fb3c9cb6352baf08c"
+      "sourceSha256": "a34e5577640e965f24b503d71e7fb94e14d6ac66a39ffa455ff6b0826c42fe2b"
     },
     {
       "id": "OrcaCore.Core",
       "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
-      "sourceSha256": "d49babba6fc1034f714a8344505ec6977e10b9b9786503f4b0ad3a5d91fd5425"
+      "sourceSha256": "ba0d07b7ec401a9f7e285ad8901b34db483cb5fbf6f1831e7d1ebd6e02728153"
     },
     {
       "id": "OrcaCore.Dag",
       "project": "src/OrcaCore.Dag/OrcaCore.Dag.csproj",
-      "sourceSha256": "41f7d64bbf3e43cda0e836c3d19b03d38f69c0711eda738dce829ecbf28c7c6c"
+      "sourceSha256": "ec6bc82c27d941703453c84b8f05ac84b7d82d33c8bd363ccd389cbc089dc8cc"
     },
     {
       "id": "OrcaCore.Dag.Hosting",
       "project": "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj",
-      "sourceSha256": "2553d892a53dca2c410abf069d9e82b0a006885d7c81e885bc46f2c0b420b604"
+      "sourceSha256": "4c0a4e797d573c588b68b39cecf34cd8dad22ea8d3c3784fa3c4d6695a087a3f"
     },
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "08672ba9a8e6765b3fb1b549e33304e7ca3e3b037440e36e9c5ec39c8b49503e"
+      "sourceSha256": "8ac19adf9f805618d3a6b2b507be41667c662636b4e6c1db99e60fbabf080f1f"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "ba8b02d2aab56c9d0df1c3acd4cb2f539cb70df5a3b30e93a306bde11768ac8b"
+      "sourceSha256": "149f2d8c1a81f2761686acdc71dbef932d94ed06156c6b4d2b2d8c10c14e31e8"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
       "project": "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj",
-      "sourceSha256": "f8f166e725e37b9c83666a1d8328b9bc6c513f3a661dfea749b089e26a6ced00"
+      "sourceSha256": "915a62fd8e924f79723f57b41eea9098a0d49b2c2f5073a53bb46b12566c354c"
     },
     {
       "id": "OrcaCore.Provider.Abstractions",
@@ -50,7 +50,7 @@
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "aca0929d10e05b92a329c6b3ffa7bcb7a36900fcb7136c99a62e07c44e7cc7e7"
+      "sourceSha256": "d172532b0ea306413384a888531e7c6022647614b8d8fc966c0733bb5beaaa4a"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",
@@ -60,7 +60,7 @@
     {
       "id": "OrcaCore.Runtime.Protocol",
       "project": "src/OrcaCore.Runtime.Protocol/OrcaCore.Runtime.Protocol.csproj",
-      "sourceSha256": "b112f43436c7a5bc44225d1b361bcda17d09485afd99d611e4cbf2faeeca75cc"
+      "sourceSha256": "80b9613792421398cceca97a72089e513df6deccffa0e78a908775e873eb135f"
     }
   ]
 }

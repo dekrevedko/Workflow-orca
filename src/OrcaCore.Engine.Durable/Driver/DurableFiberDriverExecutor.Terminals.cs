@@ -80,18 +80,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             : Conflict(rollover);
     }
 
-    private async Task<DurableSegmentResult> TimeoutWorkflowAsync(
+    private static async Task<DurableSegmentResult> TimeoutWorkflowAsync(
         DurableDriverContext context,
-        StructuredExecutionState execution,
-        TState state,
-        List<DurableOwnedObligationState> ownedObligations,
+        DateTimeOffset deadline,
         StreamVersion currentVersion,
-        CancellationToken cancellationToken)
+        DurableCheckpointPayload? envelope,
+        bool preserveOwnership)
     {
-        QuarantineCapacityReservations(ownedObligations);
-        var deadline = execution.WorkflowDeadline ??
-            throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.DefinitionException(
-                "Workflow timeout was requested without a persisted deadline.");
         var exception = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.WorkflowDeadline(deadline);
         var timedOut = await context.Processor.ProcessAsync(
             new DurableTimeoutCommand(
@@ -99,10 +94,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 context.InstanceId,
                 context.TimeProvider.GetUtcNow(),
                 $"{exception.Code}: {exception.Message}",
-                BuildEnvelope(context, execution, state, ownedObligations))
+                envelope)
             {
                 ExpectedStreamVersion = currentVersion,
-                PreserveOwnership = HasQuarantinedCapacity(ownedObligations)
+                PreserveOwnership = preserveOwnership
             },
             CancellationToken.None).ConfigureAwait(false);
         return timedOut.Outcome == DurableCommandOutcome.Committed
