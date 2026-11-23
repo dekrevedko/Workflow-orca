@@ -482,9 +482,9 @@ are serialized through the single expected-version resource-governance aggregate
 PR-017; the driver never constructs a cross-pool grant from independent per-workflow writes.
 
 `DurableResourcePoolDefinition.Capacity` is immutable creation capacity. The current
-`DurableResourcePoolSnapshot.ConfiguredCapacity` is reconstructed by replaying that seed plus
-committed resizes. On later startup, hosts compare their definitions with the persisted creation
-definition, never with the replayed current capacity, and never overwrite current capacity. Thus
+`DurableResourcePoolSnapshot.ConfiguredCapacity` is restored from the partition's latest full-state
+record, which includes all committed resizes. On later startup, hosts compare their definitions with the persisted creation
+definition, never with the restored current capacity, and never overwrite current capacity. Thus
 the original definition after resize from N to M succeeds while preserving M and any resize debt;
 a changed creation definition fails even if its capacity equals M. Pool-manager `GetAsync` and
 `ResizeAsync` calls for a well-formed unknown name fail with

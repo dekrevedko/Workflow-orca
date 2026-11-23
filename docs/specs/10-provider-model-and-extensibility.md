@@ -121,14 +121,24 @@ resolver, naming policy, or polymorphism. Raw bytes never leak into application 
 serializer replacement hook is exposed by hosting.
 
 ### PR-017 Durable resource-governance store
-`OrcaCore.Provider.Abstractions.ResourceGovernance.IDurableResourceGovernanceStore` SHALL expose load and one
-expected-version atomic append for the `ResourceGovernancePartitionId` stream. The serialized
+`OrcaCore.Provider.Abstractions.ResourceGovernance.IDurableResourceGovernanceStore` SHALL expose `LoadLatestAsync` for current state, `LoadAsync` for explicit history,
+and one expected-version atomic append for the `ResourceGovernancePartitionId` stream. The serialized
 aggregate owns every pool, queue entry, atomic multi-pool reservation, ticket, review mark,
 resize operation, stop-confirmation binding, and tombstone in that partition. Records carry
 sequence, format ID, payload bytes, and checksum; append returns closed committed/conflict
 outcomes. A provider that offers only per-workflow streams does not implement v1 durable leasing.
-One record factory validates positive sequence, supported format, checksum, and copied payload;
-the full-stream factory defensively copies and validates exact `1..Version` continuity with zero
+A latest read returns `ResourceGovernanceHead` for the requested partition from one committed
+view. Version zero has no record; every positive version has one latest record of exactly that
+sequence. A bad or missing record relative to the available head fails closed without fallback. PostgreSQL reads its
+authoritative head and indexed latest record in one statement; in-memory reads the current
+entry directly. Experimental SQL Server physically reads its retained state document. Returning
+one record from that document does not bound its storage I/O by current snapshot size.
+New SQL Server partition writes persist a version. Only absence of that property in a legacy
+partition permits the retained record count as the available head; explicit null, non-integral,
+negative or inconsistent versions fail. A legacy head with a coherently removed suffix can
+look like a legitimately shorter history. A read never rewrites the legacy document.
+The record factory validates positive sequence, supported format, checksum, and copied payload.
+For explicit history inspection, the full-stream factory defensively copies and validates exact `1..Version` continuity with zero
 version iff empty. Append accepts one copied non-empty batch numbered exactly after the expected
 version and commits all or conflicts without partial persistence.
 
@@ -183,7 +193,7 @@ generation facts. Each barrier blocks after commit and before the next protocol 
 restart behavior is deterministic without timing sleeps. It SHALL also cover `AmbiguousHeld`
 retry retention, no overlapping in-process leased retry, host-loss same-identity retry, quarantine
 before ambiguous progression, advanced diagnostics discovery, exact `ListAsync`, closed resize
-`Applied`/`Conflict`, and whole-stream/batch validation.
+`Applied`/`Conflict`, and latest-head, explicit whole-history and batch validation.
 Runtime-created `StepOperationId` and `LeaseProtectionToken`, plus caller-created idempotent
 `StopConfirmationId` and `ResourcePoolOperationId`, SHALL round-trip canonically without
 cross-family substitution; exact operation/obligation identity survives reconstruction. The

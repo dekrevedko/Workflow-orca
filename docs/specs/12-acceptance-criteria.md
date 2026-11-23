@@ -424,7 +424,7 @@ first-release evidence for AC-512…517.
   or upward resize clears the debt and the next request fits — including across restart,
   grant/cancel races, and reconciliation through one partition-wide expected-version aggregate.
   Pool-definition `Capacity` remains the immutable creation value: after resizing N to M, a host
-  restarted with the original N definition succeeds without resetting replayed current capacity M
+  restarted with the original N definition succeeds without resetting current capacity M
   or debt, while presenting a changed creation value fails startup even when it equals M.
   [MG-062/065, PR-017]
 - **AC-519** *Acquisition-as-wait with FIFO grant* — Given an exhausted pool, a requesting
@@ -504,8 +504,13 @@ first-release evidence for AC-512…517.
   confirmations, and tombstones. The four friend-only post-commit barriers deterministically stop
   after workflow pending obligation, governance reservation, workflow activation, and governance
   ownership confirmation with equal immutable owner/ticket facts; recovery leaves all requested
-  pools reserved or none granted, never a partial/ghost/double grant. Full-stream factory and
-  append-batch guards reject null/gap/duplicate/reordered/version-mismatched or partial records.
+  pools reserved or none granted, never a partial/ghost/double grant. Current-state recovery
+  uses only the latest record of the requested partition at its committed head. It preserves
+  queue, ticket, quarantine, resize, confirmation and tombstone facts and rejects a damaged
+  or missing current state when the available head establishes corruption (PR-017).
+  Compare recovery with full replay on valid histories. Certify
+  the indexed PostgreSQL head lookup and report experimental SQL Server document cost.
+  Explicit full-history factory and append-batch guards reject null/gap/duplicate/reordered/version-mismatched or partial records.
   [MG-065, PR-017/024]
 - **AC-531** *Pool management has no force release* - `ListAsync` and `GetAsync` return exact
   configured/reserved/debt/queue/review snapshots. `ResizeAsync` returns closed `Applied` for the

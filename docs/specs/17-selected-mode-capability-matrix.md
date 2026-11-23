@@ -2012,6 +2012,21 @@ public sealed class ResourceGovernanceRecord
         string checksum);
 }
 
+public sealed class ResourceGovernanceHead
+{
+    private ResourceGovernanceHead(
+        ResourceGovernancePartitionId partitionId,
+        long version,
+        ResourceGovernanceRecord? record);
+    public ResourceGovernancePartitionId PartitionId { get; }
+    public long Version { get; }
+    public ResourceGovernanceRecord? Record { get; }
+    public static ResourceGovernanceHead Create(
+        ResourceGovernancePartitionId partitionId,
+        long version,
+        ResourceGovernanceRecord? record);
+}
+
 public sealed class ResourceGovernanceStream
 {
     private ResourceGovernanceStream(
@@ -2033,6 +2048,10 @@ public abstract record ResourceGovernanceAppendResult
 
 public interface IDurableResourceGovernanceStore
 {
+    ValueTask<ResourceGovernanceHead> LoadLatestAsync(
+        ResourceGovernancePartitionId partitionId,
+        CancellationToken cancellationToken = default);
+
     ValueTask<ResourceGovernanceStream> LoadAsync(
         ResourceGovernancePartitionId partitionId,
         CancellationToken cancellationToken = default);
@@ -2171,10 +2190,10 @@ capacity and reject duplicate names/types at startup. Transient pools are epheme
 configuration and have no restart claim. Durable pool definitions are durable-host configuration;
 `ReviewAfter` is positive and controls when ownership is marked for reconciliation, never when it
 is released. `DurableResourcePoolDefinition.Capacity` is immutable creation metadata, while
-`DurableResourcePoolSnapshot.ConfiguredCapacity` is the replayed current value changed only by
+`DurableResourcePoolSnapshot.ConfiguredCapacity` is the current value in the latest committed state, changed only by
 accepted resize operations. First startup creates definitions atomically; later hosts must present
 identical name/creation-capacity/review values or fail startup. Restart agreement never compares
-host `Capacity` to, or overwrites, the replayed current configured capacity or resize debt.
+host `Capacity` to, or overwrites, the current configured capacity or resize debt.
 Capacity changes use idempotent `ResizeAsync`; changing
 review policy after creation is deferred. Queue order is fixed FIFO by committed request sequence; v1 has no author/provider
 queue-policy plug-in. Downward resize records debt rather than revoking tickets. `ResizeAsync` is
@@ -2201,13 +2220,16 @@ guesses from time. Certification proves fact equality, no duplicate/ghost ticket
 restoration, contended conservation/direct transfer, distinct successor tickets, and resize debt
 as the sole permitted over-capacity state. This deterministic friend seam is test-only and never a
 public authoring/runtime API. `OrcaCore.Runtime.Protocol` owns the protocol records;
-`OrcaCore.Provider.Abstractions.ResourceGovernance.IDurableResourceGovernanceStore` exposes load plus one
-expected-version atomic append for this single aggregate, and provider certification injects a
+`OrcaCore.Provider.Abstractions.ResourceGovernance.IDurableResourceGovernanceStore` exposes `LoadLatestAsync` for recovery,
+`LoadAsync` for explicit history, and one expected-version atomic append for this single aggregate, and provider certification injects a
 crash/conflict at every boundary, multi-host contention, atomic multi-pool grant, FIFO admission,
 resize debt, quarantine, confirmation, and tombstone retention. A provider that can only append
 per-workflow streams does not satisfy v1 durable leasing.
 `ResourceGovernanceRecord.FromPersisted` copies payload bytes and validates one positive sequence,
-supported protocol format, and checksum. `ResourceGovernanceStream.Create` copies non-null records
+supported protocol format, and checksum. `ResourceGovernanceHead.Create` binds the partition
+and version to no record at zero or one matching latest record above zero. An incompatible
+head fails recovery before an append. For legacy SQL Server documents PR-017 defines the
+available head and its suffix-loss detection limit. The full-history factory `ResourceGovernanceStream.Create` copies non-null records
 and requires version zero exactly for an empty stream or a complete ordered sequence `1..Version`
 with no gap, duplicate, or reordering. `AppendAsync` copies a non-empty batch numbered consecutively
 from `expectedVersion + 1` and commits the complete ordered batch or returns `Conflict`; partial
@@ -2338,7 +2360,7 @@ different namespace from an unqualified signature sketch:
 | Ephemeral lifetime, shutdown result (including nested Completed/Incomplete), incomplete-reason enum and two shutdown exceptions | `OrcaCore.Hosting` | `OrcaCore.Engine.Ephemeral` |
 | `DurableEngineHostOptions`, `DurableResourcePoolOptions`, `DurableResourcePoolDefinition`, durable engine/ingress registration extension | `OrcaCore.Hosting` | `OrcaCore.Durable.Hosting` |
 | `DagHostOptions`, DAG registration extension | `OrcaCore.Dag.Hosting` | `OrcaCore.Dag.Hosting` |
-| Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result | `OrcaCore.Runtime.Protocol.ResourceGovernance` | `OrcaCore.Runtime.Protocol` |
+| Lease/pool statuses, snapshots, closed resize result, governance records/head/stream/append result | `OrcaCore.Runtime.Protocol.ResourceGovernance` | `OrcaCore.Runtime.Protocol` |
 | `IDurableResourcePoolManagement`, `IDurableResourceLeaseRecovery`, `IDurableResourceLeaseDiagnostics` | `OrcaCore.Hosting.ResourceLeases` | `OrcaCore.Durable.Hosting` |
 | `IDurableResourceGovernanceStore` | `OrcaCore.Provider.Abstractions.ResourceGovernance` | `OrcaCore.Provider.Abstractions` |
 | Four barrier enum/fact/gate types | `OrcaCore.Engine.Durable.ResourceGovernance` | `OrcaCore.Engine.Durable` (internal) |
