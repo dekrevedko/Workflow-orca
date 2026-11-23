@@ -672,19 +672,19 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         cancellationToken.ThrowIfCancellationRequested();
         using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, notifications.Stopping);
         var token = lifetime.Token;
-        while (true)
+        var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnCommitted(InstanceId instanceId)
         {
-            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            void OnCommitted(InstanceId instanceId)
+            if (instanceId.Equals(binding.InstanceId))
             {
-                if (instanceId.Equals(binding.InstanceId))
-                {
-                    signal.TrySetResult();
-                }
+                Volatile.Read(ref signal).TrySetResult();
             }
+        }
 
-            notifications.InstanceCommitted += OnCommitted;
-            try
+        notifications.InstanceCommitted += OnCommitted;
+        try
+        {
+            while (true)
             {
                 token.ThrowIfCancellationRequested();
                 var output = await GetOutputAsync<TOutput>(binding, token).ConfigureAwait(false);
@@ -703,15 +703,19 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                     static state => ((TaskCompletionSource)state!).TrySetResult(),
                     signal, OutputRecheckInterval, Timeout.InfiniteTimeSpan);
                 await signal.Task.WaitAsync(token).ConfigureAwait(false);
+
+                // Publish the next signal before reading again. A hint that selected the
+                // previous signal is covered by the next authoritative read.
+                Interlocked.Exchange(ref signal, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
             }
-            catch (OperationCanceledException error) when (error.CancellationToken == token && cancellationToken.IsCancellationRequested)
-            {
-                throw new OperationCanceledException(error.Message, error, cancellationToken);
-            }
-            finally
-            {
-                notifications.InstanceCommitted -= OnCommitted;
-            }
+        }
+        catch (OperationCanceledException error) when (error.CancellationToken == token && cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(error.Message, error, cancellationToken);
+        }
+        finally
+        {
+            notifications.InstanceCommitted -= OnCommitted;
         }
     }
 
