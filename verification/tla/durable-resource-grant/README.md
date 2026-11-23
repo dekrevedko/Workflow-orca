@@ -1,33 +1,46 @@
-# Durable resource grant rollback
+# Durable resource grant rollback and recovery
 
-Can a worker that loses its workflow append release the ticket of the worker that won? DR-038 and DR-AC-036 require a pending or held lexical obligation to reserve its exact tickets through reconciliation. In the selected durable host, workflow commits and the governance partition have separate versions. See the [handoff contract](../../../openspec/specs/durable-runtime/spec.md#scenario-workflowgovernance-handoff-crashes).
+A scoped ticket belongs to one durable lease occurrence. Workers A and B can both observe that ticket. If A journals the grant and B loses its workflow append, B leaves the ticket with A. A replacement can adopt the original reservation after host loss. If the owner stops before activation, recovery reads the durable governance receipt to determine whether to record an exact release or a zero-ticket cancellation. A held lease with uncertain user work remains subject to quarantine. See the [durable handoff contract](../../../openspec/specs/durable-runtime/spec.md#scenario-workflowgovernance-handoff-crashes).
 
-The model starts after two independent workers have loaded the same pending obligation and workflow version. Both reach the reservation barrier. The first reserves one unit, and the second observes the same ticket. One workflow append wins. Its activation, the losing append and rollback, the rival's queue request, and legitimate scope exit can interleave. Worker and rival tickets have distinct identities. The model covers one occurrence, one pool of capacity one and one rival. It checks safety. It does not model process death, cancellation, orphan reclamation or retry liveness.
+## Model and controls
 
-* [The selected governance aggregate](../../../src/OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs) reuses an existing exact holder grant and admits a queued rival on release.
-* [The driver](../../../src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.cs) persists the pending obligation, acquires using its expected workflow version, then commits activation.
-* [The commit pipeline](../../../src/OrcaCore.Engine.Durable/Execution/DurableCommitPipeline.cs) invokes [acquire compensation](../../../src/OrcaCore.Engine.Durable/Execution/DurableResourcePoolCommitEffects.cs) when the append fails. Compensation releases by instance and holder key.
+[ResourceGrant.tla](ResourceGrant.tla) models one occurrence, one unit of capacity, two contenders, and one queued rival. The workflow and governance commits are separate actions. The recovery experiment includes a stale admission that reads the owner before cancellation and tries to write afterward. It abstracts protected work to one activation and represents adoption with the original ticket identity.
 
-Run `./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-resource-grant -ModuleName ResourceGrant` from the repository root. On the merged implementation, normal profile `SourceSafety` fails `ActiveGrantRetained`; a nonzero runner exit preserves that finding. `SourceTransfer` produces a witness with A active, B rolled back and the rival granted. `Reference` completes all 51 distinct states. Its witnesses exercise both retention after conflict and transfer on legitimate exit. In the reference, a losing append preserves a reservation shared with the committed winner. The model does not decide how to reclaim an orphaned reservation.
+| Check | Result |
+|---|---|
+| `SourceSafety` | All 51 distinct states explored. The ticket stays with the workflow both before and after activation. |
+| `Recovery` | All 102 distinct states explored. A journalled grant retains its ticket, a closed token cannot reacquire, and the receipt agrees with whether a reservation committed. |
+| Seven reachability witnesses | Retention across rollback before and after activation, legitimate transfer, replacement adoption, and compensation after stopping before reservation, after reservation, or after journalling. |
+| Three safety mutations | Releasing on conflict, omitting the closed-token fence, and ignoring the owner checkpoint each produce their configured invariant violation. |
+| Disabled recovery | The temporal control strands a closing occurrence. The normal progress property assumes that enabled governance closure and workflow publication eventually run. |
 
-## SQL provider reproduction
+The recovery progress claim starts once the workflow has committed closure. Worker scheduling, outage duration, detection of host death, SQL lock implementation and the timing of a hosted sweep are outside the finite model.
 
-The [shared certification test](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.cs) drives the same compiled lexical lease on two independent runtimes connected to the same workflow store and governance partition. It pauses both after reservation and checks that the obligation, protection token, expected workflow version, and ticket facts agree. A rival queues for the only slot. A resumes and pauses again after its activation commit. B then loses its workflow append. The test stops B after that conflict and reads the stored workflow history, checkpoint, and pool snapshot before allowing A to exit.
+## Provider evidence
 
-On revision `74cd0d054df37d623bdaa6b6901a1701daf827b2`, the Release solution built with zero warnings and errors. Both providers ran both theory cases locally against real containers.
+The [ownership test](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.cs) queues a rival instance through the pool store, holds A after workflow activation, and stops B after its conflicting append. It checks the live ticket and generation before A can enter the body. A second row omits B and checks legitimate transfer on exit. At revision `74cd0d05`, the competing row failed on both PostgreSQL 17 and SQL Server 2022. The rival already held generation 2 while A's checkpoint still held generation 1.
 
-| Provider | B loses its workflow append | Control without B |
-|---|---|---|
-| PostgreSQL 17 | Ownership assertion failed. A was still held while the rival owned a new generation-2 ticket. | Passed. A retained generation 1 until its matching release and completed normally. |
-| SQL Server 2022 | Ownership assertion failed. A was still held while the rival owned a new generation-2 ticket. | Passed. A retained generation 1 until its matching release and completed normally. |
+The [recovery tests](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.Recovery.cs) use separate service providers on the same real database and partition. Injected exceptions stop a worker at a particular durable write or discard its acknowledgement. The tests exercise the production driver or hosted sweep on recovery.
 
-In both failing rows, the workflow recorded one acquisition, zero releases and the original ticket in its held checkpoint. The provider had removed the rival from the queue and granted it the only slot. The tests observe admission while A is paused before its protected body. They make no claim about simultaneous external effects.
+| Schedule | Evidence checked on each database |
+|---|---|
+| `ResumeReserved`, `ResumePromoted` | A cold worker reuses the exact original or FIFO-promoted ticket, enters once, and records one matching release. |
+| `CloseReserved`, `CloseJournalled` | A stopped, never-entered occurrence transfers its exact ticket once. Workflow history, terminal checkpoint and governance agree. |
+| `CloseEmpty`, `CancelEmpty` | An acquire reads the live checkpoint before termination or cancellation request, then attempts its write before the sweep. It reserves zero units. |
+| `CloseQueued` | A blocker's release reads the queued owner's live checkpoint before termination. Its subsequent write cannot promote that owner. |
+| `ReceiptReplay` | A replacement stops after governance has transferred the ticket and before publishing the workflow release. Another host publishes the receipt without changing the successor ticket. |
 
-Run the provider probes after building Release:
+A committed scoped release fences delayed acquisition with the occurrence's protection token. The [commit pipeline](../../../src/OrcaCore.Engine.Durable/Execution/DurableCommitPipeline.cs) leaves a shared grant recoverable on conflict. The [governance aggregate](../../../src/OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs) validates owner checkpoint versions atomically with admission and promotion. [Settlement](../../../src/OrcaCore.Engine.Durable/Execution/DurableScopedReservationRecovery.cs) recovers terminal workflows even when their pool has no held tickets or waiters.
+
+Deploy all grant writers together. Drain old hosts first because earlier writers can still release on conflict and their governance reader predates zero-ticket closure receipts. A custom provider or decorator must implement the [guarded governance capability](../../../src/OrcaCore.Provider.Abstractions/IDurableResourceGovernanceStore.cs) to admit scoped reservations.
+
+## Reproduce
+
+From the repository root, use the private pinned Java runtime supplied by the verification runner. The SQL probes require Docker and a Release build.
 
 ```powershell
-dotnet test tests/OrcaCore.Providers.PostgreSql.Tests -c Release --no-build --filter FullyQualifiedName~ResourceGrant_ActiveWinnerRetainsTicket
-dotnet test tests/OrcaCore.Providers.SqlServer.Tests -c Release --no-build --filter FullyQualifiedName~ResourceGrant_ActiveWinnerRetainsTicket
+./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-resource-grant -ModuleName ResourceGrant
+dotnet build OrcaCore.slnx -c Release
+dotnet test tests/OrcaCore.Providers.PostgreSql.Tests -c Release --no-build --filter FullyQualifiedName~ResourceGrant_
+dotnet test tests/OrcaCore.Providers.SqlServer.Tests -c Release --no-build --filter FullyQualifiedName~ResourceGrant_
 ```
-
-The competing-append assertions express the required ownership behavior and remain failing regression tests on this revision. A repair must preserve a committed winner's grant during rollback and retain a recovery path for a genuinely abandoned reservation.

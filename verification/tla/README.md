@@ -11,7 +11,7 @@ Use TLA+ when a requirement depends on the order of operations across callers, l
 | [Durable continuation lease expiry](durable-continuation-lease/README.md) | What can an expired worker change after a replacement claims and dispatches the record? | Fenced dispositions, terminal replay controls and a real replacement pump on in-memory, PostgreSQL and SQL Server providers |
 | [Durable event versus timeout](durable-event-timeout/README.md) | Can an old timeout or redelivery of E1 affect the next wait on the same key? | Occurrence-specific arbitration, retained inbox identity and replay with a fresh pending E2 |
 | [DAG child join and parent cancellation](dag-child-join/README.md) | Can later parent cancellation change how a child's terminal fact is first joined or replayed? | Source and reference checks pass. Both restart schedules preserve the independent cancellation and acknowledge one join on PostgreSQL and SQL Server. |
-| [Durable resource grant rollback](durable-resource-grant/README.md) | Can a losing workflow append release the winning worker's ticket? | TLC and both SQL providers reproduce premature transfer to a queued rival while the winner is held. |
+| [Durable resource grant rollback](durable-resource-grant/README.md) | Can a losing workflow append release the winning worker's ticket? | The winner retains its ticket. TLC and both SQL providers exercise adoption, exact compensation, and stale admission after closure. |
 
 Run the checks from the repository root with PowerShell 7 on Windows or Linux x64.
 
