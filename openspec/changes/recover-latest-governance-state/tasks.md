@@ -5,5 +5,5 @@
 
 ## 2. Implementation and qualification
 
-- [ ] 2.1 Implement and independently review the protocol, coordinated provider reads, runtime recovery, certification and package/API fixtures.
-- [ ] 2.2 Independently review the integrated evidence, including real-provider behavior, indexed PostgreSQL work, measured costs and experimental SQL Server limits.
+- [x] 2.1 Implement and independently review the protocol, coordinated provider reads, runtime recovery, certification and package/API fixtures.
+- [x] 2.2 Independently review the integrated evidence, including real-provider behavior, indexed PostgreSQL work, measured costs and experimental SQL Server limits.

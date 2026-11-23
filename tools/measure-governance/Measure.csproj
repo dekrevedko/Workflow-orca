@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <IsPackable>false</IsPackable>
+    <MeasureLatest Condition="'$(MeasureLatest)' == ''">true</MeasureLatest>
+    <DefineConstants Condition="'$(MeasureLatest)' == 'true'">$(DefineConstants);LATEST</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj" />
+    <ProjectReference Include="../../src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj" />
+    <PackageReference Include="Testcontainers.PostgreSql" />
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+  </ItemGroup>
+</Project>
