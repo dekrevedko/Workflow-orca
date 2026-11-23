@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 399,
-    "physicalDeclarations": 1697,
-    "activeFiles": 243,
-    "activeDeclarations": 1009,
+    "physicalFiles": 401,
+    "physicalDeclarations": 1706,
+    "activeFiles": 245,
+    "activeDeclarations": 1018,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -936,6 +936,12 @@
       "declarations": 16
     },
     {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.RuntimeObservation.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.WorkflowValueFidelity.cs",
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
@@ -1420,6 +1426,12 @@
       "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
       "status": "active",
       "declarations": 3
+    },
+    {
+      "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableOutputObservationTests.cs",
+      "ownerProject": "tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj",
+      "status": "active",
+      "declarations": 8
     },
     {
       "source": "tests/OrcaCore.Engine.Durable.Tests/Facade/DurableStartIdempotencyFacadeTests.cs",
@@ -2019,7 +2031,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/WorkflowCatalogReadinessTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/WorkflowEventDispatcherTests.cs",

@@ -14,8 +14,25 @@ using ProjectionActiveWaitSnapshot = OrcaCore.Abstractions.Providers.WorkflowPro
 
 namespace OrcaCore.Engine.Durable;
 
-internal sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
+internal sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver, IDisposable
 {
+    private CancellationTokenSource? lifetime;
+    internal CancellationToken Stopping { get; }
+
+    internal DurableFacadeNotificationHub(CancellationToken applicationStopping = default)
+    {
+        lifetime = applicationStopping.CanBeCanceled
+            ? CancellationTokenSource.CreateLinkedTokenSource(applicationStopping)
+            : new CancellationTokenSource();
+        Stopping = lifetime.Token;
+    }
+
+    public void Dispose()
+    {
+        using var source = Interlocked.Exchange(ref lifetime, null);
+        source?.Cancel();
+    }
+
     internal event Action<InstanceId>? InstanceCommitted;
 
     public ValueTask OnCommandCompletedAsync(
@@ -44,6 +61,7 @@ internal sealed class DurableFacadeNotificationHub : IWorkflowRuntimeObserver
 
 internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefinitionRegistry
 {
+    private static readonly TimeSpan OutputRecheckInterval = TimeSpan.FromSeconds(1);
     private static readonly MethodInfo StartRuntimeMethod = typeof(DurableWorkflowRuntime)
         .GetMethods(BindingFlags.Instance | BindingFlags.NonPublic)
         .Single(method =>
@@ -651,21 +669,26 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         InstanceBinding binding,
         CancellationToken cancellationToken)
     {
-        while (true)
+        cancellationToken.ThrowIfCancellationRequested();
+        using var lifetime = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, notifications.Stopping);
+        var token = lifetime.Token;
+        var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnCommitted(InstanceId instanceId)
         {
-            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            void OnCommitted(InstanceId instanceId)
+            if (instanceId.Equals(binding.InstanceId))
             {
-                if (instanceId.Equals(binding.InstanceId))
-                {
-                    signal.TrySetResult();
-                }
+                Volatile.Read(ref signal).TrySetResult();
             }
+        }
 
-            notifications.InstanceCommitted += OnCommitted;
-            try
+        notifications.InstanceCommitted += OnCommitted;
+        try
+        {
+            while (true)
             {
-                var output = await GetOutputAsync<TOutput>(binding, cancellationToken).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
+                var output = await GetOutputAsync<TOutput>(binding, token).ConfigureAwait(false);
+                token.ThrowIfCancellationRequested();
                 switch (output)
                 {
                     case WorkflowOutputResult<TOutput>.Available available:
@@ -674,12 +697,25 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
                         throw global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.OutputUnavailable(unavailable.Status, unavailable.Failure);
                 }
 
-                await signal.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
+                // A remote commit has no local hint. A one-shot timer and matching local
+                // hints share this signal so a slow read cannot accumulate refreshes.
+                using var timer = timeProvider.CreateTimer(
+                    static state => ((TaskCompletionSource)state!).TrySetResult(),
+                    signal, OutputRecheckInterval, Timeout.InfiniteTimeSpan);
+                await signal.Task.WaitAsync(token).ConfigureAwait(false);
+
+                // Publish the next signal before reading again. A hint that selected the
+                // previous signal is covered by the next authoritative read.
+                Interlocked.Exchange(ref signal, new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously));
             }
-            finally
-            {
-                notifications.InstanceCommitted -= OnCommitted;
-            }
+        }
+        catch (OperationCanceledException error) when (error.CancellationToken == token && cancellationToken.IsCancellationRequested)
+        {
+            throw new OperationCanceledException(error.Message, error, cancellationToken);
+        }
+        finally
+        {
+            notifications.InstanceCommitted -= OnCommitted;
         }
     }
 

@@ -160,7 +160,8 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
 
     private static void AddDurableCommandServices(IServiceCollection services)
     {
-        services.TryAddSingleton<DurableFacadeNotificationHub>();
+        services.TryAddSingleton(provider => new DurableFacadeNotificationHub(
+            provider.GetService<IHostApplicationLifetime>()?.ApplicationStopping ?? CancellationToken.None));
         services.TryAddSingleton<DurableRuntimeTelemetryObserver>();
         services.TryAddSingleton<IWorkflowRuntimeObserver>(provider =>
             new CompositeWorkflowRuntimeObserver(

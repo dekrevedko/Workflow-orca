@@ -14,7 +14,8 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "fbe6e9fda13d6fc15e43a91cfc1d2c1c6092f5647dd8d1090378162a1250ad35";
+    private const string CanonicalContentRecordSha256 = "29d52b6fff13244113ebc2fb4a0a0d2cd259cac2198b7bbee94489d04cbab0cd";
+    private const string BeforeObservationRecordSha256 = "fbe6e9fda13d6fc15e43a91cfc1d2c1c6092f5647dd8d1090378162a1250ad35";
     private const string BeforeValueFidelityRecordSha256 = "5e8912767a76359985618550eb412789c06512ee731cd116d39ca24598d2bfb9";
     private const string ValueFidelitySync = "4a5949719cf8dbc138487d8c02ab9187881e42a4";
     private const string ApprovedOrcaCoreApiSha256 = "a8bb583860fd8744b018273911fe65b1c899926d70e501efb773ccfbf5588f3e";
@@ -58,11 +59,17 @@ public sealed class DagStreamIdentitySliceGuards
             "openspec/specs/quality-and-verification/spec.md",
             "openspec/specs/workflow-authoring/spec.md",
             "openspec/specs/workflow-contracts/spec.md");
-        var prior = actual.ToArray();
+        var beforeObservation = actual.Select(row =>
+        {
+            var live = Normalize(File.ReadAllText(Path.Combine(root, row.Path)));
+            return Content(row.Path, OpenSpecCorpusGuards.BeforeObservationCanonicalFile(root, row.Path, live));
+        }).ToArray();
+        Hash(ContentRecord(beforeObservation)).Should().Be(BeforeObservationRecordSha256);
+        var prior = beforeObservation.ToArray();
         foreach (var path in changedPaths)
         {
             var index = Array.FindIndex(actual, row => row.Path == path);
-            actual[index].Should().Be(Content(path, DagFacadeApprovedHistory.TextAt(root, ValueFidelitySync, path)));
+            beforeObservation[index].Should().Be(Content(path, DagFacadeApprovedHistory.TextAt(root, ValueFidelitySync, path)));
             prior[index] = Content(path, DagFacadeApprovedHistory.TextAt(root, ValueFidelitySync + "^", path));
         }
         Hash(ContentRecord(prior)).Should().Be(BeforeValueFidelityRecordSha256);
@@ -71,7 +78,7 @@ public sealed class DagStreamIdentitySliceGuards
         // still match the delta, but the unowned text must fail the whole-document guard.
         var unownedEdit = actual.ToArray();
         var target = Array.FindIndex(actual, row => row.Path == changedPaths[0]);
-        var approvedText = DagFacadeApprovedHistory.TextAt(root, ValueFidelitySync, changedPaths[0]);
+        var approvedText = Normalize(File.ReadAllText(Path.Combine(root, changedPaths[0])));
         unownedEdit[target] = Content(changedPaths[0], "# Unreviewed preamble\n" + approvedText);
         Action drift = () => RequireSameInventory(expected, unownedEdit);
         drift.Should().Throw<InvalidDataException>().WithMessage($"*{changedPaths[0]}*");

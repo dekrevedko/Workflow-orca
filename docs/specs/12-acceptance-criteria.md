@@ -48,8 +48,11 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
   is cancelled per explicit policy. [CR-032]
 - **AC-011** *Notification-driven completion bridge* — Given a resultful workflow start/handle
   or DAG-run handle, `WaitForOutputAsync`/`WaitForTerminalAsync` subscribes then rechecks
-  authoritative state, observes terminality at every registration race without polling or casts,
-  and caller cancellation cancels only the local wait. Terminal workflow without output throws
+  authoritative state and observes terminality at every registration race without casts.
+  Ephemeral output and DAG terminal waits need no periodic reads. A pending durable output wait
+  observes remote completion without a hint on the MG-003 one-second schedule. Deterministic
+  checks cover read counts, serialization, coalescing, cancellation, shutdown, disposal, deletion
+  and query failure. Caller cancellation cancels only the local wait. Terminal workflow without output throws
   typed `WorkflowOutputUnavailableException`; all five workflow terminal statuses remain
   representable.
   [CR-016, CR-021, CR-030]
