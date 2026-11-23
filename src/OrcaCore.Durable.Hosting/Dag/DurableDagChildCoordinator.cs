@@ -3,6 +3,7 @@ using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Abstractions.Providers.Dag;
 using OrcaCore.Engine.Durable.Dag;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Durable.Hosting.Dag;
 
@@ -23,8 +24,6 @@ internal sealed class DurableDagChildCoordinator(IWorkflowEventStore store, Dura
             case DurableDagKinds.Start:
                 return await children.StartOrReattachAsync(run, signal.Ordinal, token).ConfigureAwait(false);
             case DurableDagKinds.Cancel:
-                if (run.State is not (DagRunStateV1.CancellationRequested or DagRunStateV1.Cancelled))
-                    throw new InvalidDataException("DAG child cancellation precedes the run barrier.");
                 return await children.CancelAsync(run, signal.Ordinal, token).ConfigureAwait(false);
             case DurableDagKinds.Join:
                 var joined = await ApplyChildTerminalAsync(run.RunId, signal.Ordinal, token).ConfigureAwait(false);
@@ -45,7 +44,7 @@ internal sealed class DurableDagChildCoordinator(IWorkflowEventStore store, Dura
         if (fact is null) return new(DurableDagMutationOutcomeV1.NotFound, run.StreamVersion, run);
         if (IsTerminal(run.Nodes[ordinal].State))
         {
-            _ = MatchesJoined(run.Nodes[ordinal], fact, run);
+            ValidateJoined(run.Nodes[ordinal], fact);
             return new(DurableDagMutationOutcomeV1.Existing, run.StreamVersion, run);
         }
         DurableDagMutationResultV1 result = new(DurableDagMutationOutcomeV1.StaleFence, run.StreamVersion, run);
@@ -60,7 +59,7 @@ internal sealed class DurableDagChildCoordinator(IWorkflowEventStore store, Dura
             var currentNode = current.Nodes[ordinal];
             if (IsTerminal(currentNode.State))
             {
-                _ = MatchesJoined(currentNode, fact, current);
+                ValidateJoined(currentNode, fact);
                 result = new(DurableDagMutationOutcomeV1.Existing, current.StreamVersion, current);
                 return true;
             }
@@ -116,10 +115,10 @@ internal sealed class DurableDagChildCoordinator(IWorkflowEventStore store, Dura
     private static bool IsTerminal(DagNodeStateV1 state) => state is DagNodeStateV1.Succeeded or DagNodeStateV1.Failed or
         DagNodeStateV1.Cancelled or DagNodeStateV1.DependencyBlocked;
 
-    private static (DagNodeStateV1 State, string? Code) Outcome(DurableDagChildFact fact, DagRunSnapshotV1 run) => fact.Status switch
+    private static (DagNodeStateV1 State, string? Code) Outcome(DurableDagChildFact fact) => fact.Status switch
     {
         WorkflowInstanceStatus.Completed => (DagNodeStateV1.Succeeded, null),
-        WorkflowInstanceStatus.Cancelled when run.State is DagRunStateV1.CancellationRequested or DagRunStateV1.Cancelled => (DagNodeStateV1.Cancelled, null),
+        WorkflowInstanceStatus.Cancelled when fact.CancellationOrigin == DurableCancellationOrigin.OwningDag => (DagNodeStateV1.Cancelled, null),
         WorkflowInstanceStatus.Cancelled => (DagNodeStateV1.Failed, "CHILD_CANCELLED"),
         WorkflowInstanceStatus.TimedOut => (DagNodeStateV1.Failed, "CHILD_TIMED_OUT"),
         WorkflowInstanceStatus.Terminated => (DagNodeStateV1.Failed, "CHILD_TERMINATED"),
@@ -127,19 +126,26 @@ internal sealed class DurableDagChildCoordinator(IWorkflowEventStore store, Dura
         _ => throw new InvalidDataException("DAG join is not authoritative terminality.")
     };
 
-    private static bool MatchesJoined(DagRunNodeStateV1 node, DurableDagChildFact fact, DagRunSnapshotV1 run)
+    private static void ValidateJoined(DagRunNodeStateV1 node, DurableDagChildFact fact)
     {
-        var expected = Outcome(fact, run);
+        // An old winner identifies the child but not the issuer. Its already-committed
+        // classification may take either legal cancellation form. All other facts still match exactly.
+        var expected = Outcome(fact);
+        if (fact.CancellationOrigin == DurableCancellationOrigin.LegacyUnknown && node.State == DagNodeStateV1.Cancelled)
+            expected = (DagNodeStateV1.Cancelled, null);
         if (node.State != expected.State || node.FailureCode != expected.Code ||
             node.Output?.Fingerprint != fact.Output?.Fingerprint || node.Output?.ContractKey != fact.Output?.ContractKey ||
             (node.Output is not null && fact.Output is not null && !node.Output.Bytes.AsSpan().SequenceEqual(fact.Output.Bytes)))
             throw new InvalidDataException("DAG joined outcome conflicts with authoritative child facts.");
-        return true;
     }
 
     private static IReadOnlyList<DagRunRecordV1> Join(DagRunSnapshotV1 run, int ordinal, DurableDagChildFact fact, DateTimeOffset at)
     {
-        var outcome = Outcome(fact, run);
+        if (fact.CancellationOrigin == DurableCancellationOrigin.LegacyUnknown && run.State != DagRunStateV1.Running)
+            throw new InvalidDataException("Legacy child cancellation origin is ambiguous after the DAG cancellation barrier.");
+        if (fact.CancellationOrigin == DurableCancellationOrigin.OwningDag && run.State != DagRunStateV1.CancellationRequested)
+            throw new InvalidDataException("Owning DAG cancellation has no committed barrier.");
+        var outcome = Outcome(fact);
         var nodes = run.Nodes.ToArray();
         nodes[ordinal] = nodes[ordinal] with { State = outcome.State, FailureCode = outcome.Code, Output = fact.Output, CompletedAt = at };
         var changed = new List<DagRunNodeChangeV1> { Change(nodes[ordinal], fact.Output) };

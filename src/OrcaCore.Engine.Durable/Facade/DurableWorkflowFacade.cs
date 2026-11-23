@@ -566,7 +566,7 @@ internal sealed partial class DurableWorkflowDefinitionRegistry : IWorkflowDefin
         var result = await commandProcessor.ProcessAsync(
             new CancelWorkflowCommand
             {
-                CommandId = CommandId.New(),
+                CommandId = DurableCancellationIdentity.For(binding.InstanceId, DurableCancellationOrigin.Independent),
                 InstanceId = binding.InstanceId,
                 RequestedAt = timeProvider.GetUtcNow()
             },

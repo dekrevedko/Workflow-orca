@@ -15,6 +15,45 @@ namespace OrcaCore.Hosting.Tests;
 
 public sealed partial class DagChildRecoveryTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task CompetingCancellationRequests_AfterBarrierKeepFirstWinner(bool independentFirst)
+    {
+        var token = TestContext.Current.CancellationToken;
+        var workflow = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(input => input).End(state => state.Value).Build();
+        await using var services = Services(workflow);
+        var run = await StartTwoIndependentChildrenAsync(services, workflow, token);
+        var child = run.Nodes[0].ChildInstanceId!;
+        var handle = await services.GetRequiredService<IWorkflowDefinitionRegistry>().GetRequiredHandle(workflow.Reference)
+            .GetInstanceAsync(child, token);
+        var bridge = services.GetRequiredService<IDurableDagRunBridgeV1>();
+        (await bridge.RequestRunCancellationAsync(run.RunId, token)).Outcome.Should().Be(DurableDagCancelOutcomeV1.Requested);
+        var poll = Request();
+        var cancellations = await services.GetRequiredService<IWorkflowOutboxStore>().ClaimAsync(poll with
+        {
+            KindSelector = OutboxKindSelector.Including("dag-child-cancel-v1")
+        }, token);
+        var expected = DagPumpRunFixture.ChildWrite("dag-child-cancel-v1", run.RunId);
+        var cancelA = cancellations.Single(c => c.Payload.AsSpan().SequenceEqual(expected.Payload));
+        var events = services.GetRequiredService<IWorkflowEventStore>();
+        var handler = services.GetRequiredService<IDurableDagChildHandler>();
+        if (independentFirst) (await handle.RequestCancellationAsync(token)).Should().Be(WorkflowCancellationRequestStatus.Requested);
+        else (await handler.HandleAsync(cancelA, token)).Should().BeTrue();
+        var winner = (await events.LoadTailAsync(new(child), StreamVersion.Empty, token))
+            .OfType<WorkflowCancellationRequestedEvent>().Should().ContainSingle().Which;
+        if (independentFirst) (await handler.HandleAsync(cancelA, token)).Should().BeTrue();
+        else (await handle.RequestCancellationAsync(token)).Should().Be(WorkflowCancellationRequestStatus.AlreadyTerminal);
+        var requests = (await events.LoadTailAsync(new(child), StreamVersion.Empty, token)).OfType<WorkflowCancellationRequestedEvent>();
+        requests.Should().ContainSingle().Which.CommandId.Should().Be(winner.CommandId);
+        (await services.GetRequiredService<DurableDagChildPump>().PumpOnceAsync(poll, token)).Should().Be(1);
+        var after = await DagPumpRunFixture.ReadAsync(events, run.RunId, token);
+        after.Nodes[0].State.Should().Be(independentFirst ? DagNodeStateV1.Failed : DagNodeStateV1.Cancelled);
+        after.Nodes[0].FailureCode.Should().Be(independentFirst ? "CHILD_CANCELLED" : null);
+        after.Nodes[1].State.Should().Be(DagNodeStateV1.CancellationRequested);
+    }
+
     [Fact]
     public Task JoinRace_LostAckThenParentCancellation_ReplaysTheCommittedJoin() =>
         CheckIndependentChildCancellationAsync(loseAcknowledgement: true);
