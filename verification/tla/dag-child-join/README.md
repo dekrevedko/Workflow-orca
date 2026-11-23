@@ -7,7 +7,7 @@ A child that cancels independently joins as `Failed / CHILD_CANCELLED`. A child 
 | A cancels independently and joins. The worker dies before marking the outbox. The parent then requests cancellation. | The replacement claims the same notice on attempt 2 and acknowledges it. The original join remains the only join. |
 | A cancels independently. The parent requests cancellation before any join. The worker dies. | The replacement handles the first delivery on attempt 1, records `Failed / CHILD_CANCELLED` and acknowledges it. |
 
-In both PostgreSQL schedules, B keeps its admission, the parent remains in `CancellationRequested`, and the journal has no integrity fault. At the pre-repair revision, the same process tests respectively poisoned a valid notice and acknowledged the wrong classification.
+Both schedules pass with PostgreSQL 17 and SQL Server 2022. Each replacement reads exactly one join for A and the same admitted child ID for B that the seed worker recorded before the crash. The parent remains in `CancellationRequested`, and the journal has no integrity fault. The pre-repair PostgreSQL run reproduced both failures: a poisoned redelivery and an acknowledged first join with the wrong classification.
 
 ## Durable evidence and compatibility
 
@@ -24,12 +24,12 @@ Older writers persisted random UUIDv7 request IDs. A valid existing join retains
 | Five mutations | Reclassifying the first join or replay against the parent, overwriting the winning origin, blindly trusting a replay and appending a second join each violated its named property. |
 | Eight reachability checks | All reached their named state, including a fresh read after restart, opposite request winners and rejection of changed output. |
 
-The model permits one process loss, one lost acknowledgement and one admitted sibling. Event ordering and UUID encoding are checked in C#. The in-memory recovery suite includes DAG-caused cancellation, changed output, and legacy ambiguity. The PostgreSQL tests keep the database running, kill and reap the worker at a committed boundary, and launch a fresh process. The replacement reads the persisted state and uses real lease expiry. SQL Server process recovery and database-server failure are outside this qualification. [TLA+ module](DagChildJoin.tla), [recovery tests](../../../tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.JoinRace.cs) and [process restart tests](../../../tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.PostgreSqlRestart.cs)
+The model permits one process loss, one lost acknowledgement and one admitted sibling. Event ordering and UUID encoding are checked in C#. The in-memory recovery suite includes DAG-caused cancellation, changed output, and legacy ambiguity. Both provider tests keep the database running, kill and reap the application worker at a committed boundary, and launch a fresh worker process. The replacement reads the persisted state and uses real lease expiry. The xUnit report includes both process IDs, the journal join count, B's retained child ID, the dispatch attempt and the notice state. Database-server restart is outside this qualification. [TLA+ module](DagChildJoin.tla), [recovery tests](../../../tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.JoinRace.cs) and [process restart tests](../../../tests/OrcaCore.Hosting.Tests/DagChildRecoveryTests.ProcessRestart.cs)
 
 Run from the repository root with PowerShell. TLC uses the private JRE. The explicit process tests require Docker with Linux containers.
 
 ```powershell
 ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/dag-child-join -ModuleName DagChildJoin
 dotnet test tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj -c Release --filter "FullyQualifiedName~DagChildRecoveryTests"
-dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.PostgreSqlProcessRestart -showLiveOutput
+dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -class OrcaCore.Hosting.Tests.DagChildRecoveryTests -method "*ProcessRestart" -showLiveOutput
 ```

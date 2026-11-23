@@ -10,7 +10,7 @@ Use TLA+ when a requirement depends on the order of operations across callers, l
 | [Durable wait handoff](durable-wait-handoff/README.md) | Can two workers lose or duplicate a committed resume across a crash? | Bounded safety, conditional recovery and in-memory recovery tests |
 | [Durable continuation lease expiry](durable-continuation-lease/README.md) | What can an expired worker change after a replacement claims and dispatches the record? | Fenced dispositions, terminal replay controls and a real replacement pump on in-memory, PostgreSQL and SQL Server providers |
 | [Durable event versus timeout](durable-event-timeout/README.md) | Can an old timeout or redelivery of E1 affect the next wait on the same key? | Occurrence-specific arbitration, retained inbox identity and replay with a fresh pending E2 |
-| [DAG child join and parent cancellation](dag-child-join/README.md) | Can later parent cancellation change how a child's terminal fact is first joined or replayed? | Source and reference checks pass. Two PostgreSQL worker restarts preserve the independent cancellation and acknowledge one join. |
+| [DAG child join and parent cancellation](dag-child-join/README.md) | Can later parent cancellation change how a child's terminal fact is first joined or replayed? | Source and reference checks pass. Both restart schedules preserve the independent cancellation and acknowledge one join on PostgreSQL and SQL Server. |
 
 Run the checks from the repository root with PowerShell 7 on Windows or Linux x64.
 

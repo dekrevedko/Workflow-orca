@@ -15,6 +15,7 @@ on:
       - 'src/OrcaCore.Runtime.Protocol/**'
       - 'src/OrcaCore.Providers.InMemory/**'
       - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
       - 'tests/OrcaCore.Engine.Durable.Tests/Dag/**'
       - 'src/OrcaCore.Provider.Abstractions/**'
       - 'tests/OrcaCore.Hosting.Tests/**'
@@ -34,6 +35,7 @@ on:
       - 'src/OrcaCore.Runtime.Protocol/**'
       - 'src/OrcaCore.Providers.InMemory/**'
       - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
       - 'tests/OrcaCore.Engine.Durable.Tests/Dag/**'
       - 'src/OrcaCore.Provider.Abstractions/**'
       - 'tests/OrcaCore.Hosting.Tests/**'
@@ -74,7 +76,16 @@ jobs:
             .codex-run/dag-model/*/*.tla
             .codex-run/dag-tests/*.trx
 
-  postgres-restart:
+  database-restart:
+    name: ${{ matrix.check }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check: postgres-restart
+            method: PostgreSqlProcessRestart
+          - check: sqlserver-restart
+            method: SqlServerProcessRestart
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -82,5 +93,26 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           global-json-file: global.json
-      - name: Kill and replace the DAG worker against PostgreSQL
-        run: dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.PostgreSqlProcessRestart -showLiveOutput
+      - name: Kill and replace the DAG worker
+        run: dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.${{ matrix.method }} -showLiveOutput -xml restart.xml
+      - name: Verify both restart schedules ran and passed
+        shell: pwsh
+        env:
+          TEST_METHOD: ${{ matrix.method }}
+        run: |
+          $report = [xml](Get-Content -Raw restart.xml)
+          $cases = @($report.SelectNodes('//test'))
+          $method = "OrcaCore.Hosting.Tests.DagChildRecoveryTests.$env:TEST_METHOD"
+          if ($cases.Count -ne 2) { throw "Expected two tests for $method, found $($cases.Count)." }
+          foreach ($order in 'True', 'False') {
+            $name = "${method}(loseAcknowledgement: $order)"
+            if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
+              throw "Missing passing result for $name."
+            }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.check }}-evidence
+          path: restart.xml
+          if-no-files-found: error
