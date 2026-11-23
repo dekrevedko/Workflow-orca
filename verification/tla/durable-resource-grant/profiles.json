@@ -1,0 +1,32 @@
+[
+  {
+    "name": "Reference",
+    "kind": "normal",
+    "config": "Reference.cfg",
+    "expected": ""
+  },
+  {
+    "name": "SourceSafety",
+    "kind": "normal",
+    "config": "SourceSafety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "SourceTransfer",
+    "kind": "witness",
+    "config": "SourceTransfer.cfg",
+    "expected": "NoLostTicketWitness"
+  },
+  {
+    "name": "ReferenceRetains",
+    "kind": "witness",
+    "config": "ReferenceRetains.cfg",
+    "expected": "NoRetainedTicketWitness"
+  },
+  {
+    "name": "ReferenceExit",
+    "kind": "witness",
+    "config": "ReferenceExit.cfg",
+    "expected": "NoLegitimateTransferWitness"
+  }
+]
