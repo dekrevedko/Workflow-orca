@@ -2044,6 +2044,16 @@ public interface IDurableResourceGovernanceStore
         CancellationToken cancellationToken = default);
 }
 
+public interface ICheckpointGuardedResourceGovernanceStore : IDurableResourceGovernanceStore
+{
+    ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(
+        ResourceGovernancePartitionId partitionId,
+        long expectedVersion,
+        IReadOnlyList<ResourceGovernanceRecord> records,
+        IReadOnlyDictionary<InstanceId, long> checkpoints,
+        CancellationToken cancellationToken = default);
+}
+
 internal enum DurableResourceLeaseCommitBarrier
 {
     WorkflowPendingObligationCommitted,
@@ -2343,7 +2353,7 @@ different namespace from an unqualified signature sketch:
 | `DagHostOptions`, DAG registration extension | `OrcaCore.Dag.Hosting` | `OrcaCore.Dag.Hosting` |
 | Lease/pool statuses, snapshots, closed resize result, governance records/stream/append result | `OrcaCore.Runtime.Protocol.ResourceGovernance` | `OrcaCore.Runtime.Protocol` |
 | `IDurableResourcePoolManagement`, `IDurableResourceLeaseRecovery`, `IDurableResourceLeaseDiagnostics` | `OrcaCore.Hosting.ResourceLeases` | `OrcaCore.Durable.Hosting` |
-| `IDurableResourceGovernanceStore` | `OrcaCore.Provider.Abstractions.ResourceGovernance` | `OrcaCore.Provider.Abstractions` |
+| `IDurableResourceGovernanceStore`, `ICheckpointGuardedResourceGovernanceStore` | `OrcaCore.Provider.Abstractions.ResourceGovernance` | `OrcaCore.Provider.Abstractions` |
 | Four barrier enum/fact/gate types | `OrcaCore.Engine.Durable.ResourceGovernance` | `OrcaCore.Engine.Durable` (internal) |
 | In-memory provider extension | `OrcaCore.Providers.InMemory` | `OrcaCore.Providers.InMemory` |
 | PostgreSQL options/extension | `OrcaCore.Providers.PostgreSql` | `OrcaCore.Providers.PostgreSql` |

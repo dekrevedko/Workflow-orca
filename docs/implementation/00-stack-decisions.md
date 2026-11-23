@@ -62,6 +62,19 @@ IOQ-2.
 | Event routing and deduplication | **Durable self-routing ingress with retained pre-wait ownership** (resolved 2026-07-18; amended by Section 7B) | `IWorkflowEventIngress` accepts a fixed-codec `WorkflowInboundEvent` through direct, correlation, definition-fanout, or start-or-deliver routing. Global `EventId` plus the full normalized-envelope fingerprint is checked before route state; accepted events persist until applied or observably poisoned, including when no wait is active. Fanout snapshots the complete current nonterminal target set once and deduplicates per target. Only `Accepted` or `Duplicate` permits source acknowledgement. |
 | Durable resource governance | **One serialized governance aggregate per configured provider partition** (resolved 2026-07-18) | The aggregate owns every pool, atomic multi-pool queue, ticket, review mark, resize, confirmation, and tombstone. `OrcaCore.Runtime.Protocol` owns records; `OrcaCore.Provider.Abstractions` owns the expected-version load/atomic-append store SPI. There is no force release or time-only reclaim. |
 
+### Scoped grant ownership across workflow and governance commits
+
+Two workers can observe the same reservation before either journals the workflow grant.
+Releasing by holder on a failed append let the losing worker transfer the only ticket to
+a queued rival while the winner's checkpoint still showed it held. The durable lease
+occurrence therefore owns the ticket across attempts. An append conflict leaves it in
+place for the winner or a replacement. A committed closure before activation authorizes compensation, and
+the governance receipt supplies the ticket identity if workflow publication must be retried.
+Direct admission and FIFO promotion validate the owning checkpoint in the governance write
+so a committed cancellation also fences a worker that read eligibility earlier.
+[DR-038](../specs/16-requirements-durable-driver.md#dr-038-scoped-durable-lease-occurrences-are-committed-ancestry-safe-state-machines)
+· [Original failure and regression evidence](../../verification/tla/durable-resource-grant/README.md)
+
 ## 3. Library whitelist / banlist
 
 **Core library projects** (application contracts, `Core`, engines, durable hosting,

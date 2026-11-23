@@ -485,7 +485,12 @@ first-release evidence for AC-512…517.
   cancelled-before-grant with zero units; reservation winning first retains `PendingCommit`
   tickets, then cancellation before activation compensates them exactly, while cancellation after
   activation uses proven release or quarantine. Delayed loser commands are stale idempotent
-  no-ops. [MG-064/065]
+  no-ops. On both SQL providers, queue a rival for the last unit, let A commit the shared
+  grant, and force B's append to lose. While A holds the lease, its original ticket and
+  provider generation remain and the rival stays queued. After a host stops, verify adoption
+  of a live reservation or exact compensation of a closed occurrence. If governance already
+  transferred capacity, replay records one workflow release and preserves the successor ticket.
+  [MG-064/065, DR-038, DR-AC-036] [Model and provider schedules](../../verification/tla/durable-resource-grant/README.md)
 - **AC-528** *Host ceilings cannot be raised by authors* - Fixed root-parallel branches admit in
   authored order under `MaxConcurrentExecutionPathsPerInstance`; root `ForEach` uses the lower
   of host ceiling and optional node cap; DAG `MaxConcurrentNodes` remains separate and counts a

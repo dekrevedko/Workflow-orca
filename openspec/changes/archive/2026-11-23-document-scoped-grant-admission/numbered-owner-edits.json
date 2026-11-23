@@ -1,0 +1,65 @@
+[
+  {
+    "path": "docs/implementation/00-stack-decisions.md",
+    "beforeSha256": "1b39a38f880bc6f37d1ce8fd3fbf46361f9f4d1cdde1ff3f78e5c648bedc4471",
+    "afterSha256": "5f90c98457871ea563590011f16fa44f381252dc8c88e619fdb59825b2fea8d8",
+    "edits": [
+      {
+        "before": "",
+        "after": "\n### Scoped grant ownership across workflow and governance commits\n\nTwo workers can observe the same reservation before either journals the workflow grant.\nReleasing by holder on a failed append let the losing worker transfer the only ticket to\na queued rival while the winner's checkpoint still showed it held. The durable lease\noccurrence therefore owns the ticket across attempts. An append conflict leaves it in\nplace for the winner or a replacement. A committed closure before activation authorizes compensation, and\nthe governance receipt supplies the ticket identity if workflow publication must be retried.\nDirect admission and FIFO promotion validate the owning checkpoint in the governance write\nso a committed cancellation also fences a worker that read eligibility earlier.\n[DR-038](../specs/16-requirements-durable-driver.md#dr-038-scoped-durable-lease-occurrences-are-committed-ancestry-safe-state-machines)\n· [Original failure and regression evidence](../../verification/tla/durable-resource-grant/README.md)\n"
+      }
+    ]
+  },
+  {
+    "path": "docs/specs/10-provider-model-and-extensibility.md",
+    "beforeSha256": "f9df3595e3ef2aa7fb78d50b07bf51653bbc5fd85609fa3b9702713e5ad2486f",
+    "afterSha256": "52196a834fd91dc2b2bf82668c254a20688a6337526b8807963ae78f00996a1e",
+    "edits": [
+      {
+        "before": "",
+        "after": "\nScoped admission and queued promotion additionally require\n`ICheckpointGuardedResourceGovernanceStore.AppendIfCurrentAsync`. The host supplies the\nowner checkpoint versions it used to admit those occurrences. The provider checks every\nversion in the same transaction as the governance append. A changed or missing owner\ncheckpoint returns a conflict so the host can re-evaluate eligibility. Wrapped providers\nforward this capability. An implementation without it cannot issue new scoped reservations.\n"
+      }
+    ]
+  },
+  {
+    "path": "docs/specs/12-acceptance-criteria.md",
+    "beforeSha256": "d7677ec3c5d47cce7ddec59a0fd8eb09414a755fd44d68a31bc058ccf564e617",
+    "afterSha256": "f1562a73d6f226d095ef66e738f97d0e0c72a3734ad6392eb10af802a0759eee",
+    "edits": [
+      {
+        "before": "  no-ops. [MG-064/065]\n",
+        "after": "  no-ops. On both SQL providers, queue a rival for the last unit, let A commit the shared\n  grant, and force B's append to lose. While A holds the lease, its original ticket and\n  provider generation remain and the rival stays queued. After a host stops, verify adoption\n  of a live reservation or exact compensation of a closed occurrence. If governance already\n  transferred capacity, replay records one workflow release and preserves the successor ticket.\n  [MG-064/065, DR-038, DR-AC-036] [Model and provider schedules](../../verification/tla/durable-resource-grant/README.md)\n"
+      }
+    ]
+  },
+  {
+    "path": "docs/specs/16-requirements-durable-driver.md",
+    "beforeSha256": "3d1fc347706569d394dedcc0d25ee270280864ada64cbee54c22ff581bdb1c9d",
+    "afterSha256": "ea07c03594886110ea87cb4645cbf98410e396b5cd7e97901640e4538358a4c2",
+    "edits": [
+      {
+        "before": "",
+        "after": "The durable lease occurrence owns the reservation across worker attempts. When two workers\nobserve the same ticket and only one workflow append commits, the losing append SHALL leave\nthe ticket and its provider generation with the occurrence. This holds before and after\nactivation. A replacement driving a still-pending occurrence can adopt that same ticket.\nIf the occurrence closes before activation, recovery SHALL use the governance receipt to\npublish one matching release, including its exact tickets or the empty set for cancellation\nbefore grant. Replaying that receipt SHALL preserve any queued successor's transferred ticket.\n\n"
+      }
+    ]
+  },
+  {
+    "path": "docs/specs/17-selected-mode-capability-matrix.md",
+    "beforeSha256": "39f6219a6778b6e87c45886ee53ca9ab19b14544e9b2001bede11f6c12abf3e9",
+    "afterSha256": "3fa19db2a2f079e5f9ca06927187b06ae5111ccd64c7d5ead5b7d0ee78f8a3d9",
+    "edits": [
+      {
+        "before": "",
+        "after": "public interface ICheckpointGuardedResourceGovernanceStore : IDurableResourceGovernanceStore\n{\n    ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(\n        ResourceGovernancePartitionId partitionId,\n        long expectedVersion,\n        IReadOnlyList<ResourceGovernanceRecord> records,\n        IReadOnlyDictionary<InstanceId, long> checkpoints,\n        CancellationToken cancellationToken = default);\n}\n\n"
+      },
+      {
+        "before": "per-workflow streams does not satisfy v1 durable leasing.\n",
+        "after": "per-workflow streams does not satisfy v1 durable leasing. Scoped grant and FIFO promotion use\nthe provider-facing `ICheckpointGuardedResourceGovernanceStore` extension. It additionally\nconditions the same governance append on the current versions of the admitted owners'\nworkflow checkpoints. Cancellation requests advance the owner checkpoint in their commit.\n"
+      },
+      {
+        "before": "| `IDurableResourceGovernanceStore` | `OrcaCore.Provider.Abstractions.ResourceGovernance` | `OrcaCore.Provider.Abstractions` |\n",
+        "after": "| `IDurableResourceGovernanceStore`, `ICheckpointGuardedResourceGovernanceStore` | `OrcaCore.Provider.Abstractions.ResourceGovernance` | `OrcaCore.Provider.Abstractions` |\n"
+      }
+    ]
+  }
+]

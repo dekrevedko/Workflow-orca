@@ -2,6 +2,8 @@
 
 A scoped ticket belongs to one durable lease occurrence. Workers A and B can both observe that ticket. If A journals the grant and B loses its workflow append, B leaves the ticket with A. A replacement can adopt the original reservation after host loss. If the owner stops before activation, recovery reads the durable governance receipt to determine whether to record an exact release or a zero-ticket cancellation. A held lease with uncertain user work remains subject to quarantine. See the [durable handoff contract](../../../openspec/specs/durable-runtime/spec.md#scenario-workflowgovernance-handoff-crashes).
 
+The binding [ownership decision](../../../docs/implementation/00-stack-decisions.md#scoped-grant-ownership-across-workflow-and-governance-commits) explains why a losing append leaves the ticket in place. [AC-527](../../../docs/specs/12-acceptance-criteria.md) defines the provider acceptance case.
+
 ## Model and controls
 
 [ResourceGrant.tla](ResourceGrant.tla) models one occurrence, one unit of capacity, two contenders, and one queued rival. The workflow and governance commits are separate actions. The recovery experiment includes a stale admission that reads the owner before cancellation and tries to write afterward. It abstracts protected work to one activation and represents adoption with the original ticket identity.
@@ -20,7 +22,7 @@ The recovery progress claim starts once the workflow has committed closure. Work
 
 The [ownership test](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.cs) queues a rival instance through the pool store, holds A after workflow activation, and stops B after its conflicting append. It checks the live ticket and generation before A can enter the body. A second row omits B and checks legitimate transfer on exit. At revision `74cd0d05`, the competing row failed on both PostgreSQL 17 and SQL Server 2022. The rival already held generation 2 while A's checkpoint still held generation 1.
 
-The [recovery tests](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.Recovery.cs) use separate service providers on the same real database and partition. Injected exceptions stop a worker at a particular durable write or discard its acknowledgement. The tests exercise the production driver or hosted sweep on recovery.
+The [recovery tests](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.Recovery.cs) use separate service providers on the same real database and partition. Injected exceptions stop a worker at a particular durable write or discard its acknowledgement. The tests exercise the production driver or hosted sweep on recovery. With the repair at `2ddc2cf4`, all ten cases (two ownership rows and eight recovery schedules) passed on PostgreSQL 17 and on SQL Server 2022.
 
 | Schedule | Evidence checked on each database |
 |---|---|
@@ -33,6 +35,15 @@ The [recovery tests](../../../tests/OrcaCore.ProviderCertification/DurableResour
 A committed scoped release fences delayed acquisition with the occurrence's protection token. The [commit pipeline](../../../src/OrcaCore.Engine.Durable/Execution/DurableCommitPipeline.cs) leaves a shared grant recoverable on conflict. The [governance aggregate](../../../src/OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs) validates owner checkpoint versions atomically with admission and promotion. [Settlement](../../../src/OrcaCore.Engine.Durable/Execution/DurableScopedReservationRecovery.cs) recovers terminal workflows even when their pool has no held tickets or waiters.
 
 Deploy all grant writers together. Drain old hosts first because earlier writers can still release on conflict and their governance reader predates zero-ticket closure receipts. A custom provider or decorator must implement the [guarded governance capability](../../../src/OrcaCore.Provider.Abstractions/IDurableResourceGovernanceStore.cs) to admit scoped reservations.
+
+### Other governance coverage
+
+The existing Section 3.11d Infrastructure scenarios `four-post-commit-barriers`,
+`fact-equality-and-ticket-uniqueness`, `confirmation-and-tombstone-accounting`, and
+`creation-versus-current-capacity` failed at repair revision `2ddc2cf4` and again
+during the documentation check with the same errors. These separate certification
+failures remain open. The ten passing cases per SQL provider above cover the named
+rollback and recovery schedules.
 
 ## Reproduce
 
