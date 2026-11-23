@@ -14,6 +14,8 @@ Ephemeral output retains its operation pin and notification-only waiting. DAG te
 
 For N pending callers, registration starts N logical authoritative reads. Without hints there are at most N further logical reads per second of continuous idle waiting, apart from provider or scheduling delays. Local hints may prompt further reads. Requests coalesce while a read is in flight. Count reads per waiter with a controlled clock, including slow reads and bursts of hints. This bound is per waiter. The change claims no global cap, fixed physical SQL statement count, or bound on the existing DAG notification backlog.
 
+Each durable output wait registers one handler on the host's shared commit event and removes it on exit. A refresh replaces only that waiter's signal. A local commit wakes the current signal. Each one-shot timer retains the signal for the read that armed it, so a delayed callback cannot wake a later read. A tick for N idle waiters still schedules N reads and allocates fresh per-waiter signals and timers. Registration and removal can copy the shared delegate list, and dispatching a local commit still visits every handler on the host. The [waiter scale measurements](artifacts/waiter-subscription-cost.md) quantify steady-state ticks against the in-memory provider.
+
 Persisted subscriptions would add transaction work on workflow commits and require distributed cleanup. The bounded read closes the lost-wake defect without choosing a distributed subscription design. Subscriber counts, backlog and append cost still require measurement before changing DAG observer fan-out.
 
 ## Qualification
