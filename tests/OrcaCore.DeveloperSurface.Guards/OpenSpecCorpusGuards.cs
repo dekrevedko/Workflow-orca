@@ -2738,7 +2738,12 @@ public sealed partial class OpenSpecCorpusGuards
             var proposedSuccessor = proposedSuccessors.SingleOrDefault(successor =>
                 successor.Capability == target.Capability &&
                 successor.Requirement == target.Requirement);
-            if (proposedSuccessor is null)
+            if (target.Capability == "durable-runtime")
+            {
+                ValidateResolvedPostGateOwnerChain(root, requirements, target.Capability, target.Requirement,
+                    [expectedOwner, RecoveryChange]);
+            }
+            else if (proposedSuccessor is null)
             {
                 owners.Select(item => item.Change).Should().Equal(
                     Directory.Exists(Path.Combine(root, "openspec", "changes", expectedOwner))
