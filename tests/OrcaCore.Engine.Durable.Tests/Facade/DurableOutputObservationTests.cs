@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Threading.Channels;
 using Microsoft.Extensions.DependencyInjection;
 using OrcaCore.Abstractions.Primitives;
@@ -61,29 +62,48 @@ public sealed class DurableOutputObservationTests : IDisposable
         }
     }
 
-    [Fact]
-    public async Task LocalCommitDuringStaleReadWakesImmediately()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task LocalCommitDuringStaleReadWakesImmediately(bool onTimerRecheck)
     {
         var (local, _) = await StartWaitingAsync();
         var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        // Capture the first Waiting snapshot and return it only after local ingress commits.
-        reads.OnNextRead = ct => release.Task.WaitAsync(ct);
+        var captured = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task HoldPendingRead(CancellationToken ct)
+        {
+            captured.SetResult();
+            return release.Task.WaitAsync(ct);
+        }
+
+        if (!onTimerRecheck)
+        {
+            reads.OnNextRead = HoldPendingRead;
+        }
+
         var waiting = local.WaitForOutputAsync(token).AsTask();
-        Assert.Null(reads.OnNextRead);
-        Assert.False(waiting.IsCompleted);
         try
         {
+            if (onTimerRecheck)
+            {
+                await clock.ExpectArmAsync(token);
+                reads.OnNextRead = HoldPendingRead;
+                clock.Advance(Interval);
+            }
+
+            await captured.Task.WaitAsync(Watchdog, token);
+            Assert.False(waiting.IsCompleted);
             await ApproveAsync(observer, local.InstanceId);
             var beforeRelease = reads.Count;
             release.SetResult();
             Assert.Equal(42, await waiting.WaitAsync(Watchdog, token));
             Assert.Equal(beforeRelease + 1, reads.Count);
-            Assert.Equal(DateTimeOffset.UnixEpoch, clock.GetUtcNow());
+            Assert.Equal(DateTimeOffset.UnixEpoch + (onTimerRecheck ? Interval : TimeSpan.Zero), clock.GetUtcNow());
             // A second, already-terminal wait needs only the authoritative query.
             Assert.Equal(42, await local.WaitForOutputAsync(token));
             Assert.Equal(beforeRelease + 2, reads.Count);
             clock.Advance(Interval);
-            Assert.Equal(0, clock.Fired);
+            Assert.Equal(onTimerRecheck ? 1 : 0, clock.Fired);
         }
         finally
         {
@@ -237,6 +257,47 @@ public sealed class DurableOutputObservationTests : IDisposable
     }
 
     [Fact]
+    public async Task IdleRechecksKeepTheHostSubscriptionListStableWithThousandsOfWaiters()
+    {
+        const int waiterCount = 2048;
+        var (local, _) = await StartWaitingAsync();
+        var hub = observer.GetRequiredService<DurableFacadeNotificationHub>();
+        // The multicast delegate is immutable. Its identity detects churn even if all
+        // handlers have been removed and added back by the time the tick settles.
+        var subscriptions = typeof(DurableFacadeNotificationHub).GetField(
+            nameof(DurableFacadeNotificationHub.InstanceCommitted), BindingFlags.Instance | BindingFlags.NonPublic)!;
+        Delegate? Subscribers() => (Delegate?)subscriptions.GetValue(hub);
+
+        var baseline = Subscribers();
+        var initialReads = reads.Count;
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var waits = Enumerable.Range(0, waiterCount).Select(_ => local.WaitForOutputAsync(caller.Token).AsTask()).ToArray();
+        try
+        {
+            await clock.ExpectArmsAsync(waiterCount, token);
+            var registered = Subscribers();
+            Assert.Equal((baseline?.GetInvocationList().Length ?? 0) + waiterCount, registered!.GetInvocationList().Length);
+            Assert.Equal(initialReads + waiterCount, reads.Count);
+
+            for (var tick = 1; tick <= 2; tick++)
+            {
+                clock.Advance(Interval);
+                await clock.ExpectArmsAsync(waiterCount, token);
+                Assert.Equal(initialReads + (tick + 1) * waiterCount, reads.Count);
+                Assert.True(ReferenceEquals(registered, Subscribers()), "An idle refresh changed the host subscription list.");
+            }
+        }
+        finally
+        {
+            await caller.CancelAsync();
+            await Assert.ThrowsAnyAsync<OperationCanceledException>(() => Task.WhenAll(waits).WaitAsync(Watchdog, token));
+        }
+
+        Assert.All(waits, wait => Assert.True(wait.IsCanceled));
+        Assert.Equal(baseline, Subscribers());
+    }
+
+    [Fact]
     public async Task QueryFailureEndsTheWaitAndCallerCanRetry()
     {
         var (local, remote) = await StartWaitingAsync();
@@ -317,6 +378,17 @@ public sealed class DurableOutputObservationTests : IDisposable
         public override DateTimeOffset GetUtcNow() => clock.Now;
         public override long GetTimestamp() => clock.TimeProvider.GetTimestamp();
         public override long TimestampFrequency => clock.TimeProvider.TimestampFrequency;
+
+        internal async Task ExpectArmsAsync(int count, CancellationToken token)
+        {
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+            deadline.CancelAfter(Watchdog);
+            for (var i = 0; i < count; i++)
+            {
+                var timer = await armed.Reader.ReadAsync(deadline.Token);
+                Assert.Equal((Interval, Timeout.InfiniteTimeSpan), (timer.Due, timer.Period));
+            }
+        }
 
         internal async Task ExpectArmAsync(CancellationToken token, int afterReads = 0)
         {
