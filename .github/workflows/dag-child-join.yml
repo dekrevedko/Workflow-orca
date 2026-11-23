@@ -10,9 +10,12 @@ on:
       - '.github/workflows/dag-child-join.yml'
       - 'docs/specs/08-requirements-composition.md'
       - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Abstractions/Ids/**'
       - 'src/OrcaCore.Durable.Hosting/Dag/**'
       - 'src/OrcaCore.Runtime.Protocol/**'
       - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'tests/OrcaCore.Engine.Durable.Tests/Dag/**'
       - 'src/OrcaCore.Provider.Abstractions/**'
       - 'tests/OrcaCore.Hosting.Tests/**'
       - 'Directory.*'
@@ -26,9 +29,12 @@ on:
       - '.github/workflows/dag-child-join.yml'
       - 'docs/specs/08-requirements-composition.md'
       - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Abstractions/Ids/**'
       - 'src/OrcaCore.Durable.Hosting/Dag/**'
       - 'src/OrcaCore.Runtime.Protocol/**'
       - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'tests/OrcaCore.Engine.Durable.Tests/Dag/**'
       - 'src/OrcaCore.Provider.Abstractions/**'
       - 'tests/OrcaCore.Hosting.Tests/**'
       - 'Directory.*'
@@ -54,6 +60,8 @@ jobs:
       - name: Exercise hosting recovery schedules
         if: ${{ !cancelled() }}
         run: dotnet test tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj -c Release --filter "FullyQualifiedName~DagChildRecoveryTests" --logger "trx;LogFileName=recovery.trx" --results-directory .codex-run/dag-tests
+      - name: Verify cancellation command identities
+        run: dotnet test tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj -c Release --filter "FullyQualifiedName~DurableCancellationIdentityTests"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -65,3 +73,14 @@ jobs:
             .codex-run/dag-model/*/*.cfg
             .codex-run/dag-model/*/*.tla
             .codex-run/dag-tests/*.trx
+
+  postgres-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Kill and replace the DAG worker against PostgreSQL
+        run: dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.PostgreSqlProcessRestart -showLiveOutput
