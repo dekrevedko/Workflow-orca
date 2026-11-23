@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 410,
-    "physicalDeclarations": 1734,
-    "activeFiles": 254,
-    "activeDeclarations": 1046,
+    "physicalFiles": 411,
+    "physicalDeclarations": 1736,
+    "activeFiles": 255,
+    "activeDeclarations": 1048,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -2268,6 +2268,12 @@
       "declarations": 0
     },
     {
+      "source": "tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
@@ -2361,7 +2367,7 @@
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
       "status": "active",
-      "declarations": 49
+      "declarations": 50
     },
     {
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourcePoolStoreCertificationTests.cs",
@@ -2403,7 +2409,7 @@
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
       "status": "active",
-      "declarations": 23
+      "declarations": 24
     },
     {
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs",

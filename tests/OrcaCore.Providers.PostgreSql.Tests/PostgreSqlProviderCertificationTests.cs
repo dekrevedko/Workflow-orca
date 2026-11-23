@@ -54,6 +54,16 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task ResourceGrant_ActiveWinnerRetainsTicket(bool competingAppend)
+    {
+        return DurableResourceGrantRaceCertification.RunAsync(
+            () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+            typeof(PostgreSqlDurableProviderOptions), competingAppend);
+    }
+
+    [Theory]
     [ClassData<DurableEventTimeoutCertification.Schedules>]
     public Task DurableEventTimeout_ReusedKey(DurableEventTimeoutCertification.Schedule schedule) =>
         DurableEventTimeoutCertification.RunAsync(CreateFixture(), certificationStore!, schedule);
