@@ -66,6 +66,7 @@ internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSou
         ArgumentNullException.ThrowIfNull(partitionId);
         ArgumentOutOfRangeException.ThrowIfNegative(expectedVersion);
         ArgumentNullException.ThrowIfNull(records);
+        ArgumentNullException.ThrowIfNull(checkpoints);
         if (records.Count == 0)
         {
             throw new ArgumentException("A governance append batch cannot be empty.", nameof(records));

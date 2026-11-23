@@ -28,11 +28,15 @@ internal sealed class SqlServerResourceGovernanceStore(SqlServerStateDocumentSto
         ResourceGovernancePartitionId partitionId, long expectedVersion, IReadOnlyList<ResourceGovernanceRecord> records,
         IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken)
     {
+        ArgumentNullException.ThrowIfNull(checkpoints);
+        if (checkpoints.Count == 0)
+            return await AppendAsync(partitionId, expectedVersion, records, cancellationToken).ConfigureAwait(false);
         var current = false;
         return await documents.ExecuteAsync<SqlServerResourceGovernanceStateEngine, ResourceGovernanceAppendResult>(
             SqlServerStateDocumentStore.ResourceGovernanceStateKey, Restore,
-            engine => current ? engine.AppendAsync(partitionId, expectedVersion, records, cancellationToken).AsTask()
-                : Task.FromResult<ResourceGovernanceAppendResult>(new ResourceGovernanceAppendResult.Conflict(expectedVersion)),
+            async engine => current
+                ? await engine.AppendAsync(partitionId, expectedVersion, records, cancellationToken).ConfigureAwait(false)
+                : new ResourceGovernanceAppendResult.Conflict((await engine.LoadAsync(partitionId, cancellationToken).ConfigureAwait(false)).Version),
             Capture, cancellationToken, async (connection, transaction) =>
             {
                 var payload = await documents.LoadPayloadAsync(connection, transaction,

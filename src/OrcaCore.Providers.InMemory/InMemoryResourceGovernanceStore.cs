@@ -33,10 +33,22 @@ internal sealed class InMemoryResourceGovernanceStore(InMemoryWorkflowProvider? 
 
     public ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(
         ResourceGovernancePartitionId partitionId, long expectedVersion, IReadOnlyList<ResourceGovernanceRecord> records,
-        IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken) =>
-        (workflows ?? throw new InvalidOperationException("Missing workflow checkpoint store.")).WithCurrentCheckpoints(
-            checkpoints, () => AppendAsync(partitionId, expectedVersion, records, cancellationToken),
-            ValueTask.FromResult<ResourceGovernanceAppendResult>(new ResourceGovernanceAppendResult.Conflict(expectedVersion)));
+        IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(checkpoints);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (checkpoints.Count == 0) return AppendAsync(partitionId, expectedVersion, records, cancellationToken);
+        return (workflows ?? throw new InvalidOperationException("Missing workflow checkpoint store.")).WithCurrentCheckpoints(
+            checkpoints, current =>
+            {
+                if (current) return AppendAsync(partitionId, expectedVersion, records, cancellationToken);
+                lock (gate)
+                {
+                    var version = streams.TryGetValue(partitionId.Value, out var stream) ? stream.Count : 0;
+                    return ValueTask.FromResult<ResourceGovernanceAppendResult>(new ResourceGovernanceAppendResult.Conflict(version));
+                }
+            });
+    }
 
     /// <inheritdoc />
     public ValueTask<ResourceGovernanceAppendResult> AppendAsync(

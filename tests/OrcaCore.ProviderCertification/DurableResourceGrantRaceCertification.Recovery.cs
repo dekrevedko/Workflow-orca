@@ -8,6 +8,8 @@ using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Engine.Durable.Execution;
 using OrcaCore.Engine.Durable.ResourceGovernance;
 using OrcaCore.Hosting.Tests;
+using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using OrcaCore.Runtime.Protocol.ResourceGovernance;
 using Xunit;
 
 namespace OrcaCore.ProviderCertification;
@@ -34,6 +36,8 @@ public static partial class DurableResourceGrantRaceCertification
         await using (var seed = BuildHost(services(), partition))
         {
             await seed.GetServices<IHostedService>().Single(s => s.GetType().Assembly == providerType.Assembly).StartAsync(ct);
+            if (schedule == RecoveryCase.CloseEmpty)
+                await AssertGuardedPortContractAsync(seed, ct);
             if (schedule is RecoveryCase.ResumePromoted or RecoveryCase.CloseQueued)
                 (await seed.GetRequiredService<IResourcePoolStore>().AcquireAsync(Request(blocker, "blocker"), ct))
                     .Status.Should().Be(ResourcePoolAcquireStatus.Granted);
@@ -198,6 +202,26 @@ public static partial class DurableResourceGrantRaceCertification
             next.TicketId.Should().NotBe(reserved.TicketId);
             if (transferred is not null) next.TicketId.Should().Be(transferred.TicketId);
         }
+    }
+
+    private static async Task AssertGuardedPortContractAsync(ServiceProvider host,
+        CancellationToken cancellationToken)
+    {
+        var provider = (ICheckpointGuardedResourceGovernanceStore)host.GetRequiredService<IDurableResourceGovernanceStore>();
+        var partition = ResourceGovernancePartitionId.Create($"guard-{Guid.CreateVersion7():N}");
+        // Exercise a fresh database before the first workflow checkpoint exists.
+        var first = ResourceGovernanceStoreCertificationTests.Record(1, "first");
+        var second = ResourceGovernanceStoreCertificationTests.Record(2, "second");
+        var empty = new Dictionary<InstanceId, long>();
+        var committed = await provider.AppendIfCurrentAsync(partition, 0, [first], empty, cancellationToken);
+        committed.Should().Be(new ResourceGovernanceAppendResult.Committed(1));
+
+        var missing = new Dictionary<InstanceId, long> { [InstanceId.Parse(Guid.CreateVersion7().ToString())] = 1 };
+        var stale = await provider.AppendIfCurrentAsync(partition, 0, [first], missing, cancellationToken);
+        stale.Should().Be(new ResourceGovernanceAppendResult.Conflict(1));
+        var current = await provider.AppendIfCurrentAsync(partition, 1, [second], missing, cancellationToken);
+        current.Should().Be(new ResourceGovernanceAppendResult.Conflict(1));
+        (await provider.LoadAsync(partition, cancellationToken)).Version.Should().Be(1);
     }
 
     private static ResourcePoolAcquireRequest Request(InstanceId id, string holder) =>
