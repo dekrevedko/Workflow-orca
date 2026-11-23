@@ -84,9 +84,10 @@ semantics. Any such change requires an explicit document-17/OpenSpec amendment f
 4. **Lifecycle telemetry durability split** — exactly which nonterminal diagnostic events are
    best-effort versus durable remains a hosting/observability decision; terminal facts and
    required audit/lease events remain durable.
-5. **Completion wait implementation detail** — the public contract is fixed as notification-driven,
-   race-free `WaitForOutputAsync`/`WaitForTerminalAsync` with caller-local cancellation and no
-   polling; implementation may choose the internal notification primitive.
+5. **Completion wait implementation detail** — workflow output subscribes before its first authoritative output read.
+   A DAG observer subscribes at a pending version and rechecks. Caller cancellation is local. Pending durable workflow output uses the
+   bounded recheck in MG-003. Ephemeral output and DAG terminal waits use notifications
+   without polling.
 
 ## 13.3 Normative first-release decisions
 

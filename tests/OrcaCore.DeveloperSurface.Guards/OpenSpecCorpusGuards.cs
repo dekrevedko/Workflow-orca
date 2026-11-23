@@ -306,7 +306,7 @@ public sealed partial class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "851f5e377924c8fe05d70e98aea5d3944dddd017005ce985886f93134f21d1d3";
+        "1de561cf48e0686e10ec22a598ff1c2f7b47b1b53ab276708431e72def47ccf6";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -351,9 +351,9 @@ public sealed partial class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 39;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 41;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "bede8e86fc4a580735b6b7ea498e6f726e485a48acc871ddd8bdba3ed06bfc6b";
+        "56dda6ad3e37a0b1dc9bbce6a6428799fd1abbf5a0a6fe9b5ea2693adea045af";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
@@ -434,7 +434,11 @@ public sealed partial class OpenSpecCorpusGuards
             ("openspec/changes/enforce-lossless-workflow-values/artifacts/proposed-openspec-provenance-2026-11-17.md",
                 "ec04c6ad8d874bd1c2320cdfa2d8d1b2456f96b375bdc4d7c94bd06976201091"),
             ("openspec/changes/enforce-lossless-workflow-values/artifacts/revised-proposed-openspec-provenance-2026-11-17.md",
-                "c3f3ed9a5660e02a6eb0608041f03a20cb5d620270b3c1840e5854be8177bf21")
+                "c3f3ed9a5660e02a6eb0608041f03a20cb5d620270b3c1840e5854be8177bf21"),
+            ("openspec/changes/enforce-lossless-workflow-values/artifacts/sync-openspec-provenance-2026-11-17.md",
+                "851f5e377924c8fe05d70e98aea5d3944dddd017005ce985886f93134f21d1d3"),
+            ("openspec/changes/bound-runtime-observation/artifacts/proposed-openspec-provenance-2026-11-21.md",
+                "49538952f6b9ee87424446625821bd0667ddc5f7e0c966787ea4014f5f178ba2")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -1712,15 +1716,18 @@ public sealed partial class OpenSpecCorpusGuards
 
         var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
+        var observation = ReadObservationContract(root);
+        var beforeObservation = PriorObservationCanonical(root, canonicalRequirements, observation);
         var fidelity = ReadFidelityContract(root);
-        var previous = PriorValueFidelityCanonical(root, canonicalRequirements, fidelity);
-        var predecessors = activeDeltaRequirements.Where(item => item.Change != ValueFidelityChange).ToArray();
+        var previous = PriorValueFidelityCanonical(root, beforeObservation, fidelity);
+        var predecessors = activeDeltaRequirements.Where(item => item.Change != ValueFidelityChange && item.Change != ObservationChange).ToArray();
         var registeredSuccessorKeys = ValidateProposedRequirementSuccessors(
             root,
             previous,
             predecessors,
             postGateCheckpoint);
-        registeredSuccessorKeys.UnionWith(ValidateValueFidelityOwners(root, activeDeltaRequirements, canonicalRequirements, fidelity));
+        registeredSuccessorKeys.UnionWith(ValidateValueFidelityOwners(root, activeDeltaRequirements, beforeObservation, fidelity));
+        registeredSuccessorKeys.UnionWith(ValidateObservationOwners(root, activeDeltaRequirements, observation));
 
         var duplicateOwners = activeRequirementOwners
             .GroupBy(
@@ -5093,10 +5100,12 @@ public sealed partial class OpenSpecCorpusGuards
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/openspec-provenance-checkpoint.json");
         var postGateCheckpoint = FixtureDefinitions.Read<PostGateAmendmentCheckpoint>(
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
+        var observation = ReadObservationContract(root);
+        var beforeObservation = PriorObservationCanonical(root, canonicalRequirements, observation);
         var fidelity = ReadFidelityContract(root);
-        var previous = PriorValueFidelityCanonical(root, canonicalRequirements, fidelity);
+        var previous = PriorValueFidelityCanonical(root, beforeObservation, fidelity);
         var rows = activeDeltaRequirements
-            .Select(requirement => ClassifyValueFidelityProvenance(root, canonicalRequirements, previous, requirement, postGateCheckpoint))
+            .Select(requirement => ClassifyObservationProvenance(root, canonicalRequirements, beforeObservation, previous, requirement, postGateCheckpoint))
             .OrderBy(row => row.RecordLine, StringComparer.Ordinal)
             .ToArray();
         var record = string.Join('\n', rows.Select(row => row.RecordLine)) + "\n";

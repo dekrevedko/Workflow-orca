@@ -19,6 +19,7 @@ public sealed partial class OpenSpecCorpusGuards
 
     internal static void ProjectValueFidelityRegistry(JsonObject current)
     {
+        ProjectObservationRegistry(current);
         var row = current["workflowValueFidelity"]!.AsObject();
         row.Count.Should().Be(10);
         row["implementationCheckpoint"]!.GetValue<string>().Should().Be(ValueFidelitySource);
@@ -99,7 +100,7 @@ public sealed partial class OpenSpecCorpusGuards
         {
             var path = row.GetProperty("path").GetString()!;
             _ = ProjectValueFidelityDocument(root, path,
-                NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))), contract, row);
+                BeforeObservationSynchronization(root, path, NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path)))), contract, row);
         }
         return keys;
     }
@@ -140,6 +141,7 @@ public sealed partial class OpenSpecCorpusGuards
 
     internal static string BeforeValueFidelitySynchronization(string root, string path, string current)
     {
+        current = BeforeObservationSynchronization(root, path, current);
         // Only these two guide updates are projected before older documentation checks.
         (string After, string Before)? guide = path switch
         {

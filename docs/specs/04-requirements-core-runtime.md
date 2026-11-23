@@ -233,13 +233,14 @@ canonical position or ownership model. The complete fiber/scope state SHALL repr
 structures and rehydration exactly.
 
 ### CR-016 Synchronous completion bridge
-Resultful `WorkflowInstanceHandle<TOutput>` SHALL expose notification-driven
+Resultful `WorkflowInstanceHandle<TOutput>` SHALL expose typed
 `WaitForOutputAsync(CancellationToken)`, and the typed `WorkflowStartResult` helper of the same
 name SHALL project through `GetHandleOrThrow()` so callers need neither casts nor union switches
 on the success path. `DagRunHandle` SHALL expose notification-driven
-`WaitForTerminalAsync(CancellationToken)`. Each wait registers its notification before one
-authoritative recheck, completes without polling when terminality races registration, and never
-exposes live internal state. Caller cancellation cancels only that local wait and SHALL NOT
+`WaitForTerminalAsync(CancellationToken)`. Workflow output registers before its first authoritative output read. DAG
+terminal waiting may resolve its initial read directly; when pending, it registers at the observed
+version and rechecks. The result is detached committed state. After a pending result, durable workflow output rechecks under MG-003
+even without a local hint. Ephemeral output and DAG terminal waits use notifications without polling. Caller cancellation cancels only that local wait and SHALL NOT
 request workflow, DAG-run, or child cancellation. A terminal workflow without output throws
 typed `WorkflowOutputUnavailableException` carrying status and optional `WorkflowFailure`.
 

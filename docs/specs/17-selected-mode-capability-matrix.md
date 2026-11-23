@@ -52,7 +52,7 @@ that mode.
 | DAG planning | Separate `OrcaCore.Dag` project | Separate `OrcaCore.Dag` project | Typed immutable DAG input, node references, dependency mapping, and validation. V1 makes no visualization promise. |
 | DAG execution | Absent | Durable child instance per node | Runtime-owned progression; no caller-owned ready/completed sets and no public `RunChildren`. |
 | Definition-wide retry | Absent | Absent | Deferred. Step retry remains structured and bounded. |
-| Management and typed state | In-memory implementation | Durable implementation | Typed snapshot/state/output queries, notification-driven output wait, cancellation request, and termination only. Instance enumeration/bulk query plus pause/resume/retry/archive/purge are deferred public operations. |
+| Management and typed state | In-memory implementation | Durable implementation | Typed snapshot/state/output queries, mode-specific typed output wait (MG-003), cancellation request, and termination only. Instance enumeration/bulk query plus pause/resume/retry/archive/purge are deferred public operations. |
 | Persistence/restart recovery | Absent | Durable only | Requires a durable store. In-memory durable hosting is development/test-only. |
 
 V1 concurrency is bulk-synchronous fork-join. Root fan-out scopes compose sequentially without
@@ -3093,10 +3093,11 @@ contract; absence and mismatch use `WorkflowInstanceNotFoundException` and
 `WorkflowInstanceDefinitionMismatchException` rather than an untyped null.
 `GetStateAsync<TState>` returns only the last-committed root state and fails with a typed state-type
 mismatch; it never exposes private branch/item or in-flight attempt copies. `GetOutputAsync` remains
-a nonblocking pending/available/unavailable snapshot query. `WaitForOutputAsync` uses a
-notification-driven subscribe-then-recheck protocol around the committed completion boundary,
-returns the detached successful output, and throws `WorkflowOutputUnavailableException` carrying
-terminal status/failure when no output can exist. It never polls. Caller cancellation cancels only
+a nonblocking pending/available/unavailable snapshot query. `WaitForOutputAsync` subscribes
+before its first authoritative read, returns detached successful output, and throws
+`WorkflowOutputUnavailableException` carrying terminal status/failure when no output can exist.
+Ephemeral output waits use notifications without polling. A pending durable output wait uses
+local hints and the one-second authoritative recheck under MG-003. Caller cancellation cancels only
 the local wait, not the workflow. The start-result extension first calls `GetHandleOrThrow()`, so the
 ordinary consumer path is `var output = await start.WaitForOutputAsync(token);`. Resultless handles
 have no output member. V1 exposes no workflow-instance enumeration, list/count/statistics, or bulk
