@@ -14,7 +14,7 @@ using Xunit;
 
 namespace OrcaCore.ProviderCertification;
 
-public static class DurableResourceGrantRaceCertification
+public static partial class DurableResourceGrantRaceCertification
 {
     public static async Task RunAsync(Func<IServiceCollection> providerServices, Type providerType, bool race)
     {
@@ -130,6 +130,8 @@ public static class DurableResourceGrantRaceCertification
     private static ServiceProvider BuildHost(IServiceCollection services, ResourceGovernancePartitionId partition)
     {
         services.AddTransient<NoOpStep>();
+        services.AddSingleton<CountedStep>();
+        services.AddLogging();
         services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
         {
             StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
@@ -142,9 +144,9 @@ public static class DurableResourceGrantRaceCertification
         return services.BuildServiceProvider();
     }
 
-    private static DurableWorkflowRuntime CreateRuntime(ServiceProvider host, Gate gate, IDurableDriverObserver? observer = null)
+    private static DurableWorkflowRuntime CreateRuntime(ServiceProvider host, IDurableResourceLeaseCertificationGate gate, IDurableDriverObserver? observer = null, IWorkflowEventStore? events = null)
     {
-        var processor = new DurableCommandProcessor(host.GetRequiredService<IWorkflowEventStore>(),
+        var processor = new DurableCommandProcessor(events ?? host.GetRequiredService<IWorkflowEventStore>(),
             host.GetRequiredService<IResourcePoolStore>()) { LeaseCertificationGate = gate };
         return new DurableWorkflowRuntime(processor, new DurableDefinitionRegistry(host), TimeProvider.System, driverObserver: observer);
     }

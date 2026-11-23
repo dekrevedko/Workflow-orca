@@ -46,6 +46,23 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
     }
 
     [Theory]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.ResumeReserved)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.CloseReserved)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.CloseEmpty)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.CloseJournalled)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.ResumePromoted)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.CloseQueued)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.CancelEmpty)]
+    [InlineData(DurableResourceGrantRaceCertification.RecoveryCase.ReceiptReplay)]
+    public Task ResourceGrant_Recovery(DurableResourceGrantRaceCertification.RecoveryCase schedule)
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DurableResourceGrantRaceCertification.RecoverAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            typeof(SqlServerDurableProviderOptions), schedule);
+    }
+
+    [Theory]
     [ClassData<DurableEventTimeoutCertification.Schedules>]
     public Task DurableEventTimeout_ReusedKey(DurableEventTimeoutCertification.Schedule schedule) =>
         DurableEventTimeoutCertification.RunAsync(CreateFixture(), certificationStore!, schedule);
