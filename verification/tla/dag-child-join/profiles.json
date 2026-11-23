@@ -6,6 +6,12 @@
     "expected": ""
   },
   {
+    "name": "Source",
+    "kind": "normal",
+    "config": "Source.cfg",
+    "expected": ""
+  },
+  {
     "name": "SourceLostAck",
     "kind": "normal",
     "config": "SourceLostAck.cfg",
@@ -16,6 +22,36 @@
     "kind": "normal",
     "config": "SourceDelayedFirst.cfg",
     "expected": ""
+  },
+  {
+    "name": "LegacyFirst",
+    "kind": "normal",
+    "config": "LegacyFirst.cfg",
+    "expected": ""
+  },
+  {
+    "name": "LegacyReplay",
+    "kind": "normal",
+    "config": "LegacyReplay.cfg",
+    "expected": ""
+  },
+  {
+    "name": "BarrierFirst",
+    "kind": "mutation",
+    "config": "BarrierFirst.cfg",
+    "expected": "AcknowledgedClassification"
+  },
+  {
+    "name": "BarrierReplay",
+    "kind": "mutation",
+    "config": "BarrierReplay.cfg",
+    "expected": "ValidReplayDispatchedOrPending"
+  },
+  {
+    "name": "OverwriteOrigin",
+    "kind": "mutation",
+    "config": "OverwriteOrigin.cfg",
+    "expected": "WinningRequestPersisted"
   },
   {
     "name": "TrustReplay",
@@ -48,9 +84,33 @@
     "expected": "NoDagCausedJoin"
   },
   {
+    "name": "IndependentWinner",
+    "kind": "witness",
+    "config": "IndependentWinner.cfg",
+    "expected": "NoIndependentWinner"
+  },
+  {
+    "name": "FreshRead",
+    "kind": "witness",
+    "config": "FreshRead.cfg",
+    "expected": "NoFreshRead"
+  },
+  {
     "name": "RejectedConflict",
     "kind": "witness",
     "config": "RejectedConflict.cfg",
     "expected": "NoRejectedConflict"
+  },
+  {
+    "name": "ReferenceRecoveredReplay",
+    "kind": "witness",
+    "config": "ReferenceRecoveredReplay.cfg",
+    "expected": "NoRecoveredReplay"
+  },
+  {
+    "name": "ReferenceDelayedFirst",
+    "kind": "witness",
+    "config": "ReferenceDelayedFirst.cfg",
+    "expected": "NoDelayedFirst"
   }
 ]

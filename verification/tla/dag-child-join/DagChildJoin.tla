@@ -1,99 +1,195 @@
 ---------------------------- MODULE DagChildJoin ----------------------------
 EXTENDS Naturals, Sequences
 CONSTANT Mode
-VARIABLES cause, barrier, admitted, history, row, attempt, changedOutput, faulted
-vars == <<cause, barrier, admitted, history, row, attempt, changedOutput, faulted>>
-Init ==
-    /\ cause = "none" /\ barrier = "none" /\ admitted = {"A","B"} /\ history = <<>>
-    /\ row = "absent" /\ attempt = 0 /\ changedOutput = FALSE /\ faulted = FALSE
+Unread == [value |-> "unread", provenance |-> "none"]
+Origins == {"Independent", "OwningDag"}
+CancelledJoins == {"failedChildCancelled", "nodeCancelled"}
 
-\* Only the reference can use cancellation provenance. The source receives status/output.
-ChildTerminal(origin) ==
-    /\ cause = "none" /\ (origin # "dag" \/ barrier # "none")
-    /\ cause' = origin /\ row' = "ready"
-    /\ UNCHANGED <<barrier, admitted, history, attempt, changedOutput, faulted>>
+\* requests is a ghost log of caller identities in request order. Production reads
+\* only origin, the evidence stored with the first accepted cancellation request.
+VARIABLES requests, origin, child, barrier, admitted, history, row, attempt,
+          lostAck, changedOutput, faulted, process, observed, crashAt
+childState == <<requests, origin, child>>
+parentState == <<barrier, admitted, history>>
+transport == <<row, attempt, lostAck, changedOutput, faulted>>
+worker == <<process, observed, crashAt>>
+vars == <<childState, parentState, transport, worker>>
+
+Winner == IF Len(requests) = 0 THEN "none" ELSE requests[1]
+Deliverable == child \in {"cancelled", "success"}
+InitialWorker == /\ process = "original" /\ observed = Unread /\ crashAt = "none"
+Init ==
+    /\ requests = <<>> /\ origin = "none" /\ child = "running"
+    /\ barrier = "none" /\ admitted = {"A", "B"} /\ history = <<>>
+    /\ row = "absent" /\ attempt = 0 /\ lostAck = FALSE /\ changedOutput = FALSE /\ faulted = FALSE
+    /\ InitialWorker
+
+Request(from) ==
+    /\ process # "down" /\ child # "success"
+    /\ (from # "OwningDag" \/ barrier # "none")
+    /\ \A i \in 1..Len(requests) : requests[i] # from
+    /\ requests' = Append(requests, from)
+    /\ origin' = IF child = "running" \/ (Mode = "overwriteOrigin" /\ child = "cancelling")
+                 THEN from ELSE origin
+    /\ child' = IF child = "running" THEN "cancelling" ELSE child
+    /\ UNCHANGED <<parentState, transport, worker>>
+
+ChildTerminal ==
+    /\ process # "down" /\ child \in {"running", "cancelling"}
+    /\ child' = IF child = "running" THEN "success" ELSE "cancelled"
+    /\ row' = "ready"
+    /\ UNCHANGED <<requests, origin, parentState, attempt, lostAck, changedOutput, faulted, worker>>
+
 ParentCancel ==
     /\ barrier = "none" /\ ~faulted
-    /\ barrier' = CASE cause = "none" -> "beforeChild"
+    /\ barrier' = CASE ~Deliverable -> "beforeTerminal"
                     [] history = <<>> -> "beforeFirstJoin"
                     [] row = "lostAck" -> "afterLostAck"
                     [] OTHER -> "afterJoin"
-    /\ UNCHANGED <<cause, admitted, history, row, attempt, changedOutput, faulted>>
+    /\ UNCHANGED <<childState, admitted, history, transport, worker>>
+
+\* A crash drops the local observation. An in-flight claim must expire, including
+\* a join committed before the worker could acknowledge it. Bound to one crash.
+Crash ==
+    /\ process = "original" /\ row \in {"absent", "ready", "claimed", "handled", "lostAck"}
+    /\ (row = "handled" => ~lostAck)
+    /\ process' = "down" /\ observed' = Unread
+    /\ crashAt' = CASE child = "cancelling" -> "pendingRequest"
+                    [] row = "claimed" /\ observed # Unread -> "afterRead"
+                    [] OTHER -> row
+    /\ row' = CASE row = "claimed" -> "lostClaim"
+               [] row = "handled" -> "lostAck"
+               [] OTHER -> row
+    /\ lostAck' = (lostAck \/ row = "handled")
+    /\ UNCHANGED <<childState, parentState, attempt, changedOutput, faulted>>
+
+Restart ==
+    /\ process = "down" /\ process' = "restarted"
+    /\ UNCHANGED <<childState, parentState, transport, observed, crashAt>>
+
 Claim ==
-    /\ row \in {"ready","expired"} /\ attempt < 2
+    /\ process # "down" /\ row \in {"ready", "expired"}
     /\ attempt' = attempt + 1 /\ row' = "claimed"
-    /\ UNCHANGED <<cause, barrier, admitted, history, changedOutput, faulted>>
+    /\ UNCHANGED <<childState, parentState, lostAck, changedOutput, faulted, worker>>
 
-Fact == IF cause = "success" THEN IF changedOutput THEN "output43" ELSE "output42"
-        ELSE "cancelled"
-SourceOutcome == IF Fact # "cancelled" THEN Fact
-                 ELSE IF barrier = "none" THEN "failedChildCancelled" ELSE "nodeCancelled"
-CausalOutcome == CASE cause = "independent" -> "failedChildCancelled"
-                   [] cause = "dag" -> "nodeCancelled"
-                   [] OTHER -> Fact
+CurrentFact == [value |-> IF child = "success"
+                          THEN IF changedOutput THEN "output43" ELSE "output42"
+                          ELSE "cancelled",
+                provenance |-> origin]
+ReadChild ==
+    /\ process # "down" /\ row = "claimed" /\ observed = Unread
+    /\ observed' = CurrentFact
+    /\ UNCHANGED <<childState, parentState, transport, process, crashAt>>
+
+\* The independent reference knows the actual request order. Neither the first
+\* source join nor the source replay inspector reads that ghost information.
+ReferenceOutcome == CASE child = "success" -> "output42"
+                      [] Winner = "Independent" -> "failedChildCancelled"
+                      [] OTHER -> "nodeCancelled"
+BarrierOutcome == IF observed.value # "cancelled" THEN observed.value
+                  ELSE IF barrier = "none" THEN "failedChildCancelled" ELSE "nodeCancelled"
+SourceOutcome == CASE observed.value # "cancelled" -> observed.value
+                   [] observed.provenance = "Independent" -> "failedChildCancelled"
+                   [] observed.provenance = "OwningDag" -> "nodeCancelled"
+                   [] barrier = "none" -> "failedChildCancelled"
+                   [] OTHER -> "unknown"
 FirstJoin ==
-    /\ row = "claimed" /\ history = <<>>
-    /\ history' = Append(history, IF Mode = "source" THEN SourceOutcome ELSE CausalOutcome)
-    /\ admitted' = admitted \ {"A"} /\ row' = "handled"
-    /\ UNCHANGED <<cause, barrier, attempt, changedOutput, faulted>>
+    /\ row = "claimed" /\ observed # Unread /\ history = <<>>
+    /\ LET outcome == CASE Mode = "reference" -> ReferenceOutcome
+                        [] Mode = "barrierFirst" -> BarrierOutcome
+                        [] OTHER -> SourceOutcome
+       IN /\ history' = IF outcome = "unknown" THEN history ELSE Append(history, outcome)
+          /\ admitted' = IF outcome = "unknown" THEN admitted ELSE admitted \ {"A"}
+          /\ row' = IF outcome = "unknown" THEN "invalid" ELSE "handled"
+    /\ observed' = Unread
+    /\ UNCHANGED <<childState, barrier, attempt, lostAck, changedOutput, faulted, process, crashAt>>
 
-\* Both cancellation outcomes correspond to a terminal Cancelled child.
-\* Replay validates the fact against the saved join; a different output is a mismatch.
-SameFact(saved) == IF saved \in {"failedChildCancelled","nodeCancelled"}
-                   THEN Fact = "cancelled" ELSE Fact = saved
+ReplayMatches(saved) ==
+    CASE Mode = "trustReplay" -> TRUE
+      [] Mode = "barrierReplay" -> saved = BarrierOutcome
+      [] Mode = "reference" -> /\ saved = ReferenceOutcome
+                                /\ (child # "success" \/ ~changedOutput)
+      [] observed.value = "cancelled" /\ observed.provenance = "none" -> saved \in CancelledJoins
+      [] OTHER -> saved = SourceOutcome
 Replay ==
-    /\ row = "claimed" /\ Len(history) > 0
-    /\ LET valid == CASE Mode = "source" -> SourceOutcome = history[1]
-                      [] Mode = "trustReplay" -> TRUE
-                      [] OTHER -> SameFact(history[1])
+    /\ row = "claimed" /\ observed # Unread /\ history # <<>>
+    /\ LET valid == ReplayMatches(history[1])
        IN /\ row' = IF valid THEN "handled" ELSE "invalid"
-          /\ history' = IF valid /\ Mode = "reappend" THEN Append(history,history[1]) ELSE history
-    /\ UNCHANGED <<cause, barrier, admitted, attempt, changedOutput, faulted>>
-Disposition(before,after) ==
+          /\ history' = IF valid /\ Mode = "reappend" THEN Append(history, history[1]) ELSE history
+    /\ observed' = Unread
+    /\ UNCHANGED <<childState, barrier, admitted, attempt, lostAck, changedOutput, faulted, process, crashAt>>
+
+Disposition(before, after) ==
     /\ row = before /\ row' = after
-    /\ UNCHANGED <<cause, barrier, admitted, history, attempt, changedOutput, faulted>>
-Ack == Disposition("handled","dispatched")
-LoseAck == attempt = 1 /\ Disposition("handled","lostAck")
-Expire == Disposition("lostAck","expired")
+    /\ UNCHANGED <<childState, parentState, attempt, lostAck, changedOutput, faulted, worker>>
+Ack == process # "down" /\ Disposition("handled", "dispatched")
+LoseAck ==
+    /\ row = "handled" /\ ~lostAck /\ row' = "lostAck" /\ lostAck' = TRUE
+    /\ UNCHANGED <<childState, parentState, attempt, changedOutput, faulted, worker>>
+Expire == Disposition("lostAck", "expired") \/ Disposition("lostClaim", "expired")
 RecordFault ==
     /\ row = "invalid" /\ faulted' = TRUE /\ row' = "faultRecorded"
-    /\ UNCHANGED <<cause, barrier, admitted, history, attempt, changedOutput>>
-Poison == Disposition("faultRecorded","poisoned")
-\* Integrity control only: replace the successful child's terminal output on storage.
+    /\ UNCHANGED <<childState, parentState, attempt, lostAck, changedOutput, worker>>
+Poison == Disposition("faultRecorded", "poisoned")
 Corrupt ==
-    /\ cause = "success" /\ row = "lostAck" /\ ~changedOutput
+    /\ child = "success" /\ row = "lostAck" /\ ~changedOutput
     /\ changedOutput' = TRUE
-    /\ UNCHANGED <<cause, barrier, admitted, history, row, attempt, faulted>>
+    /\ UNCHANGED <<childState, parentState, row, attempt, lostAck, faulted, worker>>
 
-Delivery == Claim \/ FirstJoin \/ Replay \/ Ack \/ Expire \/ RecordFault \/ Poison
-Step == Delivery \/ ParentCancel \/ LoseAck \/ Corrupt
-        \/ (\E origin \in {"independent","dag","success"} : ChildTerminal(origin))
+Delivery == Restart \/ Claim \/ ReadChild \/ FirstJoin \/ Replay \/ Ack \/ Expire \/ RecordFault \/ Poison
+Step == Delivery \/ ParentCancel \/ Crash \/ LoseAck \/ Corrupt \/ ChildTerminal \/ (\E from \in Origins : Request(from))
 Next == Step \/ (~ENABLED Step /\ UNCHANGED vars)
 Spec == Init /\ [][Next]_vars
 FairSpec == Spec /\ WF_vars(Delivery)
 
-\* Immutable cancellation cause is the test oracle, including when join is delayed.
-FirstJoinClassified == history # <<>> =>
-    CASE cause = "independent" -> history[1] = "failedChildCancelled"
-      [] cause = "dag" -> history[1] = "nodeCancelled"
-      [] OTHER -> history[1] = "output42"
+WinningRequestPersisted == origin = Winner
+FirstJoinClassified == history # <<>> => history[1] = ReferenceOutcome
 OneJoin == Len(history) <= 1
 AcknowledgedClassification == row = "dispatched" => FirstJoinClassified
-Admission == admitted = IF history = <<>> THEN {"A","B"} ELSE {"B"}
+Admission == admitted = IF history = <<>> THEN {"A", "B"} ELSE {"B"}
 ValidReplayDispatchedOrPending == ~changedOutput => row # "poisoned"
 FaultRequiresConflict == faulted => changedOutput
 ConflictNeverAcknowledged == changedOutput => row # "dispatched"
 DispositionOrder == /\ (row = "poisoned" => faulted)
                     /\ (row = "dispatched" => Len(history) = 1)
-Settles == (cause # "none") ~> (row \in {"poisoned","dispatched"})
+Settles == Deliverable ~> (row \in {"poisoned", "dispatched"})
 
-\* Restrict each source diagnostic to the requested ordering for that question.
-LostAckOrder == barrier \in {"none","afterLostAck"}
-DelayedFirstOrder == barrier \in {"none","beforeFirstJoin"}
-NoRecoveredReplay == ~(barrier = "afterLostAck" /\ cause = "independent" /\ attempt = 2
-                        /\ row = "dispatched" /\ history = <<"failedChildCancelled">>)
-NoDelayedFirst == ~(barrier = "beforeFirstJoin" /\ cause = "independent" /\ attempt = 1
-                     /\ row = "dispatched" /\ history = <<"failedChildCancelled">>)
-NoDagCausedJoin == ~(cause = "dag" /\ row = "dispatched" /\ history = <<"nodeCancelled">>)
+LostAckOrder == barrier \in {"none", "afterLostAck"}
+BothRequestsBeforeTerminal == Deliverable => Len(requests) = 2
+DelayedFirstOrder == barrier \in {"none", "beforeFirstJoin"}
+NoRecoveredReplay == ~(barrier = "afterLostAck" /\ Winner = "Independent" /\ attempt = 2
+                        /\ crashAt = "lostAck" /\ row = "dispatched" /\ history = <<"failedChildCancelled">>)
+NoDelayedFirst == ~(barrier = "beforeFirstJoin" /\ Winner = "Independent" /\ attempt = 1
+                     /\ crashAt = "ready" /\ row = "dispatched" /\ history = <<"failedChildCancelled">>)
+NoDagCausedJoin == ~(requests = <<"OwningDag", "Independent">> /\ crashAt = "pendingRequest"
+                      /\ row = "dispatched" /\ history = <<"nodeCancelled">>)
+NoIndependentWinner == ~(requests = <<"Independent", "OwningDag">> /\ crashAt = "pendingRequest"
+                          /\ row = "dispatched" /\ history = <<"failedChildCancelled">>)
+NoFreshRead == ~(crashAt = "afterRead" /\ attempt = 2 /\ process = "restarted"
+                  /\ row = "dispatched" /\ history = <<"failedChildCancelled">>)
 NoRejectedConflict == ~(changedOutput /\ row = "poisoned" /\ faulted /\ history = <<"output42">>)
+
+\* A legacy terminal has a winning request but no recoverable origin. Independently
+\* seed old joined records: either legal cancellation shape can already be durable.
+LegacyFirstInit ==
+    /\ requests = <<"Independent">> /\ origin = "none" /\ child = "cancelled"
+    /\ barrier \in {"none", "beforeFirstJoin"}
+    /\ admitted = {"A", "B"} /\ history = <<>>
+    /\ row = "ready" /\ attempt = 0 /\ lostAck = FALSE /\ changedOutput = FALSE /\ faulted = FALSE
+    /\ InitialWorker
+LegacyReplayInit ==
+    /\ requests = <<"Independent">> /\ origin = "none" /\ child = "cancelled"
+    /\ barrier = "afterLostAck" /\ admitted = {"B"}
+    /\ history \in {<<"failedChildCancelled">>, <<"nodeCancelled">>, <<"output42">>}
+    /\ row = "lostAck" /\ attempt = 1 /\ lostAck = TRUE /\ changedOutput = FALSE /\ faulted = FALSE
+    /\ InitialWorker
+LegacyFirstSpec == LegacyFirstInit /\ [][Next]_vars /\ WF_vars(Delivery)
+LegacyReplaySpec == LegacyReplayInit /\ [][Next]_vars /\ WF_vars(Delivery)
+LegacyFirstDisposition ==
+    /\ (barrier = "beforeFirstJoin" => history = <<>>)
+    /\ (faulted => barrier = "beforeFirstJoin" /\ history = <<>>)
+    /\ (row = "dispatched" => history = <<"failedChildCancelled">>)
+LegacyReplayDisposition ==
+    /\ (faulted => history = <<"output42">>)
+    /\ (row = "dispatched" => history[1] \in CancelledJoins)
 =============================================================================
