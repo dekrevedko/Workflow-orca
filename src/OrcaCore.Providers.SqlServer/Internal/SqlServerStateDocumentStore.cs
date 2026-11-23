@@ -110,16 +110,16 @@ internal sealed class SqlServerStateDocumentStore
         ArgumentException.ThrowIfNullOrWhiteSpace(stateKey);
         ArgumentNullException.ThrowIfNull(restore);
         ArgumentNullException.ThrowIfNull(operation);
-        await InitializeAsync(cancellationToken).ConfigureAwait(false);
+        var payload = await ReadPayloadAsync(stateKey, cancellationToken).ConfigureAwait(false);
+        return await operation(restore(payload)).ConfigureAwait(false);
+    }
 
+    internal async Task<string?> ReadPayloadAsync(string stateKey, CancellationToken cancellationToken)
+    {
+        await InitializeAsync(cancellationToken).ConfigureAwait(false);
         await using var connection = new SqlConnection(ConnectionString);
         await connection.OpenAsync(cancellationToken).ConfigureAwait(false);
-        var payload = await LoadPayloadAsync(
-            connection,
-            transaction: null,
-            stateKey,
-            cancellationToken).ConfigureAwait(false);
-        return await operation(restore(payload)).ConfigureAwait(false);
+        return await LoadPayloadAsync(connection, null, stateKey, cancellationToken).ConfigureAwait(false);
     }
 
     internal async Task<string?> LoadPayloadAsync(

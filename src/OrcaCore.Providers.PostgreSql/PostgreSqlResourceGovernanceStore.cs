@@ -18,6 +18,38 @@ internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSou
         EnsureInitializedAsync(cancellationToken);
 
     /// <inheritdoc />
+    public async ValueTask<ResourceGovernanceHead> LoadLatestAsync(
+        ResourceGovernancePartitionId partitionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(partitionId);
+        await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
+        await using var connection = await dataSource.OpenConnectionAsync(cancellationToken).ConfigureAwait(false);
+        await using var command = new NpgsqlCommand(
+            """
+            select s.version, r.sequence, r.format_id, r.payload, r.checksum
+            from orcacore_resource_governance_streams s
+            left join lateral (
+                select sequence, format_id, payload, checksum
+                from orcacore_resource_governance_records
+                where partition_id = s.partition_id
+                order by sequence desc
+                limit 1
+            ) r on true
+            where s.partition_id = @partition_id
+            """, connection);
+        command.Parameters.AddWithValue("partition_id", NpgsqlDbType.Text, partitionId.Value);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+        if (!await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+        {
+            return ResourceGovernanceHead.Create(partitionId, 0, null);
+        }
+
+        return ResourceGovernanceHead.Create(
+            partitionId, reader.GetInt64(0), reader.IsDBNull(1) ? null : ReadRecord(reader));
+    }
+
+    /// <inheritdoc />
     public async ValueTask<ResourceGovernanceStream> LoadAsync(
         ResourceGovernancePartitionId partitionId,
         CancellationToken cancellationToken = default)
@@ -29,26 +61,29 @@ internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSou
             .ConfigureAwait(false);
         await using var command = new NpgsqlCommand(
             """
-            select sequence, format_id, payload, checksum
-            from orcacore_resource_governance_records
-            where partition_id = @partition_id
-            order by sequence
+            select s.version, r.sequence, r.format_id, r.payload, r.checksum
+            from orcacore_resource_governance_streams s
+            left join orcacore_resource_governance_records r on r.partition_id = s.partition_id
+            where s.partition_id = @partition_id
+            order by r.sequence
             """,
             connection);
         command.Parameters.AddWithValue("partition_id", NpgsqlDbType.Text, partitionId.Value);
+        long version = 0;
         var records = new List<ResourceGovernanceRecord>();
         await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
         while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
         {
-            records.Add(ResourceGovernanceRecord.FromPersisted(
-                reader.GetInt64(0),
-                reader.GetString(1),
-                reader.GetFieldValue<byte[]>(2),
-                reader.GetString(3)));
+            version = reader.GetInt64(0);
+            if (!reader.IsDBNull(1)) records.Add(ReadRecord(reader));
         }
 
-        return ResourceGovernanceStream.Create(records.Count, records);
+        return ResourceGovernanceStream.Create(version, records);
     }
+
+    private static ResourceGovernanceRecord ReadRecord(NpgsqlDataReader reader) =>
+        ResourceGovernanceRecord.FromPersisted(
+            reader.GetInt64(1), reader.GetString(2), reader.GetFieldValue<byte[]>(3), reader.GetString(4));
 
     /// <inheritdoc />
     public async ValueTask<ResourceGovernanceAppendResult> AppendAsync(
@@ -145,7 +180,7 @@ internal sealed class PostgreSqlResourceGovernanceStore(NpgsqlDataSource dataSou
             insert.Parameters.AddWithValue("partition_id", NpgsqlDbType.Text, partitionId.Value);
             insert.Parameters.AddWithValue("sequence", NpgsqlDbType.Bigint, record.Sequence);
             insert.Parameters.AddWithValue("format_id", NpgsqlDbType.Text, record.FormatId);
-            insert.Parameters.AddWithValue("payload", NpgsqlDbType.Bytea, record.Payload.ToArray());
+            insert.Parameters.AddWithValue("payload", NpgsqlDbType.Bytea, record.Payload);
             insert.Parameters.AddWithValue("checksum", NpgsqlDbType.Text, record.Checksum);
             await insert.ExecuteNonQueryAsync(cancellationToken).ConfigureAwait(false);
         }

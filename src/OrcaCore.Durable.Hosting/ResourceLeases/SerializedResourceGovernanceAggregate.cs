@@ -21,6 +21,11 @@ internal sealed class SerializedResourceGovernanceAggregate(
 {
     private const int MaxConflictRetries = 32;
     private const string StateCommitted = "state-committed";
+    private static readonly JsonSerializerOptions RecoveryJson = new()
+    {
+        RespectRequiredConstructorParameters = true,
+        RespectNullableAnnotations = true
+    };
 
     private readonly DurableResourcePoolDefinition[] configuredPools =
         ValidateAndCopyOptions(options);
@@ -30,9 +35,8 @@ internal sealed class SerializedResourceGovernanceAggregate(
     {
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
-            if (state.Pools.Length != 0)
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
+            if (version != 0)
             {
                 ValidateCreationAgreement(state);
                 Volatile.Write(ref initialized, 1);
@@ -56,7 +60,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                         0))
                     .ToArray()
             };
-            if (await TryAppendAsync(stream.Version, "pools-created", created, cancellationToken)
+            if (await TryAppendAsync(version, "pools-created", created, cancellationToken)
                     .ConfigureAwait(false))
             {
                 Volatile.Write(ref initialized, 1);
@@ -71,7 +75,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
         CancellationToken cancellationToken = default)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var state = Replay(await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false));
+        var (_, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         return state.Pools
             .OrderBy(pool => pool.Name, StringComparer.Ordinal)
             .Select(pool => ManagementSnapshot(state, pool))
@@ -84,7 +88,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
     {
         ArgumentNullException.ThrowIfNull(pool);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var state = Replay(await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false));
+        var (_, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         var found = FindPool(state, pool.Value) ??
             throw ResourcePoolNotConfiguredException.For([pool]);
         return ManagementSnapshot(state, found);
@@ -103,8 +107,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
 
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             var found = FindPool(state, pool.Value) ??
                 throw ResourcePoolNotConfiguredException.For([pool]);
             var recorded = state.ResizeOperations.SingleOrDefault(candidate =>
@@ -139,7 +142,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                     new ResizeOperationDocument(operationId.Value, pool.Value, capacity)
                 ]
             };
-            if (await TryAppendAsync(stream.Version, "pool-resized", updated, cancellationToken)
+            if (await TryAppendAsync(version, "pool-resized", updated, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return new DurableResourcePoolResizeResult.Applied(
@@ -164,8 +167,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
 
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             var existing = FindPool(state, definition.Name);
             if (existing is not null)
             {
@@ -186,7 +188,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 definition.LeaseDuration?.Ticks,
                 0);
             var updated = state with { Pools = [.. state.Pools, added] };
-            if (await TryAppendAsync(stream.Version, "pool-created", updated, cancellationToken)
+            if (await TryAppendAsync(version, "pool-created", updated, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return;
@@ -200,13 +202,12 @@ internal sealed class SerializedResourceGovernanceAggregate(
         ResourcePoolAcquireRequest request,
         CancellationToken cancellationToken)
     {
-        ValidateAcquireRequest(request);
+        request = ValidateAndCopyAcquireRequest(request);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
 
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             if (request.Requirements.Any(requirement => FindPool(state, requirement.PoolName) is null))
             {
                 return new ResourcePoolAcquireResult(
@@ -239,7 +240,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
             if (state.Waiters.Length == 0 && CanGrant(state, request.Requirements))
             {
                 var (grantedState, tickets) = Grant(state, request, request.RequestedAt);
-                if (await TryAppendAsync(stream.Version, "reservation-granted", grantedState, cancellationToken)
+                if (await TryAppendAsync(version, "reservation-granted", grantedState, cancellationToken)
                         .ConfigureAwait(false))
                 {
                     return new ResourcePoolAcquireResult(
@@ -264,7 +265,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 request.ScopeId?.Value,
                 request.ProtectionToken?.Value);
             var queuedState = state with { Waiters = [.. state.Waiters, waiter] };
-            if (await TryAppendAsync(stream.Version, "reservation-queued", queuedState, cancellationToken)
+            if (await TryAppendAsync(version, "reservation-queued", queuedState, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return new ResourcePoolAcquireResult(
@@ -288,8 +289,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
 
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             var (working, released, granted) = ReleaseHolder(
                 state,
                 request.HolderInstanceId,
@@ -305,7 +305,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 return new ResourcePoolReleaseResult([], []);
             }
 
-            if (await TryAppendAsync(stream.Version, "holder-released", working, cancellationToken)
+            if (await TryAppendAsync(version, "holder-released", working, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return new ResourcePoolReleaseResult(
@@ -323,7 +323,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
     {
         ArgumentNullException.ThrowIfNull(protectionToken);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var state = Replay(await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false));
+        var (_, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         var evidence = state.ReleaseEvidence.LastOrDefault(candidate =>
             string.Equals(candidate.ProtectionToken, protectionToken.Value, StringComparison.Ordinal));
         return evidence is null
@@ -337,7 +337,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
     {
         ArgumentNullException.ThrowIfNull(confirmationId);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var state = Replay(await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false));
+        var (_, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         var binding = state.ConfirmationBindings.SingleOrDefault(candidate =>
             string.Equals(
                 candidate.ConfirmationId,
@@ -362,8 +362,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
 
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             var boundById = state.ConfirmationBindings.SingleOrDefault(candidate =>
                 string.Equals(
                     candidate.ConfirmationId,
@@ -422,7 +421,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
             };
             if (released.Length != 0 &&
                 await TryAppendAsync(
-                        stream.Version,
+                        version,
                         "confirmed-holder-released",
                         releasedState,
                         cancellationToken)
@@ -443,8 +442,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             var instance = instanceId.ToString();
             if (state.Tickets.Any(ticket =>
                     string.Equals(ticket.InstanceId, instance, StringComparison.OrdinalIgnoreCase)) ||
@@ -485,7 +483,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                     .ToArray()
             };
             if (await TryAppendAsync(
-                    stream.Version,
+                    version,
                     "release-evidence-purged",
                     updated,
                     cancellationToken).ConfigureAwait(false))
@@ -503,7 +501,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(poolName);
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var state = Replay(await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false));
+        var (_, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         var pool = FindPool(state, poolName);
         return pool is null
             ? Option<ResourcePoolSnapshot>.None
@@ -514,7 +512,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
         CancellationToken cancellationToken)
     {
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
-        var state = Replay(await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false));
+        var (_, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
         return state.Pools
             .OrderBy(pool => pool.Name, StringComparer.Ordinal)
             .Select(pool => ProviderSnapshot(state, pool))
@@ -528,8 +526,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
         await EnsureInitializedAsync(cancellationToken).ConfigureAwait(false);
         for (var retry = 0; retry < MaxConflictRetries; retry++)
         {
-            var stream = await store.LoadAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
-            var state = Replay(stream);
+            var (version, state) = await LoadStateAsync(cancellationToken).ConfigureAwait(false);
             var newlyExpired = state.Tickets
                 .Where(ticket =>
                     ticket.ReviewDeadline is { } deadline &&
@@ -555,7 +552,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                     .. newlyExpired.Select(ticket => new ExpiredTicketDocument(ticket.TicketId, now))
                 ]
             };
-            if (await TryAppendAsync(stream.Version, "tickets-review-marked", updated, cancellationToken)
+            if (await TryAppendAsync(version, "tickets-review-marked", updated, cancellationToken)
                     .ConfigureAwait(false))
             {
                 return new ResourcePoolExpiryResult(
@@ -616,32 +613,53 @@ internal sealed class SerializedResourceGovernanceAggregate(
         }
     }
 
-    private static GovernanceDocument Replay(ResourceGovernanceStream stream)
+    private async ValueTask<(long Version, GovernanceDocument State)> LoadStateAsync(CancellationToken cancellationToken)
     {
-        var state = GovernanceDocument.Empty;
-        foreach (var record in stream.Records)
+        var head = await store.LoadLatestAsync(options.PartitionId, cancellationToken).ConfigureAwait(false);
+        if (!options.PartitionId.Equals(head.PartitionId))
         {
-            var envelope = JsonSerializer.Deserialize<GovernanceEnvelope>(record.Payload.Span) ??
-                throw new InvalidOperationException("A resource governance record was empty.");
-            if (!string.Equals(envelope.Kind, StateCommitted, StringComparison.Ordinal))
-            {
-                throw new InvalidOperationException(
-                    $"Unknown durable resource-governance record '{envelope.Kind}'.");
-            }
-
-            state = ValidateDocument(envelope.State);
+            throw new InvalidOperationException($"Governance store returned partition '{head.PartitionId}' for '{options.PartitionId}'.");
         }
 
-        return state;
+        if (head.Record is null) return (0, GovernanceDocument.Empty);
+
+        GovernanceEnvelope envelope;
+        try
+        {
+            envelope = JsonSerializer.Deserialize<GovernanceEnvelope>(head.Record.Payload.Span, RecoveryJson)
+                ?? throw new JsonException("Empty governance envelope.");
+        }
+        catch (JsonException error)
+        {
+            throw new InvalidOperationException(
+                $"Unreadable resource governance record for partition '{head.PartitionId}' at version {head.Version}.", error);
+        }
+
+        if (!string.Equals(envelope.Kind, StateCommitted, StringComparison.Ordinal))
+            throw new InvalidOperationException($"Unknown durable resource-governance record '{envelope.Kind}'.");
+
+        return (head.Version, ValidateDocument(envelope.State));
     }
 
     private static GovernanceDocument ValidateDocument(GovernanceDocument candidate)
     {
         ArgumentNullException.ThrowIfNull(candidate);
-        if (candidate.Pools.Select(pool => pool.Name).Distinct(StringComparer.Ordinal).Count() !=
-            candidate.Pools.Length)
+        if (candidate.Pools.Length == 0 ||
+            candidate.Pools.Contains(null) || candidate.Tickets.Contains(null) || candidate.Waiters.Contains(null) ||
+            candidate.ExpiredTickets.Contains(null) || candidate.ResizeOperations.Contains(null) ||
+            candidate.ReleaseEvidence.Contains(null) || candidate.ConfirmationBindings.Contains(null))
         {
-            throw new InvalidOperationException("A governance state contains duplicate pools.");
+            throw new InvalidOperationException("A committed governance state contains no pools or has a null entry.");
+        }
+
+        var pools = new Dictionary<string, PoolDocument>(StringComparer.Ordinal);
+        foreach (var pool in candidate.Pools)
+        {
+            if (string.IsNullOrWhiteSpace(pool.Name) || pool.CreationCapacity < 0 ||
+                pool.CurrentCapacity < 1 || pool.NextProviderGeneration < 0 || !pools.TryAdd(pool.Name, pool))
+            {
+                throw new InvalidOperationException("A governance state contains an invalid or duplicate pool.");
+            }
         }
 
         if (candidate.Tickets.Select(ticket => ticket.TicketId).Distinct(StringComparer.Ordinal).Count() !=
@@ -656,25 +674,36 @@ internal sealed class SerializedResourceGovernanceAggregate(
             throw new InvalidOperationException("A governance state contains duplicate durable identities.");
         }
 
-        if (candidate.Pools.Any(pool =>
-                string.IsNullOrWhiteSpace(pool.Name) ||
-                pool.CreationCapacity < 0 ||
-                pool.CurrentCapacity < 1 ||
-                pool.NextProviderGeneration < 0) ||
-            candidate.Tickets.Any(ticket =>
-                string.IsNullOrWhiteSpace(ticket.TicketId) ||
-                ticket.Units <= 0 ||
-                ticket.ProviderGeneration <= 0 ||
-                FindPool(candidate, ticket.PoolName) is null) ||
+        static bool ValidGuid(string value, string format) =>
+            Guid.TryParseExact(value, format, out var id) && id != Guid.Empty;
+
+        bool InvalidTicket(TicketDocument ticket) =>
+            !ValidGuid(ticket.TicketId, "N") || !ValidGuid(ticket.InstanceId, "D") ||
+            string.IsNullOrWhiteSpace(ticket.HolderKey) || ticket.Units <= 0 || ticket.ProviderGeneration <= 0 ||
+            !pools.TryGetValue(ticket.PoolName, out var pool) || ticket.ProviderGeneration > pool.NextProviderGeneration;
+
+        if (candidate.Tickets.Any(InvalidTicket) ||
             candidate.Waiters.Any(waiter =>
+                !ValidGuid(waiter.WaiterId, "N") ||
+                !ValidGuid(waiter.InstanceId, "D") || string.IsNullOrWhiteSpace(waiter.HolderKey) ||
                 waiter.Requirements.Length == 0 ||
                 waiter.Requirements.Any(requirement =>
-                    requirement.Units <= 0 ||
-                    FindPool(candidate, requirement.PoolName) is null)) ||
+                    requirement is null || requirement.Units <= 0 ||
+                    !pools.ContainsKey(requirement.PoolName)) ||
+                (waiter.Requirements.Length > 1 && waiter.Requirements
+                    .Select(requirement => requirement.PoolName)
+                    .Distinct(StringComparer.Ordinal).Count() != waiter.Requirements.Length)) ||
+            candidate.ExpiredTickets.Any(ticket => !ValidGuid(ticket.TicketId, "N")) ||
+            candidate.ResizeOperations.Any(operation =>
+                string.IsNullOrWhiteSpace(operation.OperationId) || operation.Capacity < 1 ||
+                !pools.ContainsKey(operation.PoolName)) ||
             candidate.ReleaseEvidence.Any(evidence =>
-                string.IsNullOrWhiteSpace(evidence.InstanceId) ||
+                !ValidGuid(evidence.InstanceId, "D") ||
                 string.IsNullOrWhiteSpace(evidence.HolderKey) ||
-                evidence.ReleasedTickets.Length == 0) ||
+                evidence.ReleasedTickets.Length == 0 ||
+                evidence.ReleasedTickets.Any(ticket => ticket is null || InvalidTicket(ticket) ||
+                    !string.Equals(ticket.InstanceId, evidence.InstanceId, StringComparison.OrdinalIgnoreCase) ||
+                    !string.Equals(ticket.HolderKey, evidence.HolderKey, StringComparison.Ordinal))) ||
             candidate.ConfirmationBindings.Any(binding =>
                 string.IsNullOrWhiteSpace(binding.ConfirmationId) ||
                 string.IsNullOrWhiteSpace(binding.ProtectionToken)))
@@ -912,21 +941,31 @@ internal sealed class SerializedResourceGovernanceAggregate(
                 .Min());
     }
 
-    private static void ValidateAcquireRequest(ResourcePoolAcquireRequest request)
+    private static ResourcePoolAcquireRequest ValidateAndCopyAcquireRequest(ResourcePoolAcquireRequest request)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentException.ThrowIfNullOrWhiteSpace(request.HolderKey);
         ArgumentNullException.ThrowIfNull(request.HolderInstanceId);
-        if (request.Requirements.Count == 0)
+        ArgumentNullException.ThrowIfNull(request.Requirements);
+        var requirements = request.Requirements.ToArray();
+        if (requirements.Length == 0)
         {
             throw new ArgumentException("At least one resource requirement is required.", nameof(request));
         }
 
-        foreach (var requirement in request.Requirements)
+        var names = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var requirement in requirements)
         {
+            ArgumentNullException.ThrowIfNull(requirement);
             ArgumentException.ThrowIfNullOrWhiteSpace(requirement.PoolName);
             ArgumentOutOfRangeException.ThrowIfLessThanOrEqual(requirement.Count, 0);
+            if (!names.Add(requirement.PoolName))
+            {
+                throw new ArgumentException($"Resource pool '{requirement.PoolName}' occurs more than once.", nameof(request));
+            }
         }
+
+        return request with { Requirements = requirements };
     }
 
     private static DurableResourcePoolDefinition[] ValidateAndCopyOptions(
@@ -965,10 +1004,9 @@ internal sealed class SerializedResourceGovernanceAggregate(
         string? confirmationId)
     {
         var released = TicketsFor(state, holderInstanceId, holderKey);
+        // Waiters enter the array under the partition's append fence, in committed request order.
         var remainingWaiters = state.Waiters
             .Where(waiter => !HolderMatches(waiter, holderInstanceId, holderKey))
-            .OrderBy(waiter => waiter.RequestedAt)
-            .ThenBy(waiter => waiter.WaiterId, StringComparer.Ordinal)
             .ToList();
         var working = state with
         {

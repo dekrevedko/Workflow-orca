@@ -366,6 +366,11 @@ internal sealed class DurableScenarioProvider :
         CancellationToken cancellationToken = default) =>
         resourcePoolStore.PurgeReleaseEvidenceAsync(instanceId, cancellationToken);
 
+    public ValueTask<ResourceGovernanceHead> LoadLatestAsync(
+        ResourceGovernancePartitionId partitionId,
+        CancellationToken cancellationToken = default) =>
+        governanceStore.LoadLatestAsync(partitionId, cancellationToken);
+
     public ValueTask<ResourceGovernanceStream> LoadAsync(
         ResourceGovernancePartitionId partitionId,
         CancellationToken cancellationToken = default) =>
