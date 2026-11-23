@@ -18,7 +18,7 @@ using WorkflowStatus = global::OrcaCore.WorkflowInstanceStatus;
 
 namespace OrcaCore.ProviderCertification;
 
-public abstract class EventStoreCertificationTests
+public abstract partial class EventStoreCertificationTests
 {
     protected abstract IProviderCertificationFixture CreateFixture();
 
@@ -802,6 +802,7 @@ public abstract class EventStoreCertificationTests
 
         await fixture.OutboxStore.MarkAsync(
             outboxRecordId,
+            1,
             OutboxRecordState.Dispatched,
             TestContext.Current.CancellationToken);
         var state = await fixture.OutboxStore.GetStateAsync(
@@ -828,10 +829,12 @@ public abstract class EventStoreCertificationTests
         var claimed = await fixture.OutboxStore.ClaimAsync(10, TestContext.Current.CancellationToken);
         await fixture.OutboxStore.MarkAsync(
             outboxRecordId,
+            claimed.Single().DispatchAttempt,
             OutboxRecordState.Dispatched,
             TestContext.Current.CancellationToken);
         await fixture.OutboxStore.MarkAsync(
             outboxRecordId,
+            claimed.Single().DispatchAttempt,
             OutboxRecordState.Dispatched,
             TestContext.Current.CancellationToken);
         var state = await fixture.OutboxStore.GetStateAsync(
@@ -855,20 +858,24 @@ public abstract class EventStoreCertificationTests
                 StreamVersion.Empty,
                 outboxRecordId: outboxRecordId),
             TestContext.Current.CancellationToken);
-        (await fixture.OutboxStore.ClaimAsync(1, TestContext.Current.CancellationToken))
+        var claimed = await fixture.OutboxStore.ClaimAsync(1, TestContext.Current.CancellationToken);
+        claimed
             .Should().ContainSingle();
 
         await fixture.OutboxStore.MarkPoisonedAsync(
             outboxRecordId,
+            claimed.Single().DispatchAttempt,
             "destination-rejected",
             "topic is disabled",
             TestContext.Current.CancellationToken);
         await fixture.OutboxStore.MarkAsync(
             outboxRecordId,
+            claimed.Single().DispatchAttempt,
             OutboxRecordState.Retryable,
             TestContext.Current.CancellationToken);
         await fixture.OutboxStore.MarkPoisonedAsync(
             outboxRecordId,
+            claimed.Single().DispatchAttempt,
             "replacement-code",
             "replacement-detail",
             TestContext.Current.CancellationToken);
@@ -923,11 +930,11 @@ public abstract class EventStoreCertificationTests
                 StreamVersion.Empty,
                 outboxRecordId: outboxRecordId),
             TestContext.Current.CancellationToken);
-        await fixture.OutboxStore.ClaimAsync(
+        var first = await fixture.OutboxStore.ClaimAsync(
             new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1)),
             TestContext.Current.CancellationToken);
 
-        await fixture.OutboxStore.ReleaseAsync(outboxRecordId, TestContext.Current.CancellationToken);
+        await fixture.OutboxStore.ReleaseAsync(outboxRecordId, first.Single().DispatchAttempt, TestContext.Current.CancellationToken);
         var reclaimed = await fixture.OutboxStore.ClaimAsync(
             new OutboxClaimRequest(1, Timestamp(11), TimeSpan.FromMinutes(1)),
             TestContext.Current.CancellationToken);
@@ -1699,8 +1706,10 @@ public abstract class EventStoreCertificationTests
                 KindSelector = OutboxKindSelector.Including(OutboxKinds.Continue)
             },
             TestContext.Current.CancellationToken);
+        var continuation = claimedContinuation.Should().ContainSingle().Subject;
         await fixture.OutboxStore.ReleaseAsync(
-            claimedContinuation.Should().ContainSingle().Subject.OutboxRecordId,
+            continuation.OutboxRecordId,
+            continuation.DispatchAttempt,
             TestContext.Current.CancellationToken);
         var claimedExternal = await fixture.OutboxStore.ClaimAsync(
             new OutboxClaimRequest(1, Timestamp(10), TimeSpan.FromMinutes(1))

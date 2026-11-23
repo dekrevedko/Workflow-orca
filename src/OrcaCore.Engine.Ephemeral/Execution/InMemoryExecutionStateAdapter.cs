@@ -830,29 +830,49 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
 
     private async Task ResumeFiberAsync(
         FiberId fiberId,
+        RuntimeWaitRecord wait,
         EventEnvelope envelope,
         CancellationToken cancellationToken)
     {
         var execution = activeExecution ??
             throw new InvalidOperationException("The structured execution state is not initialized.");
-        waitsByFiber.Remove(fiberId);
+        cancellationToken.ThrowIfCancellationRequested();
+        var instance = activeInstance!;
         if (!execution.Fibers.TryGetValue(fiberId, out var blocked) ||
-            blocked.Phase != FiberPhase.Blocked)
+            blocked.Phase != FiberPhase.Blocked || !waitsByFiber.TryGetValue(fiberId, out var owned) ||
+            !ReferenceEquals(owned, wait))
         {
-            return;
+            throw new InvalidOperationException("A matched wait must own a blocked fiber.");
         }
 
         var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
         {
             [fiberId] = FiberReducer.Resume(blocked)
         };
+        waitsByFiber.Remove(fiberId);
         resumedEvents[fiberId] = envelope;
         activeExecution = execution with
         {
             Fibers = fibers,
             Scheduler = FiberScheduler.EnqueueResumed(execution.Scheduler, [fiberId])
         };
-        await RunUntilBoundaryAsync(cancellationToken).ConfigureAwait(false);
+        using var executionToken = instance.CreateLinkedExecutionToken(
+            instance.Lifetime.IsAccepted ? CancellationToken.None : cancellationToken);
+        try
+        {
+            instance.CommitWaitEvent(wait, envelope);
+            await RunUntilBoundaryAsync(executionToken.Token).ConfigureAwait(false);
+        }
+        catch (Exception error) when (instance.Lifetime.IsAccepted &&
+            !executionToken.IsCancellationRequested && !instance.Lifetime.IsTerminal &&
+            !(error is OperationCanceledException cancelled &&
+              instance.Lifetime.IsStoppingCancellation(cancelled, executionToken.Token)))
+        {
+            var current = activeExecution!;
+            var failedFiber = current.Fibers[FiberScheduler.SelectNext(current.Scheduler) ?? fiberId];
+            FailExecutionBoundary(current, failedFiber, activePlan!.GetInstruction(failedFiber.InstructionId),
+                instance, error);
+        }
     }
 
     private async Task ResumeTimerFiberAsync(FiberId fiberId, CancellationToken cancellationToken)

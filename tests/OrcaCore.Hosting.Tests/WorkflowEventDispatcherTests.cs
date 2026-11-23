@@ -309,6 +309,7 @@ public sealed class WorkflowEventDispatcherTests
         await pump.PumpOnceAsync(claim, TestContext.Current.CancellationToken);
         await outboxStore.MarkAsync(
             record.OutboxRecordId,
+            1,
             OutboxRecordState.Retryable,
             TestContext.Current.CancellationToken);
         var snapshot = await outboxStore.GetDispatchSnapshotAsync(

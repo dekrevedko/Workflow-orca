@@ -1,0 +1,25 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 0 and seed 1 with 1 worker on 32 cores with 947MB heap and 64MB offheap memory [pid: 115104] (Windows 11 10.0 amd64, Eclipse Adoptium 21.0.9 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file C:\Users\Denis\.codex\worktrees\tla-wait-ownership\Workflow-orca\.codex-run\pilot-runner-reviewed\ParseError\ParseError\EphemeralWaitOwnership.tla
+***Parse Error***
+Was expecting "==== or more Module body"
+Encountered "is" at line 7, column 15 and token "this" 
+
+Residual stack trace follows:
+Module definition starting at line 1, column 1.
+
+
+Fatal errors while parsing TLA+ spec in file EphemeralWaitOwnership
+
+tla2sany.semantic.AbortException
+*** Abort messages: 1
+
+In module EphemeralWaitOwnership
+
+Could not parse module EphemeralWaitOwnership from file EphemeralWaitOwnership.tla
+
+
+Starting... (2026-11-17 00:00:26)
+Error: Parsing or semantic analysis failed.
+Finished in 00s at (2026-11-17 00:00:26)
+

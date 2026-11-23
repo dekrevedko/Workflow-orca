@@ -1,0 +1,206 @@
+[
+  {
+    "name": "SafetySmall",
+    "kind": "normal",
+    "expected": "",
+    "config": "SafetySmall.cfg"
+  },
+  {
+    "name": "SafetyIsolation-definition",
+    "kind": "normal",
+    "expected": "",
+    "config": "SafetyIsolation-definition.cfg"
+  },
+  {
+    "name": "SafetyIsolation-name",
+    "kind": "normal",
+    "expected": "",
+    "config": "SafetyIsolation-name.cfg"
+  },
+  {
+    "name": "SafetyIsolation-version",
+    "kind": "normal",
+    "expected": "",
+    "config": "SafetyIsolation-version.cfg"
+  },
+  {
+    "name": "SafetyIsolation-correlation",
+    "kind": "normal",
+    "expected": "",
+    "config": "SafetyIsolation-correlation.cfg"
+  },
+  {
+    "name": "ProgressSmall",
+    "kind": "normal",
+    "expected": "",
+    "config": "ProgressSmall.cfg"
+  },
+  {
+    "name": "Mutant-PrematureRelease",
+    "kind": "mutation",
+    "expected": "ReservationOwnership",
+    "config": "Mutant-PrematureRelease.cfg"
+  },
+  {
+    "name": "Mutant-MissingActiveGuard",
+    "kind": "mutation",
+    "expected": "UniqueActiveWait",
+    "config": "Mutant-MissingActiveGuard.cfg"
+  },
+  {
+    "name": "Mutant-EraseSuccessor",
+    "kind": "mutation",
+    "expected": "ExactRelease",
+    "config": "Mutant-EraseSuccessor.cfg"
+  },
+  {
+    "name": "Mutant-ConsumeOnFailure",
+    "kind": "mutation",
+    "expected": "RollbackConsistency",
+    "config": "Mutant-ConsumeOnFailure.cfg"
+  },
+  {
+    "name": "Mutant-DualWinner",
+    "kind": "mutation",
+    "expected": "SingleResolution",
+    "config": "Mutant-DualWinner.cfg"
+  },
+  {
+    "name": "Witness-contention",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-contention.cfg"
+  },
+  {
+    "name": "Witness-same-instance",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-same-instance.cfg"
+  },
+  {
+    "name": "Witness-handover",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-handover.cfg"
+  },
+  {
+    "name": "Witness-reuse",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-reuse.cfg"
+  },
+  {
+    "name": "Witness-duplicate",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-duplicate.cfg"
+  },
+  {
+    "name": "Witness-event-first",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-event-first.cfg"
+  },
+  {
+    "name": "Witness-timer-first",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-timer-first.cfg"
+  },
+  {
+    "name": "Witness-cancel-before",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-cancel-before.cfg"
+  },
+  {
+    "name": "Witness-cancel-during",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-cancel-during.cfg"
+  },
+  {
+    "name": "Witness-rollback",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-rollback.cfg"
+  },
+  {
+    "name": "Witness-isolation",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-isolation.cfg"
+  },
+  {
+    "name": "Witness-committed-handover",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-committed-handover.cfg"
+  },
+  {
+    "name": "Control-NoReturn",
+    "kind": "assumption",
+    "expected": "ConditionalSettlement",
+    "config": "Control-NoReturn.cfg"
+  },
+  {
+    "name": "Control-NoScheduling",
+    "kind": "assumption",
+    "expected": "ConditionalSettlement",
+    "config": "Control-NoScheduling.cfg"
+  },
+  {
+    "name": "Witness-stale-timer",
+    "kind": "witness",
+    "expected": "NotWitness",
+    "config": "Witness-stale-timer.cfg"
+  },
+  {
+    "name": "Mutant-StaleCallback",
+    "kind": "mutation",
+    "expected": "KeyAndOccurrenceIsolation",
+    "config": "Mutant-StaleCallback.cfg"
+  },
+  {
+    "name": "Control-Progress",
+    "kind": "positive-control",
+    "expected": "",
+    "config": "Control-Progress.cfg"
+  },
+  {
+    "name": "Witness-ControlComplete",
+    "kind": "witness",
+    "expected": "NotControlComplete",
+    "config": "Witness-ControlComplete.cfg"
+  },
+  {
+    "name": "Mutant-UncommittedSuccessor",
+    "kind": "mutation",
+    "expected": "HandoverOrder",
+    "config": "Mutant-UncommittedSuccessor.cfg"
+  },
+  {
+    "name": "HandoverSafety",
+    "kind": "normal",
+    "expected": "",
+    "config": "HandoverSafety.cfg"
+  },
+  {
+    "name": "HandoverProgress",
+    "kind": "normal",
+    "expected": "",
+    "config": "HandoverProgress.cfg"
+  },
+  {
+    "name": "Witness-RetryPredecessor",
+    "kind": "witness",
+    "config": "Witness-RetryPredecessor.cfg",
+    "expected": "NoRecoveredPredecessor"
+  },
+  {
+    "name": "Mutant-SkipConsumption",
+    "kind": "mutation",
+    "config": "Mutant-SkipConsumption.cfg",
+    "expected": "HandoverOrder"
+  }
+]

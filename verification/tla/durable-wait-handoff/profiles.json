@@ -1,0 +1,38 @@
+[
+  {
+    "name": "Safety",
+    "kind": "normal",
+    "config": "Safety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Progress",
+    "kind": "normal",
+    "config": "Progress.cfg",
+    "expected": ""
+  },
+  {
+    "name": "LostHandoff",
+    "kind": "mutation",
+    "config": "LostHandoff.cfg",
+    "expected": "Ownership"
+  },
+  {
+    "name": "StaleCommit",
+    "kind": "mutation",
+    "config": "StaleCommit.cfg",
+    "expected": "SingleCompletion"
+  },
+  {
+    "name": "CrashBeforeCommit",
+    "kind": "witness",
+    "config": "CrashBeforeCommit.cfg",
+    "expected": "NoRecoveryBeforeCommit"
+  },
+  {
+    "name": "LostCommitReply",
+    "kind": "witness",
+    "config": "LostCommitReply.cfg",
+    "expected": "NoRecoveryAfterCommit"
+  }
+]

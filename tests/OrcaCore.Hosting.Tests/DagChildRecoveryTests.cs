@@ -13,7 +13,7 @@ using Xunit;
 
 namespace OrcaCore.Hosting.Tests;
 
-public sealed class DagChildRecoveryTests
+public sealed partial class DagChildRecoveryTests
 {
     [Fact]
     public async Task ChildPump_RecoversDeterministicStartAndAtomicTerminalJoinWithoutDagOrDispatcher()
@@ -106,7 +106,7 @@ public sealed class DagChildRecoveryTests
             KindSelector = OutboxKindSelector.Including("dag-child-join-v1")
         }, token);
         var join = pending.Should().ContainSingle().Subject;
-        await outbox.ReleaseAsync(join.OutboxRecordId, token);
+        await outbox.ReleaseAsync(join.OutboxRecordId, join.DispatchAttempt, token);
 
         (await pump.PumpOnceAsync(Request(), token)).Should().Be(0, "wrong-schema bytes cannot acknowledge a child join");
         var dispatch = (await outbox.GetDispatchSnapshotAsync(join.OutboxRecordId, token)).Value;
@@ -153,6 +153,7 @@ public sealed class DagChildRecoveryTests
         var final = await DagPumpRunFixture.ReadAsync(store, run.RunId, TestContext.Current.CancellationToken);
         final.State.Should().Be(DagRunStateV1.Cancelled);
         final.Nodes[0].State.Should().Be(DagNodeStateV1.Cancelled);
+        final.Nodes[0].FailureCode.Should().BeNull();
     }
 
     [Fact]

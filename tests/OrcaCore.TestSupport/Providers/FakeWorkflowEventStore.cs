@@ -2,6 +2,7 @@ using OrcaCore.Abstractions.Durable.Dag;
 using OrcaCore.Abstractions.Providers.Dag;
 using System.Collections.Concurrent;
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
@@ -137,8 +138,7 @@ public sealed class FakeWorkflowEventStore :
                 return Task.FromResult(EventStoreConflict.InboxRouteChanged(changedRoute.Route));
             }
 
-            var stream = streams.GetOrAdd(batch.StreamId, _ => []);
-            var actualVersion = new StreamVersion(stream.Count);
+            var actualVersion = new StreamVersion(streams.TryGetValue(batch.StreamId, out var existingStream) ? existingStream.Count : 0);
             if (actualVersion != batch.ExpectedVersion)
             {
                 return Task.FromResult(EventStoreConflict.ExpectedVersionMismatch(
@@ -152,6 +152,20 @@ public sealed class FakeWorkflowEventStore :
                     batch.StartIdempotencyOperations[0].IdempotencyKey));
             }
 
+            if (batch.OutboxRecords.Count > 0)
+            {
+                var newIds = new HashSet<OutboxRecordId>();
+                foreach (var write in batch.OutboxRecords)
+                {
+                    if (outbox.ContainsKey(write.OutboxRecordId) || !newIds.Add(write.OutboxRecordId))
+                    {
+                        return Task.FromResult(Result<AppendEventsResult>.Failure(
+                            new WorkflowConcurrencyException($"Outbox record '{write.OutboxRecordId}' already exists.")));
+                    }
+                }
+            }
+
+            var stream = existingStream ?? streams.GetOrAdd(batch.StreamId, _ => []);
             stream.AddRange(batch.Events);
             foreach (var operation in batch.InboxOperations)
             {
@@ -577,41 +591,52 @@ public sealed class FakeWorkflowEventStore :
             : Option<OutboxDispatchSnapshot>.None);
     }
 
-    public Task MarkAsync(
+    public Task<bool> MarkAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         OutboxRecordState state,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (outbox.TryGetValue(outboxRecordId, out var record) &&
-            record.State != OutboxRecordState.Poisoned)
+        lock (gate)
         {
-            outbox[outboxRecordId] = record with
+            if (outbox.TryGetValue(outboxRecordId, out var record) &&
+                record.State == OutboxRecordState.Claimed &&
+                dispatchAttempt > 0 && record.Write.DispatchAttempt == dispatchAttempt)
             {
-                State = state,
-                ClaimedUntil = state == OutboxRecordState.Claimed ? record.ClaimedUntil : null
-            };
+                outbox[outboxRecordId] = record with
+                {
+                    State = state,
+                    ClaimedUntil = state == OutboxRecordState.Claimed ? record.ClaimedUntil : null
+                };
+                return Task.FromResult(true);
+            }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
-    public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+    public Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (outbox.TryGetValue(outboxRecordId, out var record) &&
-            record.State == OutboxRecordState.Claimed)
+        lock (gate)
         {
-            outbox[outboxRecordId] = record with
+            if (outbox.TryGetValue(outboxRecordId, out var record) &&
+                record.State == OutboxRecordState.Claimed &&
+                dispatchAttempt > 0 && record.Write.DispatchAttempt == dispatchAttempt)
             {
-                State = OutboxRecordState.Retryable,
-                ClaimedUntil = null
-            };
+                outbox[outboxRecordId] = record with
+                {
+                    State = OutboxRecordState.Retryable,
+                    ClaimedUntil = null
+                };
+                return Task.FromResult(true);
+            }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)
@@ -625,8 +650,9 @@ public sealed class FakeWorkflowEventStore :
         return Task.CompletedTask;
     }
 
-    public Task MarkPoisonedAsync(
+    public Task<bool> MarkPoisonedAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         string code,
         string? detail,
         CancellationToken cancellationToken)
@@ -634,19 +660,24 @@ public sealed class FakeWorkflowEventStore :
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
         cancellationToken.ThrowIfCancellationRequested();
 
-        if (outbox.TryGetValue(outboxRecordId, out var record) &&
-            record.State == OutboxRecordState.Claimed)
+        lock (gate)
         {
-            outbox[outboxRecordId] = record with
+            if (outbox.TryGetValue(outboxRecordId, out var record) &&
+                record.State == OutboxRecordState.Claimed &&
+                dispatchAttempt > 0 && record.Write.DispatchAttempt == dispatchAttempt)
             {
-                State = OutboxRecordState.Poisoned,
-                ClaimedUntil = null,
-                PoisonCode = code,
-                PoisonDetail = detail
-            };
+                outbox[outboxRecordId] = record with
+                {
+                    State = OutboxRecordState.Poisoned,
+                    ClaimedUntil = null,
+                    PoisonCode = code,
+                    PoisonDetail = detail
+                };
+                return Task.FromResult(true);
+            }
         }
 
-        return Task.CompletedTask;
+        return Task.FromResult(false);
     }
 
     private void ApplyProjectionOperations(IEnumerable<ProjectionWrite> operations)

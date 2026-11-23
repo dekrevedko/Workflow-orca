@@ -1,0 +1,118 @@
+name: DAG child join recovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'verification/tla/dag-child-join/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/dag-child-join.yml'
+      - 'docs/specs/08-requirements-composition.md'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Abstractions/Ids/**'
+      - 'src/OrcaCore.Durable.Hosting/Dag/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.Engine.Durable.Tests/Dag/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - 'verification/tla/dag-child-join/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/dag-child-join.yml'
+      - 'docs/specs/08-requirements-composition.md'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Abstractions/Ids/**'
+      - 'src/OrcaCore.Durable.Hosting/Dag/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.Engine.Durable.Tests/Dag/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Check join classification and replay with private Java
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/dag-child-join -ModuleName DagChildJoin -OutputDirectory .codex-run/dag-model
+      - name: Exercise hosting recovery schedules
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj -c Release --filter "FullyQualifiedName~DagChildRecoveryTests" --logger "trx;LogFileName=recovery.trx" --results-directory .codex-run/dag-tests
+      - name: Verify cancellation command identities
+        run: dotnet test tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj -c Release --filter "FullyQualifiedName~DurableCancellationIdentityTests"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dag-child-join-evidence
+          include-hidden-files: true
+          path: |
+            .codex-run/dag-model/*.json
+            .codex-run/dag-model/*/tlc.log
+            .codex-run/dag-model/*/*.cfg
+            .codex-run/dag-model/*/*.tla
+            .codex-run/dag-tests/*.trx
+
+  database-restart:
+    name: ${{ matrix.check }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check: postgres-restart
+            method: PostgreSqlProcessRestart
+          - check: sqlserver-restart
+            method: SqlServerProcessRestart
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Kill and replace the DAG worker
+        run: dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.${{ matrix.method }} -showLiveOutput -xml restart.xml
+      - name: Verify both restart schedules ran and passed
+        shell: pwsh
+        env:
+          TEST_METHOD: ${{ matrix.method }}
+        run: |
+          $report = [xml](Get-Content -Raw restart.xml)
+          $cases = @($report.SelectNodes('//test'))
+          $method = "OrcaCore.Hosting.Tests.DagChildRecoveryTests.$env:TEST_METHOD"
+          if ($cases.Count -ne 2) { throw "Expected two tests for $method, found $($cases.Count)." }
+          foreach ($order in 'True', 'False') {
+            $name = "${method}(loseAcknowledgement: $order)"
+            if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
+              throw "Missing passing result for $name."
+            }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ${{ matrix.check }}-evidence
+          path: restart.xml
+          if-no-files-found: error

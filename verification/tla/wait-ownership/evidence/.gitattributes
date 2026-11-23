@@ -1,0 +1,2 @@
+# Preserve raw checker logs, executed inputs, and test evidence byte-for-byte.
+* -text whitespace=-blank-at-eol,-blank-at-eof

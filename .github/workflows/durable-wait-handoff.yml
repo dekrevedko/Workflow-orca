@@ -1,0 +1,116 @@
+name: Durable wait and continuation verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'verification/tla/durable-wait-handoff/**'
+      - 'verification/tla/durable-event-timeout/**'
+      - 'verification/tla/durable-continuation-lease/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'docs/durable-driver-lane-host.md'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.ProviderCertification/**'
+      - 'tests/OrcaCore.Providers.PostgreSql.Tests/**'
+      - 'tests/OrcaCore.Providers.SqlServer.Tests/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/durable-wait-handoff.yml'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'tests/OrcaCore.Engine.Durable.Tests/Recovery/**'
+      - 'tests/OrcaCore.TestSupport/Providers/**'
+      - 'docs/specs/05-requirements-events-waits-timers.md'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'openspec/specs/event-routing-and-waits/**'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - 'verification/tla/durable-wait-handoff/**'
+      - 'verification/tla/durable-event-timeout/**'
+      - 'verification/tla/durable-continuation-lease/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'docs/durable-driver-lane-host.md'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.ProviderCertification/**'
+      - 'tests/OrcaCore.Providers.PostgreSql.Tests/**'
+      - 'tests/OrcaCore.Providers.SqlServer.Tests/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/durable-wait-handoff.yml'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'tests/OrcaCore.Engine.Durable.Tests/Recovery/**'
+      - 'tests/OrcaCore.TestSupport/Providers/**'
+      - 'docs/specs/05-requirements-events-waits-timers.md'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'openspec/specs/event-routing-and-waits/**'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Check durable handoff and controls with private Java
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-wait-handoff -ModuleName DurableWaitHandoff -OutputDirectory .codex-run/durable-model
+      - name: Check continuation lease expiry with private Java
+        if: ${{ !cancelled() }}
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-continuation-lease -ModuleName ContinuationLease -OutputDirectory .codex-run/lease-model
+      - name: Exercise the corresponding C# recovery paths
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.Engine.Durable.Tests/OrcaCore.Engine.Durable.Tests.csproj -c Release --filter "FullyQualifiedName~FailedInlineConsumption_IsLaterAppliedWithoutBrokerResubmission|FullyQualifiedName~CallbackOnlyAcceptance_CommitsHandoffAndCompetingDefinitionOwnersResumeOnce" --logger "trx;LogFileName=durable.trx" --results-directory .codex-run/durable-tests
+      - name: Check durable event and timeout arbitration with private Java
+        if: ${{ !cancelled() }}
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-event-timeout -ModuleName EventTimeout -OutputDirectory .codex-run/event-timeout
+      - name: Replay durable event and timeout schedules with the in-memory provider
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj -c Release --filter "FullyQualifiedName~DurableEventTimeout_ReusedKey" --logger "trx;LogFileName=event-timeout.trx" --results-directory .codex-run/durable-tests
+      - name: Replay lease schedules on the process-local provider fixtures
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj -c Release --filter "FullyQualifiedName~ContinuationLease_" --logger "trx;LogFileName=lease.trx" --results-directory .codex-run/durable-tests
+      - name: Retain model traces and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: durable-wait-handoff-evidence
+          include-hidden-files: true
+          path: |
+            .codex-run/durable-model/*.json
+            .codex-run/durable-model/*/tlc.log
+            .codex-run/durable-model/*/*.cfg
+            .codex-run/durable-model/*/*.tla
+            .codex-run/lease-model/*.json
+            .codex-run/lease-model/*/tlc.log
+            .codex-run/lease-model/*/*.cfg
+            .codex-run/lease-model/*/*.tla
+            .codex-run/event-timeout/*.json
+            .codex-run/event-timeout/*/tlc.log
+            .codex-run/event-timeout/*/*.cfg
+            .codex-run/event-timeout/*/*.tla
+            .codex-run/durable-tests/*.trx

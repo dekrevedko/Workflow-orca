@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Current",
+    "kind": "normal",
+    "config": "Current.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Settlement",
+    "kind": "normal",
+    "config": "Settlement.cfg",
+    "expected": ""
+  },
+  {
+    "name": "MissingAttemptCheck",
+    "kind": "mutation",
+    "config": "MissingAttemptCheck.cfg",
+    "expected": "LiveClaimPreserved"
+  },
+  {
+    "name": "MissingStateCheck",
+    "kind": "mutation",
+    "config": "MissingStateCheck.cfg",
+    "expected": "DispatchPreserved"
+  },
+  {
+    "name": "UnfencedAppend",
+    "kind": "mutation",
+    "config": "UnfencedAppend.cfg",
+    "expected": "SingleCommit"
+  },
+  {
+    "name": "EarlyRetryNoOp",
+    "kind": "witness",
+    "config": "EarlyRetryNoOp.cfg",
+    "expected": "NoEarlyRetryNoOp"
+  },
+  {
+    "name": "EarlyReleaseNoOp",
+    "kind": "witness",
+    "config": "EarlyReleaseNoOp.cfg",
+    "expected": "NoEarlyReleaseNoOp"
+  },
+  {
+    "name": "LateRetryNoOp",
+    "kind": "witness",
+    "config": "LateRetryNoOp.cfg",
+    "expected": "NoLateRetryNoOp"
+  },
+  {
+    "name": "LateReleaseNoOp",
+    "kind": "witness",
+    "config": "LateReleaseNoOp.cfg",
+    "expected": "NoLateReleaseNoOp"
+  },
+  {
+    "name": "TerminalReplay",
+    "kind": "witness",
+    "config": "TerminalReplay.cfg",
+    "expected": "NoTerminalReplay"
+  }
+]

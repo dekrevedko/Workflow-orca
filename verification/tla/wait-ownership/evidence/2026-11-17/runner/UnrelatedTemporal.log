@@ -1,0 +1,2 @@
+UnrelatedTemporal: failed (0.74s) Assumption control must configure exactly one temporal property, matching its declared expectation.
+Evidence: C:\Users\Denis\.codex\worktrees\tla-wait-ownership\Workflow-orca\.codex-run\pilot-runner-reviewed\UnrelatedTemporal

@@ -185,23 +185,26 @@ internal sealed partial class SqlServerWorkflowStore(SqlServerStateDocumentStore
         CancellationToken cancellationToken) =>
         ReadAsync(engine => engine.GetDispatchSnapshotAsync(outboxRecordId, cancellationToken), cancellationToken);
 
-    public Task MarkAsync(
+    public Task<bool> MarkAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         OutboxRecordState state,
         CancellationToken cancellationToken) =>
-        ExecuteAsync(engine => engine.MarkAsync(outboxRecordId, state, cancellationToken), cancellationToken);
+        ExecuteAsync(engine => engine.MarkAsync(outboxRecordId, dispatchAttempt, state, cancellationToken), cancellationToken);
 
-    public Task MarkPoisonedAsync(
+    public Task<bool> MarkPoisonedAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         string code,
         string? detail,
         CancellationToken cancellationToken) =>
-        ExecuteAsync(engine => engine.MarkPoisonedAsync(outboxRecordId, code, detail, cancellationToken), cancellationToken);
+        ExecuteAsync(engine => engine.MarkPoisonedAsync(outboxRecordId, dispatchAttempt, code, detail, cancellationToken), cancellationToken);
 
-    public Task ReleaseAsync(
+    public Task<bool> ReleaseAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         CancellationToken cancellationToken) =>
-        ExecuteAsync(engine => engine.ReleaseAsync(outboxRecordId, cancellationToken), cancellationToken);
+        ExecuteAsync(engine => engine.ReleaseAsync(outboxRecordId, dispatchAttempt, cancellationToken), cancellationToken);
 
     public Task ApplyAsync(
         IReadOnlyList<ProjectionWrite> operations,

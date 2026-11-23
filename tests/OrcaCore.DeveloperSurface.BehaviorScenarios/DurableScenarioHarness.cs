@@ -245,16 +245,25 @@ internal sealed class DurableScenarioProvider :
         CancellationToken cancellationToken) =>
         outboxStore.GetStateAsync(outboxRecordId, cancellationToken);
 
-    public Task MarkAsync(
+    public Task<bool> MarkAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         OutboxRecordState state,
         CancellationToken cancellationToken) =>
-        outboxStore.MarkAsync(outboxRecordId, state, cancellationToken);
+        outboxStore.MarkAsync(outboxRecordId, dispatchAttempt, state, cancellationToken);
 
-    public Task ReleaseAsync(
+    public Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(OutboxRecordId id, CancellationToken token) =>
+        outboxStore.GetDispatchSnapshotAsync(id, token);
+
+    public Task<bool> MarkPoisonedAsync(
+        OutboxRecordId outboxRecordId, int dispatchAttempt, string code, string? detail, CancellationToken cancellationToken) =>
+        outboxStore.MarkPoisonedAsync(outboxRecordId, dispatchAttempt, code, detail, cancellationToken);
+
+    public Task<bool> ReleaseAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         CancellationToken cancellationToken) =>
-        outboxStore.ReleaseAsync(outboxRecordId, cancellationToken);
+        outboxStore.ReleaseAsync(outboxRecordId, dispatchAttempt, cancellationToken);
 
     public Task ApplyAsync(
         IReadOnlyList<ProjectionWrite> operations,

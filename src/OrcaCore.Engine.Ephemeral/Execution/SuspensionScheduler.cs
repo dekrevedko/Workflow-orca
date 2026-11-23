@@ -27,17 +27,34 @@ internal sealed class SuspensionScheduler<TState>(
 
         var registeredAt = timeProvider.GetUtcNow();
         var deadline = timeout.HasValue ? registeredAt.Add(timeout.Value) : (DateTimeOffset?)null;
-        var wait = instance.EnterWait(
+        RuntimeWaitRecord? wait = null;
+        wait = instance.EnterWait(
             eventContract,
             correlationId,
             context.BranchId,
             registeredAt,
             authoredPath,
             deadline,
-            (envelope, resumeToken) => sequenceExecution.ContinueSequenceAsync(
-                context with { ResumeEvent = new ResumeEventSlot(envelope) },
-                nextIndex,
-                resumeToken));
+            async (envelope, resumeToken) =>
+            {
+                resumeToken.ThrowIfCancellationRequested();
+                using var executionToken = instance.CreateLinkedExecutionToken(
+                    instance.Lifetime.IsAccepted ? CancellationToken.None : resumeToken);
+                try
+                {
+                    instance.CommitWaitEvent(wait!, envelope);
+                    await sequenceExecution.ContinueSequenceAsync(
+                        context with { ResumeEvent = new ResumeEventSlot(envelope) },
+                        nextIndex, executionToken.Token).ConfigureAwait(false);
+                }
+                catch (Exception error) when (instance.Lifetime.IsAccepted &&
+                    !executionToken.IsCancellationRequested && !instance.Lifetime.IsTerminal &&
+                    !(error is OperationCanceledException cancelled &&
+                      instance.Lifetime.IsStoppingCancellation(cancelled, executionToken.Token)))
+                {
+                    sequenceExecution.Fail(instance, error, authoredPath);
+                }
+            });
         if (timeout is { } timeoutDuration)
         {
             var timeoutTimer = timerService.Schedule(

@@ -41,6 +41,14 @@ finishes its current commits inside `ContinuationDrainTimeout` (default 30s) ins
 being torn mid-advancement. Whatever the drained host did not finish, a surviving host's
 pump completes via the pending continuation records.
 
+### Upgrading hosts and providers for outbox claim fencing
+
+Stop and drain all existing outbox writers before starting updated hosts against the same store. Rebuild custom providers, pumps, decorators and hosts against the updated `IWorkflowOutboxStore`. Existing records retain their dispatch attempts and lease deadlines. An outstanding claim can be reclaimed at its original expiry.
+
+Pass the record ID and the **original positive dispatch attempt** to `MarkAsync`, `MarkPoisonedAsync` and `ReleaseAsync`. Keep both values for each record in a batch. Implement the state check, attempt comparison and write atomically. Return `true` only when the row was claimed by that attempt and the write applied. A `false` result leaves the current owner's work intact. Discard the stale disposition. Gate any acknowledgement-dependent work on `true`. Store poison code and detail in the same write and expose them through `GetDispatchSnapshotAsync`.
+
+Use a fresh ID for every new record, including after retention deletes an old row. Appending a duplicate retained ID fails the entire workflow batch. The dispatch fence protects the retained record. Workflow commits still use their stream-version check, and external effects still need idempotency.
+
 <!-- dag-run-contract-proposal:start -->
 #### Durable DAG run contract: reviewed source slices checkpointed (2026-11-15)
 

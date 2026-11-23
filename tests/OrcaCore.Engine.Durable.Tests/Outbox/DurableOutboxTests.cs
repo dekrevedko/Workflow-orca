@@ -471,15 +471,20 @@ public sealed class DurableOutboxTests
             throw new NotSupportedException();
         }
 
-        public Task MarkAsync(
+        public Task<bool> MarkAsync(
             OutboxRecordId outboxRecordId,
+            int dispatchAttempt,
             OutboxRecordState state,
             CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
 
-        public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+        public Task<bool> MarkPoisonedAsync(
+            OutboxRecordId outboxRecordId, int dispatchAttempt, string code, string? detail, CancellationToken cancellationToken) =>
+            MarkAsync(outboxRecordId, dispatchAttempt, OutboxRecordState.Poisoned, cancellationToken);
+
+        public Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken)
         {
             throw new NotSupportedException();
         }
@@ -511,19 +516,24 @@ public sealed class DurableOutboxTests
             CancellationToken cancellationToken) =>
             throw new NotSupportedException();
 
-        public Task MarkAsync(
+        public Task<bool> MarkAsync(
             OutboxRecordId outboxRecordId,
+            int dispatchAttempt,
             OutboxRecordState state,
             CancellationToken cancellationToken)
         {
             MarkedStates.Add(state);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
 
-        public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+        public Task<bool> MarkPoisonedAsync(
+            OutboxRecordId outboxRecordId, int dispatchAttempt, string code, string? detail, CancellationToken cancellationToken) =>
+            MarkAsync(outboxRecordId, dispatchAttempt, OutboxRecordState.Poisoned, cancellationToken);
+
+        public Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken)
         {
             Released.Add(outboxRecordId);
-            return Task.CompletedTask;
+            return Task.FromResult(true);
         }
     }
 

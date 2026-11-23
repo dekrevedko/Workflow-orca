@@ -1,0 +1,150 @@
+TLC2 Version 2.19 of 08 August 2024 (rev: 5a47802)
+Running breadth-first search Model-Checking with fp 0 and seed 1 with 1 worker on 32 cores with 947MB heap and 64MB offheap memory [pid: 109804] (Windows 11 10.0 amd64, Eclipse Adoptium 21.0.9 x86_64, MSBDiskFPSet, DiskStateQueue).
+Parsing file C:\Users\Denis\.codex\worktrees\tla-wait-ownership\Workflow-orca\.codex-run\pilot-commit-candidate\Mutant-MissingActiveGuard\EphemeralWaitOwnership.tla
+Parsing file C:\Users\Denis\AppData\Local\Temp\Naturals.tla
+Parsing file C:\Users\Denis\AppData\Local\Temp\FiniteSets.tla
+Parsing file C:\Users\Denis\AppData\Local\Temp\Sequences.tla
+Parsing file C:\Users\Denis\AppData\Local\Temp\TLC.tla
+Parsing file C:\Users\Denis\.codex\worktrees\tla-wait-ownership\Workflow-orca\.codex-run\pilot-commit-candidate\Mutant-MissingActiveGuard\WaitOwnershipContract.tla
+Semantic processing of module Naturals
+Semantic processing of module Sequences
+Semantic processing of module FiniteSets
+Semantic processing of module TLC
+Semantic processing of module WaitOwnershipContract
+Semantic processing of module EphemeralWaitOwnership
+Starting... (2026-11-17 00:15:25)
+Computing initial states...
+Finished computing initial states: 1 distinct state generated at 2026-11-17 00:15:25.
+Error: Invariant UniqueActiveWait is violated.
+Error: The behavior up to this point is:
+State 1: <Initial predicate>
+s = [ phase |->
+      ( <<1, 1>> :> "new" @@
+        <<1, 2>> :> "new" @@
+        <<2, 1>> :> "new" @@
+        <<2, 2>> :> "new" ),
+  held |-> {},
+  cancel |-> <<FALSE, FALSE>>,
+  index |-> (<<1, 1, 1, 1>> :> 0),
+  seen |-> FALSE,
+  count |-> (<<1, 1, 1, 1>> :> 0),
+  wins |-> (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  event |-> (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  consumed |-> <<<<0, 0>>, <<0, 0>>>>,
+  attempts |-> <<<<0, 0>>, <<0, 0>>>>,
+  failures |->
+      (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  restored |-> {},
+  timer |->
+      ( <<1, 1>> :> TRUE @@
+        <<1, 2>> :> TRUE @@
+        <<2, 1>> :> TRUE @@
+        <<2, 2>> :> TRUE ),
+  matchKey |->
+      ( <<1, 1>> :> <<1, 1, 1, 1>> @@
+        <<1, 2>> :> <<1, 1, 1, 1>> @@
+        <<2, 1>> :> <<1, 1, 1, 1>> @@
+        <<2, 2>> :> <<1, 1, 1, 1>> ),
+  route |-> <<"idle", "idle">>,
+  offered |-> <<0, 0>>,
+  offerKey |-> <<<<1, 1, 1, 1>>, <<1, 1, 1, 1>>>>,
+  observed |-> <<FALSE, FALSE>>,
+  published |-> <<FALSE, FALSE>>,
+  queue |-> <<<<>>, <<>>>>,
+  cancelStage |-> <<"none", "none">>,
+  cleaned |-> <<FALSE, FALSE>>,
+  due |-> {},
+  dispatched |-> {},
+  callbackBefore |-> <<>>,
+  callbackAfter |-> <<>>,
+  returned |-> <<FALSE, FALSE>> ]
+
+State 2: <Register line 44, col 3 to line 50, col 56 of module EphemeralWaitOwnership>
+s = [ phase |->
+      ( <<1, 1>> :> "active" @@
+        <<1, 2>> :> "new" @@
+        <<2, 1>> :> "new" @@
+        <<2, 2>> :> "new" ),
+  held |-> {<<1, 1>>},
+  cancel |-> <<FALSE, FALSE>>,
+  index |-> (<<1, 1, 1, 1>> :> 1),
+  seen |-> FALSE,
+  count |-> (<<1, 1, 1, 1>> :> 1),
+  wins |-> (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  event |-> (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  consumed |-> <<<<0, 0>>, <<0, 0>>>>,
+  attempts |-> <<<<0, 0>>, <<0, 0>>>>,
+  failures |->
+      (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  restored |-> {},
+  timer |->
+      ( <<1, 1>> :> TRUE @@
+        <<1, 2>> :> TRUE @@
+        <<2, 1>> :> TRUE @@
+        <<2, 2>> :> TRUE ),
+  matchKey |->
+      ( <<1, 1>> :> <<1, 1, 1, 1>> @@
+        <<1, 2>> :> <<1, 1, 1, 1>> @@
+        <<2, 1>> :> <<1, 1, 1, 1>> @@
+        <<2, 2>> :> <<1, 1, 1, 1>> ),
+  route |-> <<"idle", "idle">>,
+  offered |-> <<0, 0>>,
+  offerKey |-> <<<<1, 1, 1, 1>>, <<1, 1, 1, 1>>>>,
+  observed |-> <<FALSE, FALSE>>,
+  published |-> <<TRUE, FALSE>>,
+  queue |-> <<<<>>, <<>>>>,
+  cancelStage |-> <<"none", "none">>,
+  cleaned |-> <<FALSE, FALSE>>,
+  due |-> {},
+  dispatched |-> {},
+  callbackBefore |-> <<>>,
+  callbackAfter |-> <<>>,
+  returned |-> <<FALSE, FALSE>> ]
+
+State 3: <Register line 44, col 3 to line 50, col 56 of module EphemeralWaitOwnership>
+s = [ phase |->
+      ( <<1, 1>> :> "active" @@
+        <<1, 2>> :> "active" @@
+        <<2, 1>> :> "new" @@
+        <<2, 2>> :> "new" ),
+  held |-> {<<1, 1>>, <<1, 2>>},
+  cancel |-> <<FALSE, FALSE>>,
+  index |-> (<<1, 1, 1, 1>> :> 1),
+  seen |-> FALSE,
+  count |-> (<<1, 1, 1, 1>> :> 2),
+  wins |-> (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  event |-> (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  consumed |-> <<<<0, 0>>, <<0, 0>>>>,
+  attempts |-> <<<<0, 0>>, <<0, 0>>>>,
+  failures |->
+      (<<1, 1>> :> 0 @@ <<1, 2>> :> 0 @@ <<2, 1>> :> 0 @@ <<2, 2>> :> 0),
+  restored |-> {},
+  timer |->
+      ( <<1, 1>> :> TRUE @@
+        <<1, 2>> :> TRUE @@
+        <<2, 1>> :> TRUE @@
+        <<2, 2>> :> TRUE ),
+  matchKey |->
+      ( <<1, 1>> :> <<1, 1, 1, 1>> @@
+        <<1, 2>> :> <<1, 1, 1, 1>> @@
+        <<2, 1>> :> <<1, 1, 1, 1>> @@
+        <<2, 2>> :> <<1, 1, 1, 1>> ),
+  route |-> <<"idle", "idle">>,
+  offered |-> <<0, 0>>,
+  offerKey |-> <<<<1, 1, 1, 1>>, <<1, 1, 1, 1>>>>,
+  observed |-> <<FALSE, FALSE>>,
+  published |-> <<TRUE, FALSE>>,
+  queue |-> <<<<>>, <<>>>>,
+  cancelStage |-> <<"none", "none">>,
+  cleaned |-> <<FALSE, FALSE>>,
+  due |-> {},
+  dispatched |-> {},
+  callbackBefore |-> <<>>,
+  callbackAfter |-> <<>>,
+  returned |-> <<FALSE, FALSE>> ]
+
+18 states generated, 13 distinct states found, 10 states left on queue.
+The depth of the complete state graph search is 3.
+The average outdegree of the complete state graph is 10 (minimum is 10, the maximum 10 and the 95th percentile is 10).
+Finished in 00s at (2026-11-17 00:15:25)
+

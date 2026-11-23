@@ -1,0 +1,50 @@
+[
+  {
+    "name": "Safety",
+    "kind": "normal",
+    "config": "Safety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Settlement",
+    "kind": "normal",
+    "config": "Settlement.cfg",
+    "expected": ""
+  },
+  {
+    "name": "MissingReservation",
+    "kind": "mutation",
+    "config": "MissingReservation.cfg",
+    "expected": "UniqueOwner"
+  },
+  {
+    "name": "WrongReplay",
+    "kind": "mutation",
+    "config": "WrongReplay.cfg",
+    "expected": "ReplayIdentity"
+  },
+  {
+    "name": "IndependentStart",
+    "kind": "witness",
+    "config": "IndependentStart.cfg",
+    "expected": "NoIndependentCompletion"
+  },
+  {
+    "name": "RetryAfterAbort",
+    "kind": "witness",
+    "config": "RetryAfterAbort.cfg",
+    "expected": "NoWaiterRetry"
+  },
+  {
+    "name": "SerializedControl",
+    "kind": "positive-control",
+    "config": "SerializedControl.cfg",
+    "expected": ""
+  },
+  {
+    "name": "ReplayAfterWaiting",
+    "kind": "witness",
+    "config": "ReplayAfterWaiting.cfg",
+    "expected": "NoWaiterReplay"
+  }
+]

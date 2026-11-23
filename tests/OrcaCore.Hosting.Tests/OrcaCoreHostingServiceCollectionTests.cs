@@ -535,21 +535,30 @@ public sealed class OrcaCoreHostingServiceCollectionTests
             return inner.GetStateAsync(outboxRecordId, cancellationToken);
         }
 
-        public async Task MarkAsync(
+        public async Task<bool> MarkAsync(
             OutboxRecordId outboxRecordId,
+            int dispatchAttempt,
             OutboxRecordState state,
             CancellationToken cancellationToken)
         {
-            await inner.MarkAsync(outboxRecordId, state, cancellationToken).ConfigureAwait(false);
-            if (state == OutboxRecordState.Dispatched)
+            var applied = await inner.MarkAsync(outboxRecordId, dispatchAttempt, state, cancellationToken).ConfigureAwait(false);
+            if (applied && state == OutboxRecordState.Dispatched)
             {
                 OutboxMarkedDispatched.TrySetResult();
             }
+            return applied;
         }
 
-        public Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken)
+        public Task<Option<OutboxDispatchSnapshot>> GetDispatchSnapshotAsync(OutboxRecordId id, CancellationToken token) =>
+            inner.GetDispatchSnapshotAsync(id, token);
+
+        public Task<bool> MarkPoisonedAsync(
+            OutboxRecordId outboxRecordId, int dispatchAttempt, string code, string? detail, CancellationToken cancellationToken) =>
+            inner.MarkPoisonedAsync(outboxRecordId, dispatchAttempt, code, detail, cancellationToken);
+
+        public Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken)
         {
-            return inner.ReleaseAsync(outboxRecordId, cancellationToken);
+            return inner.ReleaseAsync(outboxRecordId, dispatchAttempt, cancellationToken);
         }
 
         public Task ApplyAsync(IReadOnlyList<ProjectionWrite> operations, CancellationToken cancellationToken)

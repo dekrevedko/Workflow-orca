@@ -28,7 +28,7 @@ internal sealed class DurableDagChildPump(IWorkflowOutboxStore outbox, IDurableD
         {
             if (!DurableDagKinds.IsChild(write.Kind))
             {
-                await outbox.ReleaseAsync(write.OutboxRecordId, token).ConfigureAwait(false);
+                await outbox.ReleaseAsync(write.OutboxRecordId, write.DispatchAttempt, token).ConfigureAwait(false);
                 continue;
             }
             var watch = Stopwatch.StartNew();
@@ -40,9 +40,11 @@ internal sealed class DurableDagChildPump(IWorkflowOutboxStore outbox, IDurableD
                     throw new InvalidDataException("Missing trusted DAG run owner.");
                 if (await handler.HandleAsync(write, token).ConfigureAwait(false))
                 {
-                    await outbox.MarkAsync(write.OutboxRecordId, OutboxRecordState.Dispatched, token).ConfigureAwait(false);
-                    completed++;
-                    outcome = DispatchResult.Success;
+                    if (await outbox.MarkAsync(write.OutboxRecordId, write.DispatchAttempt, OutboxRecordState.Dispatched, token).ConfigureAwait(false))
+                    {
+                        completed++;
+                        outcome = DispatchResult.Success;
+                    }
                 }
                 // Retain a not-yet result until the existing claim lease expires.
                 // Immediate release returns the oldest record to the head and
@@ -60,12 +62,14 @@ internal sealed class DurableDagChildPump(IWorkflowOutboxStore outbox, IDurableD
                     // or immediately returning this record to the head of the lane.
                     continue;
                 }
-                await outbox.MarkPoisonedAsync(write.OutboxRecordId, "DAG_PROTOCOL_INVALID", exception.Message, token).ConfigureAwait(false);
-                outcome = DispatchResult.PermanentFailure;
+                if (await outbox.MarkPoisonedAsync(write.OutboxRecordId, write.DispatchAttempt, "DAG_PROTOCOL_INVALID", exception.Message, token).ConfigureAwait(false))
+                {
+                    outcome = DispatchResult.PermanentFailure;
+                }
             }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
-                await outbox.ReleaseAsync(write.OutboxRecordId, CancellationToken.None).ConfigureAwait(false);
+                await outbox.ReleaseAsync(write.OutboxRecordId, write.DispatchAttempt, CancellationToken.None).ConfigureAwait(false);
                 throw;
             }
             catch (Exception exception)

@@ -12,7 +12,7 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Retention;
 [Trait("AC", "AC-537")]
 [Trait("AC", "AC-538")]
 [Trait("AC", "AC-540")]
-public sealed class RetentionInterleavingTests
+public sealed partial class RetentionInterleavingTests
 {
     private static readonly TimeSpan Guard = TimeSpan.FromSeconds(10);
     private static CancellationToken Token => TestContext.Current.CancellationToken;

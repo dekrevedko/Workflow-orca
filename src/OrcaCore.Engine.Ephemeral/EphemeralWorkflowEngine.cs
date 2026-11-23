@@ -650,7 +650,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
 
         using var eventOwnership = instance.Lifetime.Own();
 
-        var matchedWait = instance.ToSnapshot().ActiveWaits.FirstOrDefault(wait =>
+        var matchedWait = ((IWorkflowInstance)instance).GetPublishedSnapshot().ActiveWaits.FirstOrDefault(wait =>
             wait.EventContract.Equals(envelope.EventContract) &&
             wait.CorrelationId.Equals(envelope.CorrelationId));
 
@@ -666,7 +666,8 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 cancellationToken).ConfigureAwait(false);
 
         snapshot = await yieldContinuationScheduler
-            .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
+            .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed),
+                CancellationToken.None)
             .ConfigureAwait(false);
         commandStopwatch.Stop();
         activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());

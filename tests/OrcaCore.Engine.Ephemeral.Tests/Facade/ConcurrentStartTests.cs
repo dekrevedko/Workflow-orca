@@ -49,6 +49,33 @@ public sealed class ConcurrentStartTests
     }
 
     [Fact]
+    public async Task SameKeyWaiter_TakesOwnershipAfterProvisionalOwnerIsCancelled()
+    {
+        using var host = new HostShutdownTests.Host(cooperative: true);
+        var definition = host.Register(host.Definition());
+        var key = StartIdempotencyKey.Create("retry-after-abort");
+        using var ownerToken = CancellationTokenSource.CreateLinkedTokenSource(TestToken);
+
+        var owner = definition.StartOrGetAsync("first", key, ownerToken.Token).AsTask();
+        await host.Body.Entered.Task.WaitAsync(Guard, TestToken);
+        var waiter = definition.StartOrGetAsync("second", key, TestToken).AsTask();
+        waiter.IsCompleted.Should().BeFalse();
+
+        ownerToken.Cancel();
+        Func<Task> observeOwner = () => owner.WaitAsync(Guard, TestToken);
+        await observeOwner.Should().ThrowAsync<OperationCanceledException>();
+        host.Body.Release.TrySetResult();
+
+        var accepted = await waiter.WaitAsync(Guard, TestToken);
+        accepted.Should().BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>()
+            .Which.WasExisting.Should().BeFalse();
+        var replay = await definition.StartOrGetAsync("second", key, TestToken);
+        replay.GetHandleOrThrow().InstanceId.Should().Be(accepted.GetHandleOrThrow().InstanceId);
+        replay.Should().BeOfType<WorkflowStartResult<WorkflowInstanceHandle>.Accepted>()
+            .Which.WasExisting.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ConcurrentStartsReachingTheSameWait_AdmitExactlyOne()
     {
         using var host = new HostShutdownTests.Host();

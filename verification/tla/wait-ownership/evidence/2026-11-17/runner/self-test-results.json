@@ -1,0 +1,32 @@
+[
+  {
+    "case": "Passing",
+    "exitCode": 0,
+    "status": "passed"
+  },
+  {
+    "case": "Expected",
+    "exitCode": 0,
+    "status": "expected-counterexample"
+  },
+  {
+    "case": "Unrelated",
+    "exitCode": 1,
+    "status": "failed"
+  },
+  {
+    "case": "ParseError",
+    "exitCode": 1,
+    "status": "failed"
+  },
+  {
+    "case": "Timeout",
+    "exitCode": 1,
+    "status": "inconclusive"
+  },
+  {
+    "case": "UnrelatedTemporal",
+    "exitCode": 1,
+    "status": "failed"
+  }
+]

@@ -1,0 +1,82 @@
+name: Ephemeral start idempotency
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'verification/tla/start-idempotency/**'
+      - 'verification/tla/start-key-retirement/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/start-idempotency.yml'
+      - 'src/OrcaCore.Engine.Ephemeral/**'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/Facade/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/Retention/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/**'
+      - 'docs/specs/09-requirements-management-operations.md'
+      - 'openspec/specs/management-and-querying/**'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - 'verification/tla/start-idempotency/**'
+      - 'verification/tla/start-key-retirement/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - '.github/workflows/start-idempotency.yml'
+      - 'src/OrcaCore.Engine.Ephemeral/**'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/Facade/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/Retention/**'
+      - 'tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/**'
+      - 'docs/specs/09-requirements-management-operations.md'
+      - 'openspec/specs/management-and-querying/**'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Check start protocol and controls with private Java
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/start-idempotency -ModuleName StartIdempotency -OutputDirectory .codex-run/start-model
+      - name: Exercise the corresponding C# start paths
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj -c Release --filter "FullyQualifiedName~ConcurrentStartTests|FullyQualifiedName~StartKeyConflictAndHostModeMismatchUseClosedResults" --logger "trx;LogFileName=starts.trx" --results-directory .codex-run/start-tests
+      - name: Check retention and key reuse with private Java
+        if: ${{ !cancelled() }}
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/start-key-retirement -ModuleName StartKeyRetirement -OutputDirectory .codex-run/retirement-model
+      - name: Exercise replay across lifetime retirement
+        if: ${{ !cancelled() }}
+        run: dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj -c Release --filter "FullyQualifiedName~RetentionInterleavingTests|FullyQualifiedName~TerminalRetentionTests|FullyQualifiedName~RetentionSweepTests" --logger "trx;LogFileName=retirement.trx" --results-directory .codex-run/start-tests
+      - name: Retain model traces and test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: start-idempotency-evidence
+          include-hidden-files: true
+          path: |
+            .codex-run/start-model/*.json
+            .codex-run/start-model/*/tlc.log
+            .codex-run/start-model/*/*.cfg
+            .codex-run/start-model/*/*.tla
+            .codex-run/retirement-model/*.json
+            .codex-run/retirement-model/*/tlc.log
+            .codex-run/retirement-model/*/*.cfg
+            .codex-run/retirement-model/*/*.tla
+            .codex-run/start-tests/*.trx

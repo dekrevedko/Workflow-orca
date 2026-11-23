@@ -500,28 +500,26 @@ public interface IWorkflowOutboxStore
     }
 
     /// <summary>
-    /// Marks one outbox record with a dispatch state.
+    /// Marks a claimed record only if its positive dispatch attempt still matches. Returns whether the write applied.
     /// </summary>
-    Task MarkAsync(
+    Task<bool> MarkAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         OutboxRecordState state,
         CancellationToken cancellationToken);
 
-    /// <summary>Atomically terminalizes one claimed record with immutable poison detail.</summary>
-    Task MarkPoisonedAsync(
+    /// <summary>Atomically terminalizes the matching claim attempt with immutable poison detail. Returns whether the write applied.</summary>
+    Task<bool> MarkPoisonedAsync(
         OutboxRecordId outboxRecordId,
+        int dispatchAttempt,
         string code,
         string? detail,
-        CancellationToken cancellationToken)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(code);
-        return MarkAsync(outboxRecordId, OutboxRecordState.Poisoned, cancellationToken);
-    }
+        CancellationToken cancellationToken);
 
     /// <summary>
-    /// Releases one claimed outbox record so it can be retried.
+    /// Releases the matching positive claim attempt for retry. Returns false for a stale attempt or a non-claimed row.
     /// </summary>
-    Task ReleaseAsync(OutboxRecordId outboxRecordId, CancellationToken cancellationToken);
+    Task<bool> ReleaseAsync(OutboxRecordId outboxRecordId, int dispatchAttempt, CancellationToken cancellationToken);
 }
 
 /// <summary>

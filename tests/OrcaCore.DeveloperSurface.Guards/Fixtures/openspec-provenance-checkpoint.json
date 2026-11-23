@@ -1,9 +1,9 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 239,
-  "recordBytes": 63919,
-  "recordSha256": "63734ee0720fe66296df592b53b8299af2284f64df0884edbec73051be3e56df",
+  "recordCount": 245,
+  "recordBytes": 65371,
+  "recordSha256": "9d73687f2b797fefb1ee69a4a99686f3f83f224d4387ebfa5e2fe62f3f253725",
   "semanticApprovalEligible": true,
   "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
@@ -12,6 +12,12 @@
       "count": 3,
       "disposition": "Planning-only bootstrap capability intentionally outside canonical product specs",
       "evidence": "openspec/changes/bootstrap-orcacore-spec-baseline/proposal.md"
+    },
+    {
+      "capability": "wait-ownership-model-verification",
+      "count": 6,
+      "disposition": "Development-only bounded pilot remains an active delta; failed runtime qualification does not synchronize or approve product behavior",
+      "evidence": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/proposal.md"
     }
   ],
   "activeNewCapabilitiesAlreadyCanonical": [
@@ -172,11 +178,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 52,
-  "capabilityDirectoryBytes": 4169,
-  "capabilityDirectorySha256": "ad687c431395141484843e51fa901d410764930de1a5dbfe0ae5e08014b974f2",
-  "artifactPath": "openspec/changes/bound-runtime-observation/artifacts/sync-openspec-provenance-2026-11-21.md",
-  "artifactNormalizedSha256": "1de561cf48e0686e10ec22a598ff1c2f7b47b1b53ab276708431e72def47ccf6",
+  "capabilityDirectoryCount": 53,
+  "capabilityDirectoryBytes": 4268,
+  "capabilityDirectorySha256": "b30e34edf1a0e122bce52e4ff4cb91e76af8ef484994f903597be77cf2b1d264",
+  "artifactPath": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/artifacts/observation-merge-openspec-provenance-2026-11-23.md",
+  "artifactNormalizedSha256": "12001cd888b0a1fd51f37c50c05725a344ccf19e037a0e04b787d87780ddfc08",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",

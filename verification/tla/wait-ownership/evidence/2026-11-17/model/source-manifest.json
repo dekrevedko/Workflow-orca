@@ -1,0 +1,950 @@
+[
+  {
+    "path": ".github/workflows/wait-ownership.yml",
+    "sha256": "14CF95A16B77CE6FF6D6868231DB31D328FD373D67D365CF0A8EBE1649FA5291"
+  },
+  {
+    "path": "docs/specs/05-requirements-events-waits-timers.md",
+    "sha256": "C546E72793148CE5E34F0868B36170316E0CA9D34B830AD8BB2B73267DF427F2"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/.openspec.yaml",
+    "sha256": "DB997D460A2D6D123D14FAF903215B90F63FAF4E7E2DADACFDAB82C07857E113"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/artifacts/pilot-openspec-provenance-2026-11-17.md",
+    "sha256": "2997D9FE247ED66419A30D83FF10881DE9AEC4A7C5BFD8271961FA8941A989D9"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/artifacts/proposal-review-record.md",
+    "sha256": "155F106C05DC88A5CCBC32BFF3A255815BA7B01888A5D2F0C060D52EBA88D4D9"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/design.md",
+    "sha256": "CE7902237366CAD6B76663FD4DE077BA2A1FB1BE5CE32D0E6610D61BF43D00A8"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/proposal.md",
+    "sha256": "ED785BA4429E71C417B3162F88C2A47B567FDFFF6B7F1167551AC28F15E10D6F"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/specs/wait-ownership-model-verification/spec.md",
+    "sha256": "6E7FC12CFF3640CC2D958978D317E503AE0B9613BDF788767BFC9F9CFBA93EE2"
+  },
+  {
+    "path": "openspec/changes/verify-ephemeral-wait-ownership-with-tla/tasks.md",
+    "sha256": "E02487ABF9227BF5AAA67C162179C03CC3CC268019B6A881E110320B8DE8A111"
+  },
+  {
+    "path": "scripts/verification/Initialize-WaitOwnershipTools.ps1",
+    "sha256": "21EA0173BEECD386F2FD2614477D643DA4563C7F612466FD5DC027DE8D11A643"
+  },
+  {
+    "path": "scripts/verification/Invoke-WaitOwnershipModelCheck.ps1",
+    "sha256": "CC3A9278E48FB84086C4087C9A76E7DFAD238F5AB02F67C44A4BCAC4786D8E74"
+  },
+  {
+    "path": "scripts/verification/Test-WaitOwnershipRunner.ps1",
+    "sha256": "9F5DAEB028C0E4F7361791A58CBB276EB7BF0A47DA07D47EBFB815E01B0947D1"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/AuthoringLifecycle.cs",
+    "sha256": "0D1ADC51FB79BF350C7035448FF339B97ACC8D7ABD0A11D9378773845716C3CE"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/BuilderValidationCodes.cs",
+    "sha256": "BA5BA93A87B8361960FDC64D1D1A85B4E86B50D22E56F9DD68AE8EBB3DC34FC6"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/PublicBranchAuthoring.cs",
+    "sha256": "8D5C56360D84A5C57A3B3EE2F76AD84038F142C2066FE9627C20908DC3ACD1F4"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/PublicNestedAuthoring.cs",
+    "sha256": "E33F9DE44B51163E425DB31E85F7F7A943B6FABAB0F67A164E3E0F81D54734FE"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/PublicStagedAuthoring.cs",
+    "sha256": "1A8377CCFFDEFEF600A9766A9D8EA63467555844D0B8E68ADA73171EC7A86D34"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/PublicWorkflowDefinitions.cs",
+    "sha256": "42BC592F581DE2A44CFDFDACDD3243E9489CDE4B5CEE6B2F96C0DF184FAFA9DE"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/SelectedWorkflowAuthoring.cs",
+    "sha256": "8CAE79EFEE560FA02C3B4E4EE792965061FD0BCBA319A4B4712BDD83C0D333BF"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/SelectedWorkflowBuilder.cs",
+    "sha256": "99BE7FEFFAA1063D146B05DB9EDBBAF92DA52D5B5904CCA0CD3FE3AE1DB4D61F"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/StructuredBranchBuilders.cs",
+    "sha256": "8E154F8F65C10A62094D0F1B058CAAAE38212438D9C04BE6E9C9A619790D6DBB"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/TypedAuthoringOperations.cs",
+    "sha256": "D9D32CB275744C831624FEBE72C5124307A5844E932C6CD5973D02409500B1DC"
+  },
+  {
+    "path": "src/OrcaCore.Core/Building/Workflow.cs",
+    "sha256": "0C22F6F780E12E5D40A7E939870E9BD177162BE0A583FA5E9CA5A4FFF01D902C"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/CompiledPlanModels.cs",
+    "sha256": "97767D2E71CA177259F025154305FF647F7B421BB5F8F3A61BBC5B5500CF4D79"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/CompiledWorkflowPlan.cs",
+    "sha256": "36C43B0E5F6B44301CD0E3645F9324D5F67CA9646C40C8BD248D38C4079128BF"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Branches.cs",
+    "sha256": "811E6DCE4B831172832E0A2DCA3CED6CE3EFA07C5C3A3022A6C49AC12CA17637"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Capabilities.cs",
+    "sha256": "6BBFBB59C7067BE53568720D0358B296DB4A1D578FF23CB08C54C469E3A0148C"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.cs",
+    "sha256": "E020A4C6CD8FEA02CD64F45D2FFAB6BBD9BADD0C5EDFDD690068EA8EB6D1D086"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Fingerprint.cs",
+    "sha256": "5BD8DC59FB50A4ED29B2742FBBA0D66110D076A851803427F2723331092BA882"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.ForEach.cs",
+    "sha256": "5B4FF75D5C40E4E1D8972E266A56572A065597DD9E7D1713108E106409AD237F"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Instructions.cs",
+    "sha256": "B9312BB8FFC6EAF7223B6D84A7EB87F6B2CEEB5E51C29CA09C42ED6ECE774F97"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Limits.cs",
+    "sha256": "F10E626221F5E2B4772C4268A8C41D41207F89450E6542483670011B46EE8DC9"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Models.cs",
+    "sha256": "2F8FE8ACEE667F35333E29941C0A787D5206FD29F72BF99F79CD4CA8FF9F8F65"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.Nodes.cs",
+    "sha256": "1FD3AD1A21E4F10343B1EE73F64B3EACCFFF5D5116DB778856B9A4FAC0DD8FE1"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompiler.TypeContracts.cs",
+    "sha256": "ED67CC92271EAA9A6F4CCE2D0D0B46F60DCD4DA83B5D46E430BB9F63A0616ACC"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompilerCodes.cs",
+    "sha256": "001BD0E2EE6E1483027146370167CF0560054A1002491FE98177C04028AA827D"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/DefinitionCompilerOptions.cs",
+    "sha256": "627BBB8830E61181DE913E4BAACBAEBA71859336C09ECD6B1BE9550A8D3B0A7E"
+  },
+  {
+    "path": "src/OrcaCore.Core/Compilation/WorkflowWaitMode.cs",
+    "sha256": "E1375174BFD9656F4C3E961777761889B41D2E44CDF976FDF3AC21E6FD1F4595"
+  },
+  {
+    "path": "src/OrcaCore.Core/Concurrency/InstanceLane.cs",
+    "sha256": "FEA500E6900CF1FCCAD292C7A8512A9BA22606A220B523F368FAAE60542670BE"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/BranchId.cs",
+    "sha256": "E7BEE3CF49EA75DAFEF76E944BDBF2F6685C5F5430216188DA5AA8D1C26CC732"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/ExecutionPointer.cs",
+    "sha256": "2D3BFA1DE4209320DE790E93947C71BD653CD4A4095E876AD4CA18DB81E601D3"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/ForEachFailurePolicy.cs",
+    "sha256": "D76D767E371330F1F8E735B7D6016E40AA6B28AF39784E6F2CFFBFC27AAB9626"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/ForEachJoinPolicy.cs",
+    "sha256": "EB8C97BA094D9A8C7591760B6851F6F1B24AC849394CAF42D2928A8EB0FB62FC"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/Nodes.cs",
+    "sha256": "55AE5A6AE862952A7D2F3FDDD22135460E2A7D8CFA5E47F9B1CE8AA66858CDBA"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/ReadOnlyList.cs",
+    "sha256": "8BE7B3ED52C808D4A6CF92DCEA8566ADE0D9CE5B22CB75910250EE518EFD46BB"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/WorkflowDefinition.cs",
+    "sha256": "160EAFD20819322A20695194D389A78FA73A933E4918D8AC5FB41CF8A9F105C3"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/WorkflowNode.cs",
+    "sha256": "D1C7DD379710A42C59A2C54AE3C2F098A27FF6A9989981D28E85182E00C6EC25"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/WorkflowPartition.cs",
+    "sha256": "B401A8525648843F211B795847CB4B1D14789D2128BAD5A7AB70A8DABC1AFFBC"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/WorkflowPartitioner.cs",
+    "sha256": "89F535A3CA7B7D6D46A3A3016A6544F2FDDA70123ECE82C52F7F06FCF4E20666"
+  },
+  {
+    "path": "src/OrcaCore.Core/Definitions/WorkflowPolicySet.cs",
+    "sha256": "BCBB36CF07129A59BBC673FB0565D7A2991E7BCB21E99D1E3534D122168ADDCA"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ClosedForEachBindings.cs",
+    "sha256": "5EB864899B7106E8C993297A8171CBFB5F2CDA8DA441B4DD1D2CC3692C8ECEBB"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ClosedResultBindings.cs",
+    "sha256": "2D2134B744FEB357D0487A1A40186E3F80C6BF3A834D54407A622ADA2192DF29"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ExecutionStatusDeriver.cs",
+    "sha256": "69FCE182ED4CE4EEA973E14F74C8DC9AF9E79ED4DEC85FAADB9708F1C1204ECE"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/FailureProvenance.cs",
+    "sha256": "C6904D2299C7A4A7F5CC70FBAFD75D86E89502B53DE4EAC385B183D237EE0C5B"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/FiberIdentity.cs",
+    "sha256": "5DC8CF73DEAF1B3DF8DFCB406E34FAAED7AEED7DA831155684359526C200B89C"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/FiberModel.cs",
+    "sha256": "131B796808351C21047B6D886429C2BD600F2772942599B3A15D663438FDE9F0"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/FiberQuantumBudget.cs",
+    "sha256": "D63F59EFD6E4A5D2AA23F6368E61372AA91FEA4AD5A5D7BD0BA8AF1998DF6058"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/FiberReducer.cs",
+    "sha256": "E2559348CECC1334463EC1B59BACFF0E764146DF7A5DCDA7736E3C2488D2B0DA"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/FiberScheduler.cs",
+    "sha256": "76726096A33014DF33163B387B019FDA0D246B18BF55CF03F5A8CCA2A7D3C88B"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ForEachSnapshotMaterializer.cs",
+    "sha256": "0F66C04CCB6BFB9BEF9542B3B1CB181AD53ECDA814FD448DC7BCDF6D4D44467D"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/InstructionExecutionResult.cs",
+    "sha256": "05DDB72D056BC3D7174A84D081FAEE3900B3BC9FE381BF5C6858E3BD72F25F7B"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ScopeMergeAdapter.cs",
+    "sha256": "C12E1B2E6B0C19F93C60096FB118F62A9F5BBC24A6D74AA9F3CDD541F526E994"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ScopeOwnershipTraversal.cs",
+    "sha256": "5A993E0F21D8931524965133F4670BD69F8DF6C6F67374645C04BCCF39D005F5"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/ScopeReducer.cs",
+    "sha256": "77AE63054B5BECF38240A5444CB6B3F0BDC36C0C65868497C461FCFB726B6CE4"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/StepResultWaitAccessor.cs",
+    "sha256": "0CC6A1F1B10189DCADB56714B349E2520403F98D6E6CE4B73FB9D8B98A380328"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/StructuredExecutionLimitException.cs",
+    "sha256": "DC01805157627045A9D9A06C200062499BDB27BD875CB06EFA4EC1B9388F2548"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/StructuredExecutionState.cs",
+    "sha256": "0BD70238C7AF3158030D2B446AA103689C34CB3549D62A5B92374BC876220A8B"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/StructuredInvocationCache.cs",
+    "sha256": "091F2502A1F3ED48AB7FC09ADF110B5724BE1A3859A00F7F4425F69519415104"
+  },
+  {
+    "path": "src/OrcaCore.Core/Execution/StructuredValueMaterialization.cs",
+    "sha256": "28346CE083FE910C46A6D9E72BA4232F58BEC949BE6FA9F5F1F68C6E37028352"
+  },
+  {
+    "path": "src/OrcaCore.Core/GlobalUsings.cs",
+    "sha256": "B038B8DB29F841FD75C349AF60ED09C9B4C5593CBC7672E70B462ECB77BE32C8"
+  },
+  {
+    "path": "src/OrcaCore.Core/Internal/CoreWorkflowValueCodec.cs",
+    "sha256": "F91835D51947E192FA65F891E6DFAEE73A23E323AC1F6CE967658C278848A159"
+  },
+  {
+    "path": "src/OrcaCore.Core/InternalTypeAliases.cs",
+    "sha256": "4240CB124AC129D869011C1E47F1FCE175A7AD594D12A0A20624EE632782CAB5"
+  },
+  {
+    "path": "src/OrcaCore.Core/Lifecycle/LifecycleMachine.cs",
+    "sha256": "C1FEBBA45C2F58EEEFD5EC75803257CB62BBB14BF13C9572622A5D0BDD2E7936"
+  },
+  {
+    "path": "src/OrcaCore.Core/Lifecycle/LifecycleTransition.cs",
+    "sha256": "67183A3D3BC7665F662BF4DDA45E7AC9FB1A61F0B34D245909D48BDE17BDAFE4"
+  },
+  {
+    "path": "src/OrcaCore.Core/Lifecycle/LifecycleTrigger.cs",
+    "sha256": "9F205352D6ACDD7ABC4828C7F257309EAC029A58868ABA3D6C18FF8AD6D81325"
+  },
+  {
+    "path": "src/OrcaCore.Core/OrcaCore.Core.csproj",
+    "sha256": "0FF02FFF68F1254C838186152D49A2D75EE90001A8A2BFE2AB6D29AE4183CFF6"
+  },
+  {
+    "path": "src/OrcaCore.Core/Primitives/InternalValidation.cs",
+    "sha256": "85379E013225339CA23862431FB181B8F2063EC86D77859E3C1DE5C2151BE4C8"
+  },
+  {
+    "path": "src/OrcaCore.Core/Properties/AssemblyInfo.cs",
+    "sha256": "F92B0E9FDA01CBDCE89F250EC6C3A3717A4BCEC482CE6B5FDA9DDB6E36F9E2E8"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Diagnostics/OrcaCoreEphemeralDiagnostics.cs",
+    "sha256": "2310F272B6CC6ECD6C836FB017E4B55BDC52F2319D897891D25F2C9590BE2AAB"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/EphemeralContractAdapter.cs",
+    "sha256": "6E9AB354BFDC8FFC13FA898975793D23DBCF2961BEAF4A57F833CC51FDE07CE7"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/EphemeralEngineHostOptions.cs",
+    "sha256": "FFBD9C9614C08CC2384C474D7C8EA823E395B80F8808EE49478C8FF3EE5798F8"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/EphemeralTerminalRetentionPolicy.cs",
+    "sha256": "67161F4742433E5A180CA95C0306B9B9127AE761A80AF0B809E60BBA4553725C"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs",
+    "sha256": "F49FD685F57B17C3635E4B0BE05C5965F85C99641806B23E6755F7AFA747D14B"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngineOptions.cs",
+    "sha256": "8074110F32AD4B2E0AB11859EEC4E9CE237E4B6BC8BE34E3947D6E199304EF38"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/ConditionEvaluator.cs",
+    "sha256": "7724C05F7850FC8D7921C7F7CCCACA829ACD68FB6E10521B14F1C43DF1EB0004"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralInstanceLifetime.cs",
+    "sha256": "BF8686623B51D3B89039E7827DBCE00B9FE3642676D235E4A54BD271986EF9DF"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralProjectionModels.cs",
+    "sha256": "F91B46ECC44C6FF427B7C7FDBE4BE797C43C8130FDE55C8D1A3989C452EED20C"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralRetentionCoordinator.cs",
+    "sha256": "AA6C8AC1FB4689F78486125CF768C46146797FE64006963B05E1CC0D1DAD1153"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/EphemeralRoutingIndex.cs",
+    "sha256": "0257AE0E738FA6D9A3362CCC24B8A73B15EE16EE02ADAC2B564392F786056483"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/IInstanceRegistry.cs",
+    "sha256": "43C8FC57360267515BE7A75D74164769D01A0E2D823CA3A15DE02D15C2689390"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Branches.cs",
+    "sha256": "4415FC77D0B872CC8CC48DBBF6CE44B3C25E8E6E288ED5B66FA8440CC72BE9E0"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs",
+    "sha256": "99A6CC1C9563BD96451FAFBB8C468588903BDED2AEE4AAB6D926A236D833B1B9"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Failures.cs",
+    "sha256": "111887B31835DD7D2EA3335BDF5CB0120676A1F06919B0D0719141DDD0EF3D53"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.ForEach.cs",
+    "sha256": "A10E49F89FD52A5F7C4B0311C37DAC1C4CA4536F0EFDDF25E7DB8BD7E3CEBE6F"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Helpers.cs",
+    "sha256": "7C55A0F458573497F6F32003E451A6F6E21BA7BE418C27DCEDC9A202749E95B2"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Limits.cs",
+    "sha256": "1DBCE387630D79A6EED6552A745A2FA6020C6D0A4D227E2DCBAA2EB289E9F425"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Merge.cs",
+    "sha256": "F2FD4B2017D207F02C2AD46897F3719F37733C2289EB296DFBC72AB80D8DFB96"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Quantum.cs",
+    "sha256": "838B3BB80D90C9748C1F14DF42EC3B064127DB4B27395843430A4353EAB39767"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Resources.cs",
+    "sha256": "94352A32B64C6B22A91A0145B55C0A7DAD89AEB2291ED0812B5934474D76F8D8"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Retries.cs",
+    "sha256": "48E6AF49409BD6878AC571FC466E16B1F5EA6B31E7B758CCE4B92A36DA2682EE"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Steps.cs",
+    "sha256": "9A2AD90FCEFFCAF23C5E1FAA19A46AADD4F4742A8B913ED3EA8FDFD9FDFC5C86"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryInstanceRegistry.cs",
+    "sha256": "13B69F9445CEF9E139EEFA966D95BECD293117FB1C740BC7C1A64899D6938BF4"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs",
+    "sha256": "83749BE9F5466895E2CC3F8EFF86D55D4CDCDD136063897BF28B8B4E11E49660"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs",
+    "sha256": "C7A1995DF7C55EEEE86BE24FEEE6A2CF1DE1BF6C51678DEFB9037B6F467F7AFC"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InterpreterFactory.cs",
+    "sha256": "9C3A20F4FF3357BA7A3B111331175D667177AB05260763181E4357176A9184B5"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/InterpreterRunState.cs",
+    "sha256": "541DD8922151467439BE8E1035700B7B6649FF3366AA4E2760CF7DD7B0ED024F"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/ISequenceExecutionEngine.cs",
+    "sha256": "2EC9A2BBEE1B8B77B8EF34963A44C94FE009E7CD3DE3685DCEF03372300595CC"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/IWorkflowInstance.cs",
+    "sha256": "A69B81E69D9144E309726263B1AA1C108376E7C042D3D3E9D51AEB942CFE4A39"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/ParallelJoin.cs",
+    "sha256": "16E5CD3F0D7EA2F33A9DC623ECA08DC651FF5BAE3C5CC7800B8DC8E3B3B68583"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/ResumeEventSlot.cs",
+    "sha256": "03CD57B21E691DED2DC42B6BB38EEB2233B544169D70D943EA770B35B19A9AE7"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeTimerRecord.cs",
+    "sha256": "B67C005EE737DC709181FE2015D6AAA51B90F7996D549E43081898BC6F4C1E90"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeWaitRecord.cs",
+    "sha256": "FBA2EB31A1BF913F38ED43C8621DBA5A356EE4811B1F113B2C2D756FFA8995EE"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/SequenceExecutionContext.cs",
+    "sha256": "390613643EFE92204D3CDD72FA329EF05E27CC8CEB38D5AFC637523635C74329"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/StepContextContracts.cs",
+    "sha256": "83D56BDF12184AD36449BD9DCC205984762799B3D484650FD9817F825A3515B2"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/StepExecutionResult.cs",
+    "sha256": "F165ACE5E3FA8FC22C3637EDD936DBD982BAA2C41DE8D7C53DC813B3AAA0C4CE"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/StepExecutor.cs",
+    "sha256": "EC9AB37DEDD9F325C11A520FDE86063DDC02EA98E6894AB7D1A08DFEB0471924"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/SuspensionScheduler.cs",
+    "sha256": "80744CD197BC3F0F839CA5E8523B282E99FE883822CD136A352BB5CA8F6CB671"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WaitExecutor.cs",
+    "sha256": "C0B894E64B7C757565ACAAAEAA5A94A4D128C83C350B6EAB31563AFD4C6A05D2"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WhileNodeRunner.cs",
+    "sha256": "ED112C4FCFDEA1CBE14DEF69CBD6D9618C736E564A8C5700A6C46B224FF60FC1"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowErrorDetails.cs",
+    "sha256": "189559DD255AE4C2C02849F95B4C9807F0567B41818A23D39D5D277A6E6C4F99"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowFailureHandler.cs",
+    "sha256": "841B4DF20006D2F41C9AF62E71B9E6B3FC1484464B5F1E91FC7E85A17A5B3928"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs",
+    "sha256": "B97F67C8C0565DC83D92BE861283CC435D1700BFB7291CC7DC26CBCAAC762955"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowLifecycleTransition.cs",
+    "sha256": "6988481D0365CD81C786F79137D9EA21318AA3B24A5DA0097220EA6F5B5462DC"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs",
+    "sha256": "CFABD54D102A31C0AFD3B64EAB138456DF7EFCF3C228EB4CA3E93E858B8F8754"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralDefinitionRuntime.cs",
+    "sha256": "7FC1426168807D5998562E3765810FABD80020836959938EECCF7721AE034214"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowCatalog.cs",
+    "sha256": "37621F0A6F94390AA7EEE06DCDDEA26628F556FD2A3294D410CC4DCEC8AC9F42"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowEventRouter.cs",
+    "sha256": "0702A82AFA923DD7F243EF993C048284E9222C108AD709F1AA053071B02B0F47"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowFacade.cs",
+    "sha256": "DE5FEC2925C45F51D00BFD3F7BAA387FCBC2449F1A98A56EA6FBF4A7FE9881B3"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Facade/EphemeralWorkflowQueries.cs",
+    "sha256": "24439A4E78371B21854C16D3E556443C0F51C00C99B7FB883246F4A79DD4CAFE"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Governance/ResourceGovernanceCoordinator.cs",
+    "sha256": "2B53D954C7F5072E8C98694D7A4EBB310EE65D907C6511243191AE02D6647E84"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Hosting/EphemeralHostLifetime.cs",
+    "sha256": "A8CD15546DA59C7F1D7BA9E53BA4F23246E3A79DB9C2177AB7BB6501B150FD13"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Hosting/IEphemeralWorkflowHostLifetime.cs",
+    "sha256": "E77FB14E8023DE0388B9CA19F2AD523D9D3EE6C58895B89262519AD39BCBBB48"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Hosting/OrcaCoreEphemeralEngineServiceCollectionExtensions.cs",
+    "sha256": "17D6AE42D621C6D29E8B3EF3AAAFCA93FE2CCAA94321B17A9638F5E992AF2060"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj",
+    "sha256": "6AB202007DC34078FE35F4C018731F27BF54462A95EB254985275C4D5CEF409F"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Properties/AssemblyInfo.cs",
+    "sha256": "CD8B6EF63376248D3550C8608FC999B5F235395819BA3F078EA7072EF9162DFD"
+  },
+  {
+    "path": "src/OrcaCore.Engine.Ephemeral/Timers/EphemeralTimerService.cs",
+    "sha256": "055A5652F9A0D09C0F3340E92F12A43C5E74D4D300AF6AE14BC52AE5569540AA"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Diagnostics/EphemeralDiagnosticsTests.cs",
+    "sha256": "AAAA4B0861647B5FF05E9EF9585B6CC3BC2F254C6472225794A451F0E1F197FB"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/EphemeralOperatorStatisticsTelemetryTests.cs",
+    "sha256": "44667E758AE6729CA4791586F7EB593917742EEC17BDE28389898488C604B537"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/CoreRuntimeScenarioTests.cs",
+    "sha256": "DD787FA163AA7C9D9552E5447AE6315B05AD150EF7A79C7E24E182E7C7F2CD58"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/DeadlineExecutionTests.cs",
+    "sha256": "973CC3CA25E8C682744A1F3EBB3CC0E1913C51C7C5C0A7FD697AD355368A9365"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/DeliveryRecoveryTests.cs",
+    "sha256": "B85B1932DC74CB3DCEB9D80064CB322B7FA7C6B47E80842B6FE4E96976D69A9D"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/EphemeralRoutingIndexTests.cs",
+    "sha256": "105839585A3C258A09DA5787DB9F44227B38A9D74048DBB0932F38DE039C4679"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/ExecutionLaneTests.cs",
+    "sha256": "8F9D76B8C51D3D55D38E81D9CDAA0182FE16E3998D7D394845F6AD62D0114D50"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterControlFlowTests.cs",
+    "sha256": "DE9EA0CB5DB33256690AAD6A41F3B7DDF1EC9784B560026EAA893AA161D2EA38"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/InterpreterTests.cs",
+    "sha256": "66453A54CB6C2E123AEC5730BC3AB531C6639BF083DEC8A79BD725AB7669BC8A"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/LoopWaitTests.cs",
+    "sha256": "86D5EC92B9F173E2D724A83AFC8651A6E87DB63668CB394A238085880896D46D"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/MailboxTests.cs",
+    "sha256": "87BBB40F5D11D7FD262CFC2EBB89220975CA32628C25CF715E8524ED187B427A"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/NamedStepDependencyInjectionTests.cs",
+    "sha256": "920A6082DBBCEE91B07E5B1414DC51D9E92A62920ECFB433E15B7CE621B367C6"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RoutingTests.cs",
+    "sha256": "46394B96E49A7EEE334566E8D40584A97521CA224B6357E0072EE7ABB86E43E3"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RuntimeStepContextFactoryContractTests.cs",
+    "sha256": "71D3C491FCDB97CDF7EE29FAD21DB9AD139B3691C0B4A5DA110B0FCC8F9BEC21"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/RuntimeTimerRecordTests.cs",
+    "sha256": "8BE037EE71582DD42681FF314DCF1F5EE6B7D01825DD6471111CB3F68951E2AE"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StepContextPublicContractTests.cs",
+    "sha256": "2EC72EFE993E0F66ED0BF9D4481DF101776B88D7ADDADEFF076849E291CBDD26"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
+    "sha256": "7ADCD9F4D38E81145F7C28956B2B20337ADEE60668126B86AE1FB1158812F777"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionTests.cs",
+    "sha256": "BEB4FCE3B64A778B2AB7382EB89F117E5C35A7F1FFCA04F21410C0AAF0BEB484"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitMatchingTests.cs",
+    "sha256": "7063DF64EBEC0AFEAF5C727B881EAF565394482A85FEB0706E5B24256AC30167"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitOwnershipModelTests.cs",
+    "sha256": "028844DE9FAFA719EB36B62D441FD4CB87EF00D329C1545340C6CC91816507D9"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/YieldContinuationSchedulerTests.cs",
+    "sha256": "A0A83982CD41BE808285FC89ED6B8A3247B058828BC450531EF420C89C0ADD1B"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/YieldTests.cs",
+    "sha256": "C4561509B100D3C863D318B42A4992D8BE32A7EB0AF59906ECB248958F5F9963"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/ConcurrentStartTests.cs",
+    "sha256": "741E13EF1695C037B9349E8D091B82414AFC902E464EB199D9BD39FEC7261110"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowCatalogTests.cs",
+    "sha256": "65D827AB84E26A6EC3CA74E8EC04872F5296809ECECC6AE455E58455BA5D1503"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowFacadeTests.cs",
+    "sha256": "05F45EE38CB23DD7A3AF496C53F04E3C2F24997668F50FB49D6995F781B5ACBE"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Failures/OriginalStepFailureTests.cs",
+    "sha256": "EE62B9DA5C9E937D030B7CD4EC5FEE5158EAEB146362F72501DE5A0565088789"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/GlobalUsings.cs",
+    "sha256": "D4E0540AE30CB415136978AFE300D64E670A68A5AFB08667B3010D75E6BACA15"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Governance/HostGovernanceExecutionTests.cs",
+    "sha256": "8E46B585FB562E5F3FA7AA0FF40F6B69DB3AE9A4586DDDDD314F9FB7ED66814F"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Governance/HostGovernanceOptionsTests.cs",
+    "sha256": "C24882E7C564D2FE5A350B5B181CB7D68D4C3DC6847BC3C6133FDAA9AAAA0236"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Governance/ResourceGovernanceTests.cs",
+    "sha256": "52E6275F8DE9A49C5335F20FD7EB880B1FF12932E27AAB53BF4A96E5C96E64EF"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Lifecycle/LifecycleEventTests.cs",
+    "sha256": "D153DBCC0D5D9B3150CBEB7F93F005592F40FCCD2846B03480F3F1D9D3DAADCF"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Management/EvictTests.cs",
+    "sha256": "85E6534704C2D8AFA5D75112221320670047E731A763E6938229AD0AA066053F"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Management/ManagementQueryTests.cs",
+    "sha256": "22163DD66773B27A6E7361EB27B678D3EC888EDF5E15D6D4C15CD2526E2DC50C"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Management/StuckDetectionTests.cs",
+    "sha256": "451A8E67ADA1E4EC15BC08E2277FFFA37335F63FD3E58274B6867A62B228F40A"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Management/TerminalCommandTests.cs",
+    "sha256": "489DD8EB2B91DF00F6B8F861E6143F5C3D64B7A9E881090E3512F015A9DFAA6D"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
+    "sha256": "D01375412F70AE1A49D5C5ABE7BEC7419F77E8F29F9D7AA8AC16B98B54CE5CA3"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/ContinuationOwnershipTests.cs",
+    "sha256": "DCA5CCA24CB0959BDECF601D342E352EDD3A05328D41317874B746620AF0E4FB"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs",
+    "sha256": "A4E8E370F7240CE69F7394526510317FDA117C54AEA9B1158A337EF5D5517EA5"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/SettlementReceiptTests.cs",
+    "sha256": "DA5C4B56734717808B9E340A2F702980C0A596AFD4653FFED40389F44A403DE2"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Policies/RetryPolicyTests.cs",
+    "sha256": "21D56A2D09348461876FCBD0D46B9476A4361015C7BFEFFC7405FEF2974C967B"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Policies/TimeoutPolicyTests.cs",
+    "sha256": "60A3140652D6C97F0F6E16037ABF8E40969F76A51E5AAB5D4FE13C12900354A8"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Registration/DefinitionRegistrationTests.cs",
+    "sha256": "388CBE322B300602DA97FB7332AFC87436BD702F59767116CA93B9B46F0DDF61"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/RetentionInterleavingTests.cs",
+    "sha256": "C02980E300EA4435CC34F85088F7A126364D5ED39390D0276406F8AD98B5CA28"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/RetentionSweepTests.cs",
+    "sha256": "96EEE0ED5183ED12BD7FA16EA542F8517668BAE75ABD227779C66A53F6956F02"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/TerminalRetentionPolicyTests.cs",
+    "sha256": "F763D10D33A1948FFCA1BB71821D17C798167B5B1C651B2C0F11A5098AA1BEA6"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/TerminalRetentionTests.cs",
+    "sha256": "D66AD2A9985B941358F56A398C9A6910D4AFCC79B1B7FD16160F9D4C0F1A611A"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Sagas/EphemeralSagaTests.cs",
+    "sha256": "90F052B3337FE61F7D27A9A44AE18F3188501A75AA6E69411635496BF700B0F3"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Section7GlobalAliases.cs",
+    "sha256": "6C65B5C2561FD181EFAD18967C5A5475F6DB6BF284EDE02A5B16F6ACF8F8D21E"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/HostShutdownTests.cs",
+    "sha256": "0C86B63D2F953679B907B99EC5857314DE317F87F050FA6F6906971E40D1C52C"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/ShutdownBoundaryTests.cs",
+    "sha256": "2598133AE87EEAA235394E97EF829ABB7D1DC99882100057E27D694AAF2E1D42"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/ShutdownDrainTests.cs",
+    "sha256": "A35B670377C7586E6810F26F02289BFDE0CBB5461C812798D9AFD804F96DFDC4"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Shutdown/ShutdownOwnershipTests.cs",
+    "sha256": "6B300FED98B11FE1E7A0F7E498810851ED04FAB7DD91741CA01B49EEAE217D17"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Support/EphemeralEventRouterTestExtensions.cs",
+    "sha256": "FD8956DE7DAC8B9795F09C3F63D8B7EA2AB3B5155DF1F529C004331E132DA895"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Timers/EphemeralTimerTests.cs",
+    "sha256": "3C8C96C85F5FD869660C9DF76958378D32296ED0B400561234637D5DD3272058"
+  },
+  {
+    "path": "tests/OrcaCore.Engine.Ephemeral.Tests/Timers/TimerEventRaceTests.cs",
+    "sha256": "EBD57430F2C89079BEE8C8C99E9D71C116F1BFCE6A60D0E45423B5AE671B536A"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/AsyncSignalCounter.cs",
+    "sha256": "A625399DD8A7C9F643631FCCD948D80B76D14E26F1B6490A84937983F03D303C"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/Clock.cs",
+    "sha256": "E1C885D6C7D3DE86561865BC8623CD01641B9CADE8285154036F476EF55E19FD"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/OrcaCore.TestSupport.csproj",
+    "sha256": "3369C02954D20F4E13618730DF8631429246D7F8FC1DABF2C2D2B17A7BB3E7FA"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/ProcessLocalEventRouter.cs",
+    "sha256": "6E03D114CDA3287A8D866FDDFB9FDC89E32B8EF537C8C96751456DEDED1A427A"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/Providers/FakeMessageDispatcher.cs",
+    "sha256": "3D9D30C0992D788E1DF9C849009D449999B26499F8199A0742895BC186B82B5F"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/Providers/FakeWorkflowEventStore.cs",
+    "sha256": "B0E277286C40CA4DD2D6BF8AD9824F1F10029EA8356001C34E4618D51326B911"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/RaceCoordinator.cs",
+    "sha256": "E89BAAE4DDA31FB9ED61A007A16900D78C6362960D8EDE49E0545BA2026283FC"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/StructuredExecution/StructuredExecutionReferenceModel.cs",
+    "sha256": "BBA1EADFFE1438B233DB7A62443073A8EEE3514A48D78B58F487893F696A8BF5"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/TestSupportProject.cs",
+    "sha256": "8D3C779C22E0574DC2EB385D44B928494E5557B13AC21EC1F5C16B3DE40E056E"
+  },
+  {
+    "path": "tests/OrcaCore.TestSupport/Traits.cs",
+    "sha256": "45E20EF472D54AC7A523AC934A90FAC35EEBE8A764629568688DB49E2A6F2A9A"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Control-NoReturn.cfg",
+    "sha256": "2593DF1E37679F803E3C936F1D6AF2E965303FEDF130017AF0C855E2B95C16B5"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Control-NoScheduling.cfg",
+    "sha256": "6D323F89DA2E2CAE1EF7A5E59A659CFDA7DF3162A9E0444811ED727F1088592C"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Control-Progress.cfg",
+    "sha256": "0568708CA3E7B1F013CC249A65164FE885896F06678EEB08B91D1E0DBB21D738"
+  },
+  {
+    "path": "verification/tla/wait-ownership/crosswalk.md",
+    "sha256": "CB1BE3CDB432EEA409A5FAA32CC6C0C27D58A37134EE9FB807B73196F14F3503"
+  },
+  {
+    "path": "verification/tla/wait-ownership/EphemeralWaitOwnership.tla",
+    "sha256": "2B3C284F639F7FE2761A7F198CC7CDAC8F70B75330E5A0A763434858C15DBFB5"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Mutant-ConsumeOnFailure.cfg",
+    "sha256": "CE57E41002599E21B6E5E7CF32F6059E01BC7D1017F9F8C06D94556688A15A65"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Mutant-DualWinner.cfg",
+    "sha256": "00DEE4983871A4875E5101EAC99B80F508273196EB27024BF98B8C79610139A8"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Mutant-EraseSuccessor.cfg",
+    "sha256": "66E99B448185AFEFB977B77B23DC61E0ED89E41530A3A1E3918DE326D5308F65"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Mutant-MissingActiveGuard.cfg",
+    "sha256": "4EB60E84802E56F85678C7C042D865209C02448357041D810B273447E93A4C9C"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Mutant-PrematureRelease.cfg",
+    "sha256": "ECA53ABEEFAE92B82C958AD9FC388EFE34077EDA765B4282F645DE90E0F335D7"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Mutant-StaleCallback.cfg",
+    "sha256": "B6A807E893E45F3C8102A2D31F71366623937A6A6FD22085EF7A6153AECF1B0F"
+  },
+  {
+    "path": "verification/tla/wait-ownership/profiles.json",
+    "sha256": "A329DB9E132DC26729DB68B4A15C74CF5870DA7C60ED3B2020C1C5D36E01A918"
+  },
+  {
+    "path": "verification/tla/wait-ownership/ProgressSmall.cfg",
+    "sha256": "C1B3BB01F534B7375D26E10E09F246722771F8FCD8F056E23A2045CC6FC7C2F9"
+  },
+  {
+    "path": "verification/tla/wait-ownership/README.md",
+    "sha256": "346CCA35B7F45AEF53958E8280F2FCECF35D6D3EEE034923CC8413940DD0C260"
+  },
+  {
+    "path": "verification/tla/wait-ownership/SafetyIsolation-correlation.cfg",
+    "sha256": "993192965BF652981A469CD67058A11145A49D3FA2D4E559B09C588130B1A6A5"
+  },
+  {
+    "path": "verification/tla/wait-ownership/SafetyIsolation-definition.cfg",
+    "sha256": "43833930F34DC408F7E584D7DEE9C0D90345B76BFCFB9BAA4A6E435763BB6D76"
+  },
+  {
+    "path": "verification/tla/wait-ownership/SafetyIsolation-name.cfg",
+    "sha256": "7E3667BE16C3038315ED2AFA8A20E30B25DE550684A0ABAC8CBE76CF4A3C3030"
+  },
+  {
+    "path": "verification/tla/wait-ownership/SafetyIsolation-version.cfg",
+    "sha256": "FA4F5B162E1910061FE0F1F1B2BC1CF237D4151828D7977C0F35D1360C9B7672"
+  },
+  {
+    "path": "verification/tla/wait-ownership/SafetySmall.cfg",
+    "sha256": "CB968AA714CC220E720B515382997F989F7EE26823F5D71F392921840815DF4D"
+  },
+  {
+    "path": "verification/tla/wait-ownership/toolchain.json",
+    "sha256": "D0D57E5D8E36CE26A2B979A0106B8934ADA0462D772419D45A697C4BC888F78B"
+  },
+  {
+    "path": "verification/tla/wait-ownership/verification-report.md",
+    "sha256": "CA95BAC758C719793AE3C64CCE919917CA43285007210B5E65CDB23914AFC75E"
+  },
+  {
+    "path": "verification/tla/wait-ownership/WaitOwnershipContract.tla",
+    "sha256": "73BD304B59BBDEBC0417EB47C4B27404474E4401EB7B23CA8B47DF3EAFBE5C68"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-cancel-before.cfg",
+    "sha256": "E0B1C94F26A93DBE7BCED911170A39FD9A51CD074AF78DDD3ACF65FE0386F89D"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-cancel-during.cfg",
+    "sha256": "326E91D3D1FC579843038093F516A5534462C4783A18BD8767F4AE244C550022"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-contention.cfg",
+    "sha256": "38C878601D60EBB34A227D85AC9E9D759CA208A1A8D7D60745D3441A70D1634C"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-ControlComplete.cfg",
+    "sha256": "49AC4269504A715210FDAE8EEA59DEA5195C4361C5D7C6C314195AEBC4700629"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-duplicate.cfg",
+    "sha256": "7A93E08D428133A6E40CEF06854B811F068DBF8343AD53AB54776827F4530272"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-event-first.cfg",
+    "sha256": "50BB477A747583D872592FE707FBD9540143D2AFED170BF659072BF486869314"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-handover.cfg",
+    "sha256": "DA049464F30F5CD207EF51327818067020B9E6E774BCB61ECB8E7B7C0D8616CD"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-isolation.cfg",
+    "sha256": "E4F39FE0A95F04AD6D475BF16644E2AFDC4702BBA65796CFB963D5A563C644B3"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-reuse.cfg",
+    "sha256": "3C61044E79BAF6E081C9C9F5F18BE6BC551151BB867EE0ABEF3FC6A3682BA30D"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-rollback.cfg",
+    "sha256": "33D2552E5CE0409CCFBDF8AD8B19B2940FD582672BF2EF0B8685229177E547C7"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-same-instance.cfg",
+    "sha256": "61A25E45976F6918942BF1E9C8310E0675C28F12B078A8D8555B9EECA35182F9"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-stale-timer.cfg",
+    "sha256": "385D2EC02BB39CADEC9CE6010A221DDB0B3E21E45B7E9C95763A0151E3C09736"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-successor-failure.cfg",
+    "sha256": "0753BB60DFECF3340CE9D433BCBA227880B65D7CE14FFCA11896ED872E2F17B4"
+  },
+  {
+    "path": "verification/tla/wait-ownership/Witness-timer-first.cfg",
+    "sha256": "BB93AAE6CEE91C17006FFE0518CEBFE66806C98A0215BEF463508AE979470ECD"
+  }
+]

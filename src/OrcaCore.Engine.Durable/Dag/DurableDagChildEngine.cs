@@ -9,7 +9,8 @@ using OrcaCore.Engine.Durable.Internal;
 
 namespace OrcaCore.Engine.Durable.Dag;
 
-internal sealed record DurableDagChildFact(WorkflowInstanceStatus Status, DagRunValueV1? Output);
+internal sealed record DurableDagChildFact(WorkflowInstanceStatus Status, DagRunValueV1? Output,
+    DurableCancellationOrigin? CancellationOrigin);
 internal sealed record DurableDagChildObservation(InstanceId ChildId, InstanceId RootId, InstanceId ParentId,
     WorkflowInstanceStatus Status, bool HasOutput, WorkflowFailure? Failure, bool IsTerminal);
 
@@ -56,10 +57,17 @@ internal sealed class DurableDagChildEngine(IWorkflowEventStore store, DurableDe
 
     internal async Task<DurableDagChildFact?> ReadTerminalAsync(DagRunSnapshotV1 run, int ordinal, CancellationToken token)
     {
-        var started = await ReadBoundStartAsync(run, ordinal, token).ConfigureAwait(false);
-        if (started is null) return null;
-        var aggregate = await new DurableAggregateLoader(store).LoadAsync(started.InstanceId, token).ConfigureAwait(false);
-        if (!aggregate.IsTerminal) return null;
+        var child = BoundChildId(run, ordinal);
+        var aggregate = await new DurableAggregateLoader(store).LoadAsync(child, token).ConfigureAwait(false);
+        // Read after observing terminality. A request could commit between an earlier
+        // history read and the aggregate load, including on a different host.
+        var (started, history) = await ReadBoundHistoryAsync(run, ordinal, token).ConfigureAwait(false);
+        if (started is null || !aggregate.IsTerminal) return null;
+        if (aggregate.Status != WorkflowInstanceStatus.Cancelled &&
+            history.Any(fact => fact is WorkflowTerminalEvent { Status: WorkflowInstanceStatus.Cancelled }))
+            throw new InvalidDataException("DAG child terminal status contradicts its committed cancellation.");
+        DurableCancellationOrigin? origin = aggregate.Status == WorkflowInstanceStatus.Cancelled
+            ? CancellationOrigin(started, history) : null;
         DagRunValueV1? output = null;
         var graph = run.Graph.Nodes[ordinal];
         if (aggregate.Status == WorkflowInstanceStatus.Completed && graph.OutputContractKey is { } key)
@@ -82,7 +90,33 @@ internal sealed class DurableDagChildEngine(IWorkflowEventStore store, DurableDe
             output = new(true, key, CoreWorkflowValueCodec.Format, value.Payload,
                 DurableDagWire.ValueFingerprint(value.Payload));
         }
-        return new(aggregate.Status!.Value, output);
+        return new(aggregate.Status!.Value, output, origin);
+    }
+
+    private static DurableCancellationOrigin CancellationOrigin(WorkflowStartedEvent start, IReadOnlyList<WorkflowEvent> history)
+    {
+        WorkflowCancellationRequestedEvent? winner = null;
+        var terminal = false;
+        foreach (var fact in history)
+        {
+            if (fact is not (WorkflowCancellationRequestedEvent or WorkflowTerminalEvent or WorkflowCompletedEvent)) continue;
+            if (terminal || fact.InstanceId.Value != start.InstanceId.Value || fact.ParentInstanceId?.Value != start.ParentInstanceId?.Value ||
+                fact.RootInstanceId?.Value != start.RootInstanceId?.Value || fact.CausationId.Value != fact.CommandId.Value)
+                throw new InvalidDataException("Contradictory DAG child cancellation history or lineage.");
+            switch (fact)
+            {
+                case WorkflowCancellationRequestedEvent request when winner is null:
+                    winner = request;
+                    break;
+                case WorkflowTerminalEvent { Status: WorkflowInstanceStatus.Cancelled } when winner is not null:
+                    terminal = true;
+                    break;
+                default:
+                    throw new InvalidDataException("DAG child cancellation history has conflicting lifecycle facts.");
+            }
+        }
+        if (!terminal || winner is null) throw new InvalidDataException("Missing winning DAG child cancellation request or terminal fact.");
+        return DurableCancellationIdentity.Read(start.InstanceId, winner.CommandId);
     }
 
     internal async Task<bool> CancelAsync(DagRunSnapshotV1 run, int ordinal, CancellationToken token)
@@ -90,10 +124,13 @@ internal sealed class DurableDagChildEngine(IWorkflowEventStore store, DurableDe
 
     internal async Task<WorkflowCancellationRequestStatus?> TryCancelAsync(DagRunSnapshotV1 run, int ordinal, CancellationToken token)
     {
+        if (run.State is not (DagRunStateV1.CancellationRequested or DagRunStateV1.Cancelled))
+            throw new InvalidDataException("DAG child cancellation precedes the run barrier.");
         if (!await StartOrReattachAsync(run, ordinal, token).ConfigureAwait(false)) return null;
+        var child = BoundChildId(run, ordinal);
         var result = await commands.ProcessAsync(new CancelWorkflowCommand
         {
-            CommandId = CommandId.New(), InstanceId = run.Nodes[ordinal].ChildInstanceId!,
+            CommandId = DurableCancellationIdentity.For(child, DurableCancellationOrigin.OwningDag), InstanceId = child,
             RequestedAt = timeProvider.GetUtcNow()
         }, token).ConfigureAwait(false);
         if (result.Outcome == DurableCommandOutcome.Conflict) return null;
@@ -127,19 +164,29 @@ internal sealed class DurableDagChildEngine(IWorkflowEventStore store, DurableDe
 
     internal static PayloadFingerprint RehydrateFingerprint(string fingerprint) => new(fingerprint);
 
-    internal async Task<WorkflowStartedEvent?> ReadBoundStartAsync(DagRunSnapshotV1 run, int ordinal, CancellationToken token)
+    private static InstanceId BoundChildId(DagRunSnapshotV1 run, int ordinal)
     {
-        var node = run.Nodes[ordinal];
-        var child = node.ChildInstanceId ?? throw new InvalidDataException("Missing DAG child coordinate.");
+        var child = run.Nodes[ordinal].ChildInstanceId ?? throw new InvalidDataException("Missing DAG child coordinate.");
         if (child.Value != DurableDagWire.ChildId(run.RunId, ordinal))
             throw new InvalidDataException("DAG deterministic child identity mismatch.");
+        return child;
+    }
+
+    internal async Task<WorkflowStartedEvent?> ReadBoundStartAsync(DagRunSnapshotV1 run, int ordinal, CancellationToken token)
+        => (await ReadBoundHistoryAsync(run, ordinal, token).ConfigureAwait(false)).Start;
+
+    private async Task<(WorkflowStartedEvent? Start, IReadOnlyList<WorkflowEvent> History)> ReadBoundHistoryAsync(
+        DagRunSnapshotV1 run, int ordinal, CancellationToken token)
+    {
+        var node = run.Nodes[ordinal];
+        var child = BoundChildId(run, ordinal);
         var facts = await store.LoadTailAsync(new(child), StreamVersion.Empty, token).ConfigureAwait(false);
-        var started = facts.OfType<WorkflowStartedEvent>().SingleOrDefault();
+        var started = facts.FirstOrDefault() as WorkflowStartedEvent;
         if (started is null)
         {
             if (facts.Count != 0 || (await store.LoadCheckpointAsync(child, token).ConfigureAwait(false)).HasValue)
                 throw new InvalidDataException("DAG child binding evidence is unavailable.");
-            return null;
+            return (null, facts);
         }
         var binding = run.Graph.Nodes[ordinal].Workflow;
         var input = node.Input ?? throw new InvalidDataException("Missing committed DAG input.");
@@ -149,12 +196,13 @@ internal sealed class DurableDagChildEngine(IWorkflowEventStore store, DurableDe
             input.Fingerprint != DurableDagWire.ValueFingerprint(input.Bytes))
             throw new InvalidDataException("DAG child input binding is invalid.");
         var anchor = InstanceId.Parse(run.RunId.ToString("D"));
-        if (started.DefinitionId != binding.DefinitionId || started.DefinitionVersion != binding.DefinitionVersion ||
+        if (started.InstanceId.Value != child.Value || facts.Skip(1).Any(f => f is WorkflowStartedEvent) ||
+            started.DefinitionId != binding.DefinitionId || started.DefinitionVersion != binding.DefinitionVersion ||
             started.DefinitionFingerprint != binding.Fingerprint || started.InputFingerprint != input.Fingerprint ||
             started.InputContentType != input.CodecFormat || started.InputPayload is not { } bytes ||
             !bytes.AsSpan().SequenceEqual(input.Bytes) || started.ParentInstanceId?.Value != anchor.Value ||
             started.RootInstanceId?.Value != anchor.Value || started.IdempotencyKey is not null)
             throw new InvalidDataException("DAG deterministic child collision: complete binding differs.");
-        return started;
+        return (started, facts);
     }
 }
