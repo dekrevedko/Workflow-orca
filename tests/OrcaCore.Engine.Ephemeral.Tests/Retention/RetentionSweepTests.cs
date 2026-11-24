@@ -126,7 +126,51 @@ public sealed class RetentionSweepTests
         clock.Pulse();
         earlierSample.IsRetired.Should().BeTrue();
         laterSample.IsRetired.Should().Be(capacity == 1);
+        clock.Ticks = 15;
+        clock.Pulse();
+        laterSample.IsRetired.Should().BeTrue();
         clock.ReadInsideGate.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void BulkExpiryPreservesYoungerPinnedAndUnsettledInstances(bool includeYounger)
+    {
+        var clock = new ManualClock();
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(4, TimeSpan.FromTicks(10), TimeSpan.FromTicks(1)));
+        var first = Accepted(coordinator);
+        var second = Accepted(coordinator);
+        var pinned = Accepted(coordinator);
+        var running = Accepted(coordinator);
+        pinned.TryPin(out var pin).Should().BeTrue();
+        using var work = running.Own();
+        foreach (var life in new[] { first, second, pinned, running }) life.SignalTerminal();
+        clock.Ticks = 5;
+        var younger = includeYounger ? Accepted(coordinator) : null;
+        younger?.SignalTerminal();
+
+        clock.Ticks = 10;
+        clock.Pulse();
+        first.IsRetired.Should().BeTrue();
+        second.IsRetired.Should().BeTrue();
+        pinned.IsRetired.Should().BeFalse();
+        running.IsRetired.Should().BeFalse();
+        if (younger is not null) younger.IsRetired.Should().BeFalse();
+        coordinator.TrackedCount.Should().Be(includeYounger ? 3 : 2);
+
+        pin!.Dispose();
+        pinned.IsRetired.Should().BeTrue();
+        work.Dispose();
+        running.IsRetired.Should().BeFalse();
+        clock.Ticks = 15;
+        clock.Pulse();
+        if (younger is not null) younger.IsRetired.Should().BeTrue();
+        running.IsRetired.Should().BeFalse();
+        clock.Ticks = 20;
+        clock.Pulse();
+        running.IsRetired.Should().BeTrue();
+        coordinator.TrackedCount.Should().Be(0);
     }
 
     [Fact]

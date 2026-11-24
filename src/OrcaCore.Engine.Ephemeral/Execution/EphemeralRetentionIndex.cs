@@ -6,7 +6,7 @@ namespace OrcaCore.Engine.Ephemeral.Execution;
 internal sealed class EphemeralRetentionIndex
 {
     private readonly Dictionary<InstanceId, Entry> tracked = [];
-    private readonly SortedDictionary<long, Entry> byOrdinal = [];
+    private SortedDictionary<long, Entry> byOrdinal = [];
     private readonly SortedSet<(ulong Timestamp, long Ordinal)> byAge = [];
     private long lastOrdinal;
 
@@ -60,13 +60,26 @@ internal sealed class EphemeralRetentionIndex
             var first = unchecked((ulong)(now - long.MaxValue));
             var last = unchecked((ulong)(now - (long)minimumAge));
             List<long>? expired = null;
-            if (first <= last) CollectExpired(first, last, ref expired);
-            else
+            var rebuild = first <= last
+                ? CollectExpired(first, last, ref expired)
+                : CollectExpired(first, ulong.MaxValue, ref expired) || CollectExpired(0, last, ref expired);
+            if (rebuild)
             {
-                CollectExpired(first, ulong.MaxValue, ref expired);
-                CollectExpired(0, last, ref expired);
+                // More entries are due than will survive. Reindex survivors instead of deleting each victim
+                // from both trees. Active and pinned lifetimes are not in either ordering.
+                var previous = byOrdinal;
+                byOrdinal = new(previous.Comparer);
+                byAge.Clear();
+                List<Entry>? survivors = null;
+                foreach (var entry in previous.Values)
+                {
+                    if (unchecked(now - (long)entry.Timestamp) >= (long)minimumAge) Retire(entry);
+                    else (survivors ??= []).Add(entry);
+                }
+                if (survivors is not null)
+                    foreach (var entry in survivors) AddEligible(entry);
             }
-            if (expired is not null)
+            else if (expired is not null)
                 foreach (var ordinal in expired) Retire(byOrdinal[ordinal]);
         }
         while (byOrdinal.Count > maximumCount) Retire(byOrdinal.First().Value);
@@ -81,11 +94,19 @@ internal sealed class EphemeralRetentionIndex
         }
     }
 
-    private void CollectExpired(ulong first, ulong last, ref List<long>? expired)
+    // Return true as soon as rebuilding the smaller surviving membership is cheaper in tree mutations.
+    private bool CollectExpired(ulong first, ulong last, ref List<long>? expired)
     {
-        if (byAge.Min.Timestamp > last || byAge.Max.Timestamp < first) return;
+        var minimum = byAge.Min.Timestamp;
+        var maximum = byAge.Max.Timestamp;
+        if (minimum > last || maximum < first) return false;
+        if (minimum >= first && maximum <= last) return true;
         foreach (var key in byAge.GetViewBetween((first, 0), (last, long.MaxValue)))
+        {
             (expired ??= []).Add(key.Ordinal);
+            if (expired.Count > byAge.Count / 2) return true;
+        }
+        return false;
     }
 
     private sealed class Entry(EphemeralInstanceLifetime lifetime)
