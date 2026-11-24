@@ -14,7 +14,8 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "08287a8f89ccac61836c134f52496c7f819785c9ff6db2bb4fb4c3053a1c2f69";
+    private const string CanonicalContentRecordSha256 = "d044dffd8b055221650774485085fa1e9198ed5785e80e0ab32f595e7fda26db";
+    private const string BeforeFifoResizeRecordSha256 = "08287a8f89ccac61836c134f52496c7f819785c9ff6db2bb4fb4c3053a1c2f69";
     private const string RecoveryOnlyRecordSha256 = "a966d44cf259a0a42a65897e641a1cff5ef0ba62de26d7da9841c066e5aaf681";
     private const string ScopedGrantOnlyRecordSha256 = "da20aac016a38f50b49a0351014c8f3586e3758f46f097a70723cf267435ee87";
     private const string BeforeRecoveryRecordSha256 = "29d52b6fff13244113ebc2fb4a0a0d2cd259cac2198b7bbee94489d04cbab0cd";
@@ -71,6 +72,9 @@ public sealed class DagStreamIdentitySliceGuards
         const string grantPath = "openspec/specs/durable-runtime/spec.md";
         var grantIndex = Array.FindIndex(actual, row => row.Path == grantPath);
         var liveGrant = Normalize(File.ReadAllText(Path.Combine(root, grantPath)));
+        var beforeResize = actual.ToArray();
+        beforeResize[grantIndex] = Content(grantPath, OpenSpecCorpusGuards.BeforeFifoResizeSynchronization(root, liveGrant));
+        Hash(ContentRecord(beforeResize)).Should().Be(BeforeFifoResizeRecordSha256);
         var recoveryOnly = actual.ToArray();
         recoveryOnly[grantIndex] = Content(grantPath, OpenSpecCorpusGuards.BeforeScopedGrantAdmission(root, grantPath, liveGrant));
         Hash(ContentRecord(recoveryOnly)).Should().Be(RecoveryOnlyRecordSha256);
