@@ -102,9 +102,16 @@ designer, and broader lifecycle management are outside its current shipped surfa
 
 ## Current status
 
-As of **2026-10-29**, [**v0.1.0-preview.3 is published**](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.3)
-and available for use in other .NET 10 projects. This is a **pre-production prerelease**;
-APIs, provider schemas, and persistence formats can change.
+As of **2026-11-23**, **v0.1.0-preview.3** is the latest published package release for .NET 10.
+It is a pre-production preview. APIs, provider schemas, and persistence formats can change.
+
+**Since preview.3**, the source on `master` has gained the public DAG run facade and fixes for
+wait ownership, continuation leases, and child joins after restart. Durable resource pools now
+recover from the latest committed state and grant eligible FIFO waiters when capacity increases.
+These changes are available when building from source. See the [DAG facade](https://github.com/dekrevedko/Workflow-orca/pull/27),
+[recovery models and tests](verification/tla/README.md), and [source qualification status](docs/production-readiness.md#durable-source-verification).
+
+### Published preview.3
 
 | Item | Status |
 |---|---|
@@ -147,10 +154,10 @@ Issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
 the reviewed retention and cooperative shutdown APIs; see the
 [release notes](docs/prerelease-notes.md) for behavior changes and limitations.
 
-One competing-owner handoff check failed intermittently during a documentation follow-up;
-the CI retry, 30 isolated repetitions, and the full infrastructure suite passed. Its cause
-remains unconfirmed; the evidence is recorded in [PR #4](https://github.com/dekrevedko/Workflow-orca/pull/4).
-See [production readiness](docs/production-readiness.md) before choosing a deployment scope.
+The durable continuation handoff test now waits for the second owner to claim the continuation
+and checks for exactly one completed step after both owners finish. Exhaustive verification
+of ephemeral wait ownership remains open. [Handoff test](https://github.com/dekrevedko/Workflow-orca/pull/22) ·
+[Wait-ownership task 2.5](openspec/changes/verify-ephemeral-wait-ownership-with-tla/tasks.md)
 
 The shutdown API drains initialized pending starts and accepted handles through
 an ordered Generic Host drainer, an explicitly owned host, or a plain-DI submission
