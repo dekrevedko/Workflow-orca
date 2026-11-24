@@ -71,7 +71,7 @@ public sealed partial class DurableStepOutcomeTests
                     if (phase == "seed")
                     {
                         while (!File.Exists(marker) && !worker.HasExited)
-                            await Task.Delay(50, token);
+                            await Task.Delay(TimeSpan.FromMilliseconds(50), TimeProvider.System, token);
                         if (worker.HasExited)
                             throw new InvalidOperationException($"Seed exited before the crash boundary: {await stdout} {await stderr}");
                         VerifyWorkerMarker(marker, worker.Id);
