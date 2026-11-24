@@ -888,6 +888,109 @@ public sealed class StructuredFiberExecutionPublicTests
     }
 
     [Fact]
+    public async Task FailedBranchWaitsForItsParkedSiblingAndSkipsTheMergeAndContinuation()
+    {
+        var trace = new ConcurrentQueue<string>();
+        using var provider = CreateProvider(services => services.AddSingleton(new FailingBranchStep(trace)));
+        var definition = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new ParentState(value, []))
+            .Parallel<string>(branches => branches
+                .Branch<BranchState>(AuthoredBranchId.Create("waiting"), _ => new BranchState("waiting"),
+                    branch => branch.Wait(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), _ => WaitCorrelation)
+                        .Return(state => state.Value.Name))
+                .Branch<BranchState>(AuthoredBranchId.Create("failing"), _ => new BranchState("failing"),
+                    branch => branch.Then<FailingBranchStep>().Return(state => state.Value.Name)))
+            .WhenAll((parent, _) => { trace.Enqueue("merged"); return parent.Value; })
+            .Then(_ => { trace.Enqueue("continued"); return ValueTask.CompletedTask; })
+            .End()
+            .Build();
+        var instance = await StartAsync(provider, definition, "wait-first");
+        var token = TestContext.Current.CancellationToken;
+        var waiting = await instance.GetSnapshotAsync(token);
+        waiting.Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        waiting.ActiveWaits.Should().ContainSingle().Which.CorrelationId.Should().Be(WaitCorrelation);
+        trace.Should().Equal("failing");
+
+        (await DeliverAsync(provider, instance, Ready, WaitCorrelation, "finish-wait")).Status
+            .Should().Be(EphemeralEventRouteStatus.Accepted);
+        var failed = await instance.GetSnapshotAsync(token);
+        failed.Status.Should().Be(WorkflowInstanceStatus.Failed);
+        failed.Failure!.Message.Should().Contain("branch failed");
+        failed.ActiveWaits.Should().BeEmpty();
+        trace.Should().Equal("failing");
+    }
+
+    [Fact]
+    public async Task TypedInitFailureReturnsOneDiagnosticAndLeavesTheKeyAvailableForAnUnnamedTypedEnd()
+    {
+        using var provider = CreateProvider();
+        var definition = Workflow.Ephemeral<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(input => input < 0 ? throw new InvalidOperationException("negative input") : input + 2)
+            .End(state => state.Value * 3)
+            .Build();
+        var handle = provider.GetRequiredService<IWorkflowDefinitionRegistry>().Register(definition).GetHandleOrThrow();
+        var token = TestContext.Current.CancellationToken;
+        var key = StartIdempotencyKey.Create("typed-init");
+
+        var failure = await Assert.ThrowsAsync<WorkflowDefinitionException>(() => handle.StartOrGetAsync(-1, key, token).AsTask());
+        var diagnostic = Assert.Single(failure.Diagnostics);
+        Assert.Contains("Init", diagnostic.Message);
+        Assert.Contains("negative input", diagnostic.Message);
+
+        var accepted = Assert.IsType<WorkflowStartResult<WorkflowInstanceHandle<int>>.Accepted>(
+            await handle.StartOrGetAsync(4, key, token));
+        Assert.False(accepted.WasExisting);
+        var snapshot = await accepted.Handle.GetSnapshotAsync(token);
+        Assert.Equal(WorkflowInstanceStatus.Completed, snapshot.Status);
+        Assert.Null(snapshot.Outcome);
+        Assert.Equal(18, await accepted.Handle.WaitForOutputAsync(token));
+    }
+
+    [Fact]
+    public async Task LoopResumesAfterEmptyAndSkippedBranchesWithoutRepeatingTheirPredecessors()
+    {
+        using var provider = CreateProvider();
+        var definition = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(input => new ParentState(input, []))
+            .While(state => state.Value.Input == "iterate" && state.Value.Results.Count < 2,
+                body => body
+                    .If(state => state.Value.Results.Count == 0, _ => { },
+                        otherwise => otherwise.Then(context => Append(context, "else")))
+                    .If(_ => false, then => then.Then(context => Append(context, "skipped")))
+                    .Wait(WorkflowEventContract.Create(Continue, EventContractVersion.Initial), _ => WaitCorrelation)
+                    .Then(context => Append(context, "resumed")))
+            .Then(context => Append(context, "after"))
+            .End()
+            .Build();
+        var handle = Register(provider, definition);
+        var token = TestContext.Current.CancellationToken;
+        async Task<WorkflowInstanceHandle> Start(string input) =>
+            (await handle.StartOrGetAsync(input, StartIdempotencyKey.Create(input), token)).GetHandleOrThrow();
+
+        var skipped = await Start("skip");
+        (await skipped.GetSnapshotAsync(token)).Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await skipped.GetStateAsync<ParentState>(token)).Results.Should().Equal("after");
+
+        var running = await Start("iterate");
+        (await running.GetSnapshotAsync(token)).Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        (await running.GetStateAsync<ParentState>(token)).Results.Should().BeEmpty();
+        (await DeliverAsync(provider, running, Continue, WaitCorrelation, "first-iteration")).Status
+            .Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await running.GetSnapshotAsync(token)).Status.Should().Be(WorkflowInstanceStatus.Waiting);
+        (await running.GetStateAsync<ParentState>(token)).Results.Should().Equal("resumed", "else");
+        (await DeliverAsync(provider, running, Continue, WaitCorrelation, "second-iteration")).Status
+            .Should().Be(EphemeralEventRouteStatus.Accepted);
+        (await running.GetSnapshotAsync(token)).Status.Should().Be(WorkflowInstanceStatus.Completed);
+        (await running.GetStateAsync<ParentState>(token)).Results.Should().Equal("resumed", "else", "resumed", "after");
+
+        static ValueTask Append(StepContext<ParentState> context, string value)
+        {
+            context.State.Results.Add(value);
+            return ValueTask.CompletedTask;
+        }
+    }
+
+    [Fact]
     public async Task SelectedRootScopeWithNestedIf_UsesCompiledControlFlowContinuations()
     {
         using var provider = CreateProvider();

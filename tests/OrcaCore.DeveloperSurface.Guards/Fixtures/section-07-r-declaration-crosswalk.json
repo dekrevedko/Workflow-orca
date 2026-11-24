@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 421,
-    "physicalDeclarations": 1773,
+    "physicalDeclarations": 1776,
     "activeFiles": 265,
-    "activeDeclarations": 1085,
+    "activeDeclarations": 1088,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1725,7 +1725,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 35
+      "declarations": 38
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionTests.cs",
