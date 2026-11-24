@@ -1,13 +1,10 @@
 # OrcaCore Production Readiness Notes
 
-OrcaCore is still pre-production in this implementation track. V1 defines local package IDs and
-requires every documented tier to pack and pass clean application/provider/custom-host/DAG
-consumer certification. The owner's 2026-10-16 request reopens prerelease distribution for
-use in other projects: CI builds installable packages and a validated GitHub prerelease
-can publish them as downloads. See [package installation and publishing](packages.md).
-The release workflow supports NuGet.org trusted publishing after the owner completes
-[account and policy setup](nuget-publishing.md); availability requires public-feed verification.
-GitHub Packages, signing, SourceLink, and a stable compatibility promise remain deferred.
+As of 2026-11-23, OrcaCore is pre-production. The latest published release is
+`0.1.0-preview.3`. All twelve packages were verified on NuGet.org and authenticated GitHub
+Packages, including fresh external consumer runs. Package-author signing, SourceLink, and a
+stable compatibility promise remain deferred. [Publication verification](releases/0.1.0-preview.3/published-2026-10-29.md) ·
+[Package installation](packages.md)
 
 The exhaustive first-release package manifest is `OrcaCore`, `OrcaCore.Core`,
 `OrcaCore.Engine.Ephemeral`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions`,
@@ -22,9 +19,28 @@ is test evidence, not a publication commitment.
 
 The approved first-release surface is [spec 17](specs/17-selected-mode-capability-matrix.md).
 Sections 4 through 7, including Section 7A/7B, are implemented, independently approved, and
-checkpointed. The canonical harmonization is synchronized and its remaining active-guide
-reconciliation is in progress. No provisional source member is a compatibility promise. Section 8
-remains blocked until that final harmonized target is independently reviewed and checkpointed.
+checkpointed. The public DAG run facade (task 8.6) has landed on `master`. The task ledger still
+tracks runtime progression and host concurrency work under 8.5 and 8.7.
+[DAG facade](https://github.com/dekrevedko/Workflow-orca/pull/27) ·
+[Implementation tasks](../openspec/changes/reshape-developer-facing-interfaces/tasks.md)
+
+## Durable source verification
+
+- **Ownership across restart.** A stale continuation claim cannot release a replacement's lease.
+  DAG child-notice redelivery preserves the recorded join outcome. Restart cases ran on PostgreSQL
+  and SQL Server. [Models and recovery evidence](../verification/tla/README.md)
+- **Resource governance.** The provider reads the latest committed partition state for recovery.
+  A losing workflow append leaves the winning occurrence's ticket intact. Increasing pool capacity
+  commits the new capacity and the eligible FIFO grants together. A live head that cannot fit
+  still blocks younger requests for other pools. Both SQL providers passed the four resize cases
+  and all ten grant ownership and recovery cases. [Canonical FIFO requirement](../openspec/specs/durable-runtime/spec.md#requirement-capacity-increases-grant-the-eligible-partition-fifo-prefix) ·
+  [Hosted provider results](https://github.com/dekrevedko/Workflow-orca/actions/runs/45307879796)
+- **Contention.** A governance mutation can exhaust its 32 attempts. Both providers preserved
+  the ticket, waiter, and capacity when conflicts were forced, and the operation succeeded on retry
+  after contention subsided. [Retry evidence](../openspec/changes/grant-fifo-waiters-on-pool-upsize/validation.md#conflict-exhaustion)
+
+For ephemeral wait ownership, six broad TLC profiles reached their time budgets. Full exploration
+remains open under task 2.5. [Verification status](../openspec/changes/verify-ephemeral-wait-ownership-with-tla/tasks.md)
 
 ## Delivery Guarantees
 
@@ -216,14 +232,13 @@ adds no general native-support or production-readiness badge. All findings and
 unavailable unsupported-workload metrics are retained. Process-memory and managed-
 heap observations keep their separate meanings and host-specific names.
 
-## Issue #13 source-qualified recipe; release pending (2026-10-28)
+## Issue #13 native recipe qualification (2026-10-28)
 
 User-approved corrected checkpoint d8c55f3 / review-only child 25fa36c qualify
 this source's bounded public ephemeral recipe. Native run 40762764617 passed
 self-contained JIT, full trimming and Native AOT on Windows Server 2025 win-x64
-and Ubuntu 24.04 linux-x64. Status: **source-qualified; release pending**.
-Released 0.1.0-preview.2 retains its unsupported trimmed/AOT assessment; no new
-version is published by this approval. See [the qualified recipe](ephemeral-native-support.md).
+and Ubuntu 24.04 linux-x64. The recipe subsequently shipped in preview.3.
+Preview.2 retains its earlier trimming and Native AOT assessment. See [the qualified recipe](ephemeral-native-support.md).
 
 The approved metadata API, process seal, static bootstrap and explicit .NET 10
 F1 admission restriction are implemented. Six real native public-package cells

@@ -1,5 +1,17 @@
 # GitHub build and prerelease status
 
+## Latest published release
+
+As of 2026-11-23, the latest release is **0.1.0-preview.3**. All twelve packages were verified
+on NuGet.org and authenticated GitHub Packages. The release also includes the package files and
+`SHA256SUMS`. [Release assets](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.3) ·
+[Publication and clean-consumer verification](releases/0.1.0-preview.3/published-2026-10-29.md)
+
+Subsequent durable recovery and FIFO resize fixes are available from source.
+[Current source verification](production-readiness.md#durable-source-verification)
+
+The dated sections below record the status at each checkpoint.
+
 ## Preview 2 publication (2026-10-22)
 
 [0.1.0-preview.2](https://github.com/dekrevedko/Workflow-orca/releases/tag/v0.1.0-preview.2) is published from
@@ -22,7 +34,7 @@ not a stable API or production-readiness qualification.
 Status: RECORD, 2026-10-16. This is a build/publishing audit, not an independent implementation
 approval or an OpenSpec phase exit.
 
-## Publication update
+### Publication update (2026-10-16)
 
 The owner-authorized push and publication completed on 2026-10-16:
 
@@ -68,8 +80,8 @@ The temporary diagnostic loop was removed.
 
 Issues [#1](https://github.com/dekrevedko/Workflow-orca/issues/1),
 [#2](https://github.com/dekrevedko/Workflow-orca/issues/2), and
-[#3](https://github.com/dekrevedko/Workflow-orca/issues/3) remain open. Durable DAG execution
-is incomplete. Packages require .NET 10 and are distributed on NuGet.org and as GitHub release downloads.
+[#3](https://github.com/dekrevedko/Workflow-orca/issues/3) were open at the time of the audit. Durable DAG execution
+was incomplete. Packages require .NET 10 and are distributed on NuGet.org and as GitHub release downloads.
 
 The sections below retain the initial preparation audit, before pushing and publishing.
 

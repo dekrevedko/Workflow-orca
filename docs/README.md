@@ -25,8 +25,8 @@ developer guides that explain it.
    provisional cursor checkpoints or incompatible compiled-plan changes.
 8. [Packages](packages.md) - install prerelease NuGet packages in another project and publish
    validated GitHub release downloads.
-9. [GitHub publishing status](github-publishing-status.md) - the 2026-10-16 audit, validation,
-   and coverage gate decision.
+9. [GitHub publishing status](github-publishing-status.md) — published preview.3 packages, registry verification, and earlier release history.
+10. [Durable source verification](production-readiness.md#durable-source-verification) — recent recovery fixes, SQL provider evidence, and remaining verification work.
 
 ## Active source layout
 

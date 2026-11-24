@@ -52,6 +52,8 @@ are rejected. All four scenarios pass with their original assertions.
 
 ## Reproduce
 
+The [durable resource grant workflow](../../../.github/workflows/durable-resource-grant.yml) runs all model profiles on grant-related pull requests and pushes to master. Its `durable-resource-grant-evidence` artifact contains the per-profile verdicts, TLC logs, model inputs, and source hashes. The `OldReleaseOnConflict` control must reproduce the `ActiveGrantRetained` violation.
+
 From the repository root, use the private pinned Java runtime supplied by the verification runner. The SQL probes require Docker and a Release build.
 
 ```powershell

@@ -141,6 +141,14 @@ public sealed partial class OpenSpecCorpusGuards
 
     internal static string BeforeValueFidelitySynchronization(string root, string path, string current)
     {
+        if (path is "README.md" or "docs/production-readiness.md")
+        {
+            // Validate the reviewed status refresh before checking its parent against earlier approvals.
+            const string statusRefresh = "80495420c75e762f2841c450e55f4b2eac73c9f1";
+            current.Should().Be(DagFacadeApprovedHistory.TextAt(root, statusRefresh, path));
+            current = DagFacadeApprovedHistory.TextAt(root, statusRefresh + "^", path);
+        }
+
         current = BeforeObservationSynchronization(root, path, current);
         // Only these two guide updates are projected before older documentation checks.
         (string After, string Before)? guide = path switch

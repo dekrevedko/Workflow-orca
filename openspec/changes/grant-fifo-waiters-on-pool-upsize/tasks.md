@@ -1,6 +1,6 @@
 ## 1. Canonical synchronization
 
-- [ ] 1.1 Synchronize the approved FIFO addition to `durable-runtime` (1) and reconcile its provenance.
+- [x] 1.1 Synchronize the approved FIFO addition to `durable-runtime` (1) and reconcile its provenance.
 
 ## 2. Qualification
 
