@@ -1419,6 +1419,11 @@ type public sealed class OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGo
   operator public static op_Inequality([OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceAppendResult+Conflict? left, [OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceAppendResult+Conflict? right) -> [System.Private.CoreLib]System.Boolean
   property [System.Private.CoreLib]System.Int64 ActualVersion { get:public; init:public }
   property [System.Private.CoreLib]System.Type! EqualityContract { get:protected override }
+type public sealed class OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceHead attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
+  method public static Create([OrcaCore]OrcaCore.ResourceGovernancePartitionId! partitionId, [System.Private.CoreLib]System.Int64 version, [OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceRecord? record attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]) -> [OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceHead!
+  property [OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceRecord? Record { get:public } attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(2)]
+  property [OrcaCore]OrcaCore.ResourceGovernancePartitionId! PartitionId { get:public }
+  property [System.Private.CoreLib]System.Int64 Version { get:public }
 type public sealed class OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceRecord attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)]
   field public const [System.Private.CoreLib]System.String! V1Format = "orcacore-resource-governance-v1"
   method public static FromPersisted([System.Private.CoreLib]System.Int64 sequence, [System.Private.CoreLib]System.String! formatId, [System.Private.CoreLib]System.ReadOnlyMemory`1[[System.Private.CoreLib]System.Byte] payload attributes [[System.Private.CoreLib]System.Runtime.CompilerServices.NullableAttribute(0)], [System.Private.CoreLib]System.String! checksum) -> [OrcaCore.Runtime.Protocol]OrcaCore.Runtime.Protocol.ResourceGovernance.ResourceGovernanceRecord!

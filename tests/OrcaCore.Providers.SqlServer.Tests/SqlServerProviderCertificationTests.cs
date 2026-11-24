@@ -34,6 +34,27 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             certificationStore
             ?? throw new InvalidOperationException("SQL Server certification store is not initialized."));
 
+    [Fact]
+    public Task ResourceResize_GrantsEligiblePartitionQueue()
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DurableResourceGrantRaceCertification.ResizeQueueAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            typeof(SqlServerDurableProviderOptions));
+    }
+
+    [Theory]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.BlockedHead)]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.OwnerCancels)]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.HolderReleases)]
+    public Task ResourceResize_FifoRace(DurableResourceGrantRaceCertification.ResizeRace schedule)
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DurableResourceGrantRaceCertification.ResizeRaceAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            typeof(SqlServerDurableProviderOptions), schedule);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

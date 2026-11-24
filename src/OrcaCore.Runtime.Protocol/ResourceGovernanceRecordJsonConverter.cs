@@ -29,8 +29,8 @@ internal sealed class ResourceGovernanceRecordJsonConverter : JsonConverter<Reso
         JsonSerializerOptions options) =>
         JsonSerializer.Serialize(
             writer,
-            new PersistedRecord(value.Sequence, value.FormatId, value.Payload.ToArray(), value.Checksum),
+            new PersistedRecord(value.Sequence, value.FormatId, value.Payload, value.Checksum),
             options);
 
-    private sealed record PersistedRecord(long Sequence, string FormatId, byte[] Payload, string Checksum);
+    private sealed record PersistedRecord(long Sequence, string FormatId, ReadOnlyMemory<byte> Payload, string Checksum);
 }

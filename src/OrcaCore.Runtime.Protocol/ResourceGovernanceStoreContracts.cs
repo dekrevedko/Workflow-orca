@@ -27,7 +27,7 @@ public sealed class ResourceGovernanceRecord
     public string FormatId { get; }
 
     /// <summary>Gets the defensively copied payload.</summary>
-    public ReadOnlyMemory<byte> Payload => payload;
+    public ReadOnlyMemory<byte> Payload => payload.ToArray();
 
     /// <summary>Gets the lower-case SHA-256 payload checksum.</summary>
     public string Checksum { get; }
@@ -55,6 +55,37 @@ public sealed class ResourceGovernanceRecord
         }
 
         return new ResourceGovernanceRecord(sequence, formatId, copy, checksum);
+    }
+}
+
+/// <summary>The committed version and latest full-state record for one governance partition.</summary>
+public sealed class ResourceGovernanceHead
+{
+    private ResourceGovernanceHead(ResourceGovernancePartitionId partitionId, long version, ResourceGovernanceRecord? record)
+    {
+        PartitionId = partitionId;
+        Version = version;
+        Record = record;
+    }
+
+    public ResourceGovernancePartitionId PartitionId { get; }
+    public long Version { get; }
+    public ResourceGovernanceRecord? Record { get; }
+
+    /// <summary>Validates that the selected record and the committed head describe the same version.</summary>
+    public static ResourceGovernanceHead Create(
+        ResourceGovernancePartitionId partitionId, long version, ResourceGovernanceRecord? record)
+    {
+        ArgumentNullException.ThrowIfNull(partitionId);
+        ArgumentOutOfRangeException.ThrowIfNegative(version);
+        if ((record?.Sequence ?? 0) != version)
+        {
+            throw new ArgumentException(
+                $"Governance partition '{partitionId}' at version {version} has latest record {record?.Sequence.ToString() ?? "missing"}.",
+                nameof(record));
+        }
+
+        return new ResourceGovernanceHead(partitionId, version, record);
     }
 }
 

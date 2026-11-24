@@ -50,7 +50,7 @@ public static class OrcaCoreDurableEngineServiceCollectionExtensions
                     Pools = copied.ResourcePools.Values
                         .OrderBy(pool => pool.Name.Value, StringComparer.Ordinal)
                         .ToArray()
-                }, provider.GetRequiredService<IWorkflowEventStore>()));
+                }, provider.GetRequiredService<IWorkflowEventStore>(), provider.GetRequiredService<TimeProvider>()));
         services.Replace(ServiceDescriptor.Singleton<IResourcePoolStore>(provider =>
             provider.GetRequiredService<SerializedResourceGovernanceAggregate>()));
         services.AddOptions<DurableHostedServiceOptions>();

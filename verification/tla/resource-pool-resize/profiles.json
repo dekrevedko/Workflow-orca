@@ -1,0 +1,62 @@
+[
+  {
+    "name": "SafetyAndProgress",
+    "kind": "normal",
+    "config": "SafetyAndProgress.cfg",
+    "expected": ""
+  },
+  {
+    "name": "OldNoDrain",
+    "kind": "mutation",
+    "config": "OldNoDrain.cfg",
+    "expected": "DrainedOnResize"
+  },
+  {
+    "name": "OldNeedsRelease",
+    "kind": "assumption",
+    "config": "OldNeedsRelease.cfg",
+    "expected": "EventuallyDrained"
+  },
+  {
+    "name": "BypassHead",
+    "kind": "mutation",
+    "config": "BypassHead.cfg",
+    "expected": "NoBypass"
+  },
+  {
+    "name": "MissingOwnerFence",
+    "kind": "mutation",
+    "config": "MissingOwnerFence.cfg",
+    "expected": "NoClosedGrant"
+  },
+  {
+    "name": "MissingVersion",
+    "kind": "mutation",
+    "config": "MissingVersion.cfg",
+    "expected": "NoResurrection"
+  },
+  {
+    "name": "DisjointFifo",
+    "kind": "witness",
+    "config": "DisjointFifo.cfg",
+    "expected": "NoDisjointWitness"
+  },
+  {
+    "name": "BlockedFirst",
+    "kind": "witness",
+    "config": "BlockedFirst.cfg",
+    "expected": "NoBlockedWitness"
+  },
+  {
+    "name": "ReleaseWinsAppend",
+    "kind": "witness",
+    "config": "ReleaseWinsAppend.cfg",
+    "expected": "NoReleaseRetryWitness"
+  },
+  {
+    "name": "OwnerClosesBeforeAppend",
+    "kind": "witness",
+    "config": "OwnerClosesBeforeAppend.cfg",
+    "expected": "NoCancelRetryWitness"
+  }
+]

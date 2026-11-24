@@ -1,0 +1,167 @@
+{
+  "change": "recover-latest-governance-state",
+  "base": "aba8a6f8c29aca3301c490d99a318db06e268ca8",
+  "successors": [
+    {
+      "capability": "durable-runtime",
+      "requirement": "Durable resource governance is one serialized provider aggregate",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "recover-latest-governance-state"
+      ],
+      "beforeSha256": "6def32f064858bd75dff10d17e72763b77908294dc2762fabb124ca9509519e5",
+      "afterSha256": "847c9476ea1f8fb007e7fb32aca0eb4d7b504205dc6a1855c8fa4c73c1a5d612"
+    },
+    {
+      "capability": "management-and-querying",
+      "requirement": "Durable lease administration exposes reconciliation and trust state",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "recover-latest-governance-state"
+      ],
+      "beforeSha256": "886dc1b1c0c856d5f9e530cb582d312294a74618df99f0f814242c03ad69bda5",
+      "afterSha256": "f8580e83df206c4639dd12475e12f6ce8575c61d96c3d79e43f7aa240c035806"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Provider invariants are explicit",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "recover-latest-governance-state"
+      ],
+      "beforeSha256": "3a7bcbc3fc0ef1d507ccbbffffc36f6976510d37968e602d74dc93359b24f99c",
+      "afterSha256": "ddb7bb4006231c57abad380bbf4774f5705fcd75ec2b55d09993a0ffba9686dc"
+    }
+  ],
+  "documents": [
+    {
+      "path": "docs/specs/03-domain-model-and-glossary.md",
+      "beforeSha256": "7af010a4b111ff11fe3a6558246004b1706b532a64f923c4d83a1707ac54d6f5",
+      "afterSha256": "ffbb7b613184986499246b8e775e71ba085c85b843e5a5f64cc4286c6d33f65f",
+      "edits": [
+        {
+          "before": "loads the partition stream and\n  performs one expected-version append. The full stream factory",
+          "after": "loads the latest full-state record and committed version for\n  current recovery and performs one expected-version append. Explicit historical inspection\n  still uses the full stream factory, which"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/09-requirements-management-operations.md",
+      "beforeSha256": "00bf73b7fb81392eb577c1d1ccd09bfd615462591f6b70a930565bb89d94eaf3",
+      "afterSha256": "b4e42b0de2484971757ecda867557cac205fa21214e80930c63875b68eae00e3",
+      "edits": [
+        {
+          "before": "SHALL load the partition stream and atomically\nappend records at an expected aggregate version.",
+          "after": "SHALL provide the authoritative latest\nfull-state record and version for recovery and atomically append at an expected aggregate\nversion. A failed append fence requires reloading the head before retrying."
+        },
+        {
+          "before": "the current capacity obtained by\nreplaying that seed plus committed resize operations.",
+          "after": "the current capacity in the latest\ncommitted state, including all accepted resize operations."
+        },
+        {
+          "before": "with the replayed current capacity",
+          "after": "with the current capacity"
+        },
+        {
+          "before": "format, checksum, and copied payload. `ResourceGovernanceStream.Create(version, records)`",
+          "after": "format, checksum, and copied payload. Current reads and restart validate the head partition\nand its version/record agreement, then decode and validate one full state. A missing or bad\nlatest record at an established positive version fails before serving stale state or granting\ncapacity. PR-017 defines the available version and detection limit for legacy SQL Server state.\nFor explicit history inspection, `ResourceGovernanceStream.Create(version, records)`"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/10-provider-model-and-extensibility.md",
+      "beforeSha256": "f9df3595e3ef2aa7fb78d50b07bf51653bbc5fd85609fa3b9702713e5ad2486f",
+      "afterSha256": "e9aa5b7bb6a059b15be55c49f0354ac1b1838626977a6e44e386a4f88a13a959",
+      "edits": [
+        {
+          "before": "SHALL expose load and one\nexpected-version atomic append",
+          "after": "SHALL expose `LoadLatestAsync` for current state, `LoadAsync` for explicit history,\nand one expected-version atomic append"
+        },
+        {
+          "before": "One record factory validates positive sequence, supported format, checksum, and copied payload;\nthe full-stream factory",
+          "after": "A latest read returns `ResourceGovernanceHead` for the requested partition from one committed\nview. Version zero has no record; every positive version has one latest record of exactly that\nsequence. A bad or missing record relative to the available head fails closed without fallback. PostgreSQL reads its\nauthoritative head and indexed latest record in one statement; in-memory reads the current\nentry directly. Experimental SQL Server physically reads its retained state document. Returning\none record from that document does not bound its storage I/O by current snapshot size.\nNew SQL Server partition writes persist a version. Only absence of that property in a legacy\npartition permits the retained record count as the available head; explicit null, non-integral,\nnegative or inconsistent versions fail. A legacy head with a coherently removed suffix can\nlook like a legitimately shorter history. A read never rewrites the legacy document.\nThe record factory validates positive sequence, supported format, checksum, and copied payload.\nFor explicit history inspection, the full-stream factory"
+        },
+        {
+          "before": "and whole-stream/batch validation.",
+          "after": "and latest-head, explicit whole-history and batch validation."
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "d7677ec3c5d47cce7ddec59a0fd8eb09414a755fd44d68a31bc058ccf564e617",
+      "afterSha256": "b11eb96d8b808709d66fa1056b57d57b5093b031f4c9a8f20618ebdfd7bc4616",
+      "edits": [
+        {
+          "before": "without resetting replayed current capacity M",
+          "after": "without resetting current capacity M"
+        },
+        {
+          "before": "pools reserved or none granted, never a partial/ghost/double grant. Full-stream factory and\n  append-batch guards",
+          "after": "pools reserved or none granted, never a partial/ghost/double grant. Current-state recovery\n  uses only the latest record of the requested partition at its committed head. It preserves\n  queue, ticket, quarantine, resize, confirmation and tombstone facts and rejects a damaged\n  or missing current state when the available head establishes corruption (PR-017).\n  Compare recovery with full replay on valid histories. Certify\n  the indexed PostgreSQL head lookup and report experimental SQL Server document cost.\n  Explicit full-history factory and append-batch guards"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/16-requirements-durable-driver.md",
+      "beforeSha256": "3d1fc347706569d394dedcc0d25ee270280864ada64cbee54c22ff581bdb1c9d",
+      "afterSha256": "e323b28e08aced8e2edac0406388de08a4cbec229720d413c525f5fcf09aeb18",
+      "edits": [
+        {
+          "before": "is reconstructed by replaying that seed plus\ncommitted resizes.",
+          "after": "is restored from the partition's latest full-state\nrecord, which includes all committed resizes."
+        },
+        {
+          "before": "with the replayed current capacity",
+          "after": "with the restored current capacity"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "beforeSha256": "39f6219a6778b6e87c45886ee53ca9ab19b14544e9b2001bede11f6c12abf3e9",
+      "afterSha256": "99782582b02c12963b86eef15289d23e05f7b1bfe8375dfc7456270232954786",
+      "edits": [
+        {
+          "before": "public sealed class ResourceGovernanceStream\n{",
+          "after": "public sealed class ResourceGovernanceHead\n{\n    private ResourceGovernanceHead(\n        ResourceGovernancePartitionId partitionId,\n        long version,\n        ResourceGovernanceRecord? record);\n    public ResourceGovernancePartitionId PartitionId { get; }\n    public long Version { get; }\n    public ResourceGovernanceRecord? Record { get; }\n    public static ResourceGovernanceHead Create(\n        ResourceGovernancePartitionId partitionId,\n        long version,\n        ResourceGovernanceRecord? record);\n}\n\npublic sealed class ResourceGovernanceStream\n{"
+        },
+        {
+          "before": "public interface IDurableResourceGovernanceStore\n{\n    ValueTask<ResourceGovernanceStream> LoadAsync",
+          "after": "public interface IDurableResourceGovernanceStore\n{\n    ValueTask<ResourceGovernanceHead> LoadLatestAsync(\n        ResourceGovernancePartitionId partitionId,\n        CancellationToken cancellationToken = default);\n\n    ValueTask<ResourceGovernanceStream> LoadAsync"
+        },
+        {
+          "before": "is the replayed current value",
+          "after": "is the current value in the latest committed state,"
+        },
+        {
+          "before": "the replayed current configured capacity",
+          "after": "the current configured capacity"
+        },
+        {
+          "before": "exposes load plus one\nexpected-version atomic append",
+          "after": "exposes `LoadLatestAsync` for recovery,\n`LoadAsync` for explicit history, and one expected-version atomic append"
+        },
+        {
+          "before": "supported protocol format, and checksum. `ResourceGovernanceStream.Create`",
+          "after": "supported protocol format, and checksum. `ResourceGovernanceHead.Create` binds the partition\nand version to no record at zero or one matching latest record above zero. An incompatible\nhead fails recovery before an append. For legacy SQL Server documents PR-017 defines the\navailable head and its suffix-loss detection limit. The full-history factory `ResourceGovernanceStream.Create`"
+        },
+        {
+          "before": "governance records/stream/append result",
+          "after": "governance records/head/stream/append result"
+        }
+      ]
+    },
+    {
+      "path": "docs/implementation/01-solution-architecture.md",
+      "beforeSha256": "5cad9ef00b9647d5d5997114d8a3d614250ef421351a6cee7617a3fd01f805ae",
+      "afterSha256": "cb6e8d2a9a5663e14f14041b41201395608e9fbf1eacc791e9c0d0d45363682b",
+      "edits": [
+        {
+          "before": "load one serialized governance aggregate per configured\n  provider partition and expected-version append one complete ordered record batch.",
+          "after": "load the committed head and latest full-state record per configured\n  provider partition and append one complete ordered batch at that version. `LoadAsync`\n  provides explicit full-history inspection."
+        }
+      ]
+    }
+  ]
+}

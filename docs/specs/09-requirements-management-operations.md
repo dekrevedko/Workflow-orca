@@ -563,15 +563,16 @@ partition. One expected-version append grants every requirement or none. The wor
 handoff is an idempotent protocol: workflow commits the normalized pending obligation;
 governance reserves all exact tickets; workflow commits activation; governance confirms active
 ownership. Crashes leave capacity reserved until exact recovery completes or compensates the
-occurrence. `IDurableResourceGovernanceStore` SHALL load the partition stream and atomically
-append records at an expected aggregate version. A provider that can append only per-workflow
+occurrence. `IDurableResourceGovernanceStore` SHALL provide the authoritative latest
+full-state record and version for recovery and atomically append at an expected aggregate
+version. A failed append fence requires reloading the head before retrying. A provider that can append only per-workflow
 streams is non-conforming for durable leasing.
 
 `DurableResourcePoolDefinition.Capacity` is the immutable creation capacity stored with the pool
-definition. `DurableResourcePoolSnapshot.ConfiguredCapacity` is the current capacity obtained by
-replaying that seed plus committed resize operations. On later startup, hosts compare name,
+definition. `DurableResourcePoolSnapshot.ConfiguredCapacity` is the current capacity in the latest
+committed state, including all accepted resize operations. On later startup, hosts compare name,
 creation capacity, and `ReviewAfter` against the persisted creation definition; they never compare
-host configuration with the replayed current capacity and never overwrite it. Therefore a host
+host configuration with the current capacity and never overwrite it. Therefore a host
 started with the original definition after a resize succeeds and preserves the resized capacity
 and debt, while changing the creation definition fails startup even when the supplied value equals
 the current resized capacity.
@@ -586,7 +587,11 @@ command, enabling deterministic host stop/restart without timing sleeps. Recover
 equal ownership facts and create neither a ghost nor duplicate grant.
 
 `ResourceGovernanceRecord.FromPersisted` validates one positive sequence, supported protocol
-format, checksum, and copied payload. `ResourceGovernanceStream.Create(version, records)`
+format, checksum, and copied payload. Current reads and restart validate the head partition
+and its version/record agreement, then decode and validate one full state. A missing or bad
+latest record at an established positive version fails before serving stale state or granting
+capacity. PR-017 defines the available version and detection limit for legacy SQL Server state.
+For explicit history inspection, `ResourceGovernanceStream.Create(version, records)`
 rejects negative/mismatched version, null collection/entry, gap, duplicate, or reordering;
 defensively copies the collection; requires version zero exactly when empty; and validates the
 complete v1 sequence `1..Version`. `AppendAsync` copies one non-empty batch numbered exactly

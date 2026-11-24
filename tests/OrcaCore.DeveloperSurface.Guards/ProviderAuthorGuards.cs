@@ -40,6 +40,7 @@ public sealed class ProviderAuthorInfrastructureGuards
             "OrcaCore.DeveloperSurface.Guards", "PackageFixtures", "ProviderCustomHost", "Program.cs"));
 
         source.Should().Contain("IDurableResourceGovernanceStore");
+        source.Should().Contain("ValueTask<ResourceGovernanceHead> LoadLatestAsync(");
         source.Should().Contain("ValueTask<ResourceGovernanceStream> LoadAsync(");
         source.Should().Contain("ValueTask<ResourceGovernanceAppendResult> AppendAsync(");
         source.Should().Contain("long expectedVersion");

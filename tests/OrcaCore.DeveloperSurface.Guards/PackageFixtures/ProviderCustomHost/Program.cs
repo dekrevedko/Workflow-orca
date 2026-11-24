@@ -9,6 +9,20 @@ internal sealed class CopyingGovernanceStore : IDurableResourceGovernanceStore
     private readonly object gate = new();
     private readonly Dictionary<string, List<ResourceGovernanceRecord>> streams = new(StringComparer.Ordinal);
 
+    public ValueTask<ResourceGovernanceHead> LoadLatestAsync(
+        ResourceGovernancePartitionId partitionId,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(partitionId);
+        cancellationToken.ThrowIfCancellationRequested();
+        lock (gate)
+        {
+            streams.TryGetValue(partitionId.Value, out var records);
+            return ValueTask.FromResult(ResourceGovernanceHead.Create(
+                partitionId, records?.Count ?? 0, records is { Count: > 0 } ? records[^1] : null));
+        }
+    }
+
     public ValueTask<ResourceGovernanceStream> LoadAsync(
         ResourceGovernancePartitionId partitionId,
         CancellationToken cancellationToken = default)

@@ -220,8 +220,9 @@ tier is an ordinary workflow-application reference:
   maintenance behind operator policy; it does not create public workflow archive/purge commands.
 - `ITimerScheduler` — schedule durable wake-ups, claim due `FireTimerCommand` records, and complete
   or release one claim.
-- `IDurableResourceGovernanceStore` — load one serialized governance aggregate per configured
-  provider partition and expected-version append one complete ordered record batch. The aggregate
+- `IDurableResourceGovernanceStore` — load the committed head and latest full-state record per configured
+  provider partition and append one complete ordered batch at that version. `LoadAsync`
+  provides explicit full-history inspection. The aggregate
   owns every pool definition, atomic multi-pool request, ticket, review mark, resize,
   confirmation binding, and tombstone. Partial append, time-only reclaim, and force release are
   forbidden (MG-062…065).
