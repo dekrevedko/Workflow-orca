@@ -127,7 +127,8 @@ public static partial class DurableResourceGrantRaceCertification
         }
     }
 
-    private static ServiceProvider BuildHost(IServiceCollection services, ResourceGovernancePartitionId partition)
+    private static ServiceProvider BuildHost(IServiceCollection services, ResourceGovernancePartitionId partition,
+        params DurableResourcePoolDefinition[] additionalPools)
     {
         services.AddTransient<NoOpStep>();
         services.AddSingleton<CountedStep>();
@@ -138,7 +139,7 @@ public static partial class DurableResourceGrantRaceCertification
             ResourcePools = new DurableResourcePoolOptions
             {
                 PartitionId = partition,
-                Pools = [DurableResourcePoolDefinition.Create(ResourcePoolName.Create("slot"), 1, TimeSpan.FromHours(1))]
+                Pools = [DurableResourcePoolDefinition.Create(ResourcePoolName.Create("slot"), 1, TimeSpan.FromHours(1)), .. additionalPools]
             }
         });
         return services.BuildServiceProvider();

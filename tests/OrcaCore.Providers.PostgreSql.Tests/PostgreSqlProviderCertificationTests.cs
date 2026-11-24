@@ -53,6 +53,14 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             certificationStore ?? throw new InvalidOperationException("PostgreSQL certification store is not initialized."));
     }
 
+    [Fact]
+    public Task ResourceResize_GrantsEligiblePartitionQueue()
+    {
+        return DurableResourceGrantRaceCertification.ResizeQueueAsync(
+            () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+            typeof(PostgreSqlDurableProviderOptions));
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
