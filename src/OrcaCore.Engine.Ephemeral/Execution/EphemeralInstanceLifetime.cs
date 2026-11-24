@@ -23,7 +23,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     private readonly TaskCompletionSource finalSettlement = NewCompletion();
     private Action? removeInstance;
     private Func<InstanceId, EphemeralWorkKind, ValueTask>? completionPending;
-    private Action<EphemeralInstanceLifetime>? changed;
+    private EphemeralRetentionCoordinator? retention;
     private int pins;
     private int owned = 1; // The provisional start owns publication until acceptance or definitive abort.
     private bool startPending = true;
@@ -45,18 +45,18 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     internal Task WhenSettled { get { lock (gate) return settled.Task; } }
     internal Task FinalSettlement => finalSettlement.Task;
 
-    internal void Initialize(Action remove, Func<InstanceId, EphemeralWorkKind, ValueTask>? observer, object visibilityGate, Action<EphemeralInstanceLifetime> onChanged, EphemeralHostLifetime? hostLifetime = null)
+    internal void Initialize(Action remove, Func<InstanceId, EphemeralWorkKind, ValueTask>? observer, EphemeralRetentionCoordinator coordinator)
     {
-        gate = visibilityGate; // Set before the first registry publication.
+        gate = coordinator.Gate; // Set before the first registry publication.
         lock (gate)
         {
-            changed = onChanged;
             if (removeInstance is not null) throw new InvalidOperationException("Lifetime is already initialized.");
             removeInstance = remove;
             completionPending = observer;
-            host = hostLifetime;
+            host = coordinator.HostLifetime;
             provisionalOwner = host?.Own();
             activeOwner = host?.Own();
+            if (coordinator.Track(this)) retention = coordinator;
         }
     }
 
@@ -77,8 +77,10 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         lock (gate)
         {
             if (retired) { lease = null; return false; }
-            checked { pins++; }
+            var nextPins = checked(pins + 1);
             lease = new WorkLease(this, pin: true, hostOwner: host?.Own());
+            pins = nextPins;
+            if (pins == 1) retention?.SetPinned(instanceId, true);
             return true;
         }
     }
@@ -126,6 +128,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         EphemeralHostLifetime.Lease? publication;
         lock (gate)
         {
+            if (retired || host?.IsStopping == true) return false;
             if (!startPending) return accepted;
             if (aborting || callerToken.IsCancellationRequested) return false;
             accepted = true;
@@ -138,7 +141,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         }
         try
         {
-            if (completed is not null) changed?.Invoke(this);
+            if (completed is not null) retention?.Changed(this);
             completed?.TrySetResult();
         }
         finally { publication?.Dispose(); }
@@ -314,13 +317,14 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
     {
         Action[]? cleanup = null;
         TaskCompletionSource? completed;
-        Action<EphemeralInstanceLifetime>? notify;
+        EphemeralRetentionCoordinator? notify;
         lock (gate)
         {
             if (pin)
             {
                 if (pins <= 0) throw new InvalidOperationException("Unbalanced operation pin.");
                 pins--;
+                if (pins == 0) retention?.SetPinned(instanceId, false);
             }
             else
             {
@@ -329,7 +333,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
             }
             completed = owned == 0 ? settled : null;
             CompleteFinalSettlement();
-            notify = changed;
+            notify = retention;
             if (owned == 0 && pins == 0 && !startPending && !accepted && terminal && !retired)
             {
                 retired = true;
@@ -339,7 +343,7 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         if (cleanup is not null) FinishCleanup(cleanup, completed!);
         else
         {
-            notify?.Invoke(this);
+            notify?.Changed(this);
             completed?.TrySetResult();
         }
     }
@@ -350,7 +354,8 @@ internal sealed class EphemeralInstanceLifetime(InstanceId instanceId)
         cleanupOwners.Clear();
         removeInstance = null;
         completionPending = null;
-        changed = null;
+        retention?.Forget(instanceId);
+        retention = null;
         return actions;
     }
 

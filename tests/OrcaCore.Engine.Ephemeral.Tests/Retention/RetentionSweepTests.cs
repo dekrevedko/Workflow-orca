@@ -33,8 +33,7 @@ public sealed class RetentionSweepTests
         void Add(Action cleanup)
         {
             var life = new EphemeralInstanceLifetime(InstanceId.Parse(Guid.NewGuid().ToString()));
-            life.Initialize(cleanup, null, coordinator.Gate, coordinator.Changed);
-            coordinator.Track(life);
+            life.Initialize(cleanup, null, coordinator);
             life.SignalTerminal();
             life.TryAccept(CancellationToken.None).Should().BeTrue();
         }
@@ -69,8 +68,8 @@ public sealed class RetentionSweepTests
             Interlocked.Increment(ref removals);
             entered.TrySetResult();
             release.Wait(TimeSpan.FromSeconds(10)).Should().BeTrue();
-        }, null, coordinator.Gate, coordinator.Changed);
-        coordinator.Track(life); life.SignalTerminal(); life.TryAccept(CancellationToken.None).Should().BeTrue();
+        }, null, coordinator);
+        life.SignalTerminal(); life.TryAccept(CancellationToken.None).Should().BeTrue();
         clock.Ticks = 10;
         var first = Task.Run(clock.Pulse, TestContext.Current.CancellationToken);
         try
@@ -98,12 +97,211 @@ public sealed class RetentionSweepTests
         clock.Timer.Period.Should().Be(Timeout.InfiniteTimeSpan);
     }
 
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void DelayedSettlementSample_UsesCommitOrderForCapacityAndSampleOrderForAge(int capacity)
+    {
+        var clock = new ManualClock { Ticks = 1 };
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(capacity, TimeSpan.FromTicks(10), TimeSpan.FromTicks(1)));
+        clock.GateToCheck = coordinator.Gate;
+        var earlierSample = Accepted(coordinator);
+        var laterSample = Accepted(coordinator);
+        using var earlierWork = earlierSample.Own();
+        using var laterWork = laterSample.Own();
+        earlierSample.SignalTerminal();
+        laterSample.SignalTerminal();
+
+        clock.AfterNextTimestamp = () =>
+        {
+            clock.Ticks = 5;
+            laterWork.Dispose(); // Its settlement ordinal is assigned while the older sample is still returning.
+        };
+        earlierWork.Dispose();
+        laterSample.FinalSettlement.IsCompletedSuccessfully.Should().BeTrue();
+        earlierSample.IsRetired.Should().BeFalse();
+        laterSample.IsRetired.Should().Be(capacity == 1);
+
+        clock.Ticks = 11;
+        clock.Pulse();
+        earlierSample.IsRetired.Should().BeTrue();
+        laterSample.IsRetired.Should().Be(capacity == 1);
+        clock.ReadInsideGate.Should().BeFalse();
+    }
+
+    [Fact]
+    public void SweepSampledBeforeWrap_DoesNotExpireAnInstanceSettledAfterTheSample()
+    {
+        var clock = new ManualClock { Ticks = long.MaxValue - 3 };
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(2, TimeSpan.FromTicks(4), TimeSpan.FromTicks(1)));
+        clock.GateToCheck = coordinator.Gate;
+        var older = Accepted(coordinator);
+        var newer = Accepted(coordinator);
+        older.SignalTerminal();
+        clock.AfterNextTimestamp = () =>
+        {
+            clock.Ticks = long.MinValue + 1;
+            newer.SignalTerminal();
+        };
+        clock.Pulse();
+        newer.FinalSettlement.IsCompletedSuccessfully.Should().BeTrue();
+        older.IsRetired.Should().BeTrue();
+        newer.IsRetired.Should().BeFalse();
+        clock.Ticks += 4;
+        clock.Pulse();
+        newer.IsRetired.Should().BeTrue();
+        clock.ReadInsideGate.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(long.MaxValue - 1L, 3L, TimeSpan.TicksPerSecond + 1L, 3L)]
+    [InlineData(-2L, 3L, TimeSpan.TicksPerSecond + 1L, 3L)]
+    [InlineData(long.MaxValue - 1L, 9_007_199_254_740_993L, TimeSpan.TicksPerSecond, 9_007_199_254_740_992L)]
+    public void ExpiryAcrossTimestampWrap_UsesTheExactFirstDueClockTick(long start, long frequency, long ageTicks, long lastNotDue)
+    {
+        var clock = new ManualClock { Ticks = start, Frequency = frequency };
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(1, TimeSpan.FromTicks(ageTicks), TimeSpan.FromTicks(1)));
+        var life = Accepted(coordinator);
+        var overdue = Accepted(coordinator);
+        overdue.TryPin(out var pin).Should().BeTrue();
+        overdue.SignalTerminal();
+        life.SignalTerminal();
+        clock.Ticks = unchecked(start + lastNotDue);
+        clock.Pulse();
+        life.IsRetired.Should().BeFalse();
+        clock.Ticks++;
+        clock.Pulse();
+        life.IsRetired.Should().BeTrue();
+        clock.Ticks += 2;
+        pin!.Dispose();
+        overdue.IsRetired.Should().BeTrue("an overdue stamp can lie in the high segment of a wrapped expiry interval");
+    }
+
+    [Fact]
+    public void AgeBeyondSignedElapsedRange_StillAllowsCapacityRetirement()
+    {
+        var clock = new ManualClock { Frequency = long.MaxValue };
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(1, TimeSpan.FromSeconds(2), TimeSpan.FromTicks(1)));
+        var older = Accepted(coordinator);
+        older.SignalTerminal();
+        clock.Ticks = long.MaxValue;
+        clock.Pulse();
+        older.IsRetired.Should().BeFalse();
+        var newer = Accepted(coordinator);
+        newer.SignalTerminal();
+        older.IsRetired.Should().BeTrue();
+        newer.IsRetired.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task AcceptingASynchronouslyCompletedStartReadsTheClockOutsideTheAdmissionGate()
+    {
+        var clock = new ManualClock();
+        using var engine = new EphemeralWorkflowEngine(clock, new EphemeralWorkflowEngineOptions
+        {
+            TerminalRetention = new(1, TimeSpan.FromTicks(10), TimeSpan.FromTicks(1))
+        });
+        var definitionId = DefinitionId.New();
+        new EphemeralWorkflowDefinitionRegistry(engine).Register(Workflow.Ephemeral<string>(definitionId, DefinitionVersion.Initial)
+            .Init<string>(input => input).End(state => state.Value).Build()).GetHandleOrThrow();
+        var token = TestContext.Current.CancellationToken;
+        var snapshot = await engine.StartDetachedCoreAsync<string, string>(definitionId, DefinitionVersion.Initial, "complete", token);
+        snapshot.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        var sampled = false;
+        clock.GateToCheck = engine.VisibilityGate;
+        clock.AfterNextTimestamp = () => sampled = true;
+        engine.TryAcceptStart(snapshot.InstanceId, token).Should().BeTrue();
+        sampled.Should().BeTrue();
+        clock.ReadInsideGate.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData(2, 9, false)]
+    [InlineData(2, 10, true)]
+    [InlineData(1, 9, true)]
+    public void LastUnpinRestoresTheOriginalAgeAndOrdinal(int capacity, int unpinTime, bool retiresOnUnpin)
+    {
+        var clock = new ManualClock();
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(capacity, TimeSpan.FromTicks(10), TimeSpan.FromTicks(1)));
+        var oldest = Accepted(coordinator);
+        oldest.TryPin(out var publicationPin).Should().BeTrue();
+        oldest.SignalTerminal();
+        clock.Ticks = 2;
+        publicationPin!.Dispose();
+        oldest.TryPin(out var first).Should().BeTrue();
+        oldest.TryPin(out var last).Should().BeTrue();
+        first!.Dispose();
+
+        clock.Ticks = 5;
+        var newer = Accepted(coordinator);
+        newer.SignalTerminal();
+        oldest.IsRetired.Should().BeFalse();
+        newer.IsRetired.Should().BeFalse();
+        clock.Ticks = unpinTime;
+        last!.Dispose();
+        oldest.IsRetired.Should().Be(retiresOnUnpin);
+        clock.Ticks = 10;
+        clock.Pulse();
+        oldest.IsRetired.Should().BeTrue();
+        newer.IsRetired.Should().BeFalse();
+    }
+
+    [Fact]
+    public void ManualRetirementFreesCapacityBeforeItsCleanupRuns()
+    {
+        var clock = new ManualClock();
+        using var coordinator = new EphemeralRetentionCoordinator(clock, new(2, TimeSpan.FromDays(1), TimeSpan.FromDays(1)));
+        var oldest = Accepted(coordinator);
+        oldest.SignalTerminal();
+        var cleaned = false;
+        var newer = Accepted(coordinator, () =>
+        {
+            Monitor.IsEntered(coordinator.Gate).Should().BeFalse();
+            cleaned = true;
+        });
+        newer.SignalTerminal();
+        var cleanup = newer.SelectRetirement();
+        cleanup.Should().NotBeNull();
+        try
+        {
+            newer.TryPin(out _).Should().BeFalse();
+            var third = Accepted(coordinator);
+            third.SignalTerminal();
+            oldest.IsRetired.Should().BeFalse();
+            third.IsRetired.Should().BeFalse();
+            cleaned.Should().BeFalse();
+        }
+        finally { cleanup!(); }
+        cleaned.Should().BeTrue();
+    }
+
+    private static EphemeralInstanceLifetime Accepted(EphemeralRetentionCoordinator coordinator, Action? cleanup = null)
+    {
+        var life = new EphemeralInstanceLifetime(InstanceId.Parse(Guid.CreateVersion7().ToString()));
+        life.Initialize(cleanup ?? (() => { }), null, coordinator);
+        life.TryAccept(CancellationToken.None).Should().BeTrue();
+        return life;
+    }
+
     private sealed class ManualClock : TimeProvider
     {
         internal long Ticks;
         internal ManualTimer? Timer;
-        public override long GetTimestamp() => Ticks;
-        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        internal long Frequency = TimeSpan.TicksPerSecond;
+        internal Action? AfterNextTimestamp;
+        internal object? GateToCheck;
+        internal bool ReadInsideGate;
+        private void CheckGate() => ReadInsideGate |= GateToCheck is { } gate && Monitor.IsEntered(gate);
+        public override long GetTimestamp()
+        {
+            CheckGate();
+            var sample = Ticks;
+            var after = AfterNextTimestamp;
+            AfterNextTimestamp = null;
+            after?.Invoke();
+            return sample;
+        }
+        public override long TimestampFrequency { get { CheckGate(); return Frequency; } }
         internal void Pulse() => Timer!.Callback();
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
             Timer = new ManualTimer(() => callback(state));
