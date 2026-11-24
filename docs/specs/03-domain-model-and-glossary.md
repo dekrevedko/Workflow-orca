@@ -191,20 +191,20 @@ output. Unnamed completion is represented by absence, not an empty/default name.
 ### Events, waits, correlation
 
 - **Event envelope** — the normalized inbound event shape: `EventId` (dedup identity),
-  `EventName`, `CorrelationId`, payload, timestamps.
-- **`EventName`** — the validated matching contract shared by authored waits, inbound event
-  envelopes, facade routing operations, and active-wait projections. It follows the exact
-  ordinal semantics defined under named matching values.
+  `WorkflowEventContract`, `CorrelationId`, payload, timestamps.
+- **`WorkflowEventContract`** — a descriptor shared by authored waits and inbound events.
+  Its identity consists of an ordinal, case-sensitive `EventName` and a positive numeric
+  `EventContractVersion`. Both must match.
 - **CorrelationId** — first-class request-reply identity: the same value leaves with an
   outbound request and returns on the response event. Not merely a filter.
-- **Wait (wait record)** — engine-owned suspension record: `WaitId`, `EventName`,
+- **Wait (wait record)** — engine-owned suspension record: `WaitId`, `WorkflowEventContract`,
   `CorrelationId`, registration timestamp, branch identity, optional deadline, and
   **WaitStatus** (`Active`, `Matched`, `Cancelled`).
 - **`Wait`** — the only public event-wait node. It is activation-local in ephemeral mode. In
   durable mode its registration and execution position commit before suspension; the runtime
   may evict the activation immediately and rehydrates it on wake-up. Residency is an engine
   optimization, never an author-selected semantic.
-- **Matching rule** — within an instance, events match waits by `EventName` + `CorrelationId`.
+- **Matching rule** — within an instance, events match waits by contract name, contract version, and `CorrelationId`.
 - **Routing modes** — a closed `WorkflowEventRoute` carried by the durable inbound envelope:
   *direct instance*, *correlation*, *definition fanout*, or *start-or-deliver*. Correlation resolves
   one active wait; fanout snapshots the complete current nonterminal target set atomically;
@@ -212,7 +212,7 @@ output. Unnamed completion is represented by absence, not an empty/default name.
 - **Pre-wait delivery** — durable ingress accepts and retains ownership before a matching wait
   exists. A later wait claims the persisted record without source redelivery or a hot instance.
   Ephemeral waits are process-local and make no durable acknowledgement promise.
-- **Signal-stream semantics** — an event/correlation pair identifies a signal stream, not a
+- **Signal-stream semantics** — a versioned event contract and `CorrelationId` together identify a signal stream, not a
   loop-iteration occurrence. After one wait consumes one event, a later iteration may register
   the same pair and consume a later event. Authors that need occurrence-specific matching encode
   the occurrence in `CorrelationId`.
