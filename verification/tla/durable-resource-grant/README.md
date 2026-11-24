@@ -38,12 +38,17 @@ Deploy all grant writers together. Drain old hosts first because earlier writers
 
 ### Other governance coverage
 
-The existing Section 3.11d Infrastructure scenarios `four-post-commit-barriers`,
-`fact-equality-and-ticket-uniqueness`, `confirmation-and-tombstone-accounting`, and
-`creation-versus-current-capacity` failed at repair revision `2ddc2cf4` and again
-during the documentation check with the same errors. These separate certification
-failures remain open. The ten passing cases per SQL provider above cover the named
-rollback and recovery schedules.
+Four Section 3.11d Infrastructure scenarios passed at `13710495` and failed at
+`3e2cb737`. In `four-post-commit-barriers`, `fact-equality-and-ticket-uniqueness`,
+and `confirmation-and-tombstone-accounting`, the workflow wrote its checkpoint to
+a separate in-memory provider. Governance could not see it and rejected admission.
+The fixture now drives the workflow and checks its ticket against the same provider.
+
+In `creation-versus-current-capacity`, each management host now receives the workflow
+event store alongside the shared governance store. The test still creates independent
+hosts to check that resize state survives replacement and incompatible creation options
+are rejected. All four scenarios pass with their original assertions.
+[Certification scenarios](../../../tests/OrcaCore.ProviderCertification/Section7GovernanceScenarioHost.cs)
 
 ## Reproduce
 

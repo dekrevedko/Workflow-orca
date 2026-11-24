@@ -32,7 +32,7 @@ public static class Section7GovernanceScenarioHost
             context.ReleaseBarrier($"four-barriers:{barrier}");
         }
 
-        var facts = await RunOneLeaseAsync(fixture.Pools, gate, "four-barriers");
+        var facts = await RunOneLeaseAsync(fixture, gate, "four-barriers");
         var observed = await context.ObserveAsync(_ =>
             ((IDurableResourceLeaseCertificationGate)gate).OnPostCommitAsync(
                 facts[0],
@@ -74,7 +74,7 @@ public static class Section7GovernanceScenarioHost
         using var provider = InMemoryProviderPorts.Create();
         var store = provider.ResourceGovernanceStore;
         var options = Options(scenario, ("database", 3));
-        using var firstHost = CreateManagementProvider(store, options);
+        using var firstHost = CreateManagementProvider(provider, options);
         var first = firstHost.GetRequiredService<IDurableResourcePoolManagement>();
         var resized = await first.ResizeAsync(
             ResourcePoolName.Create("database"),
@@ -85,7 +85,7 @@ public static class Section7GovernanceScenarioHost
             throw new InvalidOperationException("Initial resize did not commit.");
         }
 
-        using var replacementHost = CreateManagementProvider(store, options);
+        using var replacementHost = CreateManagementProvider(provider, options);
         var replacement = replacementHost.GetRequiredService<IDurableResourcePoolManagement>();
         var current = await replacement.GetAsync(ResourcePoolName.Create("database"));
         if (current.ConfiguredCapacity != 1)
@@ -104,7 +104,7 @@ public static class Section7GovernanceScenarioHost
             "Creation and resize did not occupy one validated serialized stream.");
 
         using var incompatibleHost = CreateManagementProvider(
-            store,
+            provider,
             Options(scenario, ("database", 4)));
         var incompatible = incompatibleHost.GetRequiredService<IDurableResourcePoolManagement>();
         var rejected = false;
@@ -274,7 +274,7 @@ public static class Section7GovernanceScenarioHost
             context.ReleaseBarrier($"fact-equality:{barrier}");
         }
 
-        var facts = await RunOneLeaseAsync(fixture.Pools, gate, "fact-equality");
+        var facts = await RunOneLeaseAsync(fixture, gate, "fact-equality");
         await ObserveGateAsync(context, "fact-equality", facts[^1]);
         var tickets = facts.SelectMany(fact => fact.Tickets).ToArray();
         if (facts.Select(fact => fact.ObligationId).Distinct(StringComparer.Ordinal).Count() != 1 ||
@@ -499,8 +499,6 @@ public static class Section7GovernanceScenarioHost
     {
         const string scenario = "confirmation-tombstone";
         using var fixture = GovernanceFixture.Create(scenario, ("database", 1));
-        using var workflowProvider = InMemoryProviderPorts.Create();
-        var workflowStore = workflowProvider.EventStore;
         var control = new BlockingLeaseControl();
         var publicDefinition = global::OrcaCore.Workflow.Durable<CertificationState>(
                 DefinitionId.New(),
@@ -512,13 +510,13 @@ public static class Section7GovernanceScenarioHost
                 lease => lease.Then<BlockingLeaseStep>())
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(workflowStore, fixture.Pools);
+        var processor = new DurableCommandProcessor(fixture.Events, fixture.Pools);
         var runtime = new DurableWorkflowRuntime(
             processor,
             new DurableDefinitionRegistry(new StepServices(control)),
             TimeProvider.System,
             DurableDriverBudget.Default,
-            workflowProvider.ProjectionStore);
+            fixture.Projections);
         runtime.RegisterDefinition(publicDefinition);
         var running = runtime.StartOrGetAsync<string, CertificationState>(
             scenario,
@@ -530,7 +528,7 @@ public static class Section7GovernanceScenarioHost
             control.Started.Task,
             running,
             "The confirmation-and-tombstone workflow completed before its protected body started.");
-        var projection = (await workflowProvider.ProjectionStore.ListLeaseRecoveryCandidatesAsync(
+        var projection = (await fixture.Projections.ListLeaseRecoveryCandidatesAsync(
             CancellationToken.None)).Single();
         var terminated = await processor.ProcessAsync(
             new TerminateWorkflowCommand
@@ -549,7 +547,7 @@ public static class Section7GovernanceScenarioHost
         _ = await running;
         var recovery = new DurableResourceLeaseRecovery(
             processor,
-            workflowProvider.ProjectionStore,
+            fixture.Projections,
             TimeProvider.System);
         var adapter = new RecoveryAdapter(recovery);
         var token = LeaseProtectionToken.Parse(control.ProtectionToken!);
@@ -583,12 +581,10 @@ public static class Section7GovernanceScenarioHost
     }
 
     private static async Task<IReadOnlyList<DurableResourceLeaseCommitBarrierFact>> RunOneLeaseAsync(
-        IResourcePoolStore pools,
+        GovernanceFixture fixture,
         RecordingCertificationGate gate,
         string key)
     {
-        using var workflowProvider = InMemoryProviderPorts.Create();
-        var workflowStore = workflowProvider.EventStore;
         var publicDefinition = global::OrcaCore.Workflow.Durable<CertificationState>(
                 DefinitionId.New(),
                 DefinitionVersion.Initial)
@@ -599,7 +595,7 @@ public static class Section7GovernanceScenarioHost
                 lease => lease.Then<NoOpStep>())
             .End()
             .Build();
-        var processor = new DurableCommandProcessor(workflowStore, pools)
+        var processor = new DurableCommandProcessor(fixture.Events, fixture.Pools)
         {
             LeaseCertificationGate = gate
         };
@@ -608,7 +604,7 @@ public static class Section7GovernanceScenarioHost
             new DurableDefinitionRegistry(new StepServices()),
             TimeProvider.System,
             DurableDriverBudget.Default,
-            workflowProvider.ProjectionStore);
+            fixture.Projections);
         runtime.RegisterDefinition(publicDefinition);
         _ = await runtime.StartOrGetAsync<string, CertificationState>(
             key,
@@ -778,12 +774,13 @@ public static class Section7GovernanceScenarioHost
         };
 
     private static ServiceProvider CreateManagementProvider(
-        IDurableResourceGovernanceStore store,
+        InMemoryProviderPorts provider,
         DurableResourcePoolOptions options)
     {
         var services = new ServiceCollection();
         services.AddSingleton<IDurableProviderRole>(CertificationProviderRole.Instance);
-        services.AddSingleton(store);
+        services.AddSingleton(provider.ResourceGovernanceStore);
+        services.AddSingleton(provider.EventStore);
         services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
         {
             StructuredExecution = new StructuredExecutionHostOptions
@@ -821,6 +818,8 @@ public static class Section7GovernanceScenarioHost
 
         internal ServiceProvider Provider { get; }
         internal ResourceGovernancePartitionId PartitionId { get; }
+        internal IWorkflowEventStore Events => Provider.GetRequiredService<IWorkflowEventStore>();
+        internal IWorkflowProjectionStore Projections => Provider.GetRequiredService<IWorkflowProjectionStore>();
         internal IResourcePoolStore Pools { get; }
         internal IDurableResourceGovernanceStore Store { get; }
         internal IDurableResourcePoolManagement Management { get; }
