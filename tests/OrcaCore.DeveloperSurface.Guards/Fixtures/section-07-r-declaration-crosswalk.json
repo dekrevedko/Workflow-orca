@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 421,
-    "physicalDeclarations": 1777,
+    "physicalDeclarations": 1778,
     "activeFiles": 265,
-    "activeDeclarations": 1089,
+    "activeDeclarations": 1090,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1839,7 +1839,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/ContinuationOwnershipTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs",

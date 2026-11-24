@@ -40,11 +40,9 @@ internal static partial class DefinitionCompiler
             authoring.CompilerOptions,
             authoring.DetachedAttemptState,
             authoring.WorkflowTimeout);
-        var root = new SequenceNode<TState>("root", BuildNodes(authoring.RootNodes, "root"));
         var definition = new WorkflowDefinition<TState>(
             authoring.DefinitionId,
             authoring.DefinitionVersion,
-            root,
             plan);
         return OrcaCore.Abstractions.Primitives.Validation<WorkflowDefinition<TState>>.Valid(definition);
     }

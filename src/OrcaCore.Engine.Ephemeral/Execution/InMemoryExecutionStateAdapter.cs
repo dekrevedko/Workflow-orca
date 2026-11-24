@@ -18,11 +18,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
     ResourceGovernanceCoordinator governance,
     YieldContinuationScheduler yieldContinuationScheduler,
     Action<EphemeralWorkflowInstanceSnapshot> onSnapshotCommitted,
-    TimeSpan? stuckStepThreshold,
-    int maxPendingEvents,
-    int maxConsumedEventIds,
-    int maxLifecycleEvents,
-    int maxConcurrentExecutionPathsPerInstance,
+    EphemeralWorkflowEngineOptions options,
     IServiceProvider? serviceProvider)
 {
     private StructuredEphemeralValueCodec codec = null!;
@@ -44,6 +40,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(onInitialized);
 
+        if (options.MaxConcurrentExecutionPathsPerInstance <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(options), options.MaxConcurrentExecutionPathsPerInstance,
+                "MaxConcurrentExecutionPathsPerInstance must be positive.");
+        }
+
         var plan = definition.CompiledPlan;
         var init = plan.Instructions[0];
         TState initialState;
@@ -64,9 +66,9 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             definition.DefinitionVersion,
             initialState,
             timeProvider.GetUtcNow(),
-            maxPendingEvents,
-            maxConsumedEventIds,
-            maxLifecycleEvents);
+            options.MaxPendingEventsPerInstance,
+            options.MaxConsumedEventIdsPerInstance,
+            options.MaxLifecycleEventsPerInstance);
         onInitialized(instance);
 
         activeInstance = instance;
@@ -114,10 +116,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 plan,
                 activeExecution ?? throw new InvalidOperationException(
                     "The structured execution state is not initialized."),
-                maxConcurrentExecutionPathsPerInstance);
+                options.MaxConcurrentExecutionPathsPerInstance);
             execution = FiberScheduler.ApplyPathCeiling(
                 execution,
-                maxConcurrentExecutionPathsPerInstance);
+                options.MaxConcurrentExecutionPathsPerInstance);
             activeExecution = execution;
             var selected = FiberScheduler.SelectNext(execution.Scheduler);
             if (selected is null)
@@ -342,10 +344,10 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 plan,
                 activeExecution ?? throw new InvalidOperationException(
                     "The structured execution state is not initialized."),
-                maxConcurrentExecutionPathsPerInstance);
+                options.MaxConcurrentExecutionPathsPerInstance);
             boundaryExecution = FiberScheduler.ApplyPathCeiling(
                 boundaryExecution,
-                maxConcurrentExecutionPathsPerInstance);
+                options.MaxConcurrentExecutionPathsPerInstance);
             activeExecution = boundaryExecution;
             if (!LifecycleMachine.TerminalStatuses.Contains(instance.Status) &&
                 instruction.Kind is
@@ -447,7 +449,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         var forEachItem = ResolveForEachItemContext(state, fiber);
         var stepStartedAt = timeProvider.GetUtcNow();
         instance.StartStep(instruction.Path, stepStartedAt, instruction.Policy.Timeout);
-        using var stuckTimer = stuckStepThreshold is { } threshold
+        using var stuckTimer = options.StuckStepThreshold is { } threshold
             ? timeProvider.CreateTimer(
                 _ =>
                 {
@@ -649,7 +651,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                             fiber.Id,
                             resultPayload: null,
                             failure,
-                            maxConcurrentExecutionPathsPerInstance);
+                            options.MaxConcurrentExecutionPathsPerInstance);
                         state = transition.State;
                         CancelTerminalFiberWaits(state);
                         var updatedScope = state.Scopes[scopeId];
@@ -1009,7 +1011,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                 parent.Id,
                 scopePlan,
                 MaterializeForEachDescriptors(scopePlan, parentState),
-                maxConcurrentExecutionPathsPerInstance).State;
+                options.MaxConcurrentExecutionPathsPerInstance).State;
         }
 
         var materializedInputs = scopePlan.Branches

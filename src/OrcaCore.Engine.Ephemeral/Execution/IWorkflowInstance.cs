@@ -30,8 +30,6 @@ internal interface IWorkflowInstance
 
     EphemeralWorkflowInstanceSnapshot MarkStuckIfNoProgress(DateTimeOffset now, TimeSpan threshold);
 
-    bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation);
-
     CancellationTokenSource CreateLinkedExecutionToken(CancellationToken cancellationToken);
 
     bool IsCancellationRequested { get; }

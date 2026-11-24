@@ -8,12 +8,11 @@ The JSON ledger is authoritative for exact path, exclusion, package, recovery, o
 symbol-inventory, and executable-evidence coordinates. This document explains the reviewed
 dispositions; it does not replace those exact coordinates.
 
-The inventory begins at recovery checkpoint
-`d76192f089dd07f68e310c21fe4e5a38dd93cf7f` and describes production target
-`76d6b4b91456177db44dabd6e7ee519e17ae8d2d`. The deletion inventory is the union of production
-paths present at the recovery checkpoint and at this reviewed target, so later-created bridges cannot
-escape the older baseline. Ledger-only commits after that target do not alter the
-production inventory. Any later change to `src/`, `samples/`, a production `<Compile Remove>`, an
+The inventory compares the working tree with three committed production snapshots. The recovery
+checkpoint is `d76192f089dd07f68e310c21fe4e5a38dd93cf7f`. The intermediate target
+`76d6b4b91456177db44dabd6e7ee519e17ae8d2d` retains 13 deleted bridges and migrations absent
+from both endpoints. The Phase G target `8c5e8998be25a14d3ed357236ef3ecbceacb7a23` supplies
+the pre-removal source for the recursive executor and its in-place members. Any later change to `src/`, `samples/`, a production `<Compile Remove>`, an
 orphaned source root, a retired symbol inventory, or the v1 package manifest must update the ledger
 in the same target or the infrastructure guards fail.
 
@@ -21,8 +20,8 @@ in the same target or the infrastructure guards fail.
 
 | Inventory | Exact count | Enforcement |
 |---|---:|---|
-| Disposition families | 25 | unique family IDs and one closed disposition each |
-| Physically deleted production paths | 134 | union of recovery/target trees compared with the current filesystem |
+| Disposition families | 33 | unique family IDs and one closed disposition each |
+| Physically deleted production paths | 151 | union of the three production trees compared with the current filesystem |
 | Production `<Compile Remove>` entries | 2 | every `src/` and `samples/` project parsed as XML |
 | Orphaned production roots | 0 | source/SQL roots with no project file |
 | Retired/deferred package artifacts | 5 | deleted project identities absent from the exact v1 manifest |
@@ -37,7 +36,7 @@ metadata absence are executable. The ledger pins their field names, counts, orde
 owners, and test methods so they cannot drift independently.
 
 Every declaration contained by a physically deleted `.cs` path inherits that path's one family
-disposition; this is enforced by the exact 134-path recovery/target comparison. The four ordered symbol
+disposition; this is enforced by the exact 151-path comparison. The four ordered symbol
 inventories separately cover public/member and internal removals that are not safely represented by
 file accounting alone, including in-place member removal and forbidden compatibility bridges.
 
@@ -70,6 +69,18 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | ZeroMQ adapter project/package | Remove | application-owned dispatcher adapters | The provisional broker-SDK package and inactive tests are deleted; transport mapping stays outward through `IWorkflowEventDispatcher` and the isolated broker-adapter sample. |
 | Broker-adapter sample source | Replace/relocate | isolated broker-adapter sample project | The parent sample excludes the files because a package-isolated project compiles and tests them. |
 | DAG provider-private framing and transaction sources | Replace/relocate | `src/OrcaCore.Providers.InMemory`, PostgreSQL and SQL Server provider projects | The contract assembly excludes the SDK-free private helper directory; the owning providers explicitly compile the shared sources. The exact links, public API absence and package-source inputs are checked in the Task 2.1 target. This is source ownership, not removed behavior or replacement credit. |
+| Recursive ephemeral entry and dispatch | Replace/relocate | `EphemeralWorkflowEngine` and `InMemoryExecutionStateAdapter` | The engine starts a structured adapter for each instance and executes the compiled plan. |
+| Recursive sequence, conditions and loops | Dead/duplicate | `InMemoryExecutionStateAdapter` and compiled instruction edges | Fiber positions preserve branch selection and resume order through nested loops. |
+| Recursive step result and failure handling | Dead/duplicate | Structured step execution and attempt election | The active engine owns deadlines, physical leases, captured failures and returned-result validation. |
+| Recursive waits, delays and yield registration | Dead/duplicate | Runtime waits and structured suspension and continuation schedulers | Wait delivery and timeouts resume the owning fiber. |
+| Recursive continuation queue and state-access lease | Dead/duplicate | Instance execution lane and structured continuation scheduler | The lane orders the post-turn snapshot and holds instance ownership through settlement. |
+| Recursive parallel join | Dead/duplicate | Structured branch reduction and merge | The scope settles its siblings and applies its ordered merge on success. |
+| Runtime workflow-node tree and root sequence | Replace/relocate | `DefinitionCompiler` and compiled instructions | Authoring lowers directly to executable instructions, including typed Init and End consumed by both engines and durable DAG binding. |
+| Recursive execution pointer and frames | Dead/duplicate | `FiberRecord` and instruction edges | The fiber stores its active instruction position. |
+
+The eight Phase G families cover 17 deleted files and the retired members in five retained files.
+The [Phase G crosswalk](../../../docs/implementation/phase-g/removal.md) maps each family to its
+active owner and behavior tests. The machine ledger supplies per-file Git recovery coordinates.
 
 ## Interpretation rules
 

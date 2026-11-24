@@ -29,7 +29,7 @@ abstraction; container steps (`If`, root `While`, root `Parallel`, root `ForEach
 scopes) contain child steps. Of the conditional/loop/fanout operators, only `If` may nest in v1.
 `While`, `Parallel`, and `ForEach` SHALL be absent from nested, branch, item, and leased builders
 and rejected by the compiler on
-hand-built nested graphs. The interpreter walks the tree uniformly; every nesting/depth
+hand-built nested graphs. The runtime executes the plan compiled from this tree. Every nesting/depth
 limit is an explicit build-time error, never undefined runtime behavior.
 
 ### CR-004 Definition identity and versioning

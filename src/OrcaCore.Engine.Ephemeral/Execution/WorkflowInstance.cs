@@ -30,7 +30,6 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     private readonly int maxLifecycleEvents;
     private readonly int maxPendingEvents;
     private EphemeralActiveStepSnapshot? activeStep;
-    private readonly Queue<Func<CancellationToken, Task>> yieldContinuations = [];
     private bool hasStuckStep;
     private bool isStuck;
     private DateTimeOffset currentStatusEnteredAt;
@@ -164,8 +163,7 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
     internal bool HasUnresolvedRuntimeWork =>
         activeWaits.Count > 0 ||
         pendingEvents.Count > 0 ||
-        activeTimers.Count > 0 ||
-        yieldContinuations.Count > 0;
+        activeTimers.Count > 0;
 
     internal bool HasActiveWait(EventEnvelope envelope)
     {
@@ -805,31 +803,6 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return ToSnapshot();
     }
 
-    internal void ScheduleYield(Func<CancellationToken, Task> continueAsync)
-    {
-        ArgumentNullException.ThrowIfNull(continueAsync);
-
-        if (LifecycleMachine.TerminalStatuses.Contains(Status))
-        {
-            throw new WorkflowLifecycleException(
-                $"Cannot yield workflow instance '{InstanceId}' because status '{Status}' is terminal.");
-        }
-
-        yieldContinuations.Enqueue(continueAsync);
-    }
-
-    internal bool TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation)
-    {
-        if (yieldContinuations.Count == 0)
-        {
-            continuation = null;
-            return false;
-        }
-
-        continuation = yieldContinuations.Dequeue();
-        return true;
-    }
-
     internal CancellationTokenSource CreateLinkedExecutionToken(CancellationToken cancellationToken)
     {
         return CancellationTokenSource.CreateLinkedTokenSource(cancellationSource.Token, cancellationToken);
@@ -859,12 +832,6 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
 
         SignalCancellation();
         return global::OrcaCore.WorkflowCancellationRequestStatus.Requested;
-    }
-
-    internal async ValueTask<IDisposable> EnterStateAccessAsync(CancellationToken cancellationToken)
-    {
-        await stateAccess.WaitAsync(cancellationToken).ConfigureAwait(false);
-        return new StateAccessLease(stateAccess);
     }
 
     internal void SignalCancellation()
@@ -1004,11 +971,6 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         return MarkStuckIfNoProgress(now, threshold);
     }
 
-    bool IWorkflowInstance.TryTakeYieldContinuation(out Func<CancellationToken, Task>? continuation)
-    {
-        return TryTakeYieldContinuation(out continuation);
-    }
-
     CancellationTokenSource IWorkflowInstance.CreateLinkedExecutionToken(CancellationToken cancellationToken)
     {
         return CreateLinkedExecutionToken(cancellationToken);
@@ -1069,7 +1031,6 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
         activeWaits.Clear();
         activeTimers.Clear();
         pendingEvents.Clear();
-        yieldContinuations.Clear();
         activeStep = null;
     }
 
@@ -1116,14 +1077,6 @@ internal sealed class WorkflowInstance<TState> : IWorkflowInstance
             LastActiveAt = LastActiveAt,
             ActiveStep = activeStep
         });
-    }
-
-    private sealed class StateAccessLease(SemaphoreSlim semaphore) : IDisposable
-    {
-        public void Dispose()
-        {
-            semaphore.Release();
-        }
     }
 
     private bool HasConsumedWait(EventEnvelope envelope)

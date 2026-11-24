@@ -17,6 +17,43 @@ public sealed class ContinuationOwnershipTests
     private static readonly WorkflowEventContract Continue = WorkflowEventContract.Create(
         EventName.Create("continuation-ownership"), EventContractVersion.Initial);
 
+    [Fact]
+    public async Task QueuedSnapshotOwnsInstanceAndObservesPrecedingLaneWork()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var instanceId = InstanceId.Parse(Guid.NewGuid().ToString());
+        var instance = new WorkflowInstance<int>(instanceId, DefinitionId.New(), DefinitionVersion.Initial,
+            0, DateTimeOffset.UnixEpoch);
+        instance.Lifetime.TryAccept(token).Should().BeTrue();
+        instance.Lifetime.WhenSettled.IsCompleted.Should().BeTrue();
+
+        var lane = new InstanceExecutionLane();
+        var scheduler = new YieldContinuationScheduler(lane);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var preceding = lane.RunAsync(instanceId, async _ =>
+        {
+            entered.SetResult();
+            await release.Task;
+            instance.Complete("preceding-work", DateTimeOffset.UnixEpoch.AddSeconds(1));
+        }, token);
+        await entered.Task.WaitAsync(Guard, token);
+
+        var snapshot = scheduler.ReadSnapshotOnLaneAsync(instance, instanceId, token);
+        try
+        {
+            snapshot.IsCompleted.Should().BeFalse();
+            instance.Lifetime.WhenSettled.IsCompleted.Should().BeFalse("the queued read owns the instance");
+        }
+        finally { release.TrySetResult(); }
+
+        await preceding.WaitAsync(Guard, token);
+        var observed = await snapshot.WaitAsync(Guard, token);
+        observed.Status.Should().Be(WorkflowInstanceStatus.Completed);
+        observed.EndOutcomeName.Should().Be("preceding-work");
+        await instance.Lifetime.FinalSettlement.WaitAsync(Guard, token);
+    }
+
     public static TheoryData<bool, string, bool> CallbackCases
     {
         get

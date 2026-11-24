@@ -48,7 +48,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>
                 fiber.Id,
                 resultPayload,
                 failure: null,
-                maxConcurrentExecutionPathsPerInstance);
+                options.MaxConcurrentExecutionPathsPerInstance);
             return new BranchTerminalTransition(
                 transition.State,
                 transition.ScopeId,
