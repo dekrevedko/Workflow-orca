@@ -888,6 +888,59 @@ public sealed class StructuredFiberExecutionPublicTests
     }
 
     [Fact]
+    public async Task UnrecognizedReturnedResultRejectsTheStartAndReleasesTheParkedSiblingWait()
+    {
+        using var provider = CreateProvider(services => services.AddSingleton<ForeignResultStep>());
+        var definition = Workflow.Ephemeral<ParentState>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<string>(value => new ParentState(value, []))
+            .Parallel<string>(branches => branches
+                .Branch<BranchState>(AuthoredBranchId.Create("parked"), _ => new BranchState("parked"),
+                    branch => branch.Wait(WorkflowEventContract.Create(Ready, EventContractVersion.Initial), _ => WaitCorrelation)
+                        .Return(state => state.Value.Name))
+                .Branch<BranchState>(AuthoredBranchId.Create("invalid"), _ => new BranchState("invalid"),
+                    branch => branch.Then<ForeignResultStep>().Return(state => state.Value.Name)))
+            .WhenAll((parent, _) => parent.Value)
+            .End()
+            .Build();
+        var token = TestContext.Current.CancellationToken;
+        var handle = Register(provider, definition);
+        var error = await Assert.ThrowsAsync<NotSupportedException>(() =>
+            handle.StartOrGetAsync("foreign", StartIdempotencyKey.Create("foreign"), token).AsTask());
+        Assert.Contains(nameof(ForeignResult), error.Message);
+        Assert.True(provider.GetRequiredService<ForeignResultStep>().ObservedParkedSibling);
+        var engine = provider.GetRequiredService<EphemeralWorkflowEngine>();
+        Assert.Null(engine.FindCorrelationTarget(definition.DefinitionId,
+            WorkflowEventContract.Create(Ready, EventContractVersion.Initial), WaitCorrelation));
+        var released = await new ProcessLocalEventRouter(provider).RouteByCorrelationAsync(definition.DefinitionId,
+            ProcessLocalInboundEvent.Create(EventId.Create("post-rejection"), Ready, WaitCorrelation, DateTimeOffset.UtcNow), token);
+        Assert.Equal(ProcessLocalEventRouteStatus.NoActiveWait, released.Status);
+        Assert.Null(released.InstanceId);
+    }
+
+    // A consumer can derive a record through StepResult's synthesized protected copy constructor.
+    private sealed record ForeignResult : StepResult
+    {
+        public ForeignResult() : base(new StepResult.Completed()) { }
+    }
+
+    private sealed class ForeignResultStep(EphemeralWorkflowEngine engine) : IStep<BranchState>
+    {
+        internal bool ObservedParkedSibling { get; private set; }
+
+        public ValueTask<StepResult> ExecuteAsync(StepContext<BranchState> context, CancellationToken cancellationToken)
+        {
+            var id = context.Execution.WorkflowInstanceId;
+            if (engine.TryGetFacadeInstance(id, out var instance))
+            {
+                var snapshot = instance!.ToSnapshot();
+                ObservedParkedSibling = snapshot.ActiveWaits.Count == 1 && engine.FindCorrelationTarget(
+                    snapshot.DefinitionId, WorkflowEventContract.Create(Ready, EventContractVersion.Initial), WaitCorrelation) == id;
+            }
+            return ValueTask.FromResult<StepResult>(new ForeignResult());
+        }
+    }
+
+    [Fact]
     public async Task FailedBranchWaitsForItsParkedSiblingAndSkipsTheMergeAndContinuation()
     {
         var trace = new ConcurrentQueue<string>();
