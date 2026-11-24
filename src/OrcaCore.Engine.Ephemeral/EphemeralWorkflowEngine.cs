@@ -242,6 +242,18 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 "(RunChild/RunChildren) and cannot be registered on the ephemeral engine.");
         }
 
+        if (plan.Instructions.Count == 0 ||
+            plan.Instructions[0] is not
+            {
+                Kind: global::OrcaCore.Core.Compilation.CompiledInstructionKind.Init,
+                InputType: not null,
+                Operation: Func<object?, TState>
+            })
+        {
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
+                $"Workflow definition '{definition.DefinitionId}' requires a compiled Init instruction.");
+        }
+
         if (definition.Policies.Retry is not null)
         {
             throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(

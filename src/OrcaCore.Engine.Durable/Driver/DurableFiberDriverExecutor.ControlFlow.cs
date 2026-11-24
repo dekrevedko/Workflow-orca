@@ -27,12 +27,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             return await TimeoutBeforeStateAsync().ConfigureAwait(false);
         }
 
-        var init = definition.RootSequence.Children.OfType<InitNode<TState>>().Single();
         object? input = null;
         if (context.Aggregate.StartInputPayload is { } payload &&
             context.Aggregate.StartInputContentType is { } contentType)
         {
-            input = context.Serializer.Deserialize(new SerializedPayload(contentType, payload), init.InputType);
+            var inputType = instruction.InputType ??
+                throw new InvalidOperationException($"Init at '{instruction.Path}' has no input type.");
+            input = context.Serializer.Deserialize(new SerializedPayload(contentType, payload), inputType);
             cancellationToken.ThrowIfCancellationRequested();
             if (DeadlineExpired())
             {
@@ -44,7 +45,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         Exception? failure = null;
         try
         {
-            state = (TState)CoreWorkflowValueCodec.Detach(init.CreateState(input), typeof(TState))!;
+            state = (TState)CoreWorkflowValueCodec.Detach(instruction.CreateInitialState<TState>(input), typeof(TState))!;
         }
         catch (Exception error) when (error is not (OutOfMemoryException or StackOverflowException or AccessViolationException))
         {

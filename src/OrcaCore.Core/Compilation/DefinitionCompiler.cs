@@ -653,7 +653,8 @@ internal static partial class DefinitionCompiler
             switch (node)
             {
                 case SelectedInitAuthoringNode<TState> init:
-                    AddInstruction(instructions, CompiledInstructionKind.Init, nodePath, global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(init.CreateState));
+                    AddInstruction(instructions, CompiledInstructionKind.Init, nodePath,
+                        global::OrcaCore.Core.Execution.StructuredInvocationCache.Bind(init.CreateState), inputType: init.InputType);
                     break;
                 case SelectedStepAuthoringNode<TState> step:
                     AddInstruction(

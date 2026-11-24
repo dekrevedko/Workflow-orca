@@ -24,7 +24,8 @@ internal static partial class DefinitionCompiler
         string? publishPayloadSchemaIdentity = null,
         Delegate? publishPayloadSelector = null,
         global::OrcaCore.ResourceLeaseRequest? staticLeaseRequest = null,
-        Delegate? leaseRequestSelector = null)
+        Delegate? leaseRequestSelector = null,
+        Type? inputType = null)
     {
         var instruction = new CompiledInstruction(
             new InstructionId($"instruction:{path}:{kind}"),
@@ -33,6 +34,7 @@ internal static partial class DefinitionCompiler
             policy ?? CompiledPolicyPlan.Empty)
         {
             Operation = operation,
+            InputType = inputType,
             StepType = stepType,
             OutputType = outputType,
             OutputSchemaIdentity = outputSchemaIdentity,

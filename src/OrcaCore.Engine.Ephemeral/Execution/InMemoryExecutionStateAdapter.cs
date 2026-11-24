@@ -30,7 +30,6 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
     private readonly Dictionary<FiberId, GovernanceLease> grantedStepLeases = [];
     private readonly Dictionary<FiberId, RuntimeWaitRecord> waitsByFiber = [];
     private readonly Dictionary<FiberId, RuntimeTimerRecord> timersByFiber = [];
-    private WorkflowDefinition<TState>? activeDefinition;
     private WorkflowInstance<TState>? activeInstance;
     private CompiledWorkflowPlan? activePlan;
     private StructuredExecutionState? activeExecution;
@@ -45,11 +44,12 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
         ArgumentNullException.ThrowIfNull(definition);
         ArgumentNullException.ThrowIfNull(onInitialized);
 
-        var init = definition.RootSequence.Children.OfType<InitNode<TState>>().Single();
+        var plan = definition.CompiledPlan;
+        var init = plan.Instructions[0];
         TState initialState;
         try
         {
-            initialState = init.CreateState(input);
+            initialState = init.CreateInitialState<TState>(input);
         }
         catch (Exception exception) when (exception is not OperationCanceledException)
         {
@@ -69,9 +69,8 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
             maxLifecycleEvents);
         onInitialized(instance);
 
-        activeDefinition = definition;
         activeInstance = instance;
-        activePlan = (CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition);
+        activePlan = plan;
         codec = new StructuredEphemeralValueCodec();
         activeExecution = StructuredExecutionState.Create(
             instanceId,
@@ -96,8 +95,6 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
 
     private async Task RunUntilBoundaryAsync(CancellationToken cancellationToken)
     {
-        var definition = activeDefinition ??
-            throw new InvalidOperationException("The structured execution session is not initialized.");
         var instance = activeInstance ??
             throw new InvalidOperationException("The structured execution instance is not initialized.");
         var plan = activePlan ??
@@ -310,9 +307,6 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         return;
                     }
 
-                    var end = definition.RootSequence.Children
-                        .OfType<EndNode<TState>>()
-                        .Single(node => node.NodeId == instruction.Path);
                     StructuredSerializedValue? output = null;
                     if (instruction.OutputSelector is { } outputSelector &&
                         instruction.OutputType is { } outputType &&
@@ -322,7 +316,7 @@ internal sealed partial class InMemoryExecutionStateAdapter<TState>(
                         output = codec.Serialize(projected, outputType, outputSchemaIdentity);
                     }
 
-                    var outcomeName = instruction.FixedOutcomeName ?? end.ResolveOutcome(instance.State);
+                    var outcomeName = instruction.ResolveOutcome(instance.State);
                     var completed = FiberReducer.Complete(fiber);
                     var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers)
                     {

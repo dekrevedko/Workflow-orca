@@ -88,13 +88,14 @@ internal sealed class DurableDefinitionRegistry
         ArgumentNullException.ThrowIfNull(definition);
 
         var key = new DurableDefinitionKey(definition.DefinitionId, definition.DefinitionVersion);
-        var initializers = definition.RootSequence.Children.OfType<InitNode<TState>>().Take(2).ToArray();
-        var endings = definition.CompiledPlan.Instructions.Where(instruction => instruction.Kind == CompiledInstructionKind.End).Take(2).ToArray();
-        var fingerprint = ((CompiledWorkflowPlan)WorkflowDefinitionRuntime.GetPlan(definition)).Fingerprint;
+        var plan = definition.CompiledPlan;
+        var initializers = plan.Instructions.Where(instruction => instruction.Kind == CompiledInstructionKind.Init).Take(2).ToArray();
+        var endings = plan.Instructions.Where(instruction => instruction.Kind == CompiledInstructionKind.End).Take(2).ToArray();
+        var fingerprint = plan.Fingerprint;
         // DAG eligibility must not change registration/defense semantics for other
         // workflows (including adversarial runtime-shape certification fixtures).
-        var dagBinding = initializers.Length == 1 && endings.Length == 1
-            ? new DurableDagDefinitionBinding(fingerprint, initializers[0].InputType, endings[0].OutputType,
+        var dagBinding = initializers is [{ InputType: { } inputType }] && endings.Length == 1
+            ? new DurableDagDefinitionBinding(fingerprint, inputType, endings[0].OutputType,
                 endings[0].OutputSchemaIdentity)
             : null;
         var registered = new RegisteredDefinition(

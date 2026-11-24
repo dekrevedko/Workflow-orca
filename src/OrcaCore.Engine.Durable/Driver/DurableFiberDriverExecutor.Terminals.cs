@@ -141,10 +141,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             },
             Scheduler = FiberScheduler.RemoveRunnable(execution.Scheduler, [fiber.Id])
         };
-        var end = definition.RootSequence.Children
-            .OfType<EndNode<TState>>()
-            .Single(node => node.NodeId == instruction.Path);
-        var outcomeName = instruction.FixedOutcomeName ?? end.ResolveOutcome(state);
+        var outcomeName = instruction.ResolveOutcome(state);
         RemoveConsumedObligation(ownedObligations, consumedWaitId);
         var cleanup = RemoveTerminalFiberObligations(execution, ownedObligations);
         var completion = await context.Processor.ProcessAsync(
