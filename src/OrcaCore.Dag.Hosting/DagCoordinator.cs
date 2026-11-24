@@ -174,7 +174,8 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
             lane.Prepared = null; // Resolution or mandatory new-lower-ordinal invalidation.
         if (ready is null)
         {
-            lane.CanSkipUnchanged = full;
+            // A child join that makes a node ready advances the discovered stream version.
+            lane.CanSkipUnchanged = true;
             return;
         }
         if (lane.Prepared is { } candidate)

@@ -20,7 +20,7 @@
     {
       "id": "OrcaCore.Dag.Hosting",
       "project": "src/OrcaCore.Dag.Hosting/OrcaCore.Dag.Hosting.csproj",
-      "sourceSha256": "4c0a4e797d573c588b68b39cecf34cd8dad22ea8d3c3784fa3c4d6695a087a3f"
+      "sourceSha256": "92fd8b866036bbae4aaf068c02dd7f165706bb580bae1ef29b649a90fbb1c98e"
     },
     {
       "id": "OrcaCore.Durable.Hosting",
