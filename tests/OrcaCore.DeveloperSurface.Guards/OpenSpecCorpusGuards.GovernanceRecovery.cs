@@ -92,6 +92,22 @@ public sealed partial class OpenSpecCorpusGuards
         return BeforeAmendmentCanonicalFile(root, path, current, contract, RecoveryProposal);
     }
 
+    internal static string BeforeFifoResizeSynchronization(string root, string current)
+    {
+        const string merge = "85879e23ab58eb9ac82ad9b9fbccf803d18a1e88";
+        const string change = "grant-fifo-waiters-on-pool-upsize";
+        const string deltaPath = "openspec/changes/" + change + "/specs/durable-runtime/spec.md";
+        const string header = "## ADDED Requirements\n\n";
+        var delta = DagFacadeApprovedHistory.TextAt(root, merge, deltaPath);
+        delta.Should().StartWith(header);
+        NormalizeLineEndings(File.ReadAllText(Path.Combine(root, deltaPath))).Should().Be(delta);
+        ValidateTaskReference(root, new(change, "1.1", CompleteTaskState));
+        var predecessor = DagFacadeApprovedHistory.TextAt(root, merge, "openspec/specs/durable-runtime/spec.md");
+        current.Should().Be(predecessor + "\n" + delta[header.Length..],
+            "the FIFO addition must appear verbatim after the canonical text reviewed in PR #35");
+        return predecessor;
+    }
+
     // The grant edit list includes insertions with an empty predecessor. Preserve their exact
     // positions by applying the recovery edits to the reviewed grant files.
     internal static string BeforeScopedGrantAdmission(string root, string path, string current)
@@ -99,6 +115,7 @@ public sealed partial class OpenSpecCorpusGuards
         const string grant = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/";
         if (path == "openspec/specs/durable-runtime/spec.md")
         {
+            current = BeforeFifoResizeSynchronization(root, current);
             var delta = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, grant, "specs/durable-runtime/spec.md")));
             Sha256(delta).Should().Be("3496ce14cd2100eb985f25c9cb56b3a06954e4c9c602753a5b4fb3302395575b");
             var suffix = "\n" + delta["## ADDED Requirements\n\n".Length..];
