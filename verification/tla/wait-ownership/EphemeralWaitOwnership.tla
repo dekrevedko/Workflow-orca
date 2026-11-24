@@ -170,11 +170,12 @@ DualWinner(o) ==
   /\ Fault = "dual-winner" /\ s.phase[o] = "done" /\ s.event[o] # 0 /\ s.wins[o] = 1
   /\ s' = [s EXCEPT !.wins[o] = 2]
 
-Work ==
-  \/ \E o \in Occ : Register(o) \/ AcceptEvent(o) \/ Reject(o) \/ QueueTimer(o) \/ Timer(o) \/ StaleTimer(o) \/ Escape(o) \/ Settle(o) \/ Release(o) \/ DualWinner(o)
-  \/ \E o,n \in Occ : Successor(o,n)
-  \/ \E i \in Instances : Observe(i) \/ Enqueue(i) \/ Deliver(i) \/ Return(i) \/ RequestCancel(i) \/ Cleanup(i)
-  \/ \E i \in Instances, e \in Events, k \in Keys : Lookup(i,e,k)
+ActorWork(i) ==
+  \/ \E o \in {i} \X Slots : Register(o) \/ AcceptEvent(o) \/ Reject(o) \/ QueueTimer(o) \/ Timer(o) \/ StaleTimer(o) \/ Escape(o) \/ Settle(o) \/ Release(o) \/ DualWinner(o)
+  \/ \E o,n \in {i} \X Slots : Successor(o,n)
+  \/ Observe(i) \/ Enqueue(i) \/ Deliver(i) \/ Return(i) \/ RequestCancel(i) \/ Cleanup(i)
+  \/ \E e \in Events, k \in Keys : Lookup(i,e,k)
+Work == \E i \in Instances : ActorWork(i)
 \* A quiet state can wait forever for an external event. Busy continuations are not quiescent.
 Quiescent == (\A i \in Instances : Busy(i) = {} /\ s.queue[i] = <<>> /\ s.route[i] = "idle") /\ UNCHANGED vars
 Next == Work \/ Quiescent
@@ -234,11 +235,13 @@ SingleResolution == Resolutions(s, Occ, Instances, Events)
 ExactRelease == ReleaseIntegrity(s, Occ, Keys, Key)
 RollbackConsistency == RollbackIntegrity(s, Occ)
 KeyAndOccurrenceIsolation == IsolationIntegrity(s, Occ, Key)
-ConditionalSettlement ==
-  /\ \A o \in Occ : (s.phase[o] \in {"event","accepted","timer","settled"}) ~> (s.phase[o] \notin {"event","accepted","timer","settled"})
-  /\ \A i \in Instances : s.cancel[i] ~> Live(i) = {}
+SettlementOf(i) ==
+  /\ \A o \in {i} \X Slots : (o \in Busy(i)) ~> (o \notin Busy(i))
+  /\ s.cancel[i] ~> Live(i) = {}
+ConditionalSettlement == \A i \in Instances : SettlementOf(i)
 HandoverSettlement == \A o \in Occ : (o \in Busy(1)) ~> (o \notin Busy(1))
-ConditionalReuse == \A o \in Occ : (<>[](Available(o) /\ Busy(o[1]) = {})) => <> (s.phase[o] # "new")
+ReuseOf(i) == \A o \in {i} \X Slots : (<>[](Available(o) /\ Busy(o[1]) = {})) => <> (s.phase[o] # "new")
+ConditionalReuse == \A i \in Instances : ReuseOf(i)
 NotWitness == ~s.seen
 NotControlComplete == s.phase[<<1,1>>] # "done"
 =============================================================================

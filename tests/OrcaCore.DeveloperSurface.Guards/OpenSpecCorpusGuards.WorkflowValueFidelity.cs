@@ -145,6 +145,12 @@ public sealed partial class OpenSpecCorpusGuards
         {
             // Validate the reviewed status refresh before checking its parent against earlier approvals.
             const string statusRefresh = "80495420c75e762f2841c450e55f4b2eac73c9f1";
+            const string beforeQualification = "80a6a922450a328d3d065fdc400474d7eae9cf94";
+            var qualifiedHash = path == "README.md"
+                ? "52177a41dcae989a98916a771cf6ec6248b99b72d26c961f0bef136a77c0fece"
+                : "272481d0af594537d06f5098cb1bef5f0df62590119087ccc07d2e1d040054a9";
+            Sha256(current).Should().Be(qualifiedHash, "the wait-ownership status update is review-pinned");
+            current = DagFacadeApprovedHistory.TextAt(root, beforeQualification, path);
             current.Should().Be(DagFacadeApprovedHistory.TextAt(root, statusRefresh, path));
             current = DagFacadeApprovedHistory.TextAt(root, statusRefresh + "^", path);
         }

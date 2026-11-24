@@ -9,20 +9,20 @@ This development-only pilot checks a finite model of OrcaCore's ephemeral correl
 From the repository root with PowerShell 7:
 
 ```powershell
-./scripts/verification/Invoke-WaitOwnershipModelCheck.ps1
+./scripts/verification/Invoke-WaitOwnershipModelCheck.ps1 -Profile @('Handover*','Mutant-*','Control-*','Witness-*')
 ./scripts/verification/Test-WaitOwnershipRunner.ps1
 dotnet test tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj -c Release
 ```
 
 The runner downloads checksum-pinned TLC 1.7.4 and Temurin JRE 21.0.9+10 into the ignored `.codex-run/tla-tools/` directory. It makes no machine-wide Java installation, registry, PATH, NuGet, or runtime-package change. Windows/Linux x64 are pinned; local validation was on Windows. The adopted workflow uses this private runtime locally and in CI.
 
-Select profiles from an existing PowerShell session:
+Use the [full-bound commands](full-bound-results.md#reproduce) for the twelve normal searches. To reproduce an original joint search or select diagnostic controls:
 
 ```powershell
 ./scripts/verification/Invoke-WaitOwnershipModelCheck.ps1 -Profile @('SafetySmall','Mutant-*')
 ```
 
-Default limits are one worker, 1 GiB heap, and 300 seconds per profile. A deterministic TLC seed/fingerprint polynomial makes counterexample output easier to compare. The CI job has a 15-minute overall budget and retains evidence on failure. It does not alter branch protection.
+The original runner defaults to one worker, 1 GiB heap, and 300 seconds per profile. A deterministic TLC seed/fingerprint polynomial makes counterexample output easier to compare. The focused CI job has a 15-minute overall budget and retains evidence on failure. It does not alter branch protection.
 
 ## Files and outcomes
 
@@ -43,7 +43,7 @@ Exit code 0 means all selected profiles met their declared expectations; it does
 
 An authored event wait consumes its event on the instance lane when its continuation takes ownership. The structured adapter verifies the exact blocked wait, installs the envelope, and enqueues the fiber before executing the next instruction. The original correlation reservation survives the turn. Caller cancellation before admission leaves A eligible. After acceptance, the instance drives the continuation to its next boundary and returns a routing receipt. Instance cancellation and host stopping still apply.
 
-`AcceptEvent` records successful resolution before `Successor` can make B active. `HandoverOrder` forbids a new active wait while its predecessor event is still uncommitted. The uncommitted-successor mutation violates that property. The two focused profiles start with one matched wait and explore retries, duplicates, fresh delivery, a successor, and a competing registration. Both finished with 5,025 distinct states. The six original broad profiles reached their 300-second limit. Full-bound qualification remains open.
+`AcceptEvent` records successful resolution before `Successor` can make B active. `HandoverOrder` forbids a new active wait while its predecessor event is still uncommitted. The uncommitted-successor mutation violates that property. The two focused profiles start with one matched wait and explore retries, duplicates, fresh delivery, a successor, and a competing registration. Both finished with 5,025 distinct states. The six original joint searches reached their 300-second limit. All twelve compositional searches passed at the same bounds. [Full-bound qualification and reproduction](full-bound-results.md)
 
 The [pilot report](verification-report.md) and [crosswalk](crosswalk.md) describe the failing baseline. The current same-key and cross-key schedules and the throwing-predicate regression are in [WaitOwnershipModelTests.cs](../../../tests/OrcaCore.Engine.Ephemeral.Tests/Execution/WaitOwnershipModelTests.cs).
 
