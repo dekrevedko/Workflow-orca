@@ -19,11 +19,12 @@ identities, or continuation details.
 full cycle: outbound request carries it, the external system echoes it, the response event
 matches on it. APIs and docs SHALL use the name `CorrelationId` consistently.
 
-### EV-003 EventName is one exact matching contract
+### EV-003 Exact event contract identity
 Authoring, `StepResult.WaitForEvent`, event envelopes, application routing operations,
-correlation indexes, and active-wait projections SHALL use `EventName`, not interchangeable
-raw strings. `EventName.Create(string)` construction and matching use the glossary's exact ordinal,
-case-sensitive, no-trimming semantics. Providers SHALL certify equivalent lookup behavior
+correlation indexes, and active-wait projections SHALL use `WorkflowEventContract`. Its identity
+consists of `EventName` and `EventContractVersion`. Names use exact ordinal, case-sensitive
+equality and versions must have the same positive integer value. `EventName.Create(string)`
+rejects leading or trailing whitespace. Providers SHALL certify equivalent lookup behavior
 regardless of database collation. No implicit string conversion or parallel raw-string
 overload is permitted.
 
@@ -33,7 +34,7 @@ overload is permitted.
 `IWorkflowEventIngress` SHALL accept exactly four route variants:
 
 1. **Direct** — one `InstanceId`;
-2. **Correlation** — one `(DefinitionId, EventName, CorrelationId)` wait route;
+2. **Correlation** — one `(DefinitionId, WorkflowEventContract, CorrelationId)` wait route;
 3. **Definition fanout** — the complete current persisted nonterminal target set for one
    `DefinitionId`, snapshotted atomically on first acceptance and reused on redelivery;
 4. **Start-or-deliver** — exact `DefinitionId`, `DefinitionVersion`, `StartIdempotencyKey`, and
@@ -45,8 +46,8 @@ before any inbox ownership is created.
 
 ### EV-011 Correlation index
 The engine SHALL maintain a unique correlation index over active waits keyed by
-`(DefinitionId, EventName, CorrelationId)`. Registration of a second active wait for that key,
-including a second same-pair wait within one instance, SHALL fail deterministically with
+`(DefinitionId, WorkflowEventContract, CorrelationId)`. Registration of a second active wait for that key,
+including a second wait for the same key within one instance, SHALL fail deterministically with
 `AmbiguousWaitRegistrationException` before parking or changing the index. The index is updated
 on wait registration, match, and cancellation. In durable mode it SHALL be derivable from
 durable state, never dependent on hot memory for correctness.
@@ -60,7 +61,7 @@ provider record, wait occurrence, fiber, scope, or continuation identity. Only `
 `Duplicate` mean OrcaCore owns the event and allow an external source to acknowledge it.
 
 ### EV-013 Runtime keyed lookup; public bulk retrieval is deferred
-Correlation routing SHALL use the runtime-owned key `(DefinitionId, EventName, CorrelationId)`
+Correlation routing SHALL use the runtime-owned key `(DefinitionId, WorkflowEventContract, CorrelationId)`
 and SHALL NOT scan application-visible instance collections. This is an internal routing/index
 requirement, not a public instance-enumeration or bulk-query promise. Public list/filter/count,
 multi-ID retrieval, and bulk management remain deferred with no v1 member or placeholder.
@@ -68,14 +69,14 @@ multi-ID retrieval, and bulk management remain deferred with no v1 member or pla
 ## 5.3 Matching (how events match waits within an instance)
 
 ### EV-020 Matching rule
-Within an instance, an event matches a wait iff `EventName` and `CorrelationId` both match an
-`Active` wait record. `EventName` equality is exact ordinal and `CorrelationId` follows its
-own value-type equality; no participant trims, case-folds, or culture-normalizes either value.
+Within an instance, an event matches an `Active` wait if and only if the contract name, contract
+version, and `CorrelationId` all match. Contract equality follows EV-003 and `CorrelationId`
+uses its own exact value equality.
 Additional dimensions (payload predicates) MAY be added later without breaking this rule.
 
 ### EV-021 Wait records
 Entering a wait SHALL create a runtime-owned wait record with at least: `WaitId`,
-`EventName`, `CorrelationId`, registration timestamp, branch identity when inside parallel
+`WorkflowEventContract`, `CorrelationId`, registration timestamp, branch identity when inside parallel
 execution, optional timeout deadline, and `WaitStatus`
 (`Active`/`Matched`/`Cancelled`). Durable residency is not authored or recorded as workflow
 meaning. Wait records SHALL be inspectable while active.
@@ -131,7 +132,7 @@ until a matching wait claims them. This is not a promise to replay arbitrary his
 or broker traffic. Ephemeral waits remain process-local.
 
 ### EV-043 Repeated pairs have signal-stream semantics
-Each loop iteration creates a fresh `WaitId`, but `(EventName, CorrelationId)` identifies a
+Each loop iteration creates a fresh `WaitId`, but `(WorkflowEventContract, CorrelationId)` identifies a
 signal stream rather than an iteration occurrence. After one event consumes the active wait, a
 later iteration MAY register the same pair and a later-arriving event MAY satisfy it. OrcaCore
 does not claim that an envelope without a wait-occurrence identity can distinguish iterations;
@@ -145,10 +146,10 @@ workflow deadline, termination, or another owning-scope terminal transition, mov
 Unresolved waits at completion follow CR-032.
 
 ### EV-045 Static and dynamic wait authoring
-Structural `Wait(EventName, ...)` SHALL be the preferred authoring form when the event name is
+Structural `Wait(eventContract, ...)` SHALL be the preferred authoring form when the event contract is
 known while the definition is built because it permits structural validation and precise
-authored-location diagnostics. Portable `StepResult.WaitForEvent(EventName, ...)` remains available in both
-engines only for an event name or correlation selected after business-step execution. Both
+authored-location diagnostics. Portable `StepResult.WaitForEvent(eventContract, ...)` remains available in both
+engines only for an event contract or correlation selected after business-step execution. Both
 forms lower to the same exactly owned wait obligation and durable cold-capable residency.
 
 ## 5.6 Timers and time-based waiting

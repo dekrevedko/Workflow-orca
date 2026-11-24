@@ -176,8 +176,9 @@ Closed are distinct from later Stopping cancellation/join.
   [EV-021, EV-040]
 - **AC-102** *Matching event resumes exactly once* — A matching event resumes from the wait
   point once, with the payload available to the next step. [EV-022, EV-023]
-- **AC-103** *Non-matching event does not resume* — Wrong `EventName` or `CorrelationId`
-  leaves the instance waiting. [EV-020]
+- **AC-103** *Non-matching event does not resume* — A different contract name, contract version, or
+  `CorrelationId` leaves the wait active. With the same correlation ID, an `Approval` v1 event
+  cannot resume an `Approval` v2 wait. [EV-020]
 - **AC-104** *Durable pre-wait event is retained* — **[provider]** Direct or correlation ingress
   accepted before its matching wait persists, survives host replacement, and is claimed by the
   later wait without broker redelivery. Ephemeral waits make no durable acknowledgement promise.
@@ -188,15 +189,15 @@ Closed are distinct from later Stopping cancellation/join.
 - **AC-106** *Correlation routing resumes exactly one* — With multiple waiting instances on
   distinct correlations, a correlation route resumes only the unique match. [EV-010/011]
 - **AC-107** *Ambiguous wait registration is rejected* — A second active registration for
-  `(DefinitionId, EventName, CorrelationId)`, including inside one instance, throws
+  `(DefinitionId, WorkflowEventContract, CorrelationId)`, including inside one instance, throws
   `AmbiguousWaitRegistrationException` before parking or changing the index. [EV-011]
 - **AC-108** *Definition fanout has stable membership* — **[provider]** First acceptance snapshots
   the complete current nonterminal persisted target set atomically; empty is valid, later instances
   are excluded, redelivery reuses the set, and every target progresses or poisons independently.
   [EV-010/030/031]
 - **AC-109** *Loop waits are a signal stream* — Each `While` iteration gets a fresh `WaitId`;
-  after one event consumes the active wait, a later iteration may reuse the pair and consume a
-  later event. Occurrence-specific authors encode the occurrence in `CorrelationId`. [EV-043]
+  after one event consumes the active wait, a later iteration may reuse the same contract name, version,
+  and correlation ID and consume a later event. Occurrence-specific authors encode the occurrence in `CorrelationId`. [EV-043]
 - **AC-110** *Parallel waits isolated by branch* — With different waits in branches of one root
   `Parallel`, one matching event resumes only its branch. [EV-021, CP-001]
 - **AC-111** *Timer completes after due time* — A delay/timer step continues the workflow

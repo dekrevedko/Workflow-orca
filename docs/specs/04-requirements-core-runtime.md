@@ -137,7 +137,7 @@ return results; they never drive their own sequencing.
 ### CR-011 Step results carry control intent only
 Step outcomes SHALL be expressed through an immutable result object (closed set, exhaustively
 handled by the runtime): at minimum `Completed`, `Failed(error)`,
-and `WaitForEvent(EventName, correlationId)`. The dynamic wait result exists only for a
+and `WaitForEvent(eventContract, correlationId)`. The dynamic wait result exists only for a
 business step that must select its event or correlation after it runs; structural `Wait` is
   preferred. Results SHALL NOT carry business-state mutations. Every attempt receives a
   fixed-codec-detached copy of the last committed root/branch/item state. Mutable state may be

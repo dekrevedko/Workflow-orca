@@ -20,7 +20,7 @@ filter/count, or bulk mutation.
 `WorkflowInstanceHandle.GetSnapshotAsync` SHALL return `WorkflowInstanceSnapshot` with instance,
 mode, definition identity/version/structural fingerprint, exact `WorkflowInstanceStatus`,
 timestamps, optional fixed outcome/failure, and all `ActiveWaitSnapshot` values. Wait snapshots
-carry `WaitId`, `AuthoredLocation`, `EventName`, `CorrelationId`, registration time, and optional
+carry `WaitId`, `AuthoredLocation`, the event contract (name and version), `CorrelationId`, registration time, and optional
 deadline. A terminal workflow timeout is represented by the instance `Status` and `Failure`; an
 active structural wait deadline is represented only by its `ActiveWaitSnapshot`. The v1
 application snapshot intentionally omits the absolute workflow deadline and active step-attempt
