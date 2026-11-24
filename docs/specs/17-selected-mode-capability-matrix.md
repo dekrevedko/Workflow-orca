@@ -3199,8 +3199,8 @@ callback-only ingress host persists the same ownership/handoff without loading a
 definition-owning pumps materialize or rehydrate exact bound work. Post-acceptance semantic failures
 become observable poison rather than retroactive broker redelivery.
 
-Event/correlation pairs have signal-stream semantics. After one wait consumes an event, a later
-loop iteration may register the same pair and a later-arriving event may satisfy it. OrcaCore does
+A contract name, contract version, and correlation ID identify a signal stream. After one wait consumes an event, a later
+loop iteration may register the same key and a later-arriving event may satisfy it. OrcaCore does
 not claim that an envelope without a wait-occurrence identity can distinguish iterations; authors
 that require occurrence-specific matching include that occurrence in `CorrelationId`. Delivery
 contains no raw command, fiber, scope, provider-generation, checkpoint, or wait-sequence identity.

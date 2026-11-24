@@ -136,8 +136,8 @@ correlation route. `Accepted` or `Duplicate` means OrcaCore owns the event and t
 acknowledge its source. Acceptance before the target wait exists persists the event for later claim;
 it does not require broker redelivery or a hot workflow instance. Global `EventId` identity checks
 the full normalized envelope before routing, and changed content conflicts. Correlation routing
-matches exactly one active wait by `(DefinitionId, EventName, CorrelationId)`; a second active wait
-for that key fails before parking. The companion must use occurrence-specific correlation values
+matches exactly one active wait by `(DefinitionId, WorkflowEventContract, CorrelationId)`; a second active wait
+for that key fails before parking. Both contract name and version must match. The companion must use occurrence-specific correlation values
 when a loop can have more than one concurrent logical wait. Definition fanout is also a current
 durable route, but the one-job watcher normally uses correlation routing.
 

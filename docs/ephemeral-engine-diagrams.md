@@ -88,7 +88,7 @@ sequenceDiagram
     participant W as Process-local wait registry
     participant I as Durable IWorkflowEventIngress
     participant D as Durable inbox/continuation
-    E->>W: Register EventName + CorrelationId
+    E->>W: Register contract name + version + CorrelationId
     E-->>E: Park and release execution path
     Note over E,W: Ephemeral wait has no durable acknowledgement promise
     I->>D: Accept direct/correlation/fanout/start-or-deliver event
