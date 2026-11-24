@@ -25,7 +25,7 @@
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "6158a4aae9ae0158e53567b29e58ad813d2d44d48fbba33b9a4f8b1342f60f14"
+      "sourceSha256": "57daa7e9e3843699ca11613e103c2244dee8da97ea4ee250ea73893eab0bea48"
     },
     {
       "id": "OrcaCore.Engine.Durable",

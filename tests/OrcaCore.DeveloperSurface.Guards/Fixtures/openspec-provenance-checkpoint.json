@@ -1,11 +1,18 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 248,
-  "recordBytes": 66232,
-  "recordSha256": "34ea4f36cc6ed7b2dbb68b1a0b82a0c2f0c1e03cbabb716c5319124510755d14",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 249,
+  "recordBytes": 66440,
+  "recordSha256": "8568ab2a2395488ba55f785c0e209a1253d0f8a313ff9d379085798ee8fe8b98",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "durable-runtime",
+      "count": 1,
+      "turnsGreenChange": "grant-fifo-waiters-on-pool-upsize",
+      "turnsGreenTask": "1.1"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -178,11 +185,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 56,
-  "capabilityDirectoryBytes": 4501,
-  "capabilityDirectorySha256": "27920fd1ae4d4c44f5f8cc763b42e035c594fe2330da531f101d239d09712134",
-  "artifactPath": "openspec/changes/recover-latest-governance-state/artifacts/sync-openspec-provenance-2026-11-23.md",
-  "artifactNormalizedSha256": "9d5fc496a3bf9133409cd14009fe05ef7d39da8494264a2342f7176270a22986",
+  "capabilityDirectoryCount": 57,
+  "capabilityDirectoryBytes": 4575,
+  "capabilityDirectorySha256": "d91e85497acfd7e1f3c4e2be03baf37381da586542b43d27f26e9d7b8cb07ef0",
+  "artifactPath": "openspec/changes/grant-fifo-waiters-on-pool-upsize/artifacts/proposed-openspec-provenance-2026-11-23.md",
+  "artifactNormalizedSha256": "29a2392456bd07224c4b997623c107fe7cd0a09c2c9e77c5dd9b6531396e69c8",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",

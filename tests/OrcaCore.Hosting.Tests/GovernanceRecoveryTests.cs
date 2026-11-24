@@ -22,6 +22,33 @@ public sealed class GovernanceRecoveryTests
     private readonly CancellationToken token = TestContext.Current.CancellationToken;
 
     [Fact]
+    public async Task LegacyResizeIdentityReplaysFromTheLatestHeadAndACorruptReceiptFailsClosed()
+    {
+        using var services = new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().BuildServiceProvider();
+        var store = services.GetRequiredService<IDurableResourceGovernanceStore>();
+        var management = new DurableResourcePoolManagement(new HeadOnlyStore(store), Options);
+        var id = ResourcePoolOperationId.Create("resize");
+        var applied = await management.ResizeAsync(Pool, 2, id, token);
+        var head = await store.LoadLatestAsync(Options.PartitionId, token);
+        var envelope = JsonNode.Parse(head.Record!.Payload.Span)!;
+        var operation = envelope["State"]!["ResizeOperations"]![0]!.AsObject();
+        var receipt = operation["Snapshot"]!.DeepClone();
+        Assert.True(operation.Remove("Snapshot"));
+        var legacy = Record(head.Version + 1, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(envelope));
+        await store.AppendAsync(Options.PartitionId, head.Version, [legacy], token);
+        var restarted = new DurableResourcePoolManagement(new HeadOnlyStore(store), Options);
+        Assert.Equal(applied, await restarted.ResizeAsync(Pool, 2, id, token));
+        Assert.Equal(head.Version + 1, (await store.LoadLatestAsync(Options.PartitionId, token)).Version);
+
+        receipt["ConfiguredCapacity"] = 17;
+        operation["Snapshot"] = receipt;
+        var damaged = Record(head.Version + 2, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(envelope));
+        await store.AppendAsync(Options.PartitionId, head.Version + 1, [damaged], token);
+        await Assert.ThrowsAsync<InvalidOperationException>(() => restarted.ResizeAsync(Pool, 2, id, token).AsTask());
+        Assert.Equal(head.Version + 2, (await store.LoadLatestAsync(Options.PartitionId, token)).Version);
+    }
+
+    [Fact]
     public async Task RestartUsesLatestStateAndRetainsResizeIdentityDespiteAnUnreadableEarlierEnvelope()
     {
         using var services = new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().BuildServiceProvider();
