@@ -1,4 +1,5 @@
 using System.Security.Cryptography;
+using System.Runtime.InteropServices;
 using System.Text;
 using AwesomeAssertions;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
@@ -15,7 +16,7 @@ public abstract class ResourceGovernanceStoreCertificationTests
     public async Task AppendAsync_CommitsWholeOrderedBatch_OrReturnsConflictWithoutPartialAppend()
     {
         var store = CreateStore();
-        var partition = ResourceGovernancePartitionId.Create("default");
+        var partition = ResourceGovernancePartitionId.Create("ordered-batch");
         var first = Record(1, "first");
         var second = Record(2, "second");
 
@@ -42,7 +43,7 @@ public abstract class ResourceGovernanceStoreCertificationTests
     public async Task AppendAsync_RejectsEmptyNonconsecutiveOrMutableBatchesBeforeMutation()
     {
         var store = CreateStore();
-        var partition = ResourceGovernancePartitionId.Create("default");
+        var partition = ResourceGovernancePartitionId.Create("invalid-batch");
         var records = new[] { Record(1, "one") };
         await store.AppendAsync(partition, 0, records, TestContext.Current.CancellationToken);
         records[0] = Record(1, "mutated");
@@ -64,7 +65,66 @@ public abstract class ResourceGovernanceStoreCertificationTests
         Encoding.UTF8.GetString(loaded.Records.Single().Payload.Span).Should().Be("one");
     }
 
-    internal static ResourceGovernanceRecord Record(long sequence, string payload)
+    [Fact]
+    public async Task LatestHeadIsPartitionSpecificAndFencesTheNextAppendWithoutDiscardingHistory()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var store = CreateStore();
+        var partition = ResourceGovernancePartitionId.Create("head");
+        var other = ResourceGovernancePartitionId.Create("Head");
+        await store.AppendAsync(other, 0, [Record(1, "other partition")], token);
+
+        var empty = await store.LoadLatestAsync(partition, token);
+        Assert.Equal(partition, empty.PartitionId);
+        Assert.Equal(0, empty.Version);
+        Assert.Null(empty.Record);
+
+        var original = Record(2, "second");
+        Assert.Equal(new ResourceGovernanceAppendResult.Committed(2),
+            await store.AppendAsync(partition, empty.Version, [Record(1, "first"), original], token));
+        var middle = await store.LoadLatestAsync(partition, token);
+        Assert.Equal(partition, middle.PartitionId);
+        Assert.Equal(2, middle.Version);
+        Assert.Equal(middle.Version, middle.Record!.Sequence);
+        Assert.Equal(original.FormatId, middle.Record.FormatId);
+        Assert.Equal(original.Checksum, middle.Record.Checksum);
+        Assert.Equal("second", Encoding.UTF8.GetString(middle.Record.Payload.Span));
+
+        // A head, an audited record, and a caller-owned append argument must all be
+        // detached from provider storage, including when their memory is array-backed.
+        ChangeExposedArray(original.Payload);
+        ChangeExposedArray(middle.Record.Payload);
+        var audit = await store.LoadAsync(partition, token);
+        Assert.Equal("second", Encoding.UTF8.GetString(audit.Records[1].Payload.Span));
+        ChangeExposedArray(audit.Records[1].Payload);
+
+        Assert.Equal(new ResourceGovernanceAppendResult.Committed(3),
+            await store.AppendAsync(partition, middle.Version, [Record(3, "winner")], token));
+        Assert.Equal(new ResourceGovernanceAppendResult.Conflict(3),
+            await store.AppendAsync(partition, middle.Version, [Record(3, "stale")], token));
+        var head = await store.LoadLatestAsync(partition, token);
+        var history = await store.LoadAsync(partition, token);
+        Assert.Equal(3, head.Version);
+        Assert.Equal(history.Version, head.Version);
+        Assert.Equal(head.Version, head.Record!.Sequence);
+        Assert.Equal("winner", Encoding.UTF8.GetString(head.Record.Payload.Span));
+        Assert.Equal(["first", "second", "winner"],
+            history.Records.Select(record => Encoding.UTF8.GetString(record.Payload.Span)));
+        var independent = await store.LoadLatestAsync(other, token);
+        Assert.Equal(other, independent.PartitionId);
+        Assert.Equal(1, independent.Version);
+        Assert.Equal("other partition", Encoding.UTF8.GetString(independent.Record!.Payload.Span));
+    }
+
+    private static void ChangeExposedArray(ReadOnlyMemory<byte> bytes)
+    {
+        if (MemoryMarshal.TryGetArray(bytes, out var backing))
+        {
+            backing.Array![backing.Offset] = (byte)'X';
+        }
+    }
+
+    protected internal static ResourceGovernanceRecord Record(long sequence, string payload)
     {
         var bytes = Encoding.UTF8.GetBytes(payload);
         var checksum = Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
@@ -85,6 +145,18 @@ public sealed class InMemoryResourceGovernanceStoreCertificationTests
 
 public sealed class ResourceGovernanceValueTests
 {
+    [Fact]
+    public void HeadRequiresExactAgreementBetweenPartitionVersionAndLastRecord()
+    {
+        var partition = ResourceGovernancePartitionId.Create("head-shape");
+        var first = ResourceGovernanceStoreCertificationTests.Record(1, "first");
+        Assert.ThrowsAny<ArgumentException>(() => ResourceGovernanceHead.Create(null!, 0, null));
+        Assert.ThrowsAny<ArgumentException>(() => ResourceGovernanceHead.Create(partition, -1, null));
+        Assert.ThrowsAny<ArgumentException>(() => ResourceGovernanceHead.Create(partition, 0, first));
+        Assert.ThrowsAny<ArgumentException>(() => ResourceGovernanceHead.Create(partition, 3, null));
+        Assert.ThrowsAny<ArgumentException>(() => ResourceGovernanceHead.Create(partition, 2, first));
+    }
+
     [Fact]
     public void Record_ValidatesAndDefensivelyCopiesPayload()
     {

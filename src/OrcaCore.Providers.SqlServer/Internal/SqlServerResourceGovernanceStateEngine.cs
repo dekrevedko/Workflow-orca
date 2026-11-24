@@ -1,10 +1,10 @@
-using OrcaCore.Provider.Abstractions.ResourceGovernance;
+using System.Text.Json.Serialization;
 using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Providers.SqlServer.Internal;
 
 /// <summary>Applies resource-governance transitions to one transactionally loaded SQL Server state document.</summary>
-internal sealed class SqlServerResourceGovernanceStateEngine : IDurableResourceGovernanceStore
+internal sealed class SqlServerResourceGovernanceStateEngine
 {
     private readonly Lock gate = new();
     private readonly Dictionary<string, List<ResourceGovernanceRecord>> streams =
@@ -19,6 +19,10 @@ internal sealed class SqlServerResourceGovernanceStateEngine : IDurableResourceG
         ArgumentNullException.ThrowIfNull(snapshot);
         foreach (var stream in snapshot.Streams)
         {
+            // Legacy snapshots implicitly committed the array length as the stream version.
+            if (stream.Version != stream.Records.Count)
+                throw new InvalidDataException($"Governance partition '{stream.PartitionId}' declares version {stream.Version} with {stream.Records.Count} records.");
+            _ = ResourceGovernanceStream.Create(stream.Records.Count, stream.Records);
             streams.Add(stream.PartitionId, stream.Records.ToList());
         }
     }
@@ -37,7 +41,11 @@ internal sealed class SqlServerResourceGovernanceStateEngine : IDurableResourceG
 
     internal sealed record GovernanceStreamState(
         string PartitionId,
-        IReadOnlyList<ResourceGovernanceRecord> Records);
+        IReadOnlyList<ResourceGovernanceRecord> Records)
+    {
+        [JsonNumberHandling(JsonNumberHandling.Strict)]
+        public long Version { get; init; } = Records.Count;
+    }
 
     /// <inheritdoc />
     public ValueTask<ResourceGovernanceStream> LoadAsync(

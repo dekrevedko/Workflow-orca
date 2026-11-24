@@ -29,6 +29,7 @@ public sealed partial class OpenSpecCorpusGuards
 
     private static void ProjectObservationRegistry(JsonObject current)
     {
+        ProjectRecoveryRegistry(current);
         var grant = current["scopedGrantAdmission"]!.AsObject();
         Sha256(grant.ToJsonString()).Should().Be("d94d0d26de484bad99e6ea4bd8c4eb3f9bf262d4e99e6bb4caa73ee72dd7d795", "only the reviewed scoped grant amendment may be projected");
         current.Remove("scopedGrantAdmission");
@@ -70,32 +71,39 @@ public sealed partial class OpenSpecCorpusGuards
         Sha256(qualification).Should().Be(ObservationQualificationHash);
         qualification.Should().Contain(ObservationImplementation).And.Contain(ObservationImplementationTree);
 
+        return ValidateAmendmentOwners(root, active, contract, ObservationChange, ObservationSynchronized,
+            (path, current) => BeforeRecoverySynchronization(root, path, current));
+    }
+
+    private static HashSet<string> ValidateAmendmentOwners(string root, List<DeltaRequirement> active, JsonElement contract,
+        string change, bool synchronized, Func<string, string, string> projectSuccessor)
+    {
         var keys = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in contract.GetProperty("successors").EnumerateArray())
         {
             var cap = row.GetProperty("capability").GetString()!;
             var heading = row.GetProperty("requirement").GetString()!;
             var chain = row.GetProperty("ownerChain").Deserialize<string[]>()!;
-            chain[^1].Should().Be(ObservationChange);
+            chain[^1].Should().Be(change);
             ValidateResolvedPostGateOwnerChain(root, active, cap, heading, chain);
-            var successor = ReadResolvedPostGateOwner(root, ObservationChange, cap, heading);
+            var successor = ReadResolvedPostGateOwner(root, change, cap, heading);
             successor.Operation.Should().Be(RequirementOperation.Modified);
             Sha256(successor.Block).Should().Be(row.GetProperty("afterSha256").GetString());
             keys.Add($"{cap}\0{heading}").Should().BeTrue();
         }
-        active.Count(r => r.Change == ObservationChange).Should().Be(keys.Count);
+        active.Count(r => r.Change == change).Should().Be(keys.Count);
         foreach (var row in contract.GetProperty("documents").EnumerateArray())
         {
             var path = row.GetProperty("path").GetString()!;
             var current = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path)));
-            ProjectObservationDocument(root, path, BeforeScopedGrantDocumentation(root, path, current), contract, row);
+            ProjectAmendmentDocument(root, path, projectSuccessor(path, current), contract, row, synchronized);
         }
         return keys;
     }
 
     private static IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>>
-        PriorObservationCanonical(string root, IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> current,
-            JsonElement contract)
+        PriorAmendmentCanonical(string root, IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> current,
+            JsonElement contract, bool synchronized)
     {
         var prior = current.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
         foreach (var row in contract.GetProperty("successors").EnumerateArray())
@@ -105,7 +113,7 @@ public sealed partial class OpenSpecCorpusGuards
             var chain = row.GetProperty("ownerChain").Deserialize<string[]>()!;
             var predecessor = ReadResolvedPostGateOwner(root, chain[^2], cap, heading);
             Sha256(predecessor.Block).Should().Be(row.GetProperty("beforeSha256").GetString());
-            Sha256(current[cap][heading].Block).Should().Be(row.GetProperty(ObservationSynchronized ? "afterSha256" : "beforeSha256").GetString());
+            Sha256(current[cap][heading].Block).Should().Be(row.GetProperty(synchronized ? "afterSha256" : "beforeSha256").GetString());
             var headings = new Dictionary<string, CanonicalRequirement>(prior[cap], StringComparer.Ordinal);
             headings[heading] = new(heading, predecessor.Block);
             prior[cap] = headings;
@@ -121,65 +129,40 @@ public sealed partial class OpenSpecCorpusGuards
     {
         if (requirement.Change == ObservationChange) return ClassifyProvenance(current, requirement);
         var historical = ClassifyValueFidelityProvenance(root, beforeObservation, beforeFidelity, requirement, checkpoint);
+        return AfterAmendment(current, beforeObservation, requirement, historical);
+    }
+
+    private static ProvenanceRow AfterAmendment(
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> current,
+        IReadOnlyDictionary<string, IReadOnlyDictionary<string, CanonicalRequirement>> prior,
+        DeltaRequirement requirement, ProvenanceRow historical)
+    {
         if (!current.TryGetValue(requirement.Capability, out var cap) || !cap.TryGetValue(requirement.Requirement, out var present) ||
-            beforeObservation[requirement.Capability][requirement.Requirement] == present) return historical;
+            prior[requirement.Capability][requirement.Requirement] == present) return historical;
         historical.State.Should().BeOneOf(ProvenanceState.Synchronized, ProvenanceState.SupersededByApprovedSuccessor);
         return CreateProvenanceRow(requirement, ProvenanceState.SupersededByApprovedSuccessor, present.Block);
     }
 
-    // Later grant documentation amended owners that earlier contracts pin in full.
-    // Reconstruct each historical document from only its reviewed changes before checking those pins.
-    private static string BeforeScopedGrantDocumentation(string root, string path, string current)
-    {
-        if (path is not ("docs/implementation/00-stack-decisions.md" or "docs/specs/10-provider-model-and-extensibility.md" or
-            "docs/specs/12-acceptance-criteria.md" or "docs/specs/16-requirements-durable-driver.md" or
-            "docs/specs/17-selected-mode-capability-matrix.md")) return current;
-        const string editsPath = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/numbered-owner-edits.json";
-        var json = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, editsPath)));
-        Sha256(json).Should().Be("b4ea7f6cae17a8bed02474ee0cbbd87a9cc28d07230da2bfda5d4ff6d8f839b1");
-        using var edits = JsonDocument.Parse(json);
-        var owner = edits.RootElement.EnumerateArray().Single(row => row.GetProperty("path").GetString() == path);
-        Sha256(current).Should().Be(owner.GetProperty("afterSha256").GetString());
-        foreach (var edit in owner.GetProperty("edits").EnumerateArray().Reverse())
-        {
-            var after = edit.GetProperty("after").GetString()!;
-            current.Split(after, StringSplitOptions.None).Should().HaveCount(2);
-            current = current.Replace(after, edit.GetProperty("before").GetString(), StringComparison.Ordinal);
-        }
-        Sha256(current).Should().Be(owner.GetProperty("beforeSha256").GetString());
-        return current;
-    }
-
     private static string BeforeObservationSynchronization(string root, string path, string current)
     {
-        current = BeforeScopedGrantDocumentation(root, path, current);
+        current = BeforeRecoverySynchronization(root, path, current);
         var contract = ReadObservationContract(root);
         var row = contract.GetProperty("documents").EnumerateArray().SingleOrDefault(item => item.GetProperty("path").GetString() == path);
         if (row.ValueKind != JsonValueKind.Undefined)
-            return ProjectObservationDocument(root, path, current, contract, row);
-        return BeforeObservationCanonicalFile(root, path, current, contract);
+            return ProjectAmendmentDocument(root, path, current, contract, row, ObservationSynchronized);
+        return BeforeAmendmentCanonicalFile(root, path, current, contract, ObservationProposal);
     }
 
     internal static string BeforeObservationCanonicalFile(string root, string path, string current)
-        => BeforeObservationCanonicalFile(root, path, current, ReadObservationContract(root));
+        => BeforeAmendmentCanonicalFile(root, path, BeforeRecoverySynchronization(root, path, current),
+            ReadObservationContract(root), ObservationProposal);
 
-    private static string BeforeObservationCanonicalFile(string root, string path, string current, JsonElement contract)
+    private static string BeforeAmendmentCanonicalFile(string root, string path, string current, JsonElement contract, string proposal)
     {
-        if (path == "openspec/specs/durable-runtime/spec.md")
-        {
-            const string deltaPath = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/specs/durable-runtime/spec.md";
-            var delta = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, deltaPath)));
-            Sha256(delta).Should().Be("3496ce14cd2100eb985f25c9cb56b3a06954e4c9c602753a5b4fb3302395575b");
-            var suffix = "\n" + delta["## ADDED Requirements\n\n".Length..];
-            current.Should().EndWith(suffix, "the reviewed grant requirement is appended verbatim");
-            current = current[..^suffix.Length];
-            Sha256(current).Should().Be("9bdd2093e6c1687687f43fbbaf1b9e7d15753c0e02c0736ea4c4974c4aef198d", "prior canonical requirements retain their reviewed bytes");
-        }
-
         var replacements = contract.GetProperty("successors").EnumerateArray()
             .Where(row => path == $"openspec/specs/{row.GetProperty("capability").GetString()}/spec.md").ToArray();
         if (replacements.Length == 0) return current;
-        var prior = DagFacadeApprovedHistory.TextAt(root, ObservationProposal, path);
+        var prior = DagFacadeApprovedHistory.TextAt(root, proposal, path);
         var expected = prior;
         foreach (var row in replacements)
         {
@@ -193,15 +176,22 @@ public sealed partial class OpenSpecCorpusGuards
             expected.Split(before.Block, StringSplitOptions.None).Should().HaveCount(2);
             expected = expected.Replace(before.Block, after.Block, StringComparison.Ordinal);
         }
-        current.Should().Be(expected, "the five successor blocks are the only approved canonical edits");
+        current.Should().Be(expected, "only the reviewed successor blocks may change canonical text");
         return prior;
     }
 
-    private static string ProjectObservationDocument(string root, string path, string current, JsonElement contract, JsonElement row)
+    private static string ProjectAmendmentDocument(string root, string path, string current, JsonElement contract, JsonElement row, bool synchronized)
     {
         var prior = DagFacadeApprovedHistory.TextAt(root, contract.GetProperty("base").GetString()!, path);
         Sha256(prior).Should().Be(row.GetProperty("beforeSha256").GetString());
-        var amended = prior;
+        var amended = ApplyAmendmentDocumentEdits(prior, row);
+        Sha256(amended).Should().Be(row.GetProperty("afterSha256").GetString());
+        current.Should().Be(synchronized ? amended : prior, "only a reviewed whole document may be projected");
+        return prior;
+    }
+
+    private static string ApplyAmendmentDocumentEdits(string amended, JsonElement row)
+    {
         foreach (var edit in row.GetProperty("edits").EnumerateArray())
         {
             var oldText = edit.GetProperty("before").GetString()!;
@@ -210,8 +200,6 @@ public sealed partial class OpenSpecCorpusGuards
             amended.Split(oldText, StringSplitOptions.None).Should().HaveCount(2, "each approved replacement must match once");
             amended = amended.Replace(oldText, newText, StringComparison.Ordinal);
         }
-        Sha256(amended).Should().Be(row.GetProperty("afterSha256").GetString());
-        current.Should().Be(ObservationSynchronized ? amended : prior, "only a reviewed whole document may be projected");
-        return prior;
+        return amended;
     }
 }

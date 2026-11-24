@@ -1,3 +1,16 @@
+## Unreleased — durable resource governance
+
+Custom durable providers must implement `IDurableResourceGovernanceStore.LoadLatestAsync`.
+Read the partition version and its latest full-state record from the same committed
+snapshot. Return version zero and a null record for an empty partition. For a
+positive version, the record sequence must equal that version. The existing
+`LoadAsync` operation remains available for full-history inspection.
+
+The runtime uses the latest v1 record for startup, management reads and mutation
+retries. A damaged current record stops recovery. Use the full-history read to
+check earlier record sequences and checksums. Experimental SQL Server still
+transfers the whole JSON document on a read and rewrites it on a mutation.
+
 ## Unreleased — shared workflow value codec
 
 Durable inputs, ephemeral detached state and DAG inputs now use the same

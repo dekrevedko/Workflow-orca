@@ -323,8 +323,9 @@ output. Unnamed completion is represented by absence, not an empty/default name.
 - **Resource-governance aggregate** — one serialized durable aggregate per configured
   `ResourceGovernancePartitionId`, owning every pool definition, atomic multi-pool request,
   queue position, ticket, review mark, resize operation, stop-confirmation binding, and
-  tombstone in that partition. `IDurableResourceGovernanceStore` loads the partition stream and
-  performs one expected-version append. The full stream factory defensively copies and validates
+  tombstone in that partition. `IDurableResourceGovernanceStore` loads the latest full-state record and committed version for
+  current recovery and performs one expected-version append. Explicit historical inspection
+  still uses the full stream factory, which defensively copies and validates
   exact `1..Version` continuity; append validates and copies one non-empty
   `expectedVersion + 1..N` batch and commits all or conflicts. Four friend-only post-commit
   certification barriers cover workflow pending obligation, governance reservation, workflow
