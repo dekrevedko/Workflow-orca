@@ -228,6 +228,60 @@ public sealed class GovernanceRecoveryTests
         Assert.Equal(3, (await store.LoadAsync(Options.PartitionId, token)).Version);
     }
 
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("empty-without-token")]
+    [InlineData("empty-with-confirmation")]
+    [InlineData("padded-token")]
+    [InlineData("foreign-ticket-owner")]
+    [InlineData("foreign-ticket-token")]
+    public async Task RestartValidatesScopedClosureReceiptsFromTheLatestRecord(string shape)
+    {
+        using var services = new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().BuildServiceProvider();
+        var store = services.GetRequiredService<IDurableResourceGovernanceStore>();
+        var original = new SerializedResourceGovernanceAggregate(store, Options);
+        var owner = InstanceId.Parse(Guid.CreateVersion7().ToString("D"));
+        var occurrence = LeaseProtectionToken.Parse("occurrence");
+        var request = new ResourcePoolAcquireRequest(owner, "holder", [new(Pool.Value, 1)], DateTimeOffset.UnixEpoch, null)
+            { ProtectionToken = occurrence };
+        await original.AcquireAsync(request, token);
+        await original.ReleaseAsync(new ResourcePoolReleaseRequest(owner, request.HolderKey, request.RequestedAt), token);
+
+        var head = await store.LoadLatestAsync(Options.PartitionId, token);
+        var envelope = JsonNode.Parse(head.Record!.Payload.Span)!;
+        var receipt = envelope["State"]!["ReleaseEvidence"]![0]!;
+        var tickets = receipt["ReleasedTickets"]!.AsArray();
+        switch (shape)
+        {
+            case "empty": tickets.Clear(); break;
+            case "empty-without-token": tickets.Clear(); receipt["ProtectionToken"] = null; break;
+            case "empty-with-confirmation": tickets.Clear(); receipt["ConfirmationId"] = "confirmed"; break;
+            case "padded-token": tickets.Clear(); receipt["ProtectionToken"] = " occurrence"; break;
+            case "foreign-ticket-owner": tickets[0]!["InstanceId"] = Guid.CreateVersion7().ToString("D"); break;
+            case "foreign-ticket-token": tickets[0]!["ProtectionToken"] = "other-occurrence"; break;
+            default: throw new ArgumentOutOfRangeException(nameof(shape));
+        }
+
+        var latest = Record(head.Version + 1, System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(envelope));
+        await store.AppendAsync(Options.PartitionId, head.Version, [latest], token);
+        var restarted = new SerializedResourceGovernanceAggregate(new HeadOnlyStore(store), Options);
+        if (shape == "empty")
+        {
+            var closed = (await restarted.GetReleaseEvidenceAsync(occurrence, token)).Value;
+            Assert.Equal(owner, closed.HolderInstanceId);
+            Assert.Equal(request.HolderKey, closed.HolderKey);
+            Assert.Equal(occurrence, closed.ProtectionToken);
+            Assert.Null(closed.ConfirmationId);
+            Assert.Empty(closed.ReleasedTickets);
+            Assert.Equal(ResourcePoolAcquireStatus.Rejected, (await restarted.AcquireAsync(request, token)).Status);
+        }
+        else
+        {
+            await Assert.ThrowsAsync<InvalidOperationException>(() => restarted.AcquireAsync(request, token));
+        }
+        Assert.Equal(latest.Sequence, (await store.LoadLatestAsync(Options.PartitionId, token)).Version);
+    }
+
     [Fact]
     public async Task WrongPartitionCannotInitializeOrMutate()
     {

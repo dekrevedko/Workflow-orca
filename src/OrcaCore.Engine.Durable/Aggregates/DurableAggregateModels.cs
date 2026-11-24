@@ -30,6 +30,8 @@ internal sealed record DurableDecision
 
     internal bool EvictAfterCommit { get; }
 
+    internal bool HasScopedReservation { get; init; }
+
     internal IReadOnlyList<InboxWrite> InboxOperations { get; }
 
     internal IReadOnlyList<InboxRouteMutation> InboxRouteMutations { get; }
@@ -396,6 +398,7 @@ internal sealed record DurableLeaseStopConfirmedCommand(
     DurableCheckpointPayload Envelope)
 {
     public StreamVersion? ExpectedStreamVersion { get; init; }
+    public WorkflowResourcePoolReleasedEvent? CompensatedRelease { get; init; }
 }
 
 internal sealed record DurableParkCommand(

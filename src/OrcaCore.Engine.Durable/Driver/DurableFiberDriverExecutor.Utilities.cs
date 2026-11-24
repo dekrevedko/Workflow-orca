@@ -134,7 +134,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 terminalFiberIds.Contains(new FiberId(obligation.FiberId)) &&
                 !(obligation.Kind == DurableOwnedObligationKind.Resource &&
                   obligation.LeasePhase is
-                      nameof(DurableLeaseObligationPhase.Quarantined) or
+                      nameof(DurableLeaseObligationPhase.Queued) or nameof(DurableLeaseObligationPhase.PendingCommit) or
+                      nameof(DurableLeaseObligationPhase.CancelledBeforeGrant) or nameof(DurableLeaseObligationPhase.Quarantined) or
                       nameof(DurableLeaseObligationPhase.Released) or
                       nameof(DurableLeaseObligationPhase.LeaseLost)))
             .ToArray();

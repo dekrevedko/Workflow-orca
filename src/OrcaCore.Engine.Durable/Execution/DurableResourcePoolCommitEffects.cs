@@ -1,4 +1,6 @@
 using OrcaCore.Abstractions.Durable;
+using OrcaCore.Abstractions.Ids;
+using OrcaCore.Engine.Durable.Driver;
 using OrcaCore.Abstractions.Providers;
 
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
@@ -25,18 +27,40 @@ internal sealed class DurableResourcePoolCommitEffects(IResourcePoolStore? resou
 
     internal async Task ReleaseCommittedTicketsAsync(
         IReadOnlyList<DurableWorkflowEvent> events,
+        CheckpointWrite? checkpoint,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(events);
-
         foreach (var released in events.OfType<WorkflowResourcePoolReleasedEvent>())
         {
-            await ReleaseWithRetryAsync(
-                new ResourcePoolReleaseRequest(released.InstanceId, released.HolderKey, released.OccurredAt),
-                cancellationToken)
-                .ConfigureAwait(false);
+            if (resourcePoolStore is IScopedReservationCloser closer && checkpoint?.ContentType == DurableExecutionEnvelopeV2.ContentType)
+            {
+                var o = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload).OwnedObligations
+                    .SingleOrDefault(o => o.Kind == DurableOwnedObligationKind.Resource && o.HolderKey == released.HolderKey);
+                if (o?.ProtectionToken is { } token)
+                {
+                    await DurableScopedReservationRecovery.CloseAsync(closer, released.InstanceId, released.HolderKey,
+                        LeaseProtectionToken.Parse(token), released.OccurredAt, cancellationToken).ConfigureAwait(false);
+                    continue;
+                }
+            }
+
+            try
+            {
+                await ReleaseWithRetryAsync(new ResourcePoolReleaseRequest(released.InstanceId, released.HolderKey, released.OccurredAt),
+                    cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                // Preserve the legacy unscoped post-commit disposition.
+            }
         }
     }
+
+    internal Task<StreamVersion> SettleStoppedReservationsAsync(IWorkflowEventStore events, CheckpointWrite checkpoint,
+        DateTimeOffset now, CancellationToken cancellationToken) => resourcePoolStore is IScopedReservationCloser
+        ? DurableScopedReservationRecovery.SettleAsync(events, resourcePoolStore, checkpoint, now, cancellationToken)
+        : Task.FromResult(checkpoint.StreamVersion);
 
     private IResourcePoolStore RequiredResourcePoolStore()
     {

@@ -30,7 +30,7 @@ if ($LASTEXITCODE -ne 0) { throw 'Cannot resolve source revision.' }
 $dirty = (& git -C $repo diff --binary HEAD | Out-String)
 $dirtyHash = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($dirty)))
 $sourceFiles = @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Engine.Durable src/OrcaCore.Providers.InMemory src/OrcaCore.Provider.Abstractions tests/OrcaCore.Engine.Durable.Tests src/OrcaCore.Engine.Ephemeral src/OrcaCore.Abstractions src/OrcaCore.Core tests/OrcaCore.Engine.Ephemeral.Tests tests/OrcaCore.TestSupport verification/tla scripts/verification .github/workflows/wait-ownership.yml .github/workflows/start-idempotency.yml .github/workflows/durable-wait-handoff.yml openspec/changes/verify-ephemeral-wait-ownership-with-tla docs/specs/05-requirements-events-waits-timers.md docs/specs/16-requirements-durable-driver.md docs/specs/09-requirements-management-operations.md openspec/specs/durable-runtime openspec/specs/event-routing-and-waits openspec/specs/management-and-querying Directory.* global.json)
-if ($ModuleName -in @('ContinuationLease','EventTimeout')) {
+if ($ModuleName -in @('ContinuationLease','EventTimeout','ResourceGrant')) {
     $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Providers.PostgreSql src/OrcaCore.Providers.SqlServer src/OrcaCore.Runtime.Protocol src/OrcaCore.Durable.Hosting tests/OrcaCore.Hosting.Tests tests/OrcaCore.ProviderCertification tests/OrcaCore.Providers.PostgreSql.Tests tests/OrcaCore.Providers.SqlServer.Tests docs/durable-driver-lane-host.md .github/workflows/ci.yml)
 }
 if ($ModuleName -eq 'DagChildJoin') {

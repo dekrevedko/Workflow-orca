@@ -324,11 +324,12 @@ internal sealed partial class SqlServerWorkflowStore(SqlServerStateDocumentStore
         payload is null
             ? new SqlServerWorkflowStateEngine(timeProvider)
             : new SqlServerWorkflowStateEngine(
-                JsonSerializer.Deserialize<SqlServerWorkflowStateEngine.StateSnapshot>(
-                    payload,
-                    SqlServerStateDocumentStore.JsonOptions)
-                ?? throw new InvalidOperationException("The SQL Server workflow state document was empty."),
+                ReadSnapshot(payload),
                 timeProvider);
+
+    internal static SqlServerWorkflowStateEngine.StateSnapshot ReadSnapshot(string payload) =>
+        JsonSerializer.Deserialize<SqlServerWorkflowStateEngine.StateSnapshot>(payload, SqlServerStateDocumentStore.JsonOptions)
+        ?? throw new InvalidOperationException("The SQL Server workflow state document was empty.");
 
     private static string Capture(SqlServerWorkflowStateEngine engine) =>
         JsonSerializer.Serialize(engine.Capture(), SqlServerStateDocumentStore.JsonOptions);

@@ -25,7 +25,7 @@ internal sealed class DurableScenarioProvider :
     ITimerScheduler,
     IMessageDispatcher,
     IResourcePoolStore,
-    IDurableResourceGovernanceStore,
+    ICheckpointGuardedResourceGovernanceStore,
     IDisposable
 {
     public Task<Option<DagRunCheckpointV1>> LoadDagRunCheckpointAsync(
@@ -382,6 +382,11 @@ internal sealed class DurableScenarioProvider :
         IReadOnlyList<ResourceGovernanceRecord> records,
         CancellationToken cancellationToken = default) =>
         governanceStore.AppendAsync(partitionId, expectedVersion, records, cancellationToken);
+
+    public ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(
+        ResourceGovernancePartitionId partitionId, long expectedVersion, IReadOnlyList<ResourceGovernanceRecord> records,
+        IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken = default) =>
+        ((ICheckpointGuardedResourceGovernanceStore)governanceStore).AppendIfCurrentAsync(partitionId, expectedVersion, records, checkpoints, cancellationToken);
 
     public void Dispose() => services.Dispose();
 

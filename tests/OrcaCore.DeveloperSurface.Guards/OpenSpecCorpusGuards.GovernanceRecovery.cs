@@ -77,17 +77,65 @@ public sealed partial class OpenSpecCorpusGuards
             qualification.Should().Contain($"]({file})").And.Contain($"`{expectedDigest}`");
         }
 
-        return ValidateAmendmentOwners(root, active, contract, RecoveryChange, RecoverySynchronized, (_, current) => current);
+        return ValidateAmendmentOwners(root, active, contract, RecoveryChange, RecoverySynchronized,
+            (path, current) => BeforeScopedGrantAdmission(root, path, current));
     }
 
     internal static string BeforeRecoverySynchronization(string root, string path, string current)
     {
+        current = BeforeScopedGrantAdmission(root, path, current);
         if (!RecoverySynchronized) return current;
         var contract = ReadRecoveryContract(root);
         var row = contract.GetProperty("documents").EnumerateArray().SingleOrDefault(item => item.GetProperty("path").GetString() == path);
         if (row.ValueKind != JsonValueKind.Undefined)
             return ProjectAmendmentDocument(root, path, current, contract, row, RecoverySynchronized);
         return BeforeAmendmentCanonicalFile(root, path, current, contract, RecoveryProposal);
+    }
+
+    // The grant edit list includes insertions with an empty predecessor. Preserve their exact
+    // positions by applying the recovery edits to the reviewed grant files.
+    internal static string BeforeScopedGrantAdmission(string root, string path, string current)
+    {
+        const string grant = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/";
+        if (path == "openspec/specs/durable-runtime/spec.md")
+        {
+            var delta = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, grant, "specs/durable-runtime/spec.md")));
+            Sha256(delta).Should().Be("3496ce14cd2100eb985f25c9cb56b3a06954e4c9c602753a5b4fb3302395575b");
+            var suffix = "\n" + delta["## ADDED Requirements\n\n".Length..];
+            var canonicalPrior = DagFacadeApprovedHistory.TextAt(root, RecoveryProposal, path);
+            Sha256(canonicalPrior).Should().Be("9bdd2093e6c1687687f43fbbaf1b9e7d15753c0e02c0736ea4c4974c4aef198d");
+            Sha256(canonicalPrior + suffix).Should().Be("f507ac1d9e0122cf856621878c4ed08b175110ca67e944d52448817fbc172a73");
+            var recovery = DagFacadeApprovedHistory.TextAt(root, RecoveryImplementation, path);
+            current.Should().Be(recovery + suffix, "the scoped grant requirement is appended verbatim to the reviewed recovery text");
+            return recovery;
+        }
+
+        if (path is not ("docs/implementation/00-stack-decisions.md" or "docs/specs/10-provider-model-and-extensibility.md" or
+            "docs/specs/12-acceptance-criteria.md" or "docs/specs/16-requirements-durable-driver.md" or
+            "docs/specs/17-selected-mode-capability-matrix.md")) return current;
+        var json = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, grant, "numbered-owner-edits.json")));
+        Sha256(json).Should().Be("b4ea7f6cae17a8bed02474ee0cbbd87a9cc28d07230da2bfda5d4ff6d8f839b1");
+        using var edits = JsonDocument.Parse(json);
+        var owner = edits.RootElement.EnumerateArray().Single(row => row.GetProperty("path").GetString() == path);
+        var grantOnly = DagFacadeApprovedHistory.TextAt(root, "a0cc173085774b71fd121094e0a6e0016842cf86", path);
+        Sha256(grantOnly).Should().Be(owner.GetProperty("afterSha256").GetString());
+        var prior = grantOnly;
+        foreach (var edit in owner.GetProperty("edits").EnumerateArray().Reverse())
+        {
+            var after = edit.GetProperty("after").GetString()!;
+            prior.Split(after, StringSplitOptions.None).Should().HaveCount(2, "each approved grant edit must match exactly once");
+            prior = prior.Replace(after, edit.GetProperty("before").GetString(), StringComparison.Ordinal);
+        }
+        Sha256(prior).Should().Be(owner.GetProperty("beforeSha256").GetString());
+        var recoveryRow = ReadRecoveryContract(root).GetProperty("documents").EnumerateArray()
+            .SingleOrDefault(row => row.GetProperty("path").GetString() == path);
+        if (recoveryRow.ValueKind == JsonValueKind.Undefined)
+        {
+            current.Should().Be(grantOnly);
+            return prior;
+        }
+        current.Should().Be(ApplyAmendmentDocumentEdits(grantOnly, recoveryRow), "both reviewed edits must retain their exact positions");
+        return ApplyAmendmentDocumentEdits(prior, recoveryRow);
     }
 
     private static ProvenanceRow ClassifyRecoveryProvenance(string root,

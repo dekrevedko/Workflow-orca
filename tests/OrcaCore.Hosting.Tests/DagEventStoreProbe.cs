@@ -22,6 +22,9 @@ internal sealed class DagEventStoreProbe : IWorkflowEventStore
     internal Func<CancellationToken, Task>? AfterKeyLookup { get; set; }
     internal System.Collections.Concurrent.ConcurrentQueue<string> AppendFailures { get; } = new();
 
+    internal Action<ProviderCommitBatch>? BeforeAppend { get; init; }
+    internal Action<ProviderCommitBatch>? AfterAppend { get; init; }
+
     internal void HoldNextSubscription(Guid runId) => heldRun = runId;
 
     public async Task<DagRunSubscribeResultV1> SubscribeDagRunAsync(DagRunSubscriptionV1 subscription, CancellationToken token)
@@ -39,11 +42,19 @@ internal sealed class DagEventStoreProbe : IWorkflowEventStore
         return result;
     }
 
-    public Task<Option<CheckpointWrite>> LoadCheckpointAsync(InstanceId id, CancellationToken token) => Inner.LoadCheckpointAsync(id, token);
+    internal Func<CancellationToken, Task>? AfterCheckpointRead { get; init; }
+    public async Task<Option<CheckpointWrite>> LoadCheckpointAsync(InstanceId id, CancellationToken token)
+    {
+        var current = await Inner.LoadCheckpointAsync(id, token);
+        if (AfterCheckpointRead is not null) await AfterCheckpointRead(token);
+        return current;
+    }
     public async Task<Result<AppendEventsResult>> AppendAsync(ProviderCommitBatch batch, CancellationToken token)
     {
+        BeforeAppend?.Invoke(batch);
         var result = await Inner.AppendAsync(batch, token);
         if (result.IsFailure) AppendFailures.Enqueue(result.Error.ToString());
+        else AfterAppend?.Invoke(batch);
         return result;
     }
     public Task<IReadOnlyList<WorkflowEvent>> LoadTailAsync(WorkflowStreamId id, StreamVersion version, CancellationToken token) => Inner.LoadTailAsync(id, version, token);

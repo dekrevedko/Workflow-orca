@@ -25,12 +25,12 @@
     {
       "id": "OrcaCore.Durable.Hosting",
       "project": "src/OrcaCore.Durable.Hosting/OrcaCore.Durable.Hosting.csproj",
-      "sourceSha256": "1683da3700077e8e10008d1d552bfb71c37c7c3cfd3973fb2d5192eef4972ae4"
+      "sourceSha256": "6158a4aae9ae0158e53567b29e58ad813d2d44d48fbba33b9a4f8b1342f60f14"
     },
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "1bf50f34f0daef3aa1ec2786c66a9c35670853a628d365eec33fd31ff724a47d"
+      "sourceSha256": "f3c02345447e5f52ab3bde690e0b85e3d31806711dd37937d04781e34f9a0e32"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
@@ -40,22 +40,22 @@
     {
       "id": "OrcaCore.Provider.Abstractions",
       "project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj",
-      "sourceSha256": "08491c2d1e955ac252a24a979cbbaac2010fba6215294c053bf6ebe8e44e6c10"
+      "sourceSha256": "bcab501cd1fc55ec613d23e99610d151d1ee7859a5484e165f1b914f68c74347"
     },
     {
       "id": "OrcaCore.Providers.InMemory",
       "project": "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj",
-      "sourceSha256": "37d7b2d76281481a37340fd1c5fb68826382710049a628b86886953878714fc1"
+      "sourceSha256": "3897ae277ed922aa89a695f4dbe25a8cfb2054e1090286c3db92b3206ed1bad3"
     },
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "72d1c95edfeff19cb45488c7c5df28d7bc8b76eb4780e5612d909d63721dc274"
+      "sourceSha256": "05b4d8107c044e93f8ef6a81a29c6f8a9dae00d02b7068fc7a0c1ad82a9b2fc6"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",
       "project": "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj",
-      "sourceSha256": "ac187ab5e102488a489be44e7d68397efddd49d75fa2155f1a19598fe51a9aae"
+      "sourceSha256": "431c2225dfc38851e9d66bb0f317b98e6bad4f960802bb7ff4b868013957f154"
     },
     {
       "id": "OrcaCore.Runtime.Protocol",

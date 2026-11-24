@@ -59,6 +59,9 @@ internal sealed class DurableWorkflowDriver(
 
             if (aggregate.IsTerminal)
             {
+                if (checkpointOption.HasValue)
+                    await processor.SettleStoppedReservationsAsync(checkpointOption.Value, timeProvider.GetUtcNow(), cancellationToken)
+                        .ConfigureAwait(false);
                 return DurableSegmentResult.Terminal;
             }
 

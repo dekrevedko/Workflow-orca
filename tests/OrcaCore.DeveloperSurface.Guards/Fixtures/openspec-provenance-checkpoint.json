@@ -196,8 +196,8 @@
     },
     {
       "path": "openspec/specs/durable-runtime/spec.md",
-      "bytes": 62966,
-      "sha256": "2b4491fff74c3bc4a49abf1419f2136b497eaac0341e480458727233768ebfce"
+      "bytes": 65313,
+      "sha256": "45391a1a247f3cd8684ebb83f73c82095435b41daa1ed0ddb2cc0610aa7aeb1e"
     },
     {
       "path": "openspec/specs/event-driven-prototype/spec.md",
@@ -258,5 +258,5 @@
   "canonicalContentRecordFormat": "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF",
   "canonicalContentCount": 14,
   "canonicalContentBytes": 1635,
-  "canonicalContentSha256": "a966d44cf259a0a42a65897e641a1cff5ef0ba62de26d7da9841c066e5aaf681"
+  "canonicalContentSha256": "08287a8f89ccac61836c134f52496c7f819785c9ff6db2bb4fb4c3053a1c2f69"
 }

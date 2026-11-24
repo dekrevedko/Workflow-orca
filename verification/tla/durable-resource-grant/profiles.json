@@ -1,0 +1,80 @@
+[
+  {
+    "name": "SourceSafety",
+    "kind": "normal",
+    "config": "SourceSafety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "OldReleaseOnConflict",
+    "kind": "mutation",
+    "config": "OldReleaseOnConflict.cfg",
+    "expected": "ActiveGrantRetained"
+  },
+  {
+    "name": "WinnerRetains",
+    "kind": "witness",
+    "config": "WinnerRetains.cfg",
+    "expected": "NoRetainedTicketWitness"
+  },
+  {
+    "name": "ScopeExitTransfers",
+    "kind": "witness",
+    "config": "ScopeExitTransfers.cfg",
+    "expected": "NoLegitimateTransferWitness"
+  },
+  {
+    "name": "Recovery",
+    "kind": "normal",
+    "config": "Recovery.cfg",
+    "expected": ""
+  },
+  {
+    "name": "AbandonedReserved",
+    "kind": "witness",
+    "config": "AbandonedReserved.cfg",
+    "expected": "NoRecoveredOrphan"
+  },
+  {
+    "name": "AbandonedEmpty",
+    "kind": "witness",
+    "config": "AbandonedEmpty.cfg",
+    "expected": "NoRecoveredEmpty"
+  },
+  {
+    "name": "ReplacementAdopts",
+    "kind": "witness",
+    "config": "ReplacementAdopts.cfg",
+    "expected": "NoAdoption"
+  },
+  {
+    "name": "MissingFence",
+    "kind": "mutation",
+    "config": "MissingFence.cfg",
+    "expected": "RecoverySafety"
+  },
+  {
+    "name": "PreActivationRetains",
+    "kind": "witness",
+    "config": "PreActivationRetains.cfg",
+    "expected": "NoPreActivationSurvival"
+  },
+  {
+    "name": "JournalledOrphan",
+    "kind": "witness",
+    "config": "JournalledOrphan.cfg",
+    "expected": "NoRecoveredJournalled"
+  },
+  {
+    "name": "MissingAdmissionGuard",
+    "kind": "mutation",
+    "config": "MissingAdmissionGuard.cfg",
+    "expected": "RecoverySafety"
+  },
+  {
+    "name": "DisabledRecovery",
+    "kind": "assumption",
+    "config": "DisabledRecovery.cfg",
+    "expected": "ClosureProgress"
+  }
+]

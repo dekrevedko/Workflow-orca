@@ -1,10 +1,12 @@
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Provider.Abstractions.ResourceGovernance;
 using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Providers.InMemory;
 
 /// <summary>Provides an atomic in-memory resource-governance stream per partition.</summary>
-internal sealed class InMemoryResourceGovernanceStore : IDurableResourceGovernanceStore
+internal sealed class InMemoryResourceGovernanceStore(InMemoryWorkflowProvider? workflows = null) :
+    ICheckpointGuardedResourceGovernanceStore
 {
     private readonly Lock gate = new();
     private readonly Dictionary<string, List<ResourceGovernanceRecord>> streams =
@@ -42,6 +44,25 @@ internal sealed class InMemoryResourceGovernanceStore : IDurableResourceGovernan
             return ValueTask.FromResult(
                 ResourceGovernanceStream.Create(records.Count, records.ToArray()));
         }
+    }
+
+    public ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(
+        ResourceGovernancePartitionId partitionId, long expectedVersion, IReadOnlyList<ResourceGovernanceRecord> records,
+        IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(checkpoints);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (checkpoints.Count == 0) return AppendAsync(partitionId, expectedVersion, records, cancellationToken);
+        return (workflows ?? throw new InvalidOperationException("Missing workflow checkpoint store.")).WithCurrentCheckpoints(
+            checkpoints, current =>
+            {
+                if (current) return AppendAsync(partitionId, expectedVersion, records, cancellationToken);
+                lock (gate)
+                {
+                    var version = streams.TryGetValue(partitionId.Value, out var stream) ? stream.Count : 0;
+                    return ValueTask.FromResult<ResourceGovernanceAppendResult>(new ResourceGovernanceAppendResult.Conflict(version));
+                }
+            });
     }
 
     /// <inheritdoc />

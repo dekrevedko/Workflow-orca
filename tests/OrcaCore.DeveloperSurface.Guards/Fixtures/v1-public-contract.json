@@ -144,7 +144,7 @@
     {"family":"`DagHostOptions`, DAG registration extension","namespace":"OrcaCore.Dag.Hosting","assembly":"OrcaCore.Dag.Hosting"},
     {"family":"Lease/pool statuses, snapshots, closed resize result, governance records/head/stream/append result","namespace":"OrcaCore.Runtime.Protocol.ResourceGovernance","assembly":"OrcaCore.Runtime.Protocol"},
     {"family":"`IDurableResourcePoolManagement`, `IDurableResourceLeaseRecovery`, `IDurableResourceLeaseDiagnostics`","namespace":"OrcaCore.Hosting.ResourceLeases","assembly":"OrcaCore.Durable.Hosting"},
-    {"family":"`IDurableResourceGovernanceStore`","namespace":"OrcaCore.Provider.Abstractions.ResourceGovernance","assembly":"OrcaCore.Provider.Abstractions"},
+    {"family":"`IDurableResourceGovernanceStore`, `ICheckpointGuardedResourceGovernanceStore`","namespace":"OrcaCore.Provider.Abstractions.ResourceGovernance","assembly":"OrcaCore.Provider.Abstractions"},
     {"family":"Four barrier enum/fact/gate types","namespace":"OrcaCore.Engine.Durable.ResourceGovernance","assembly":"OrcaCore.Engine.Durable"},
     {"family":"In-memory provider extension","namespace":"OrcaCore.Providers.InMemory","assembly":"OrcaCore.Providers.InMemory"},
     {"family":"PostgreSQL options/extension","namespace":"OrcaCore.Providers.PostgreSql","assembly":"OrcaCore.Providers.PostgreSql"},

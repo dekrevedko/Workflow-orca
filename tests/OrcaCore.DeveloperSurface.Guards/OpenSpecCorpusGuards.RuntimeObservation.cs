@@ -30,6 +30,10 @@ public sealed partial class OpenSpecCorpusGuards
     private static void ProjectObservationRegistry(JsonObject current)
     {
         ProjectRecoveryRegistry(current);
+        var grant = current["scopedGrantAdmission"]!.AsObject();
+        Sha256(grant.ToJsonString()).Should().Be("d94d0d26de484bad99e6ea4bd8c4eb3f9bf262d4e99e6bb4caa73ee72dd7d795", "only the reviewed scoped grant amendment may be projected");
+        current.Remove("scopedGrantAdmission");
+
         var row = current["durableOutputObservation"]!.AsObject();
         row.Count.Should().Be(10);
         row["implementationCheckpoint"]!.GetValue<string>().Should().Be(ObservationImplementation);
@@ -180,7 +184,14 @@ public sealed partial class OpenSpecCorpusGuards
     {
         var prior = DagFacadeApprovedHistory.TextAt(root, contract.GetProperty("base").GetString()!, path);
         Sha256(prior).Should().Be(row.GetProperty("beforeSha256").GetString());
-        var amended = prior;
+        var amended = ApplyAmendmentDocumentEdits(prior, row);
+        Sha256(amended).Should().Be(row.GetProperty("afterSha256").GetString());
+        current.Should().Be(synchronized ? amended : prior, "only a reviewed whole document may be projected");
+        return prior;
+    }
+
+    private static string ApplyAmendmentDocumentEdits(string amended, JsonElement row)
+    {
         foreach (var edit in row.GetProperty("edits").EnumerateArray())
         {
             var oldText = edit.GetProperty("before").GetString()!;
@@ -189,8 +200,6 @@ public sealed partial class OpenSpecCorpusGuards
             amended.Split(oldText, StringSplitOptions.None).Should().HaveCount(2, "each approved replacement must match once");
             amended = amended.Replace(oldText, newText, StringComparison.Ordinal);
         }
-        Sha256(amended).Should().Be(row.GetProperty("afterSha256").GetString());
-        current.Should().Be(synchronized ? amended : prior, "only a reviewed whole document may be projected");
-        return prior;
+        return amended;
     }
 }
