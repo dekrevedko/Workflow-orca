@@ -69,4 +69,4 @@ open and the verdict at the full pilot bounds was inconclusive.
 
 ## Full-bound qualification (2026-11-23)
 
-Task 2.5 closed using the approved compositional method. Both literal targets completed all six normal profiles with empty queues. Independent review covered the projection, shared ownership, deadlock, weak fairness and retained evidence. The original joint searches retain their timeout verdict. [Qualification and reproduction](../../../verification/tla/wait-ownership/full-bound-results.md)
+Task 2.5 closed using the approved compositional method. Both literal targets completed all six normal profiles with empty queues. Independent review covered the projection, shared ownership, deadlock, weak fairness and retained evidence. The original joint searches retain their timeout verdict. [Qualification and reproduction](../../../../verification/tla/wait-ownership/full-bound-results.md)

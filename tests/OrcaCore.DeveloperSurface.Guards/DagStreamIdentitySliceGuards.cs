@@ -14,7 +14,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "d044dffd8b055221650774485085fa1e9198ed5785e80e0ab32f595e7fda26db";
+    private const string CanonicalContentRecordSha256 = "dd6bc5d37dfa6ec407cdec628201377243a9d57f0f2b6a2cdec9e2bf88999a36";
     private const string BeforeFifoResizeRecordSha256 = "08287a8f89ccac61836c134f52496c7f819785c9ff6db2bb4fb4c3053a1c2f69";
     private const string RecoveryOnlyRecordSha256 = "a966d44cf259a0a42a65897e641a1cff5ef0ba62de26d7da9841c066e5aaf681";
     private const string ScopedGrantOnlyRecordSha256 = "da20aac016a38f50b49a0351014c8f3586e3758f46f097a70723cf267435ee87";
@@ -47,12 +47,24 @@ public sealed class DagStreamIdentitySliceGuards
         var data = fixture.RootElement;
         data.GetProperty("canonicalContentRecordFormat").GetString().Should().Be(
             "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF");
-        actual.Should().HaveCount(14);
+        actual.Should().HaveCount(15);
         data.GetProperty("canonicalContentCount").GetInt32().Should().Be(actual.Length);
         data.GetProperty("canonicalContentBytes").GetInt32().Should().Be(Encoding.UTF8.GetByteCount(record));
         Hash(record).Should().Be(CanonicalContentRecordSha256,
             "whole canonical text is pinned for this owner-authorized review candidate; unrelated edits remain forbidden");
         data.GetProperty("canonicalContentSha256").GetString().Should().Be(CanonicalContentRecordSha256);
+
+        const string pilotPath = "openspec/specs/wait-ownership-model-verification/spec.md";
+        var beforePilot = actual.Where(row => row.Path != pilotPath).ToArray();
+        Hash(ContentRecord(beforePilot)).Should().Be("d044dffd8b055221650774485085fa1e9198ed5785e80e0ab32f595e7fda26db");
+        const string deltaPath = "openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/specs/wait-ownership-model-verification/spec.md";
+        var archived = Normalize(File.ReadAllText(Path.Combine(root, deltaPath)));
+        Hash(archived).Should().Be("6e7fc12cff3640cc2d958978d317e503ae0b9613bdf788767bfc9f9cfba93ee2", "the six archived requirements retain the reviewed delta");
+        var canonical = Normalize(File.ReadAllText(Path.Combine(root, pilotPath)));
+        var sections = canonical.Split("## Requirements\n\n", StringSplitOptions.None);
+        sections.Should().HaveCount(2);
+        sections[1].Should().Be(
+            archived["## ADDED Requirements\n\n".Length..]);
 
         // Reconstruct the pre-sync inventory using the four documents from the reviewed
         // contract's parent. Both whole-document inventories must match their source pins.
@@ -63,25 +75,25 @@ public sealed class DagStreamIdentitySliceGuards
             "openspec/specs/quality-and-verification/spec.md",
             "openspec/specs/workflow-authoring/spec.md",
             "openspec/specs/workflow-contracts/spec.md");
-        var beforeRecovery = actual.Select(row =>
+        var beforeRecovery = beforePilot.Select(row =>
         {
             var live = Normalize(File.ReadAllText(Path.Combine(root, row.Path)));
             return Content(row.Path, OpenSpecCorpusGuards.BeforeRecoverySynchronization(root, row.Path, live));
         }).ToArray();
         Hash(ContentRecord(beforeRecovery)).Should().Be(BeforeRecoveryRecordSha256);
         const string grantPath = "openspec/specs/durable-runtime/spec.md";
-        var grantIndex = Array.FindIndex(actual, row => row.Path == grantPath);
+        var grantIndex = Array.FindIndex(beforePilot, row => row.Path == grantPath);
         var liveGrant = Normalize(File.ReadAllText(Path.Combine(root, grantPath)));
-        var beforeResize = actual.ToArray();
+        var beforeResize = beforePilot.ToArray();
         beforeResize[grantIndex] = Content(grantPath, OpenSpecCorpusGuards.BeforeFifoResizeSynchronization(root, liveGrant));
         Hash(ContentRecord(beforeResize)).Should().Be(BeforeFifoResizeRecordSha256);
-        var recoveryOnly = actual.ToArray();
+        var recoveryOnly = beforePilot.ToArray();
         recoveryOnly[grantIndex] = Content(grantPath, OpenSpecCorpusGuards.BeforeScopedGrantAdmission(root, grantPath, liveGrant));
         Hash(ContentRecord(recoveryOnly)).Should().Be(RecoveryOnlyRecordSha256);
         var grantOnly = beforeRecovery.ToArray();
         grantOnly[grantIndex] = Content(grantPath, DagFacadeApprovedHistory.TextAt(root, "a0cc173085774b71fd121094e0a6e0016842cf86", grantPath));
         Hash(ContentRecord(grantOnly)).Should().Be(ScopedGrantOnlyRecordSha256);
-        var beforeObservation = actual.Select(row =>
+        var beforeObservation = beforePilot.Select(row =>
         {
             var live = Normalize(File.ReadAllText(Path.Combine(root, row.Path)));
             return Content(row.Path, OpenSpecCorpusGuards.BeforeObservationCanonicalFile(root, row.Path, live));
@@ -90,7 +102,7 @@ public sealed class DagStreamIdentitySliceGuards
         var prior = beforeObservation.ToArray();
         foreach (var path in changedPaths)
         {
-            var index = Array.FindIndex(actual, row => row.Path == path);
+            var index = Array.FindIndex(beforePilot, row => row.Path == path);
             beforeObservation[index].Should().Be(Content(path, DagFacadeApprovedHistory.TextAt(root, ValueFidelitySync, path)));
             prior[index] = Content(path, DagFacadeApprovedHistory.TextAt(root, ValueFidelitySync + "^", path));
         }
