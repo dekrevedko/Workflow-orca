@@ -62,6 +62,17 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
     }
 
     [Theory]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.BlockedHead)]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.OwnerCancels)]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.HolderReleases)]
+    public Task ResourceResize_FifoRace(DurableResourceGrantRaceCertification.ResizeRace schedule)
+    {
+        return DurableResourceGrantRaceCertification.ResizeRaceAsync(
+            () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
+            typeof(PostgreSqlDurableProviderOptions), schedule);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public Task ResourceGrant_ActiveWinnerRetainsTicket(bool competingAppend)

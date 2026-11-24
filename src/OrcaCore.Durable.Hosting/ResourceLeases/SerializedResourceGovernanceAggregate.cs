@@ -19,7 +19,8 @@ namespace OrcaCore.Hosting.ResourceLeases;
 internal sealed class SerializedResourceGovernanceAggregate(
     IDurableResourceGovernanceStore store,
     DurableResourcePoolOptions options,
-    IWorkflowEventStore? workflows = null) :
+    IWorkflowEventStore? workflows = null,
+    TimeProvider? clock = null) :
     IResourcePoolStore, IScopedReservationCloser
 {
     private const int MaxConflictRetries = 32;
@@ -124,7 +125,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                         operationId,
                         pool,
                         capacity,
-                        ManagementSnapshot(state, found));
+                        recorded.Snapshot ?? ManagementSnapshot(state, found));
                 }
 
                 return new DurableResourcePoolResizeResult.Conflict(
@@ -136,23 +137,31 @@ internal sealed class SerializedResourceGovernanceAggregate(
             }
 
             var resized = found with { CurrentCapacity = capacity };
-            var updated = state with
+            var updated = state with { Pools = Replace(state.Pools, found, resized) };
+            Dictionary<InstanceId, long>? checkpoints = null;
+            if (capacity > found.CurrentCapacity && state.Waiters.Length != 0)
             {
-                Pools = Replace(state.Pools, found, resized),
-                ResizeOperations =
-                [
-                    .. state.ResizeOperations,
-                    new ResizeOperationDocument(operationId.Value, pool.Value, capacity)
-                ]
+                var admissions = await ReadWaiterAdmissionsAsync(state, cancellationToken).ConfigureAwait(false);
+                var promotion = PromoteWaiters(updated, (clock ?? TimeProvider.System).GetUtcNow(), admissions);
+                if (workflows is null && promotion.Granted.Any(waiter => waiter.ProtectionToken is not null))
+                    throw new InvalidOperationException("Resizing a pool with a grantable scoped waiter requires the workflow event store.");
+                updated = promotion.State;
+                checkpoints = admissions.ForPromotions(promotion.Granted);
+            }
+
+            var snapshot = ManagementSnapshot(updated, resized);
+            updated = updated with
+            {
+                ResizeOperations = [.. updated.ResizeOperations, new ResizeOperationDocument(operationId.Value, pool.Value, capacity, snapshot)]
             };
-            if (await TryAppendAsync(version, "pool-resized", updated, cancellationToken)
+            if (await TryAppendAsync(version, "pool-resized", updated, cancellationToken, checkpoints)
                     .ConfigureAwait(false))
             {
                 return new DurableResourcePoolResizeResult.Applied(
                     operationId,
                     pool,
                     capacity,
-                    ManagementSnapshot(updated, resized));
+                    snapshot);
             }
         }
 
@@ -784,7 +793,11 @@ internal sealed class SerializedResourceGovernanceAggregate(
             candidate.ExpiredTickets.Any(ticket => !ValidGuid(ticket.TicketId, "N")) ||
             candidate.ResizeOperations.Any(operation =>
                 string.IsNullOrWhiteSpace(operation.OperationId) || operation.Capacity < 1 ||
-                !pools.ContainsKey(operation.PoolName)) ||
+                !pools.ContainsKey(operation.PoolName) ||
+                operation.Snapshot is { } receipt &&
+                    (receipt.Name.Value != operation.PoolName || receipt.ConfiguredCapacity != operation.Capacity ||
+                     receipt.ReservedUnits < 0 || receipt.QueuedRequestCount < 0 ||
+                     receipt.ResizeDebt != Math.Max(0, receipt.ReservedUnits - operation.Capacity))) ||
             candidate.ReleaseEvidence.Any(evidence =>
                 !ValidGuid(evidence.InstanceId, "D") ||
                 string.IsNullOrWhiteSpace(evidence.HolderKey) ||
@@ -1098,11 +1111,11 @@ internal sealed class SerializedResourceGovernanceAggregate(
         // Waiters enter the array under the partition's append fence, in committed request order.
         var remainingWaiters = state.Waiters
             .Where(waiter => !HolderMatches(waiter, holderInstanceId, holderKey))
-            .ToList();
+            .ToArray();
         var working = state with
         {
             Tickets = state.Tickets.Except(released).ToArray(),
-            Waiters = remainingWaiters.ToArray()
+            Waiters = remainingWaiters
         };
         if (released.Length != 0 || closingToken is not null)
         {
@@ -1130,8 +1143,15 @@ internal sealed class SerializedResourceGovernanceAggregate(
             };
         }
 
+        var promotion = PromoteWaiters(working, releasedAt, admissions);
+        return (promotion.State, released, promotion.Granted);
+    }
+
+    private static (GovernanceDocument State, WaiterDocument[] Granted) PromoteWaiters(
+        GovernanceDocument working, DateTimeOffset grantedAt, AdmissionRead admissions)
+    {
         var granted = new List<WaiterDocument>();
-        foreach (var waiter in remainingWaiters.ToArray())
+        foreach (var waiter in working.Waiters)
         {
             if (waiter.ProtectionToken is { } token && !admissions.Allows(token)) continue;
             var requirements = waiter.Requirements
@@ -1155,7 +1175,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
                     ? null
                     : LeaseProtectionToken.Parse(waiter.ProtectionToken)
             };
-            var (grantedState, _) = Grant(working, waiterRequest, releasedAt);
+            var (grantedState, _) = Grant(working, waiterRequest, grantedAt);
             working = grantedState with
             {
                 Waiters = grantedState.Waiters
@@ -1166,7 +1186,7 @@ internal sealed class SerializedResourceGovernanceAggregate(
             granted.Add(waiter);
         }
 
-        return (working, released, granted.ToArray());
+        return (working, granted.ToArray());
     }
 
     private sealed record GovernanceEnvelope(
@@ -1226,7 +1246,8 @@ internal sealed class SerializedResourceGovernanceAggregate(
     private sealed record ResizeOperationDocument(
         string OperationId,
         string PoolName,
-        int Capacity);
+        int Capacity,
+        DurableResourcePoolSnapshot? Snapshot = null);
 
     private sealed record ReleaseEvidenceDocument(
         string InstanceId,

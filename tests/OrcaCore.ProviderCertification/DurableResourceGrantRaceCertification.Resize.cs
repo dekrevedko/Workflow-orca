@@ -16,7 +16,9 @@ public static partial class DurableResourceGrantRaceCertification
 {
     public static async Task ResizeQueueAsync(Func<IServiceCollection> services, Type providerType)
     {
-        var ct = TestContext.Current.CancellationToken;
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromMinutes(2));
+        var ct = timeout.Token;
         var partition = ResourceGovernancePartitionId.Create($"resize-{Guid.CreateVersion7():N}");
         var slot = ResourcePoolName.Create("slot");
         var other = DurableResourcePoolDefinition.Create(ResourcePoolName.Create("other"), 1, TimeSpan.FromHours(1));
@@ -28,6 +30,7 @@ public static partial class DurableResourceGrantRaceCertification
         InstanceId owner;
         Guid firstTicket;
         Guid secondTicket;
+        DurableResourcePoolResizeResult.Applied original;
         await using (var host = BuildHost(services(), partition, other))
         {
             await host.GetServices<IHostedService>().Single(s => s.GetType().Assembly == providerType.Assembly).StartAsync(ct);
@@ -42,9 +45,9 @@ public static partial class DurableResourceGrantRaceCertification
             Assert.Equal(owner, Assert.Single((await pools.GetPoolAsync("slot", ct)).Value.QueuedWaiters).HolderInstanceId);
 
             var management = host.GetRequiredService<IDurableResourcePoolManagement>();
-            var applied = Assert.IsType<DurableResourcePoolResizeResult.Applied>(await management.ResizeAsync(slot, 2, resizeId, ct));
-            Assert.Equal(2, applied.Snapshot.ReservedUnits);
-            Assert.Equal(0, applied.Snapshot.QueuedRequestCount);
+            original = Assert.IsType<DurableResourcePoolResizeResult.Applied>(await management.ResizeAsync(slot, 2, resizeId, ct));
+            Assert.Equal(2, original.Snapshot.ReservedUnits);
+            Assert.Equal(0, original.Snapshot.QueuedRequestCount);
             var a = Assert.Single((await pools.GetPoolAsync("slot", ct)).Value.HeldTickets);
             var b = Assert.Single((await pools.GetPoolAsync("other", ct)).Value.HeldTickets);
             Assert.Equal(owner, a.HolderInstanceId);
@@ -69,5 +72,7 @@ public static partial class DurableResourceGrantRaceCertification
         Assert.Equal(firstTicket, Assert.Single(Assert.Single(history.OfType<WorkflowResourcePoolReleasedEvent>()).Tickets).TicketId);
         Assert.Equal(1, replacement.GetRequiredService<CountedStep>().Calls);
         Assert.Equal(secondTicket, Assert.Single((await recovered.GetPoolAsync("other", ct)).Value.HeldTickets).TicketId);
+        Assert.Equal(0, (await replay.GetAsync(slot, ct)).ReservedUnits);
+        Assert.Equal(original, await replay.ResizeAsync(slot, 2, resizeId, ct));
     }
 }

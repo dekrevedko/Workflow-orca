@@ -44,6 +44,18 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
     }
 
     [Theory]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.BlockedHead)]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.OwnerCancels)]
+    [InlineData(DurableResourceGrantRaceCertification.ResizeRace.HolderReleases)]
+    public Task ResourceResize_FifoRace(DurableResourceGrantRaceCertification.ResizeRace schedule)
+    {
+        var schema = SqlServerContainerFixture.CreateSchemaName();
+        return DurableResourceGrantRaceCertification.ResizeRaceAsync(
+            () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
+            typeof(SqlServerDurableProviderOptions), schedule);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public Task ResourceGrant_ActiveWinnerRetainsTicket(bool competingAppend)
