@@ -78,20 +78,21 @@ jobs:
 
   broad:
     runs-on: windows-latest
-    timeout-minutes: 15
+    timeout-minutes: 65
     strategy:
       fail-fast: false
       matrix:
+        observer: [1, 2]
         profile: [SafetySmall, SafetyIsolation-definition, SafetyIsolation-name, SafetyIsolation-version, SafetyIsolation-correlation, ProgressSmall]
     steps:
       - uses: actions/checkout@v4
-      - name: Explore full pilot bounds
+      - name: Explore full bounds from one target
         shell: pwsh
-        run: ./scripts/verification/Invoke-WaitOwnershipModelCheck.ps1 -Profile ${{ matrix.profile }} -OutputDirectory .codex-run/model
+        run: ./scripts/verification/Invoke-WaitOwnershipTargetCheck.ps1 -Observer ${{ matrix.observer }} -Profile ${{ matrix.profile }} -OutputDirectory .codex-run/model
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: wait-ownership-${{ matrix.profile }}
+          name: wait-ownership-${{ matrix.profile }}-target-${{ matrix.observer }}
           include-hidden-files: true
           path: |
             .codex-run/model/*.json
