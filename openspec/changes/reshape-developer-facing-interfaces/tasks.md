@@ -18,6 +18,7 @@
 - [x] 2.4 Reuse delivered typed branch/item execution and root continue-as-new mechanics where they conform; treat old durable-`ForEach` rejection, `WhenFirst`, `WaitLong`, and result variants as superseded.
 - [x] 2.5 Record that current source, fixtures, and samples may be changed together because no package or durable-data compatibility promise has shipped.
 - [x] 2.6 Record the canonical-amendment-before-source rule and the requirement that each implementation phase receives independent review evidence.
+- [x] 2.7 Align [CR-003](../../../docs/specs/04-requirements-core-runtime.md#cr-003-composite-definition-structure) with the compiled execution requirements in [structured-fiber-execution](specs/structured-fiber-execution/spec.md). Preserve the authored nesting rules and clarify that the runtime executes the compiled plan. Record the [removal evidence](artifacts/phase-g/removal.md) and [parity checks](artifacts/phase-g/qualification.md).
 
 ## 3. Replace the Phase 0 Guard Packet
 

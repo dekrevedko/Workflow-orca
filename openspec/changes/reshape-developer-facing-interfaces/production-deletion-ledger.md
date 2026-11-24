@@ -79,7 +79,7 @@ file accounting alone, including in-place member removal and forbidden compatibi
 | Recursive execution pointer and frames | Dead/duplicate | `FiberRecord` and instruction edges | The fiber stores its active instruction position. |
 
 The eight Phase G families cover 17 deleted files and the retired members in five retained files.
-The [Phase G crosswalk](../../../docs/implementation/phase-g/removal.md) maps each family to its
+The [Phase G crosswalk](artifacts/phase-g/removal.md) maps each family to its
 active owner and behavior tests. The machine ledger supplies per-file Git recovery coordinates.
 
 ## Interpretation rules

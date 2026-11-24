@@ -35,8 +35,8 @@ public sealed partial class TaskAccountingGuards
             string.Equals(match.Groups["state"].Value, "x", StringComparison.OrdinalIgnoreCase));
         var pending = entries.Length - completed;
 
-        entries.Should().HaveCount(159);
-        completed.Should().Be(133);
+        entries.Should().HaveCount(160);
+        completed.Should().Be(134);
         pending.Should().Be(26);
     }
 

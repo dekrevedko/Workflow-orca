@@ -1,6 +1,6 @@
 # Ephemeral interpreter reachability at `8c5e8998`
 
-Phase G concerns the second executable representation produced by the workflow compiler. The staged builders still need their nested authoring structure for validation, fingerprinting and instruction lowering. The accepted execution contract uses instruction positions, fiber-local execution data and explicit control-flow edges. [Structured fiber execution](../../../openspec/specs/structured-fiber-execution/spec.md)
+Phase G concerns the second executable representation produced by the workflow compiler. The staged builders still need their nested authoring structure for validation, fingerprinting and instruction lowering. The accepted execution contract uses instruction positions, fiber-local execution data and explicit control-flow edges. [Structured fiber execution](../../../../specs/structured-fiber-execution/spec.md)
 
 ## Entry points and live dependencies
 

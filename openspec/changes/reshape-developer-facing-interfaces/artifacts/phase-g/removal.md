@@ -1,6 +1,6 @@
 # Phase G production removal ledger
 
-Every recovery path below is relative to the repository at `8c5e8998`. The `Execution/` prefix in this table means `src/OrcaCore.Engine.Ephemeral/Execution/`. The execution requirement is CR-015, which binds the authoring graph to a linear plan. CR-003 defines the supported shapes and CR-014a governs failure provenance. The canonical structured-fiber specification owns instruction positions, blocking, scope settlement and runnable work. [Core runtime requirements](../../specs/04-requirements-core-runtime.md) · [Structured fiber execution](../../../openspec/specs/structured-fiber-execution/spec.md)
+Every recovery path below is relative to the repository at `8c5e8998`. The `Execution/` prefix in this table means `src/OrcaCore.Engine.Ephemeral/Execution/`. The execution requirement is CR-015, which binds the authoring graph to a linear plan. CR-003 defines the supported shapes and CR-014a governs failure provenance. The canonical structured-fiber specification owns instruction positions, blocking, scope settlement and runnable work. [Core runtime requirements](../../../../../docs/specs/04-requirements-core-runtime.md) · [Structured fiber execution](../../../../specs/structured-fiber-execution/spec.md)
 
 | Recovery paths and symbol families | Disposition | Current owner and executable evidence |
 | --- | --- | --- |
