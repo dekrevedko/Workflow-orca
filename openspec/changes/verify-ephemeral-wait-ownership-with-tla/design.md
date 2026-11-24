@@ -145,3 +145,7 @@ No production migration is required. Implement model and crosswalk first, qualif
 ## Implementation review adjustments (2026-11-17)
 
 The source model and a deterministic compiled regression both exposed WOP-F001: caller cancellation after successor registration restores two active same-key waits. Normal source configurations retain the failing invariant and report failed qualification. The scoped runtime correction and passing rerun remain open. `WaitMatchingTests.cs` was found excluded from compilation; new compiled tests and the crosswalk replace that proposed coverage credit. Independent review added a stale-callback identity action, mutation, and witness; strengthened race/cancellation witnesses to completed outcomes; and added control-specific fairness with a positive progress control and completion witness. Tooling review added a regression rejecting unrelated temporal-property failures. These additions qualify the diagnostic checks and do not change production requirements or hide the source defect.
+
+## Full-bound acceptance for task 2.5 (2026-11-23)
+
+The owner approved checking each literal target separately if independent review establishes coverage of every original safety and progress obligation. Execute all six configurations for both targets. Retain the two instances, occurrence and event bounds, interleaving points and fairness assumptions. The shared reservation interface admits extra peer histories, so a failing trace requires concrete replay. [Projection and correspondence](../../../verification/tla/wait-ownership/composition.md)

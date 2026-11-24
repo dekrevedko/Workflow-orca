@@ -11,7 +11,7 @@
 - [x] 2.2 Create `EphemeralWaitOwnership.tla` with bounded instances/occurrences/events, explicit lane and index ownership, routing stages, continuation success/escape, successor registration, timer competition, cancellation, and exact release; map internal steps to contract transitions or stuttering.
 - [x] 2.3 Add `SafetySmall` and `SafetyIsolation` configurations with explicit delivery/failure bounds, no counter wrap or silent pruning, and history capacity compatible with the tested implementation.
 - [x] 2.4 Add `ProgressSmall` for WOP-008/009 with explicit fairness and environment assumptions, no symmetry reduction, intentional quiescent stuttering, and detection of unexpected deadlocks.
-- [ ] 2.5 Parse and run each normal configuration to complete exploration, retaining state counts and any failures; run an independent scoped model/design review and resolve findings before qualification.
+- [x] 2.5 Parse and run each normal configuration to complete exploration, retaining state counts and any failures; run an independent scoped model/design review and resolve findings before qualification.
 
 ## 3. Qualify reachability and fault detection
 
@@ -64,5 +64,9 @@ same-key and cross-key successors, pre-admission cancellation, post-admission
 caller cancellation, duplicate delivery and failure after a committed match.
 Both focused model searches complete at 5,025 distinct states. All eight seeded
 faults and fifteen witnesses give the expected traces. The original six broad
-profiles reached their 300-second limits. Task 2.5 stays open and the verdict at
-the full pilot bounds is inconclusive. See the current wait-ownership README.
+profiles reached their 300-second limits. At that checkpoint, task 2.5 remained
+open and the verdict at the full pilot bounds was inconclusive.
+
+## Full-bound qualification (2026-11-23)
+
+Task 2.5 closed using the approved compositional method. Both literal targets completed all six normal profiles with empty queues. Independent review covered the projection, shared ownership, deadlock, weak fairness and retained evidence. The original joint searches retain their timeout verdict. [Qualification and reproduction](../../../verification/tla/wait-ownership/full-bound-results.md)

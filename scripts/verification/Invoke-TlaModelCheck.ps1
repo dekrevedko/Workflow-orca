@@ -1,12 +1,13 @@
 [CmdletBinding()]
 param(
     [string[]]$Profile = @('*'),
-    [ValidateRange(1,300)][int]$TimeoutSeconds = 300,
+    [ValidateRange(1,3600)][int]$TimeoutSeconds = 300,
     [ValidateRange(128,4096)][int]$HeapMb = 1024,
     [string]$OutputDirectory,
     [Parameter(Mandatory)][string]$ModelDirectory,
     [Parameter(Mandatory)][ValidatePattern('^[A-Za-z][A-Za-z0-9_]*$')][string]$ModuleName,
-    [string]$ManifestPath
+    [string]$ManifestPath,
+    [switch]$CheckLivenessAtEnd
 )
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
@@ -54,7 +55,11 @@ foreach ($entry in $selected) {
     Get-ChildItem -LiteralPath $ModelDirectory -Filter '*.tla' | Where-Object Name -NotLike '*_TTrace*' | Copy-Item -Destination $run
     Copy-Item -LiteralPath (Join-Path $ModelDirectory $entry.config) -Destination $run
     $javaTemp = New-Item -ItemType Directory -Force (Join-Path $run 'java-tmp')
-    $arguments = @("-Djava.io.tmpdir=$($javaTemp.FullName)", "-Xmx${HeapMb}m", '-XX:+UseParallelGC', '-cp', $tools.Jar, 'tlc2.TLC', '-workers', '1', '-seed', '1', '-fp', '0', '-metadir', (Join-Path $run 'states'), '-config', $entry.config, "$ModuleName.tla")
+    $arguments = @("-Djava.io.tmpdir=$($javaTemp.FullName)", "-Xmx${HeapMb}m", '-XX:+UseParallelGC', '-cp', $tools.Jar, 'tlc2.TLC', '-workers', '1', '-seed', '1', '-fp', '0', '-metadir', (Join-Path $run 'states'), '-config', $entry.config)
+    if ($CheckLivenessAtEnd) {
+        $arguments += @('-lncheck', 'final')
+    }
+    $arguments += "$ModuleName.tla"
     $info = [Diagnostics.ProcessStartInfo]::new()
     $info.FileName = $tools.Java
     $info.WorkingDirectory = $run
@@ -105,6 +110,11 @@ foreach ($entry in $selected) {
         }
     } else { throw "Unknown profile kind: $($entry.kind)" }
     $stateCount = [regex]::Match($log, '([\d,]+) states generated, ([\d,]+) distinct states found, ([\d,]+) states left on queue')
+    if ($ModuleName -eq 'WaitOwnershipByTarget' -and $status -eq 'passed' -and
+        $stateCount.Value -notmatch '^[\d,]+ states generated, [1-9][\d,]* distinct states found, 0 states left on queue$') {
+        $status = 'inconclusive'
+        $reason = 'Missing a completed target search with an empty state queue.'
+    }
     $results.Add([ordered]@{
         profile = $entry.name; kind = $entry.kind; expected = $entry.expected; status = $status; reason = $reason
         exitCode = $exitCode; elapsedSeconds = [Math]::Round($watch.Elapsed.TotalSeconds,3)

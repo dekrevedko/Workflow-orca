@@ -39,8 +39,9 @@ tracks runtime progression and host concurrency work under 8.5 and 8.7.
   the ticket, waiter, and capacity when conflicts were forced, and the operation succeeded on retry
   after contention subsided. [Retry evidence](../openspec/changes/grant-fifo-waiters-on-pool-upsize/validation.md#conflict-exhaustion)
 
-For ephemeral wait ownership, six broad TLC profiles reached their time budgets. Full exploration
-remains open under task 2.5. [Verification status](../openspec/changes/verify-ephemeral-wait-ownership-with-tla/tasks.md)
+Ephemeral wait ownership passed all twelve per-target TLC searches at the original pilot bounds.
+They cover same-key contention, all four key-isolation cases and conditional progress. The original
+joint searches remain inconclusive. [Bounds, assumptions and evidence](../verification/tla/wait-ownership/full-bound-results.md)
 
 ## Delivery Guarantees
 
