@@ -17,6 +17,16 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
     }
 
     [Fact]
+    public async Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake()
+    {
+        await using var storage = new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().BuildServiceProvider();
+        var store = storage.GetRequiredService<IWorkflowEventStore>();
+        await DagRunCertification.RemoteJoinAfterLostWakeAsync(
+            () => new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().AddSingleton(store.GetType(), store),
+            TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>
         DagRunCertification.ShippedScheduler_ProgressesTwoRunsAndCancelsTheBlockedMapperAsync(
             new ServiceCollection().AddOrcaCoreInMemoryDurableProvider(), TestContext.Current.CancellationToken);
