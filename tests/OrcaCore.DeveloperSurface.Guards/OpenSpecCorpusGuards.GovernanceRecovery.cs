@@ -108,10 +108,32 @@ public sealed partial class OpenSpecCorpusGuards
         return predecessor;
     }
 
+    private static string BeforeEventKeyWording(string root, string path, string current)
+    {
+        var reviewedHash = path switch
+        {
+            "docs/eks-scheduler-handoff.md" => "026cbe17e71d6dde31cda46a8d99742dd342205782bc240a298f0967b06008f2",
+            "docs/ephemeral-engine-diagrams.md" => "15f1971c2e5fc4ad4176005b5d3877864f8e562a1e9fd494ccbbcdc09f8da9ee",
+            "docs/specs/03-domain-model-and-glossary.md" => "244fc88246279f601c432c1278a66e863bba3fc2eeb675a734181eff7706d056",
+            "docs/specs/04-requirements-core-runtime.md" => "18add5b7bad21a90a665b47a263eb37dde6a82edad766ef4a58c96b9a3e9ab80",
+            "docs/specs/05-requirements-events-waits-timers.md" => "3370fd1303e151ab027e3ac642a0bcd2af6bae184377e351341fdf3907a27eed",
+            "docs/specs/09-requirements-management-operations.md" => "6626b43cd1f3046b00f15af22bda7a0c738a25fec0c49764a41d9910a5b6f813",
+            "docs/specs/12-acceptance-criteria.md" => "745eb32557b1a966af11bae22792940c3d9f8136029c40a91730b56fec4e3939",
+            "docs/specs/17-selected-mode-capability-matrix.md" => "513928c6cca802945521e43d68101feff4fe1dd0386c99295f2b65b01a7e9a34",
+            _ => null
+        };
+        if (reviewedHash is null) return current;
+
+        Sha256(current).Should().Be(reviewedHash, "the event-key wording must match the reviewed document");
+        const string beforeWording = "f66ac0b8bf12792d1f9f28518d33bc83bac9516e";
+        return DagFacadeApprovedHistory.TextAt(root, beforeWording, path);
+    }
+
     // The grant edit list includes insertions with an empty predecessor. Preserve their exact
     // positions by applying the recovery edits to the reviewed grant files.
     internal static string BeforeScopedGrantAdmission(string root, string path, string current)
     {
+        current = BeforeEventKeyWording(root, path, current);
         const string grant = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/";
         if (path == "openspec/specs/durable-runtime/spec.md")
         {
