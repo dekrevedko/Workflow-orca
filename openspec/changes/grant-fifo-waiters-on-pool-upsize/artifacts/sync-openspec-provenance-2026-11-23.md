@@ -28,4 +28,4 @@ Task 1.1 synchronizes the FIFO resize requirement and both scenarios from merge 
 - record bytes: 4,575
 - SHA-256: `d91e85497acfd7e1f3c4e2be03baf37381da586542b43d27f26e9d7b8cb07ef0`
 
-The active change remains available for review. The separate [wait-ownership task 2.5](../../verify-ephemeral-wait-ownership-with-tla/tasks.md) remains open.
+The active change remains available for review. The separate [wait-ownership task 2.5](https://github.com/dekrevedko/Workflow-orca/blob/3cead4b4019edece46a67d6281b690a40a5b000e/openspec/changes/verify-ephemeral-wait-ownership-with-tla/tasks.md) remains open.
