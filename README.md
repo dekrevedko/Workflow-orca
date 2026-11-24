@@ -155,9 +155,9 @@ the reviewed retention and cooperative shutdown APIs; see the
 [release notes](docs/prerelease-notes.md) for behavior changes and limitations.
 
 The durable continuation handoff test now waits for the second owner to claim the continuation
-and checks for exactly one completed step after both owners finish. Exhaustive verification
-of ephemeral wait ownership remains open. [Handoff test](https://github.com/dekrevedko/Workflow-orca/pull/22) ·
-[Wait-ownership task 2.5](openspec/changes/verify-ephemeral-wait-ownership-with-tla/tasks.md)
+and checks for exactly one completed step after both owners finish. Both targets passed the full-bound
+ephemeral wait-ownership checks for safety and conditional progress. [Handoff test](https://github.com/dekrevedko/Workflow-orca/pull/22) ·
+[Wait-ownership qualification](verification/tla/wait-ownership/full-bound-results.md)
 
 The shutdown API drains initialized pending starts and accepted handles through
 an ordered Generic Host drainer, an explicitly owned host, or a plain-DI submission
