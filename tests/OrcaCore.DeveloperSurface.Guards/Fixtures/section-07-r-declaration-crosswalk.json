@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 420,
-    "physicalDeclarations": 1762,
-    "activeFiles": 264,
-    "activeDeclarations": 1074,
+    "physicalFiles": 421,
+    "physicalDeclarations": 1765,
+    "activeFiles": 265,
+    "activeDeclarations": 1077,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -2250,6 +2250,12 @@
       "declarations": 1
     },
     {
+      "source": "tests/OrcaCore.ProviderCertification/DagDiscoveryCacheCertification.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.ProviderCertification/DagFacadeCertification.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
@@ -2331,7 +2337,7 @@
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
-      "declarations": 18
+      "declarations": 19
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderPorts.cs",
@@ -2409,7 +2415,7 @@
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
       "status": "active",
-      "declarations": 53
+      "declarations": 54
     },
     {
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourceGovernanceCertificationTests.cs",
@@ -2463,7 +2469,7 @@
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
       "status": "active",
-      "declarations": 27
+      "declarations": 28
     },
     {
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs",

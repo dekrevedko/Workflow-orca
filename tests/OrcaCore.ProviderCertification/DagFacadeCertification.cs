@@ -206,7 +206,7 @@ public static partial class DagRunCertification
     }
 
     private static IHost FacadeHost(IServiceCollection provider, DagEventStoreProbe? probe = null,
-        DurableWorkflowDefinition<int, int>? child = null, FacadeGate? gate = null)
+        DurableWorkflowDefinition<int, int>? child = null, FacadeGate? gate = null, int? dagLimit = 1)
     {
         if (probe is not null)
         {
@@ -221,7 +221,7 @@ public static partial class DagRunCertification
         });
         if (child is not null) engine.AddWorkflow(child);
         if (gate is not null) provider.AddSingleton(gate);
-        provider.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = 1 });
+        if (dagLimit is { } limit) provider.AddOrcaCoreDag(new DagHostOptions { MaxConcurrentNodes = limit });
         return Host.CreateDefaultBuilder().ConfigureServices(services =>
         { foreach (var descriptor in provider) services.Add(descriptor); }).Build();
     }

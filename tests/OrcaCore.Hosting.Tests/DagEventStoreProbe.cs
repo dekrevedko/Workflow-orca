@@ -74,7 +74,12 @@ internal sealed class DagEventStoreProbe : IWorkflowEventStore
     public Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(DagRunLeaseRequestV1 request, CancellationToken token) => Inner.RenewDagRunLeaseAsync(request, token);
     public Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(DagRunFenceV1 fence, CancellationToken token) => Inner.ReleaseDagRunLeaseAsync(fence, token);
     public Task CancelDagRunLeaseRequestAsync(Guid run, Guid owner, Guid request, CancellationToken token) => Inner.CancelDagRunLeaseRequestAsync(run, owner, request, token);
-    public Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(DagRunDiscoveryRequestV1 request, CancellationToken token) => Inner.ListRecoverableDagRunsAsync(request, token);
+    internal Func<CancellationToken, Task>? BeforeDiscovery { get; init; }
+    public async Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(DagRunDiscoveryRequestV1 request, CancellationToken token)
+    {
+        if (BeforeDiscovery is { } before) await before(token);
+        return await Inner.ListRecoverableDagRunsAsync(request, token);
+    }
     public Task UnsubscribeDagRunAsync(Guid subscription, Guid host, CancellationToken token) => Inner.UnsubscribeDagRunAsync(subscription, host, token);
     public Task<int> PruneExpiredDagRunObserversAsync(int maxCount, CancellationToken token) => Inner.PruneExpiredDagRunObserversAsync(maxCount, token);
 }
