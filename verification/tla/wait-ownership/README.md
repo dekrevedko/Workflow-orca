@@ -4,6 +4,8 @@ The [protocol verification guide](../README.md) lists the models, their bounds, 
 
 This development-only pilot checks a finite model of OrcaCore's ephemeral correlation ownership. It does not verify C# automatically or establish durable guarantees. See [crosswalk.md](crosswalk.md) for assumptions, source/test mapping, and the historical WOP-F001 rollback discrepancy.
 
+The [canonical verification requirements](../../../openspec/specs/wait-ownership-model-verification/spec.md) define the six obligations. The [archived pilot](../../../openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/tasks.md) records their implementation and qualification.
+
 ## Run
 
 From the repository root with PowerShell 7:

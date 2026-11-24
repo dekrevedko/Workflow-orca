@@ -148,4 +148,4 @@ The source model and a deterministic compiled regression both exposed WOP-F001: 
 
 ## Full-bound acceptance for task 2.5 (2026-11-23)
 
-The owner approved checking each literal target separately if independent review establishes coverage of every original safety and progress obligation. Execute all six configurations for both targets. Retain the two instances, occurrence and event bounds, interleaving points and fairness assumptions. The shared reservation interface admits extra peer histories, so a failing trace requires concrete replay. [Projection and correspondence](../../../verification/tla/wait-ownership/composition.md)
+The owner approved checking each literal target separately if independent review establishes coverage of every original safety and progress obligation. Execute all six configurations for both targets. Retain the two instances, occurrence and event bounds, interleaving points and fairness assumptions. The shared reservation interface admits extra peer histories, so a failing trace requires concrete replay. [Projection and correspondence](../../../../verification/tla/wait-ownership/composition.md)

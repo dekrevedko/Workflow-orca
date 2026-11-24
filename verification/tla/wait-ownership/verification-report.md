@@ -143,7 +143,7 @@ positive for an unrelated temporal property. A later inventory review caught an
 encoding change in historical guard assertions; the source was restored and the
 patch narrowed to provenance pins/catalog metadata. Those scoped reviews reported
 no remaining findings after correction. Final evidence review is recorded in
-[implementation review record](../../../openspec/changes/verify-ephemeral-wait-ownership-with-tla/artifacts/implementation-review-record.md).
+[implementation review record](../../../openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/artifacts/implementation-review-record.md).
 
 Recommendation: **extend narrowly with a separately scoped WOP-F001 correction**,
 then rerun the unchanged contract obligations. The pilot already improved code
