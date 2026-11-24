@@ -8,15 +8,14 @@ internal sealed class EphemeralRetentionCoordinator : IDisposable
 {
     private readonly TimeProvider clock;
     private readonly EphemeralTerminalRetentionSettings? policy;
-    private readonly Dictionary<InstanceId, Entry> entries = [];
+    private EphemeralRetentionIndex? index;
     private readonly ITimer? timer;
-    private long ordinal;
     private int sweeping;
     private bool disposed;
 
     internal object Gate { get; }
     internal global::OrcaCore.Hosting.EphemeralHostLifetime? HostLifetime { get; }
-    internal int TrackedCount { get { lock (Gate) return entries.Count; } }
+    internal int TrackedCount { get { lock (Gate) return index?.TrackedCount ?? 0; } }
     internal bool HasTimer => timer is not null;
 
     internal EphemeralRetentionCoordinator(TimeProvider clock, EphemeralTerminalRetentionSettings? policy, global::OrcaCore.Hosting.EphemeralHostLifetime? hostLifetime = null)
@@ -27,6 +26,7 @@ internal sealed class EphemeralRetentionCoordinator : IDisposable
         Gate = hostLifetime?.Gate ?? new object();
         if (policy is not null)
         {
+            index = new EphemeralRetentionIndex();
             // Arm after assignment and rearm explicitly: System timers round sub-ms periods
             // to zero (one shot). Preserve the configured interval without losing idle sweeps.
             timer = clock.CreateTimer(_ => Sweep(), null, Timeout.InfiniteTimeSpan, Timeout.InfiniteTimeSpan);
@@ -34,31 +34,30 @@ internal sealed class EphemeralRetentionCoordinator : IDisposable
         }
     }
 
-    internal void Track(EphemeralInstanceLifetime lifetime)
+    // Registration, pin transitions and retirement elections are already under Gate in the lifetime.
+    internal bool Track(EphemeralInstanceLifetime lifetime)
     {
-        if (policy is null) return;
-        lock (Gate)
-        {
-            if (!disposed) entries.Add(lifetime.InstanceId, new Entry(lifetime));
-        }
+        if (index is null) return false;
+        index.Track(lifetime);
+        return true;
     }
 
-    internal void Forget(InstanceId id) { lock (Gate) entries.Remove(id); }
+    internal void SetPinned(InstanceId id, bool pinned) => index?.SetPinned(id, pinned);
+
+    internal void Forget(InstanceId id) => index?.Forget(id);
 
     internal void Changed(EphemeralInstanceLifetime lifetime)
     {
-        if (policy is null) return;
-        lock (Gate) { if (disposed) return; }
-        var timestamp = clock.GetTimestamp();
+        bool needsStamp;
         lock (Gate)
         {
-            if (disposed) return;
-            if (entries.TryGetValue(lifetime.InstanceId, out var entry) &&
-                entry.Ordinal == 0 && lifetime.IsPhysicallySettled)
-            {
-                entry.Timestamp = timestamp;
-                entry.Ordinal = checked(++ordinal);
-            }
+            if (index is null) return;
+            needsStamp = index.NeedsStamp(lifetime);
+        }
+        if (needsStamp)
+        {
+            var timestamp = clock.GetTimestamp();
+            lock (Gate) index?.Stamp(lifetime, timestamp);
         }
         Enforce();
     }
@@ -92,34 +91,22 @@ internal sealed class EphemeralRetentionCoordinator : IDisposable
 
     private void Enforce()
     {
-        List<Action> cleanup = [];
         lock (Gate) { if (disposed || policy is null) return; }
         var now = clock.GetTimestamp();
         var frequency = clock.TimestampFrequency;
         ArgumentOutOfRangeException.ThrowIfNegativeOrZero(frequency);
+        // Round up to the first whole timestamp tick that is at least MaxAge.
+        var minimumAge = ((Int128)policy.MaxAge.Ticks * frequency + TimeSpan.TicksPerSecond - 1) / TimeSpan.TicksPerSecond;
+        List<(long Ordinal, Action Release)>? cleanup;
         lock (Gate)
         {
-            if (disposed || policy is null) return;
-            var eligible = entries.Values.Where(e => e.Ordinal != 0 && e.Lifetime.IsEligible)
-                .OrderBy(e => e.Ordinal).ToArray();
-            // Compare monotonic durations without invoking a virtual clock member
-            // under the admission gate or overflowing a timestamp/age product.
-            var expired = eligible.Where(e => (decimal)unchecked(now - e.Timestamp) / frequency >=
-                (decimal)policy.MaxAge.Ticks / TimeSpan.TicksPerSecond).ToHashSet();
-            var remaining = eligible.Length - expired.Count;
-            foreach (var entry in eligible)
-            {
-                if (!expired.Contains(entry) && remaining <= policy.MaxRetainedInstances) continue;
-                if (!expired.Contains(entry)) remaining--;
-                var release = entry.Lifetime.SelectRetirement();
-                if (release is null) continue;
-                entries.Remove(entry.Lifetime.InstanceId);
-                cleanup.Add(release);
-            }
+            cleanup = index?.Select(now, minimumAge, policy.MaxRetainedInstances);
         }
-        // Physical release and observations are synchronous, outside every admission lock.
+        if (cleanup is null) return;
+        // Preserve settlement order for cleanup and the first failure. Only victims need ordering.
+        cleanup.Sort(static (left, right) => left.Ordinal.CompareTo(right.Ordinal));
         Exception? failure = null;
-        foreach (var release in cleanup)
+        foreach (var (_, release) in cleanup)
         {
             try { release(); }
             catch (Exception error) { failure ??= error; }
@@ -129,14 +116,7 @@ internal sealed class EphemeralRetentionCoordinator : IDisposable
 
     public void Dispose()
     {
-        lock (Gate) { disposed = true; entries.Clear(); }
+        lock (Gate) { disposed = true; index = null; }
         timer?.Dispose();
-    }
-
-    private sealed class Entry(EphemeralInstanceLifetime lifetime)
-    {
-        internal EphemeralInstanceLifetime Lifetime { get; } = lifetime;
-        internal long Timestamp { get; set; }
-        internal long Ordinal { get; set; }
     }
 }

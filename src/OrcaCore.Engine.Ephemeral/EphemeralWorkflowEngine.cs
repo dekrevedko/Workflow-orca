@@ -353,8 +353,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                             instance = initializedInstance;
                             if (enforceUniqueWaits) initializedInstance.SetCorrelationIndex(routingIndex);
                             initializedInstance.Lifetime.Initialize(
-                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending, retention.Gate, retention.Changed, HostLifetime);
-                            retention.Track(initializedInstance.Lifetime);
+                                () => RemoveReleasedInstance(initializedInstance), options.WorkCompletionPending, retention);
                             instanceRegistry.Save(initializedInstance);
                             CommitSnapshot(initializedInstance.ToSnapshot());
                             if (HostLifetime.IsStopping) initializedInstance.SignalCancellation();
@@ -936,10 +935,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     }
 
     internal bool TryAcceptStart(InstanceId instanceId, CancellationToken callerToken)
-    {
-        lock (VisibilityGate)
-            return !HostLifetime.IsStopping && TryGetFacadeInstance(instanceId, out var instance) && instance!.Lifetime.TryAccept(callerToken);
-    }
+        => TryGetFacadeInstance(instanceId, out var instance) && instance!.Lifetime.TryAccept(callerToken);
 
     internal Task AbortProvisionalStartAsync(InstanceId instanceId) =>
         TryGetFacadeInstance(instanceId, out var instance)
@@ -973,7 +969,6 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     {
         try
         {
-            retention.Forget(instance.InstanceId);
             timerService.CancelInstance(instance.InstanceId);
             IndexSnapshot(instance.ToSnapshot());
         }

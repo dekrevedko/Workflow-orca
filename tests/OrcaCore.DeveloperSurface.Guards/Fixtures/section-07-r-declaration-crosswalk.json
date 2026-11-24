@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 421,
-    "physicalDeclarations": 1765,
+    "physicalDeclarations": 1773,
     "activeFiles": 265,
-    "activeDeclarations": 1077,
+    "activeDeclarations": 1085,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1887,7 +1887,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/RetentionSweepTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 11
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Retention/TerminalRetentionPolicyTests.cs",
