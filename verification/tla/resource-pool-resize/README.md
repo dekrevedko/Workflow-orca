@@ -21,6 +21,12 @@ Progress assumes that a continuously enabled resize step and cleanup of an alrea
 
 Tickets stand for exact reservations by one occurrence in one pool. The model bounds the schedule to one resize, one holder release and one scoped closure. Time, GUID generation, operation-ID replay, database transactions, retry exhaustion and workflow wakeup delivery are outside this check.
 
+## Provider checks
+
+The [idle-pool regression](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.Resize.cs) failed on PostgreSQL and SQL Server at the Phase E baseline `9465475d`. The capacity increase succeeded with zero units reserved. Both tests now check the tickets issued by the resize, their identities on a replacement host, and adoption by the parked workflow on its next driver turn. The [competing writes](../../../tests/OrcaCore.ProviderCertification/DurableResourceGrantRaceCertification.ResizeRaces.cs) cover a partially fitting head, cancellation between checkpoint read and append, and a release that wins the partition version. Neither granting tickets nor recovery of those tickets requires another holder to release.
+
+New resize records retain the winning management snapshot for replay after intervening changes. An older operation retains its identity and uses current accounting when its v1 record lacks that snapshot. Replaying an old operation issues no new tickets. Drain older writers before enabling the new version on a shared partition because an older writer can omit the snapshot when it writes its next full state. Workflow adoption requires a subsequent driver turn.
+
 ## Reproduce
 
 Run from the repository root with PowerShell 7. The runner uses the pinned private Java runtime and TLC. It records configurations, source hashes, classifications, state counts and counterexample traces under `.codex-run/ResourcePoolResize/`.
