@@ -33,6 +33,9 @@ $sourceFiles = @(& git -C $repo ls-files --cached --others --exclude-standard --
 if ($ModuleName -in @('ContinuationLease','EventTimeout','ResourceGrant','ResourcePoolResize')) {
     $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Providers.PostgreSql src/OrcaCore.Providers.SqlServer src/OrcaCore.Runtime.Protocol src/OrcaCore.Durable.Hosting tests/OrcaCore.Hosting.Tests tests/OrcaCore.ProviderCertification tests/OrcaCore.Providers.PostgreSql.Tests tests/OrcaCore.Providers.SqlServer.Tests docs/durable-driver-lane-host.md .github/workflows/ci.yml)
 }
+if ($ModuleName -eq 'ResourceGrant') {
+    $sourceFiles += @('.github/workflows/durable-resource-grant.yml', 'docs/specs/10-provider-model-and-extensibility.md', 'docs/specs/12-acceptance-criteria.md', 'docs/implementation/00-stack-decisions.md')
+}
 if ($ModuleName -eq 'DagChildJoin') {
     $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Runtime.Protocol src/OrcaCore.Durable.Hosting src/OrcaCore.Providers.PostgreSql src/OrcaCore.Providers.SqlServer tests/OrcaCore.Hosting.Tests docs/specs/08-requirements-composition.md .github/workflows/dag-child-join.yml)
 }
