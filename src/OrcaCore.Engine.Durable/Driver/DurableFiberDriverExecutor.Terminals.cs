@@ -71,7 +71,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 RequestedAt = context.TimeProvider.GetUtcNow(),
                 StateContentType = serialized.ContentType,
                 StatePayload = serialized.Payload,
-                Envelope = BuildEnvelope(context, execution, state, ownedObligations),
+                // Quiescence verified that no prior-generation obligation still owns capacity.
+                Envelope = BuildEnvelope(context, execution, state, []),
                 ExpectedStreamVersion = currentVersion
             },
             cancellationToken).ConfigureAwait(false);
@@ -176,7 +177,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             if (obligation.Kind == DurableOwnedObligationKind.Resource &&
                 obligation.ProtectionToken is not null &&
                 obligation.LeasePhase is
-                    nameof(DurableLeaseObligationPhase.PendingCommit) or
                     nameof(DurableLeaseObligationPhase.Held) or
                     nameof(DurableLeaseObligationPhase.ReviewMarked) or
                     nameof(DurableLeaseObligationPhase.AmbiguousHeld))

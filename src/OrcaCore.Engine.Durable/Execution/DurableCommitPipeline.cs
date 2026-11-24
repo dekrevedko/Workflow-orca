@@ -43,28 +43,35 @@ internal sealed class DurableCommitPipeline(
 
         if (appendResult.IsFailure)
         {
-            await resourcePoolCommitEffects.RollBackAcquiresAsync(decision.Events, cancellationToken).ConfigureAwait(false);
+            // A scoped reservation belongs to the durable occurrence. Another worker may
+            // already have committed this very ticket, or may recover it after host loss.
+            if (!decision.HasScopedReservation)
+                await resourcePoolCommitEffects.RollBackAcquiresAsync(decision.Events, cancellationToken).ConfigureAwait(false);
             return new DurableCommandResult(
                 DurableCommandOutcome.Conflict,
                 appendResult.Error.Message,
                 aggregate.StreamVersion);
         }
 
-        try
+        await resourcePoolCommitEffects.ReleaseCommittedTicketsAsync(decision.Events, decision.Checkpoint, cancellationToken)
+            .ConfigureAwait(false);
+        var version = appendResult.Value.NewVersion;
+        if (decision.Checkpoint is { } checkpoint && decision.Events.Count > 0)
         {
-            await resourcePoolCommitEffects.ReleaseCommittedTicketsAsync(decision.Events, cancellationToken).ConfigureAwait(false);
-        }
-        catch (Exception)
-        {
-            // The events are already durably committed; surfacing a release failure here would make a
-            // committed command look failed and provoke conflicting retries. The unreleased ticket is
-            // recovered by lease expiry via the operational sweep.
+            var settled = await resourcePoolCommitEffects.SettleStoppedReservationsAsync(
+                eventStore, checkpoint, decision.Events[^1].OccurredAt, cancellationToken).ConfigureAwait(false);
+            if (settled != checkpoint.StreamVersion)
+            {
+                if (!DurableScopedReservationRecovery.IsTerminal(checkpoint))
+                    return new DurableCommandResult(DurableCommandOutcome.Conflict, "Reload compensated lease occurrence.", settled);
+                version = settled;
+            }
         }
 
         return new DurableCommandResult(
             DurableCommandOutcome.Committed,
             null,
-            appendResult.Value.NewVersion,
+            version,
             decision.EvictAfterCommit);
     }
 

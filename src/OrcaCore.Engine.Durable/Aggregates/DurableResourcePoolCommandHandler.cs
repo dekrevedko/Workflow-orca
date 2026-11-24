@@ -16,20 +16,22 @@ internal static class DurableResourcePoolCommandHandler
         ArgumentNullException.ThrowIfNull(command.Envelope);
 
         var events = new List<DurableWorkflowEvent>();
-        events.AddRange(aggregate.ResourcePoolState.CreateReleaseEvents(
-            aggregate.CreateResourcePoolEventContext(
-                command.CommandId,
-                command.InstanceId,
-                command.RequestedAt),
-            command.HolderKey));
-        events.Add(new WorkflowStepCompletedEvent
+        if (command.CompensatedRelease is { } release)
+            events.Add(release);
+        else
+            events.AddRange(aggregate.ResourcePoolState.CreateReleaseEvents(
+                aggregate.CreateResourcePoolEventContext(
+                    command.CommandId,
+                    command.InstanceId,
+                    command.RequestedAt),
+                command.HolderKey));
+        events.Add(new WorkflowExecutionPositionChangedEvent
         {
             EventId = EventId.Create(Guid.CreateVersion7().ToString()),
             InstanceId = command.InstanceId,
             CommandId = command.CommandId,
             CausationId = DurableWorkflowAggregate.ToCausationId(command.CommandId),
-            OccurredAt = command.RequestedAt,
-            StepPath = $"resource-lease-confirmed:{command.HolderKey}"
+            OccurredAt = command.RequestedAt
         });
         return new DurableDecision(
             events,
@@ -100,6 +102,9 @@ internal static class DurableResourcePoolCommandHandler
                 envelope,
                 aggregate.LastStepPath)
             : null;
-        return new DurableDecision(events, checkpoint, plan.EvictAfterCommit);
+        return new DurableDecision(events, checkpoint, plan.EvictAfterCommit)
+        {
+            HasScopedReservation = command.LeaseProtectionToken is not null
+        };
     }
 }

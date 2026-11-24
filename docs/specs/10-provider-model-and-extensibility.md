@@ -132,6 +132,13 @@ the full-stream factory defensively copies and validates exact `1..Version` cont
 version iff empty. Append accepts one copied non-empty batch numbered exactly after the expected
 version and commits all or conflicts without partial persistence.
 
+Scoped admission and queued promotion additionally require
+`ICheckpointGuardedResourceGovernanceStore.AppendIfCurrentAsync`. The host supplies the
+owner checkpoint versions it used to admit those occurrences. The provider checks every
+version in the same transaction as the governance append. A changed or missing owner
+checkpoint returns a conflict so the host can re-evaluate eligibility. Wrapped providers
+forward this capability. An implementation without it cannot issue new scoped reservations.
+
 
 ### PR-018 Operational statistics store
 `IWorkflowOperationalStore` SHALL refresh provider-owned stuck observations and return retained

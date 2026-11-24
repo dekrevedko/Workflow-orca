@@ -855,7 +855,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         return selected.Id == execution.RootFiberId &&
             selected.OwningScopeId is null &&
             !hasActiveDescendants &&
-            ownedObligations.Count == 0;
+            ownedObligations.All(obligation => obligation.Kind == DurableOwnedObligationKind.Resource &&
+                obligation.LeasePhase is (nameof(DurableLeaseObligationPhase.CancelledBeforeGrant) or nameof(DurableLeaseObligationPhase.Released)));
     }
 
     private static bool RootFailed(StructuredExecutionState execution)

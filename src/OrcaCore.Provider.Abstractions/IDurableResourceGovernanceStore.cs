@@ -1,3 +1,4 @@
+using OrcaCore.Abstractions.Ids;
 using OrcaCore.Runtime.Protocol.ResourceGovernance;
 
 namespace OrcaCore.Provider.Abstractions.ResourceGovernance;
@@ -16,4 +17,15 @@ public interface IDurableResourceGovernanceStore
         long expectedVersion,
         IReadOnlyList<ResourceGovernanceRecord> records,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>Provider capability for admitting scoped resource grants against the owning workflow checkpoint.</summary>
+public interface ICheckpointGuardedResourceGovernanceStore : IDurableResourceGovernanceStore
+{
+    /// <summary>Appends only if every observed workflow checkpoint still has the given version.
+    /// Implementations must serialize validation with the governance write and concurrent checkpoint updates.
+    /// Selected hosts require this operation for scoped admission and direct queue transfer.</summary>
+    ValueTask<ResourceGovernanceAppendResult> AppendIfCurrentAsync(
+        ResourceGovernancePartitionId partitionId, long expectedVersion, IReadOnlyList<ResourceGovernanceRecord> records,
+        IReadOnlyDictionary<InstanceId, long> checkpoints, CancellationToken cancellationToken = default);
 }

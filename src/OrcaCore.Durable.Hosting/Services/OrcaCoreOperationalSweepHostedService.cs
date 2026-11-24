@@ -6,6 +6,7 @@ using OrcaCore.Abstractions.Diagnostics;
 using OrcaCore.Abstractions.Providers;
 using OrcaCore.Engine.Durable.Diagnostics;
 using OrcaCore.Engine.Durable.Driver;
+using OrcaCore.Engine.Durable.Execution;
 
 namespace OrcaCore.Hosting.Services;
 
@@ -14,6 +15,8 @@ namespace OrcaCore.Hosting.Services;
 /// </summary>
 internal sealed class OrcaCoreOperationalSweepHostedService(
     IResourcePoolStore resourcePoolStore,
+    IWorkflowEventStore eventStore,
+    IWorkflowProjectionStore projectionStore,
     IWorkflowOperationalStore operationalStore,
     DurableResourceLeaseDiagnostics leaseDiagnostics,
     IOptions<DurableHostedServiceOptions> options,
@@ -49,6 +52,8 @@ internal sealed class OrcaCoreOperationalSweepHostedService(
     {
         var value = options.Value;
         var stopwatch = Stopwatch.StartNew();
+        await DurableScopedReservationRecovery.SweepAsync(eventStore, projectionStore, resourcePoolStore, timeProvider, stoppingToken)
+            .ConfigureAwait(false);
         var snapshot = await CollectSnapshotAsync(
             resourcePoolStore,
             operationalStore,

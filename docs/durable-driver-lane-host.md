@@ -34,6 +34,21 @@ by the in-process lane only within one host. Workloads that need cluster-wide si
 activation of one instance are the Orleans host's territory (DU-060 direction), not this
 host's.
 
+### Scoped resource grants during host replacement
+
+A workflow grant and its governance reservation commit separately. If two hosts observe the
+same ticket, the host that loses its workflow append leaves the ticket in place. A replacement
+can drive a live occurrence using the original ticket. For an occurrence that closed before
+activation, the operational sweep can finish cleanup even when the pool has no holders or
+waiters. If governance already transferred capacity, the sweep uses the existing receipt
+to finish the workflow release. Uncertain work after activation follows the quarantine rules.
+
+Drain every host that can write grants before deploying the updated writers against the same
+partition. Older writers can release a shared ticket on conflict. Custom providers and decorators
+must support `ICheckpointGuardedResourceGovernanceStore` for scoped admission and FIFO promotion.
+[Provider contract](specs/10-provider-model-and-extensibility.md#pr-017-durable-resource-governance-store)
+· [Failure and recovery schedules](../verification/tla/durable-resource-grant/README.md)
+
 ## Shutdown
 
 Graceful drain (DR-033): a stop request ends claiming immediately; the in-flight batch

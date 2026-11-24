@@ -133,10 +133,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         foreach (var queuedLease in ownedObligations.Where(obligation =>
                      obligation.Kind == DurableOwnedObligationKind.Resource &&
                      obligation.ProtectionToken is not null &&
-                     string.Equals(
-                         obligation.LeasePhase,
-                         nameof(DurableLeaseObligationPhase.Queued),
-                         StringComparison.Ordinal) &&
+                     obligation.LeasePhase is (nameof(DurableLeaseObligationPhase.Queued) or nameof(DurableLeaseObligationPhase.PendingCommit)) &&
                      obligation.HolderKey is not null &&
                      recoveredAggregate.WaitState.HasWait(WaitId.Parse(obligation.ObligationId))))
         {
@@ -158,6 +155,11 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     InstanceId = context.InstanceId,
                     RequestedAt = context.TimeProvider.GetUtcNow(),
                     HolderKey = queuedLease.HolderKey!,
+                    LeaseProtectionToken = queuedLease.ProtectionToken,
+                    LeaseObligationId = queuedLease.ObligationId,
+                    LeaseGeneration = checked((int)execution.ContinueAsNewGeneration),
+                    LeaseFiberOccurrence = queuedLease.FiberId,
+                    LeaseScopeOccurrence = queuedLease.ScopeId ?? "root",
                     Requirements = queuedLease.LeaseRequirements,
                     ExpiresAt = null,
                     WaitId = waitId,

@@ -29,6 +29,10 @@ public sealed partial class OpenSpecCorpusGuards
 
     private static void ProjectObservationRegistry(JsonObject current)
     {
+        var grant = current["scopedGrantAdmission"]!.AsObject();
+        Sha256(grant.ToJsonString()).Should().Be("d94d0d26de484bad99e6ea4bd8c4eb3f9bf262d4e99e6bb4caa73ee72dd7d795", "only the reviewed scoped grant amendment may be projected");
+        current.Remove("scopedGrantAdmission");
+
         var row = current["durableOutputObservation"]!.AsObject();
         row.Count.Should().Be(10);
         row["implementationCheckpoint"]!.GetValue<string>().Should().Be(ObservationImplementation);
@@ -84,7 +88,7 @@ public sealed partial class OpenSpecCorpusGuards
         {
             var path = row.GetProperty("path").GetString()!;
             var current = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path)));
-            ProjectObservationDocument(root, path, current, contract, row);
+            ProjectObservationDocument(root, path, BeforeScopedGrantDocumentation(root, path, current), contract, row);
         }
         return keys;
     }
@@ -123,8 +127,32 @@ public sealed partial class OpenSpecCorpusGuards
         return CreateProvenanceRow(requirement, ProvenanceState.SupersededByApprovedSuccessor, present.Block);
     }
 
+    // Later grant documentation amended owners that earlier contracts pin in full.
+    // Reconstruct each historical document from only its reviewed changes before checking those pins.
+    private static string BeforeScopedGrantDocumentation(string root, string path, string current)
+    {
+        if (path is not ("docs/implementation/00-stack-decisions.md" or "docs/specs/10-provider-model-and-extensibility.md" or
+            "docs/specs/12-acceptance-criteria.md" or "docs/specs/16-requirements-durable-driver.md" or
+            "docs/specs/17-selected-mode-capability-matrix.md")) return current;
+        const string editsPath = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/numbered-owner-edits.json";
+        var json = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, editsPath)));
+        Sha256(json).Should().Be("b4ea7f6cae17a8bed02474ee0cbbd87a9cc28d07230da2bfda5d4ff6d8f839b1");
+        using var edits = JsonDocument.Parse(json);
+        var owner = edits.RootElement.EnumerateArray().Single(row => row.GetProperty("path").GetString() == path);
+        Sha256(current).Should().Be(owner.GetProperty("afterSha256").GetString());
+        foreach (var edit in owner.GetProperty("edits").EnumerateArray().Reverse())
+        {
+            var after = edit.GetProperty("after").GetString()!;
+            current.Split(after, StringSplitOptions.None).Should().HaveCount(2);
+            current = current.Replace(after, edit.GetProperty("before").GetString(), StringComparison.Ordinal);
+        }
+        Sha256(current).Should().Be(owner.GetProperty("beforeSha256").GetString());
+        return current;
+    }
+
     private static string BeforeObservationSynchronization(string root, string path, string current)
     {
+        current = BeforeScopedGrantDocumentation(root, path, current);
         var contract = ReadObservationContract(root);
         var row = contract.GetProperty("documents").EnumerateArray().SingleOrDefault(item => item.GetProperty("path").GetString() == path);
         if (row.ValueKind != JsonValueKind.Undefined)
@@ -137,6 +165,17 @@ public sealed partial class OpenSpecCorpusGuards
 
     private static string BeforeObservationCanonicalFile(string root, string path, string current, JsonElement contract)
     {
+        if (path == "openspec/specs/durable-runtime/spec.md")
+        {
+            const string deltaPath = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/specs/durable-runtime/spec.md";
+            var delta = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, deltaPath)));
+            Sha256(delta).Should().Be("3496ce14cd2100eb985f25c9cb56b3a06954e4c9c602753a5b4fb3302395575b");
+            var suffix = "\n" + delta["## ADDED Requirements\n\n".Length..];
+            current.Should().EndWith(suffix, "the reviewed grant requirement is appended verbatim");
+            current = current[..^suffix.Length];
+            Sha256(current).Should().Be("9bdd2093e6c1687687f43fbbaf1b9e7d15753c0e02c0736ea4c4974c4aef198d", "prior canonical requirements retain their reviewed bytes");
+        }
+
         var replacements = contract.GetProperty("successors").EnumerateArray()
             .Where(row => path == $"openspec/specs/{row.GetProperty("capability").GetString()}/spec.md").ToArray();
         if (replacements.Length == 0) return current;

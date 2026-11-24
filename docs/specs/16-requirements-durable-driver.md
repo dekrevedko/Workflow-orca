@@ -444,6 +444,14 @@ performs one exact compensating release because author code was never admitted. 
 after activation requires proven exact release or transfer to capacity-reserving quarantine.
 Restart preserves the winning state, and a delayed loser command is an idempotent stale no-op.
 
+The durable lease occurrence owns the reservation across worker attempts. When two workers
+observe the same ticket and only one workflow append commits, the losing append SHALL leave
+the ticket and its provider generation with the occurrence. This holds before and after
+activation. A replacement driving a still-pending occurrence can adopt that same ticket.
+If the occurrence closes before activation, recovery SHALL use the governance receipt to
+publish one matching release, including its exact tickets or the empty set for cancellation
+before grant. Replaying that receipt SHALL preserve any queued successor's transferred ticket.
+
 Before enqueue or grant, the driver SHALL reject a pending/held lease on any active ancestor
 lease scope and SHALL exclude siblings from that ancestry scan. Both pending records and active
 tickets count. Sequential scopes and one fully lexical scope per root-loop iteration are legal;
