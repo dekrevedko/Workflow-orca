@@ -1,0 +1,76 @@
+name: Durable resource grant verification
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: &grant_paths
+      - 'verification/tla/durable-resource-grant/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/Initialize-TlaTools.ps1'
+      - 'scripts/verification/Invoke-TlaModelCheck.ps1'
+      - '.github/workflows/durable-resource-grant.yml'
+      - 'openspec/specs/durable-runtime/**'
+      - 'docs/specs/10-provider-model-and-extensibility.md'
+      - 'docs/specs/12-acceptance-criteria.md'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'docs/durable-driver-lane-host.md'
+      - 'docs/implementation/00-stack-decisions.md'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Providers.InMemory/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.ProviderCertification/**'
+      - 'tests/OrcaCore.Providers.PostgreSql.Tests/**'
+      - 'tests/OrcaCore.Providers.SqlServer.Tests/**'
+  push:
+    branches: [master]
+    paths: *grant_paths
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    name: Durable resource grant model
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check grant ownership, recovery, and controls with private Java
+        shell: pwsh
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-resource-grant -ModuleName ResourceGrant -OutputDirectory .codex-run/grant-model
+      - name: Verify profile evidence and stale rollback trace
+        shell: pwsh
+        run: |
+          $root = '.codex-run/grant-model'
+          $profiles = Get-Content verification/tla/durable-resource-grant/profiles.json -Raw | ConvertFrom-Json
+          $results = (Get-Content "$root/results.json" -Raw | ConvertFrom-Json).results
+          if (Compare-Object $profiles.name $results.profile) { throw 'Missing or unexpected grant profile results.' }
+          foreach ($profile in $profiles) {
+            foreach ($file in @('ResourceGrant.tla', $profile.config, 'tlc.log')) {
+              if (!(Test-Path -LiteralPath "$root/$($profile.name)/$file" -PathType Leaf)) { throw "Missing $($profile.name)/$file" }
+            }
+          }
+          $rollback = @($results | Where-Object profile -CEQ 'OldReleaseOnConflict')
+          if ($rollback.Count -ne 1 -or $rollback[0].kind -cne 'mutation' -or
+              $rollback[0].status -cne 'expected-counterexample' -or $rollback[0].expected -cne 'ActiveGrantRetained' -or
+              ($rollback[0].violatedProperties -join ',') -cne 'ActiveGrantRetained') { throw 'Stale rollback control did not violate ActiveGrantRetained.' }
+          $log = Get-Content "$root/OldReleaseOnConflict/tlc.log" -Raw
+          if (!$log.Contains('Invariant ActiveGrantRetained is violated.') -or !$log.Contains('The behavior up to this point is:')) {
+            throw 'Missing stale rollback counterexample trace.'
+          }
+      - name: Upload per-profile evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: durable-resource-grant-evidence
+          include-hidden-files: true
+          if-no-files-found: error
+          path: |
+            .codex-run/grant-model/*.json
+            .codex-run/grant-model/*/tlc.log
+            .codex-run/grant-model/*/*.cfg
+            .codex-run/grant-model/*/*.tla
