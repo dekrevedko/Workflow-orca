@@ -1,32 +1,32 @@
 [
   {
-    "name": "Reference",
+    "name": "Source",
     "kind": "normal",
-    "config": "Reference.cfg",
+    "config": "Source.cfg",
     "expected": ""
   },
   {
-    "name": "SourceAccounting",
+    "name": "HistoricalAccounting",
     "kind": "normal",
-    "config": "SourceAccounting.cfg",
+    "config": "HistoricalAccounting.cfg",
     "expected": ""
   },
   {
-    "name": "SourceCrashAgreement",
+    "name": "HistoricalCrashAgreement",
     "kind": "witness",
-    "config": "SourceCrashAgreement.cfg",
+    "config": "HistoricalCrashAgreement.cfg",
     "expected": "CrashedStaleAgreement"
   },
   {
-    "name": "SourcePersistentSplit",
+    "name": "HistoricalPersistentSplit",
     "kind": "witness",
-    "config": "SourcePersistentSplit.cfg",
+    "config": "HistoricalPersistentSplit.cfg",
     "expected": "NoPersistentSplit"
   },
   {
-    "name": "ReferenceStale",
+    "name": "SourceStale",
     "kind": "witness",
-    "config": "ReferenceStale.cfg",
+    "config": "SourceStale.cfg",
     "expected": "NoStaleRepair"
   },
   {
@@ -48,16 +48,28 @@
     "expected": "NoGapRecovery"
   },
   {
-    "name": "ReferenceCasRetry",
+    "name": "SourceCasRetry",
     "kind": "witness",
-    "config": "ReferenceCasRetry.cfg",
+    "config": "SourceCasRetry.cfg",
     "expected": "NoCasRetry"
+  },
+  {
+    "name": "SourceLiveWinnerCasRetry",
+    "kind": "witness",
+    "config": "SourceLiveWinnerCasRetry.cfg",
+    "expected": "NoLiveWinnerCasRetry"
   },
   {
     "name": "SourceBWinner",
     "kind": "witness",
     "config": "SourceBWinner.cfg",
     "expected": "NoBWinner"
+  },
+  {
+    "name": "SourceStaleBWinner",
+    "kind": "witness",
+    "config": "SourceStaleBWinner.cfg",
+    "expected": "NoStaleBWinnerRepair"
   },
   {
     "name": "DoubleGrant",
