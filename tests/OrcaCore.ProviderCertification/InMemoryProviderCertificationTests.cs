@@ -16,14 +16,16 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
         await DurableEventTimeoutCertification.RunAsync(new InMemoryProviderCertificationFixture(provider), provider.TimerScheduler, schedule);
     }
 
-    [Fact]
-    public async Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake(bool restartScheduler)
     {
         await using var storage = new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().BuildServiceProvider();
         var store = storage.GetRequiredService<IWorkflowEventStore>();
         await DagRunCertification.RemoteJoinAfterLostWakeAsync(
             () => new ServiceCollection().AddOrcaCoreInMemoryDurableProvider().AddSingleton(store.GetType(), store),
-            TestContext.Current.CancellationToken);
+            restartScheduler, TestContext.Current.CancellationToken);
     }
 
     [Fact]

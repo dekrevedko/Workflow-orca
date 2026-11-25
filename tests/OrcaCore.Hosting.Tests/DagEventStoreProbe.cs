@@ -72,7 +72,13 @@ internal sealed class DagEventStoreProbe : IWorkflowEventStore
     public Task<IReadOnlyList<DagRunRecordV1>> LoadDagRunTailAsync(WorkflowStreamId id, StreamVersion version, CancellationToken token) => Inner.LoadDagRunTailAsync(id, version, token);
     public Task<DagRunLeaseResultV1> AcquireDagRunLeaseAsync(DagRunLeaseRequestV1 request, CancellationToken token) => Inner.AcquireDagRunLeaseAsync(request, token);
     public Task<DagRunLeaseResultV1> RenewDagRunLeaseAsync(DagRunLeaseRequestV1 request, CancellationToken token) => Inner.RenewDagRunLeaseAsync(request, token);
-    public Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(DagRunFenceV1 fence, CancellationToken token) => Inner.ReleaseDagRunLeaseAsync(fence, token);
+    internal Action<DagRunFenceV1>? AfterLeaseRelease { get; init; }
+    public async Task<DagRunLeaseResultV1> ReleaseDagRunLeaseAsync(DagRunFenceV1 fence, CancellationToken token)
+    {
+        var result = await Inner.ReleaseDagRunLeaseAsync(fence, token);
+        AfterLeaseRelease?.Invoke(fence);
+        return result;
+    }
     public Task CancelDagRunLeaseRequestAsync(Guid run, Guid owner, Guid request, CancellationToken token) => Inner.CancelDagRunLeaseRequestAsync(run, owner, request, token);
     internal Func<CancellationToken, Task>? BeforeDiscovery { get; init; }
     public async Task<IReadOnlyList<DagRunDiscoveryV1>> ListRecoverableDagRunsAsync(DagRunDiscoveryRequestV1 request, CancellationToken token)

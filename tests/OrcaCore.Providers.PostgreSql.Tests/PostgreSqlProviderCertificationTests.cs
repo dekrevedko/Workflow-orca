@@ -147,11 +147,13 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
             certificationStore!, other, certificationStore!, afterTail);
     }
 
-    [Fact]
-    public Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake() =>
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake(bool restartScheduler) =>
         DagRunCertification.RemoteJoinAfterLostWakeAsync(
             () => new ServiceCollection().AddOrcaCorePostgreSqlDurableProvider(new(container.GetConnectionString(), "public")),
-            TestContext.Current.CancellationToken);
+            restartScheduler, TestContext.Current.CancellationToken);
 
     [Fact]
     public Task DagScheduler_ProgressesTwoRunsAndCancelsBlockedMapper() =>

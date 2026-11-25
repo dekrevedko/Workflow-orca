@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using OrcaCore.Abstractions.Durable.Dag;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Providers;
@@ -13,7 +14,7 @@ namespace OrcaCore.ProviderCertification;
 
 public static partial class DagRunCertification
 {
-    public static async Task RemoteJoinAfterLostWakeAsync(Func<IServiceCollection> provider, CancellationToken token)
+    public static async Task RemoteJoinAfterLostWakeAsync(Func<IServiceCollection> provider, bool restartScheduler, CancellationToken token)
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
         timeout.CancelAfter(TimeSpan.FromSeconds(90));
@@ -21,58 +22,70 @@ public static partial class DagRunCertification
         var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<int>(value => value).End(value => value.Value).Build();
         var graph = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
-        var root = graph.Node(DagNodeId.Create("root"), child.Reference).MapInput(input => input.RunInput);
-        graph.Node(DagNodeId.Create("dependent"), child.Reference).DependsOn(root).MapInput(input => input.OutputOf(root) + 1);
+        var rootThread = new TaskCompletionSource<Thread>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var dependentThread = new TaskCompletionSource<Thread>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var root = graph.Node(DagNodeId.Create("root"), child.Reference).MapInput(input =>
+        {
+            if (input.RunInput == 41) rootThread.TrySetResult(Thread.CurrentThread);
+            return input.RunInput;
+        });
+        graph.Node(DagNodeId.Create("dependent"), child.Reference).DependsOn(root).MapInput(input =>
+        {
+            if (input.RunInput == 41) dependentThread.TrySetResult(Thread.CurrentThread);
+            return input.OutputOf(root) + 1;
+        });
         var plan = graph.Build();
 
         // Only the worker host consumes the real outbox. The scheduler still writes real
         // child intents and queries the real discovery index and checkpoints.
         IServiceCollection SchedulerProvider() => provider().AddSingleton<IWorkflowOutboxStore>(new FakeWorkflowEventStore());
         var rootAdmitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var seedProbe = new DagEventStoreProbe
+        var dependentAdmitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Guid target = default;
+
+        void ObserveAdmission(ProviderCommitBatch batch)
         {
-            AfterAppend = batch =>
-            {
-                if (batch.DagRun?.Records.Any(r => r.Kind == DagRunRecordKindV1.InputAdmitted) == true)
-                    rootAdmitted.TrySetResult();
-            }
-        };
-        Guid target;
-        using (var seed = FacadeHost(SchedulerProvider(), seedProbe, child, dagLimit: 2))
-        {
-            await seed.StartAsync(token);
-            try
-            {
-                var definition = seed.Services.GetRequiredService<IDagDefinitionRegistry>().Register(plan).GetHandleOrThrow();
-                target = (await definition.StartOrGetAsync(41, StartIdempotencyKey.Create("cache-target"), token)).GetHandleOrThrow().RunId.Value;
-                await rootAdmitted.Task.WaitAsync(token);
-                var snapshot = await FacadeReadAsync(seedProbe.Inner, target, token);
-                Assert.Equal(new[] { DagNodeStateV1.StartAuthorized, DagNodeStateV1.Pending }, snapshot.Nodes.Select(n => n.State));
-            }
-            finally { await StopFacadeHost(seed); }
+            if (batch.DagRun?.Records.FirstOrDefault(r => r.RunId == target && r.Kind == DagRunRecordKindV1.InputAdmitted) is not { } record) return;
+            var ordinal = Assert.Single(record.ChangedNodes).Ordinal;
+            (ordinal == 0 ? rootAdmitted : dependentAdmitted).TrySetResult();
         }
 
         using var passes = new SemaphoreSlim(0);
         var barriers = new ConcurrentDictionary<Guid, TaskCompletionSource>();
         var reads = 0;
-        var dependentAdmitted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var rootTurnReleased = false;
+        var localCompletionVisit = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var readerProbe = new DagEventStoreProbe
         {
             BeforeDiscovery = passes.WaitAsync,
+            AfterLeaseRelease = fence =>
+            {
+                if (fence.RunId == target) Volatile.Write(ref rootTurnReleased, true);
+            },
             RewriteCheckpoint = checkpoint =>
             {
-                if (checkpoint.RunId == target) Interlocked.Increment(ref reads);
+                if (checkpoint.RunId == target)
+                {
+                    Interlocked.Increment(ref reads);
+                    if (Volatile.Read(ref rootTurnReleased)) localCompletionVisit.TrySetResult();
+                }
                 if (barriers.TryGetValue(checkpoint.RunId, out var barrier)) barrier.TrySetResult();
                 return checkpoint;
             },
-            AfterAppend = batch =>
-            {
-                if (batch.DagRun?.Records.Any(r => r.RunId == target && r.Kind == DagRunRecordKindV1.InputAdmitted
-                    && r.ChangedNodes.Any(n => n.Ordinal == 1)) == true) dependentAdmitted.TrySetResult();
-            }
+            AfterAppend = ObserveAdmission
         };
         using var reader = FacadeHost(SchedulerProvider(), readerProbe, child, dagLimit: 2);
         var markers = reader.Services.GetRequiredService<IDagDefinitionRegistry>().Register(plan).GetHandleOrThrow();
+
+        async Task AdmitRootAsync(IHost host, DagEventStoreProbe probe, SemaphoreSlim discovery)
+        {
+            var definition = host.Services.GetRequiredService<IDagDefinitionRegistry>().Register(plan).GetHandleOrThrow();
+            target = (await definition.StartOrGetAsync(41, StartIdempotencyKey.Create("cache-target"), token)).GetHandleOrThrow().RunId.Value;
+            discovery.Release();
+            await rootAdmitted.Task.WaitAsync(token);
+            var admitted = await FacadeReadAsync(probe.Inner, target, token);
+            Assert.Equal(new[] { DagNodeStateV1.StartAuthorized, DagNodeStateV1.Pending }, admitted.Nodes.Select(n => n.State));
+        }
 
         async Task ObservePassAsync(string key)
         {
@@ -95,13 +108,32 @@ public static partial class DagRunCertification
             }
         };
         using var worker = FacadeHost(provider(), workerProbe, child, dagLimit: null);
+        if (restartScheduler)
+        {
+            using var seedPass = new SemaphoreSlim(0);
+            var seedProbe = new DagEventStoreProbe { AfterAppend = ObserveAdmission, BeforeDiscovery = seedPass.WaitAsync };
+            using var seed = FacadeHost(SchedulerProvider(), seedProbe, child, dagLimit: 2);
+            await seed.StartAsync(token);
+            try { await AdmitRootAsync(seed, seedProbe, seedPass); }
+            finally { await StopFacadeHost(seed); }
+        }
         await reader.StartAsync(token);
         try
         {
+            if (!restartScheduler)
+            {
+                await AdmitRootAsync(reader, readerProbe, passes);
+                // Let the admission task release its turn and trigger its final local visit.
+                // The next reads can then be attributed to the controlled discovery passes.
+                await localCompletionVisit.Task.WaitAsync(token);
+            }
             await ObservePassAsync("warm-cache");
-            Assert.Equal(1, Volatile.Read(ref reads));
+            var warmReads = Volatile.Read(ref reads);
+            if (restartScheduler) Assert.Equal(1, warmReads);
             await ObservePassAsync("same-version");
-            Assert.Equal(1, Volatile.Read(ref reads));
+            Assert.Equal(warmReads, Volatile.Read(ref reads));
+            var original = await rootThread.Task.WaitAsync(token);
+            Assert.True(original.Join(TimeSpan.FromSeconds(5)), "the root mapper thread should exit while its child remains admitted");
 
             await worker.StartAsync(token);
             try
@@ -120,8 +152,9 @@ public static partial class DagRunCertification
                     && w.DagRunSubscriptionId is null && JsonSerializer.Deserialize<JsonElement>(w.Payload).GetProperty("version").GetInt64() == version.Value);
                 Assert.True(await outbox.MarkAsync(lost.OutboxRecordId, lost.DispatchAttempt, OutboxRecordState.Dispatched, token));
                 await ObservePassAsync("changed-version");
-                Assert.True(Volatile.Read(ref reads) > 1, "discovery must reread the changed run before dispatching the later marker");
+                Assert.True(Volatile.Read(ref reads) > warmReads, "discovery must reread the changed run before dispatching the later marker");
                 await dependentAdmitted.Task.WaitAsync(token);
+                Assert.NotSame(original, await dependentThread.Task.WaitAsync(token));
                 var tail = await workerProbe.Inner.LoadDagRunTailAsync(WorkflowStreamId.ForDagRun(target), version, token);
                 var admission = Assert.Single(tail, r => r.Kind == DagRunRecordKindV1.InputAdmitted);
                 var node = Assert.Single(admission.ChangedNodes);
