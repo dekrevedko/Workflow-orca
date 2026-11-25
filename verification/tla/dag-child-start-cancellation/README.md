@@ -1,0 +1,38 @@
+# DAG child start during parent cancellation
+
+A owns the only node admission slot. Its workflow stream is still empty, and independent sibling B is ready. The parent commits cancellation. That transaction marks B cancelled and publishes a cancellation notice for A. To deliver the notice, a worker must first create or reattach A. Creating A commits both its workflow start and a runnable continuation. The worker dies before its next command can record cancellation in A's stream.
+
+The parent barrier closes admission to new nodes. CP-028 requires the runtime to request cancellation of admitted children and wait for their terminal outcomes. The child start and child cancellation are separate commits. An already-admitted child can enter its first step in between. [CP-023 through CP-025 and CP-028](../../../docs/specs/08-requirements-composition.md#cp-023-one-durable-child-instance-per-node-occurrence) / [Parent cancellation](../../../src/OrcaCore.Durable.Hosting/Dag/DurableDagRunCancellation.cs) / [Child start and cancellation commands](../../../src/OrcaCore.Engine.Durable/Dag/DurableDagChildEngine.cs)
+
+## Recovery orders
+
+| First action after restart | First-step body | A's terminal fact and joined node | Parent after the join |
+|---|---|---|---|
+| Drive A through successful completion, then deliver child cancellation | Entered | Completed joins as Succeeded | Cancelled |
+| Deliver child cancellation, then drive the stale continuation | Never entered | Cancelled by the owning DAG joins as Cancelled | Cancelled |
+
+In either order, the parent must remain `CancellationRequested` until the authoritative join, even if A is already terminal. B must have no admission and no child stream. A late copy of A's original start notice must reattach to the same child. [Authoritative join](../../../src/OrcaCore.Durable.Hosting/Dag/DurableDagChildCoordinator.cs)
+
+## Model bounds and checks
+
+The model holds the original start notice until recovery, so the *cancellation handler* creates A. It forces one crash at that commit boundary. It abstracts lease expiry and reclaim as an enabled recovery action and collapses provider retries, internal driver yields and delivery acknowledgements where they do not change the race. The model separates durable attempt admission, physical entry into the first-step body, and successful completion. A child cancellation that wins the durable race closes new attempt admission. A worker holding an earlier admission may still enter the body, but its stale success cannot replace the cancelled outcome. The drive notice represents continuation work for A and can stand for several wake records. [Attempt admission](../../../src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.cs) · [Body invocation](../../../src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Helpers.cs)
+
+| TLC profiles | Evidence |
+|---|---|
+| `Source` | Full bounded safety search and eventual settlement under weakly fair progress. Checks one A start, B's exclusion, A's admission until join, an authoritative join before parent termination, and no new attempt admission after child cancellation, and preservation of the winning cancellation against stale success. |
+| `BodyAfterBarrier`, `ContinuationFirst`, `CancellationFirst` | Reachability traces for entry after the parent barrier and both fully acknowledged recovery orders. |
+| `CancellationInBody` | Model-only interleaving where child cancellation wins after physical entry and before successful completion. |
+| `LateBodyEntry` | Model-only interleaving where the attempt is durably admitted, child cancellation wins, and the worker then enters the body. |
+| `EarlyParent`, `StaleAdmission`, `DuplicateChild`, `DriveCancelled`, `StaleSuccess` | Injected faults must violate the named invariant for premature parent terminality, admission of B after closure, a second child start, a new attempt after child cancellation, or a stale success overwriting cancellation. |
+
+All advancing actions are bounded. Progress assumes a replacement with the definition installed can eventually reclaim notices, an eligible action can run, and the test body can settle. The model has no repeated crashes, external side-effect ledger, or unbounded business step. [TLA+ module](DagChildStartCancellation.tla) / [TLC profiles](profiles.json)
+
+## Reproduction
+
+From the repository root, run the model with the pinned private JRE. The explicit SQL restart suites require Docker.
+
+```powershell
+./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/dag-child-start-cancellation -ModuleName DagChildStartCancellation -CheckLivenessAtEnd
+dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.PostgreSqlChildStartCancellationProcessRestart -showLiveOutput -xml postgres.xml
+dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.DagChildRecoveryTests.SqlServerChildStartCancellationProcessRestart -showLiveOutput -xml sqlserver.xml
+```
