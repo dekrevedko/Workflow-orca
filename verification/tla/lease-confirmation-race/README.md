@@ -1,92 +1,52 @@
 # Quarantined lease confirmation race
 
-Two callers present distinct confirmation IDs, A and B, for the same quarantined token. The pool has one unit held by the original owner and one eligible FIFO waiter. A governance append releases that unit, grants the waiter, retains a release receipt for the token and binds the winning ID. Publishing the workflow's released tombstone requires a separate version-checked workflow append. Either caller can win governance.
+Two reconcilers present different confirmation IDs for one quarantined lease. Resource governance has one unit held by the owner and one eligible waiter. Its winning transaction releases the owner's ticket, grants the waiter a new ticket, binds the winner's ID and retains a release receipt. The workflow records that ID in a separate version-checked checkpoint.
 
-At source revision `83b2a2f0`, a caller that initially reads an empty receipt and an open workflow can receive `AlreadyConfirmed` from governance and still publish its own ID. TLC found this interleaving in `SourceCrashAgreement`:
+## Publication and recovery
 
-1. B reads no release evidence and the quarantined workflow at version zero. A then makes the same reads.
-2. A commits governance. The receipt and binding both record A, and the waiter holds the released unit. A dies before the workflow append.
-3. B resumes at the provider call and receives `AlreadyConfirmed`. The workflow still has version zero, so B's workflow append succeeds with `AcceptedConfirmationId = B`. Its public result is also `AlreadyConfirmed`.
+- `Released` proves that this invocation won the governance transaction. The driver publishes the submitted ID. If another writer publishes the checkpoint first, the original live caller still returns `Released` after its version retry. A new invocation returns `AlreadyConfirmed`.
+- `AlreadyConfirmed` can mean that a different ID won. Before writing the checkpoint, the driver rereads the exact token's receipt and publishes its accepted ID. A workflow version conflict forces another read. If the receipt is unavailable, the duplicate path reevaluates retained evidence and token state within the existing bounded retry loop.
+- Older checkpoints can contain the losing ID. On confirmation of the original token, a retained winning receipt allows one corrective workflow append. When B's ID is presented for a different token, the driver checks a conflicting workflow entry against that entry's own receipt. A receipt naming A prevents a false conflict. A real governance binding to another token still takes precedence. A workflow-only binding remains evidence when there is no receipt. Diagnostics reflect the stored checkpoint until it is repaired.
 
-The counterexample has nine states including initialization. A retry with A can subsequently return `AlreadyConfirmed` while leaving B's tombstone intact. In the fresh schedule, B starts after A dies, reads the retained receipt and publishes A. Capacity and ID agreement are checked separately.
+[Workflow recovery](../../../src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseRecovery.cs) · [Governance transaction](../../../src/OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs) · [Confirmation status and diagnostics contract](../../../openspec/specs/management-and-querying/spec.md)
 
-## Source mapping and bounds
+## TLC checks
 
-| Model actions | Implementation and assumptions |
-| --- | --- |
-| `ReadEvidence`, `ReadWorkflow` | `ConfirmProtectedWorkStoppedAsync` reads governance evidence and workflow lease records separately. Its cross-token conflict checks cannot match within this single-token scope. [DurableResourceLeaseRecovery.cs](../../../src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseRecovery.cs) |
-| `WinGovernance`, `AlreadyConfirmed` | Hosted `ConfirmAndReleaseAsync` checks prior binding/evidence before attempting the governance append. The successful transaction retains a binding and receipt, removes the holder and grants the eligible waiter. The model starts with the waiter admitted and folds internal retries into the serialized outcome. [SerializedResourceGovernanceAggregate.cs](../../../src/OrcaCore.Durable.Hosting/ResourceLeases/SerializedResourceGovernanceAggregate.cs) |
-| `Append`, `RestartA` | The workflow append uses the version captured by the caller. A conflict restarts the outer reads. A retry of a killed call preserves the request ID and obtains fresh local state. In source mode, both successful provider statuses lead to publication of the request ID. In reference mode, `ReadWinner` loads the retained receipt after a provider duplicate. [DurableResourceLeaseRecovery.cs](../../../src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseRecovery.cs) |
-| `RepairRead`, `RepairAppend` | `ReconcileReleaseGapsAsync` selects nonreleased obligations and publishes retained evidence with a workflow version check. The model has one possible open version and one closing append. A failed repair CAS therefore means another writer already closed that workflow. [DurableResourceLeaseRecovery.cs](../../../src/OrcaCore.Engine.Durable/Driver/DurableResourceLeaseRecovery.cs) |
+The source model separates governance receipt and binding, workflow checkpoint version and ID, caller-local observations, and the holder's and waiter's units. Each caller can read before or after the governance commit. Either winner can die after that commit and before its workflow write. The stale loser can also publish the winning receipt while the original winner is still alive.
 
-The model uses distinct variables for the token's receipt, set of bound IDs, workflow ID, release and grant counts, current owners' unit counts and queue membership. Reads, crash, retry and recovery are optional transitions. Schedule markers observe caller ordering without constraining either winner. `GapCloses` assumes a continuously enabled repair action eventually runs. Caller scheduling has no fairness assumption. The finite scope excludes purge, reuse across tokens, normal lexical release, waiter cancellation, unrelated stream writes and transaction implementation. The modeled `KillA` discards local state. Evidence for killed operating-system processes and SQL durability comes from separately executed integration tests.
+| Profiles | What they check |
+|---|---|
+| `Source` | Complete safety and progress search. The workflow agrees with the receipt, only the winning ID is bound, completed calls return the correct status, and there is exactly one transfer per release. A committed receipt eventually reaches the workflow under weakly fair repair. |
+| `SourceStale`, `SourceFresh`, `SourceStaleBWinner` | A prechecked loser rereads the winning ID after the kill. A fresh loser reads the existing receipt. Reversing the caller roles preserves the same result. |
+| `SourceRetry`, `SourceRecovery`, `SourceCasRetry`, `SourceLiveWinnerCasRetry`, `SourceBWinner` | Reachable schedules cover same-ID restart, independent gap repair, workflow conflicts, the live winner returning `Released` after its peer publishes, and B winning governance first. |
+| `HistoricalAccounting`, `HistoricalCrashAgreement`, `HistoricalPersistentSplit` | At the pre-fix baseline, ticket accounting held even when the workflow recorded the wrong ID. The nine-state crash trace retains A in governance and publishes B in the workflow. A later retry can leave that disagreement intact. |
+| `DoubleGrant`, `DropUnit` | Injected faults violate the safety invariants for grant count and capacity accounting. |
+| `DisabledRecovery` | Disabling the repair worker breaks the progress assumption. TLC finds a release gap that stays open forever. |
 
-The trusted recovery seam's result and retention requirements are documented in [management operations](../../../docs/specs/09-requirements-management-operations.md) and the [capability matrix](../../../docs/specs/17-selected-mode-capability-matrix.md).
+The source search exhausted 2,699 distinct states and historical accounting exhausted 2,147. The remaining 13 profiles produce designated counterexamples or reachability traces. The historical identity defect was also reproduced on both SQL providers before the fix at `fbfaf2ec`. [Model](LeaseConfirmationRace.tla) · [Profile manifest](profiles.json)
 
-## TLC profiles
+The model starts with one quarantined token, one eligible waiter, and a retained governance receipt after release. It abstracts the provider's internal retries, process scheduling and storage engine. Progress assumes a weakly fair recovery worker while a receipt awaits publication. Cross-token lookups and repair of an already-split stored checkpoint are exercised by the SQL cases.
 
-| Profile | Expected checker outcome and meaning |
-| --- | --- |
-| `Reference` | **Pass.** All safety properties hold, including tombstone/receipt/binding agreement. Every committed receipt eventually has a matching workflow tombstone under fair repair. |
-| `SourceAccounting` | **Pass.** Capacity is conserved, the grant and release happen at most once, binding agrees with receipt, and responses meet the configured status checks. Tombstone identity is examined by the next profile. |
-| `SourceCrashAgreement` | **Expected source counterexample.** `CrashedStaleAgreement` fails for the nine-state sequence above. The runner classifies this trace as a witness. It demonstrates a defect in the baseline's modeled publication rule. |
-| `SourcePersistentSplit` | A reachability witness shows that same-ID retry A can return `AlreadyConfirmed` after the split. |
-| `ReferenceStale`, `SourceFresh` | Reachability witnesses exercise stale B with a winner reread and fresh B with retained evidence. Each publishes A and returns `AlreadyConfirmed`. |
-| `SourceRetry`, `SourceRecovery` | Reachability witnesses show that either A's same-ID retry or the independent recovery scan can publish A after its crash. |
-| `ReferenceCasRetry`, `SourceBWinner` | Reachability witnesses exercise a real workflow version conflict and retry, and B winning the initial serialized release. |
-| `DoubleGrant`, `DropUnit` | Injected duplicate grant and lost capacity violate `ExactlyOneTransfer` and `CapacityConserved`, respectively. |
-| `DisabledRecovery` | Disabling the recovery worker allows a temporal counterexample to `GapCloses` when callers stop taking steps. |
+## SQL regression schedules
 
-Witness profiles check the negation of the requested observation, so a named invariant violation confirms reachability. The reference and source accounting profiles explored 1,163 and 978 distinct states respectively with empty queues. The other eleven profiles produced their designated counterexamples.
+The tests use two durable workflows and separate OS processes with PostgreSQL 17 or SQL Server 2022. The owner terminates, its protected step returns, and the second workflow is queued for the capacity-one pool. In each hard-kill case the controller waits until SQL has committed governance and the owner's workflow checkpoint is still quarantined. It then kills A and waits for process exit.
 
-Run all profiles from the repository root:
+| Schedule on each provider | Required outcome |
+|---|---|
+| B prepares before A commits. A is killed. | B's stale governance append conflicts. B obtains `AlreadyConfirmed`, publishes A from the receipt, and leaves B unbound. |
+| A is killed before B starts. | B reads A's receipt and repairs the open workflow checkpoint with A. |
+| B prepares before A commits. Both stay alive. | B publishes A while A's provider response is held. When A resumes against the stale workflow version, its original call returns `Released`. A later replay returns `AlreadyConfirmed`. |
+
+All six schedules passed locally in Release on PostgreSQL 17 and SQL Server 2022. The four hard-kill cases also passed the separate legacy checkpoint repair probe.
+
+A fresh process verifies governance, workflow and public diagnostics all report `confirmation-a`. It checks both IDs replay as `AlreadyConfirmed` on the original token. For an unknown token, A gives `ConfirmationConflict` and B gives `TokenNotFound`. The verifier checks one governance commit after setup and one distinct generation-2 ticket for the waiter over the committed governance history. Replays preserve the ticket, workflow journal and governance version.
+
+After each genuine hard-kill schedule passes its assertions, a separate compatibility probe seeds an already-released checkpoint with B's ID while retaining A's genuine SQL receipt. A new process checks that B gives `TokenNotFound` on an unknown token even before repair. Confirmation of the original token restores A with one corrective workflow event. Subsequent replays preserve the checkpoint, governance version and waiter ticket. [SQL schedules](../../../tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.Scenarios.cs) · [Process controller](../../../tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.ProcessRestart.cs)
+
+Run the profiles from the repository root with the private JRE. The explicit SQL suites require Docker and write the individual xUnit case results.
 
 ```powershell
 ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/lease-confirmation-race -ModuleName LeaseConfirmationRace -CheckLivenessAtEnd
-```
-
-The runner records each outcome, source hashes, checker arguments and TLC traces under the reported evidence directory.
-
-## SQL restart results
-
-The PostgreSQL 17 and SQL Server 2022 probes use a capacity-one pool, a terminated owner
-with a quarantined ticket, and a second workflow already queued for that pool. The protected
-step returns before either confirmation. A and B each present a distinct, trusted confirmation
-for the owner's protection token. A separate verifier reads both stores after B exits.
-[Worker scenarios](../../../tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.Scenarios.cs) and
-[process controller](../../../tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.ProcessRestart.cs)
-
-In the stale schedule B prepares its guarded governance append and waits. A commits the
-release, verifies that the waiter holds the successor ticket and that the owner checkpoint is
-still quarantined, then stops inside the append wrapper before its caller receives the result.
-The controller hard-kills A, waits for process exit, and releases B. B's stale append conflicts.
-Its retry sees the prior release and returns `AlreadyConfirmed`. In the fresh control, B starts
-only after the same kill and reads the winning receipt before publishing the workflow record.
-
-| Provider | B's first read | Governance receipt and binding | Workflow checkpoint and diagnostics | Grants to waiter | B's ID on an unknown token after replay |
-|---|---|---|---|---:|---|
-| PostgreSQL | Before A commits | A | B | 1 | `ConfirmationConflict` |
-| SQL Server | Before A commits | A | B | 1 | `ConfirmationConflict` |
-| PostgreSQL | After A dies | A | A | 1 | `TokenNotFound` |
-| SQL Server | After A dies | A | A | 1 | `TokenNotFound` |
-
-All four characterization cases passed locally. **Both stale cases violate the confirmation
-identity requirement.** The receipt released the original owner's exact ticket. The single
-new governance record transferred the unit to the queued waiter, whose one generation-2
-ticket remained stable through restart and replay. Both IDs replayed as `AlreadyConfirmed`
-against the original token. Before B confirmed the owner's token, its ID returned `TokenNotFound`
-against an unknown token in all four runs. In the stale schedule, the retained workflow entry made it appear bound
-even though governance never bound B. [Confirmation status and diagnostics contract](../../../openspec/specs/management-and-querying/spec.md)
-
-The probe pins the observed defect and records an independent agreement check from the two
-persisted IDs. A change to the publication rule should make both schedules agree on A and
-return `TokenNotFound` for the losing ID on an unknown token. The reference model describes
-that target. Existing split records are a separate recovery question.
-
-Run the explicit Docker-backed cases from the repository root. Each command runs a stale and
-a fresh schedule and records the three process IDs, both confirmation IDs, and the grant count.
-
-```powershell
 dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.LeaseConfirmationRaceTests.PostgreSqlProcessRestart -showLiveOutput -xml postgres.xml
 dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.LeaseConfirmationRaceTests.SqlServerProcessRestart -showLiveOutput -xml sqlserver.xml
 ```
