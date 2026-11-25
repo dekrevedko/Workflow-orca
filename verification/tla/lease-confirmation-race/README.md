@@ -46,3 +46,47 @@ Run all profiles from the repository root:
 ```
 
 The runner records each outcome, source hashes, checker arguments and TLC traces under the reported evidence directory.
+
+## SQL restart results
+
+The PostgreSQL 17 and SQL Server 2022 probes use a capacity-one pool, a terminated owner
+with a quarantined ticket, and a second workflow already queued for that pool. The protected
+step returns before either confirmation. A and B each present a distinct, trusted confirmation
+for the owner's protection token. A separate verifier reads both stores after B exits.
+[Worker scenarios](../../../tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.Scenarios.cs) and
+[process controller](../../../tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.ProcessRestart.cs)
+
+In the stale schedule B prepares its guarded governance append and waits. A commits the
+release, verifies that the waiter holds the successor ticket and that the owner checkpoint is
+still quarantined, then stops inside the append wrapper before its caller receives the result.
+The controller hard-kills A, waits for process exit, and releases B. B's stale append conflicts.
+Its retry sees the prior release and returns `AlreadyConfirmed`. In the fresh control, B starts
+only after the same kill and reads the winning receipt before publishing the workflow record.
+
+| Provider | B's first read | Governance receipt and binding | Workflow checkpoint and diagnostics | Grants to waiter | B's ID on an unknown token after replay |
+|---|---|---|---|---:|---|
+| PostgreSQL | Before A commits | A | B | 1 | `ConfirmationConflict` |
+| SQL Server | Before A commits | A | B | 1 | `ConfirmationConflict` |
+| PostgreSQL | After A dies | A | A | 1 | `TokenNotFound` |
+| SQL Server | After A dies | A | A | 1 | `TokenNotFound` |
+
+All four characterization cases passed locally. **Both stale cases violate the confirmation
+identity requirement.** The receipt released the original owner's exact ticket. The single
+new governance record transferred the unit to the queued waiter, whose one generation-2
+ticket remained stable through restart and replay. Both IDs replayed as `AlreadyConfirmed`
+against the original token. Before B confirmed the owner's token, its ID returned `TokenNotFound`
+against an unknown token in all four runs. In the stale schedule, the retained workflow entry made it appear bound
+even though governance never bound B. [Confirmation status and diagnostics contract](../../../openspec/specs/management-and-querying/spec.md)
+
+The probe pins the observed defect and records an independent agreement check from the two
+persisted IDs. A change to the publication rule should make both schedules agree on A and
+return `TokenNotFound` for the losing ID on an unknown token. The reference model describes
+that target. Existing split records are a separate recovery question.
+
+Run the explicit Docker-backed cases from the repository root. Each command runs a stale and
+a fresh schedule and records the three process IDs, both confirmation IDs, and the grant count.
+
+```powershell
+dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.LeaseConfirmationRaceTests.PostgreSqlProcessRestart -showLiveOutput -xml postgres.xml
+dotnet run -c Release --project tests/OrcaCore.Hosting.Tests -- -explicit only -method OrcaCore.Hosting.Tests.LeaseConfirmationRaceTests.SqlServerProcessRestart -showLiveOutput -xml sqlserver.xml
+```
