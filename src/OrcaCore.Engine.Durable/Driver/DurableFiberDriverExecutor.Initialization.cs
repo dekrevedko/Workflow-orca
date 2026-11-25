@@ -13,7 +13,6 @@ namespace OrcaCore.Engine.Durable.Driver;
 
 internal sealed partial class DurableFiberDriverExecutor<TState>
 {
-    private readonly WorkflowDefinition<TState> definition;
     private readonly CompiledWorkflowPlan plan;
     private readonly DurableStructuredValueCodec codec;
     private readonly IServiceProvider? serviceProvider;
@@ -28,7 +27,6 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         DurableStepThrottleCoordinator? stepThrottles = null)
     {
         ArgumentNullException.ThrowIfNull(definition);
-        this.definition = definition;
         this.serviceProvider = serviceProvider;
         if (maxConcurrentExecutionPathsPerInstance <= 0)
         {

@@ -1,4 +1,3 @@
-using OrcaCore.Abstractions.Ids;
 using OrcaCore.Core.Lifecycle;
 using OrcaCore.Core.Definitions;
 using OrcaCore.Engine.Ephemeral.Timers;
@@ -9,99 +8,6 @@ internal sealed class SuspensionScheduler<TState>(
     TimeProvider timeProvider,
     EphemeralTimerService timerService)
 {
-    internal async Task RegisterWaitAsync<TInput>(
-        WorkflowInstance<TState> instance,
-        WorkflowEventContract eventContract,
-        CorrelationId correlationId,
-        TimeSpan? timeout,
-        string authoredPath,
-        SequenceExecutionContext<TState, TInput> context,
-        int nextIndex,
-        ISequenceExecutionEngine<TState> sequenceExecution,
-        CancellationToken cancellationToken)
-    {
-        if (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Running)
-        {
-            WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
-        }
-
-        var registeredAt = timeProvider.GetUtcNow();
-        var deadline = timeout.HasValue ? registeredAt.Add(timeout.Value) : (DateTimeOffset?)null;
-        RuntimeWaitRecord? wait = null;
-        wait = instance.EnterWait(
-            eventContract,
-            correlationId,
-            context.BranchId,
-            registeredAt,
-            authoredPath,
-            deadline,
-            async (envelope, resumeToken) =>
-            {
-                resumeToken.ThrowIfCancellationRequested();
-                using var executionToken = instance.CreateLinkedExecutionToken(
-                    instance.Lifetime.IsAccepted ? CancellationToken.None : resumeToken);
-                try
-                {
-                    instance.CommitWaitEvent(wait!, envelope);
-                    await sequenceExecution.ContinueSequenceAsync(
-                        context with { ResumeEvent = new ResumeEventSlot(envelope) },
-                        nextIndex, executionToken.Token).ConfigureAwait(false);
-                }
-                catch (Exception error) when (instance.Lifetime.IsAccepted &&
-                    !executionToken.IsCancellationRequested && !instance.Lifetime.IsTerminal &&
-                    !(error is OperationCanceledException cancelled &&
-                      instance.Lifetime.IsStoppingCancellation(cancelled, executionToken.Token)))
-                {
-                    sequenceExecution.Fail(instance, error, authoredPath);
-                }
-            });
-        if (timeout is { } timeoutDuration)
-        {
-            var timeoutTimer = timerService.Schedule(
-                context.InstanceId,
-                timeoutDuration,
-                timerCancellationToken => instance.FireWaitTimeoutAsync(
-                    wait,
-                    timeProvider.GetUtcNow(),
-                    continuationToken => sequenceExecution.ContinueSequenceAsync(
-                        context with { ResumeEvent = new ResumeEventSlot(null) },
-                        nextIndex,
-                        continuationToken),
-                    timerCancellationToken));
-            wait.SetCancelLoser(() => timerService.Cancel(timeoutTimer));
-        }
-
-        await instance.MatchPendingEventAsync(wait, timeProvider.GetUtcNow(), cancellationToken).ConfigureAwait(false);
-    }
-
-    internal void RegisterDelay<TInput>(
-        WorkflowInstance<TState> instance,
-        TimeSpan duration,
-        SequenceExecutionContext<TState, TInput> context,
-        int nextIndex,
-        ISequenceExecutionEngine<TState> sequenceExecution)
-    {
-        if (instance.Status == global::OrcaCore.WorkflowInstanceStatus.Running)
-        {
-            WorkflowLifecycleTransition.FireOrThrow(instance, LifecycleTrigger.EnterWait);
-        }
-
-        var registeredAt = timeProvider.GetUtcNow();
-        var timer = instance.EnterDelay(context.BranchId, registeredAt);
-        var scheduledTimer = timerService.Schedule(
-            context.InstanceId,
-            duration,
-            cancellationToken => instance.FireDelayAsync(
-                timer,
-                timeProvider.GetUtcNow(),
-                continuationToken => sequenceExecution.ContinueSequenceAsync(
-                    context,
-                    nextIndex,
-                    continuationToken),
-                cancellationToken));
-        timer.SetCancel(() => timerService.Cancel(scheduledTimer));
-    }
-
     internal RuntimeTimerRecord RegisterStructuredDelay(
         WorkflowInstance<TState> instance,
         TimeSpan duration,

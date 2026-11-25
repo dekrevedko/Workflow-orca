@@ -1,7 +1,8 @@
 {
   "schemaVersion": 1,
   "recoveryCheckpoint": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
-  "productionTarget": "76d6b4b91456177db44dabd6e7ee519e17ae8d2d",
+  "intermediateProductionTargets": ["76d6b4b91456177db44dabd6e7ee519e17ae8d2d"],
+  "productionTarget": "8c5e8998be25a14d3ed357236ef3ecbceacb7a23",
   "allowedDispositions": [
     "Remove",
     "ReplaceOrRelocate",
@@ -9,8 +10,8 @@
     "DeadOrDuplicate"
   ],
   "expectedCounts": {
-    "families": 25,
-    "physicallyDeletedPaths": 134,
+    "families": 33,
+    "physicallyDeletedPaths": 151,
     "compileExcludedEntries": 2,
     "orphanedProductionRoots": 0,
     "retiredPackageArtifacts": 5,
@@ -608,6 +609,248 @@
       "executableEvidence": ["test:tests/OrcaCore.DeveloperSurface.Guards/DagStreamIdentitySliceGuards.cs#Task21ProtocolProviderCandidate_PreservesApprovedHistoryAndOnlyAddsReleased"],
       "compileRemoves": [
         {"project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj", "remove": "Dag/Internal/**/*.cs"}
+      ]
+    },
+    {
+      "id": "ephemeral-recursive-entry",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "structured-fiber-execution::Definitions compile to stable executable plans",
+        "structured-fiber-execution::A fiber advances one linear instruction position"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/InterpreterFactory.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/ISequenceExecutionEngine.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Ephemeral/EphemeralWorkflowEngine.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs"
+      ],
+      "symbolFamilies": [
+        "Interpreter<TState>, InterpreterFactory and ISequenceExecutionEngine<TState> entry and dispatch"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#SelectedStraightLineStep_ExecutesThroughCompiledPlan",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#TypedInitFailureReturnsOneDiagnosticAndLeavesTheKeyAvailableForAnUnnamedTypedEnd"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/Interpreter.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/InterpreterFactory.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/ISequenceExecutionEngine.cs"
+      ]
+    },
+    {
+      "id": "ephemeral-recursive-control-flow",
+      "disposition": "DeadOrDuplicate",
+      "normativeIds": [
+        "structured-fiber-execution::A fiber advances one linear instruction position",
+        "structured-fiber-execution::Compiled plans contain explicit structural continuations"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/SequenceExecutionContext.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/InterpreterRunState.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/ConditionEvaluator.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/WhileNodeRunner.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.cs",
+        "src/OrcaCore.Core/Compilation/DefinitionCompiler.Instructions.cs"
+      ],
+      "symbolFamilies": [
+        "SequenceExecutionContext<TState,TInput> and InterpreterRunState<TState>",
+        "ConditionEvaluator<TState> and WhileNodeRunner<TState>"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#LoopResumesAfterEmptyAndSkippedBranchesWithoutRepeatingTheirPredecessors"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/SequenceExecutionContext.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/InterpreterRunState.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/ConditionEvaluator.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/WhileNodeRunner.cs"
+      ]
+    },
+    {
+      "id": "ephemeral-recursive-step",
+      "disposition": "DeadOrDuplicate",
+      "normativeIds": [
+        "quality-and-verification::Authoring lifecycle, fingerprint coverage, and failure provenance are executable",
+        "structured-fiber-execution::Scope ownership covers every residual obligation"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/StepExecutor.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/StepExecutionResult.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/WorkflowFailureHandler.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Steps.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Failures.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/StepAttemptDecision.cs"
+      ],
+      "symbolFamilies": [
+        "StepExecutor<TState>, StepExecutionResult and StepExecutionStatus",
+        "WorkflowFailureHandler<TState>"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StepDeadlineElectionTests.cs#TimeoutKeepsPhysicalOwnershipUntilLateReturnOrFailure",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Failures/OriginalStepFailureTests.cs#FinalRetry_SelectsActualObjectAndPreservesUserInvocationWrapper",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#UnrecognizedReturnedResultRejectsTheStartAndReleasesTheParkedSiblingWait"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/StepExecutor.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/StepExecutionResult.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowFailureHandler.cs"
+      ]
+    },
+    {
+      "id": "ephemeral-recursive-suspension",
+      "disposition": "DeadOrDuplicate",
+      "normativeIds": [
+        "structured-fiber-execution::Scope ownership covers every residual obligation",
+        "state-driven-runtime::Yield is a fiber scheduling operation"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/WaitExecutor.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/ResumeEventSlot.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/SuspensionScheduler.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/RuntimeWaitRecord.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/SuspensionScheduler.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs"
+      ],
+      "symbolFamilies": [
+        "WaitExecutor<TState> and ResumeEventSlot",
+        "SuspensionScheduler.RegisterWaitAsync and RegisterDelay, and YieldContinuationScheduler.Schedule for recursive continuations"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#SelectedStructuralWait_ResumesOwningFiberAndProvidesEventToNextStep",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Timers/TimerEventRaceTests.cs#TimeoutBeforeEvent_FailsAndCancelsWait",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#SelectedParallel_ZeroBackoffRetryRunsSiblingBeforeNextAttempt"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/WaitExecutor.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/ResumeEventSlot.cs"
+      ]
+    },
+    {
+      "id": "ephemeral-recursive-work-queue",
+      "disposition": "DeadOrDuplicate",
+      "normativeIds": [
+        "state-driven-runtime::Yield is a fiber scheduling operation",
+        "structured-fiber-execution::Scope ownership covers every residual obligation"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/IWorkflowInstance.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/WorkflowInstance.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/YieldContinuationScheduler.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/InstanceExecutionLane.cs"
+      ],
+      "symbolFamilies": [
+        "WorkflowInstance<TState> continuation queue, ScheduleYield, TryTakeYieldContinuation, EnterStateAccessAsync and StateAccessLease",
+        "IWorkflowInstance dequeue contract and YieldContinuationScheduler queue drain loop"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/ContinuationOwnershipTests.cs#QueuedSnapshotOwnsInstanceAndObservesPrecedingLaneWork",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Governance/ResourceGovernanceTests.cs#EventDelivery_RemainsSerializedWhileGovernedStepIsRunning"
+      ]
+    },
+    {
+      "id": "ephemeral-recursive-parallel-join",
+      "disposition": "DeadOrDuplicate",
+      "normativeIds": [
+        "structured-fiber-execution::Join policies define one scope outcome",
+        "structured-fiber-execution::Merge is explicit, deterministic, and side-effect free"
+      ],
+      "owner": "active:OrcaCore.Engine.Ephemeral",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Engine.Ephemeral/Execution/ParallelJoin.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Branches.cs",
+        "src/OrcaCore.Engine.Ephemeral/Execution/InMemoryExecutionStateAdapter.Merge.cs",
+        "src/OrcaCore.Core/Execution/FiberReducer.cs"
+      ],
+      "symbolFamilies": [
+        "ParallelJoin branch completion and merge"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#FailedBranchWaitsForItsParkedSiblingAndSkipsTheMergeAndContinuation",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#PublicParallel_ReferenceModelCompletionPermutationsProduceOneOrderedMerge"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Engine.Ephemeral/Execution/ParallelJoin.cs"
+      ]
+    },
+    {
+      "id": "core-workflow-node-tree",
+      "disposition": "ReplaceOrRelocate",
+      "normativeIds": [
+        "structured-fiber-execution::Definitions compile to stable executable plans",
+        "workflow-authoring::Mode-first builders share one compiled plan contract"
+      ],
+      "owner": "active:OrcaCore.Core",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Core/Compilation/DefinitionCompiler.Nodes.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Core/Definitions/WorkflowNode.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Core/Definitions/Nodes.cs",
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Core/Definitions/WorkflowDefinition.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Core/Compilation/DefinitionCompiler.Instructions.cs",
+        "src/OrcaCore.Core/Compilation/CompiledPlanModels.cs"
+      ],
+      "symbolFamilies": [
+        "DefinitionCompiler.BuildNodes and WorkflowDefinition<TState>.RootSequence",
+        "WorkflowNode<TState> and its Init, BusinessStep, End, BranchReturn, ContinueAsNew, CompiledScope, If, While, Wait, Publish, Delay and Sequence node types"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#TypedInitFailureReturnsOneDiagnosticAndLeavesTheKeyAvailableForAnUnnamedTypedEnd",
+        "test:tests/OrcaCore.Engine.Durable.Tests/Facade/DurableStartIdempotencyFacadeTests.cs#FailedInitIsTerminalAcrossHostsWithoutCommittingState",
+        "test:tests/OrcaCore.Engine.Durable.Tests/Facade/DurableStartIdempotencyFacadeTests.cs#InitDeadlineDiscardsLateWorkWithoutACheckpoint",
+        "test:tests/OrcaCore.Hosting.Tests/DagFacadeTests.cs#CreateReplayReopen_AreConsistentUnderOneBinding"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Core/Compilation/DefinitionCompiler.Nodes.cs",
+        "src/OrcaCore.Core/Definitions/WorkflowNode.cs",
+        "src/OrcaCore.Core/Definitions/Nodes.cs"
+      ]
+    },
+    {
+      "id": "core-recursive-execution-pointer",
+      "disposition": "DeadOrDuplicate",
+      "normativeIds": [
+        "structured-fiber-execution::A fiber advances one linear instruction position",
+        "structured-fiber-execution::Compiled plans contain explicit structural continuations"
+      ],
+      "owner": "active:OrcaCore.Core",
+      "recoveryPaths": [
+        "git:8c5e8998be25a14d3ed357236ef3ecbceacb7a23:src/OrcaCore.Core/Definitions/ExecutionPointer.cs"
+      ],
+      "successorPaths": [
+        "src/OrcaCore.Core/Execution/FiberModel.cs",
+        "src/OrcaCore.Core/Compilation/CompiledPlanModels.cs"
+      ],
+      "symbolFamilies": [
+        "ExecutionPointer and ExecutionFrame path stack"
+      ],
+      "executableEvidence": [
+        "test:tests/OrcaCore.Core.Tests/Execution/FiberReducerTests.cs#FiberLifecycle_TransitionsThroughRunnableBlockedAndTerminalPhases",
+        "test:tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs#LoopResumesAfterEmptyAndSkippedBranchesWithoutRepeatingTheirPredecessors"
+      ],
+      "deletedPaths": [
+        "src/OrcaCore.Core/Definitions/ExecutionPointer.cs"
       ]
     }
   ]

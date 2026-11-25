@@ -20,18 +20,15 @@ internal sealed record WorkflowDefinition<TState> : WorkflowDefinitionRuntimeMet
     internal WorkflowDefinition(
         DefinitionId definitionId,
         DefinitionVersion definitionVersion,
-        SequenceNode<TState> rootSequence,
         CompiledWorkflowPlan compiledPlan,
         WorkflowPolicySet? policies = null)
     {
         ArgumentNullException.ThrowIfNull(definitionId);
         ArgumentNullException.ThrowIfNull(definitionVersion);
-        ArgumentNullException.ThrowIfNull(rootSequence);
         ArgumentNullException.ThrowIfNull(compiledPlan);
 
         DefinitionId = definitionId;
         DefinitionVersion = definitionVersion;
-        RootSequence = rootSequence;
         Policies = policies ?? WorkflowPolicySet.Empty;
         CompiledPlan = compiledPlan;
     }
@@ -60,8 +57,6 @@ internal sealed record WorkflowDefinition<TState> : WorkflowDefinitionRuntimeMet
 
     internal override bool ContainsPublish =>
         CompiledPlan.Instructions.Any(instruction => instruction.Kind == CompiledInstructionKind.Publish);
-
-    public SequenceNode<TState> RootSequence { get; }
 
     public WorkflowPolicySet Policies { get; }
 }

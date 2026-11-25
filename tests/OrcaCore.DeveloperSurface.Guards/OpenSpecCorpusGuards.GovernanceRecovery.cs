@@ -133,6 +133,17 @@ public sealed partial class OpenSpecCorpusGuards
     // positions by applying the recovery edits to the reviewed grant files.
     internal static string BeforeScopedGrantAdmission(string root, string path, string current)
     {
+        if (path == "docs/specs/04-requirements-core-runtime.md")
+        {
+            // CR-003 now describes compiled execution as already required by CR-002 and CR-015.
+            const string priorSentence = "The interpreter walks the tree uniformly; every nesting/depth";
+            const string currentSentence = "The runtime executes the plan compiled from this tree. Every nesting/depth";
+            var beforeClarification = DagFacadeApprovedHistory.TextAt(root, "273fe33142887f31cf1783b160a78933b41a96d0", path);
+            beforeClarification.Split(priorSentence, StringSplitOptions.None).Should().HaveCount(2);
+            current.Should().Be(beforeClarification.Replace(priorSentence, currentSentence, StringComparison.Ordinal),
+                "only the CR-003 execution description changed after the reviewed numbered specification");
+            current = beforeClarification;
+        }
         current = BeforeEventKeyWording(root, path, current);
         const string grant = "openspec/changes/archive/2026-11-23-document-scoped-grant-admission/";
         if (path == "openspec/specs/durable-runtime/spec.md")
