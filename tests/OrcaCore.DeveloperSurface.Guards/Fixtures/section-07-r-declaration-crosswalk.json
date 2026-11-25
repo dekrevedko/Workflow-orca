@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 423,
-    "physicalDeclarations": 1782,
+    "physicalDeclarations": 1783,
     "activeFiles": 267,
-    "activeDeclarations": 1094,
+    "activeDeclarations": 1095,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -2037,7 +2037,7 @@
       "source": "tests/OrcaCore.Hosting.Tests/DagSchedulerTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/DurableDriverTelemetryAndOptionsTests.cs",
