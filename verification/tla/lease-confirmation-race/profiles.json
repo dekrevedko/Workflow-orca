@@ -1,0 +1,80 @@
+[
+  {
+    "name": "Reference",
+    "kind": "normal",
+    "config": "Reference.cfg",
+    "expected": ""
+  },
+  {
+    "name": "SourceAccounting",
+    "kind": "normal",
+    "config": "SourceAccounting.cfg",
+    "expected": ""
+  },
+  {
+    "name": "SourceCrashAgreement",
+    "kind": "witness",
+    "config": "SourceCrashAgreement.cfg",
+    "expected": "CrashedStaleAgreement"
+  },
+  {
+    "name": "SourcePersistentSplit",
+    "kind": "witness",
+    "config": "SourcePersistentSplit.cfg",
+    "expected": "NoPersistentSplit"
+  },
+  {
+    "name": "ReferenceStale",
+    "kind": "witness",
+    "config": "ReferenceStale.cfg",
+    "expected": "NoStaleRepair"
+  },
+  {
+    "name": "SourceFresh",
+    "kind": "witness",
+    "config": "SourceFresh.cfg",
+    "expected": "NoFreshRepair"
+  },
+  {
+    "name": "SourceRetry",
+    "kind": "witness",
+    "config": "SourceRetry.cfg",
+    "expected": "NoSameIdRetry"
+  },
+  {
+    "name": "SourceRecovery",
+    "kind": "witness",
+    "config": "SourceRecovery.cfg",
+    "expected": "NoGapRecovery"
+  },
+  {
+    "name": "ReferenceCasRetry",
+    "kind": "witness",
+    "config": "ReferenceCasRetry.cfg",
+    "expected": "NoCasRetry"
+  },
+  {
+    "name": "SourceBWinner",
+    "kind": "witness",
+    "config": "SourceBWinner.cfg",
+    "expected": "NoBWinner"
+  },
+  {
+    "name": "DoubleGrant",
+    "kind": "mutation",
+    "config": "DoubleGrant.cfg",
+    "expected": "ExactlyOneTransfer"
+  },
+  {
+    "name": "DropUnit",
+    "kind": "mutation",
+    "config": "DropUnit.cfg",
+    "expected": "CapacityConserved"
+  },
+  {
+    "name": "DisabledRecovery",
+    "kind": "assumption",
+    "config": "DisabledRecovery.cfg",
+    "expected": "GapCloses"
+  }
+]
