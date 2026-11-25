@@ -20,16 +20,30 @@ public sealed partial class DagChildRecoveryTests
     [InlineData(false)]
     [Trait(Traits.Container, "PostgreSql")]
     public Task PostgreSqlProcessRestart(bool loseAcknowledgement) =>
-        RunProcessRestartAsync(RestartDatabase.PostgreSql, loseAcknowledgement);
+        RunProcessRestartAsync(RestartDatabase.PostgreSql, nameof(DatabaseRestartWorker), loseAcknowledgement);
 
     [Theory(Explicit = true)]
     [InlineData(true)]
     [InlineData(false)]
     [Trait(Traits.Container, "SqlServer")]
     public Task SqlServerProcessRestart(bool loseAcknowledgement) =>
-        RunProcessRestartAsync(RestartDatabase.SqlServer, loseAcknowledgement);
+        RunProcessRestartAsync(RestartDatabase.SqlServer, nameof(DatabaseRestartWorker), loseAcknowledgement);
 
-    private static async Task RunProcessRestartAsync(RestartDatabase provider, bool loseAcknowledgement)
+    [Theory(Explicit = true)]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait(Traits.Container, "PostgreSql")]
+    public Task PostgreSqlChildStartCancellationProcessRestart(bool continuationFirst) =>
+        RunProcessRestartAsync(RestartDatabase.PostgreSql, nameof(ChildStartCancellationWorker), continuationFirst);
+
+    [Theory(Explicit = true)]
+    [InlineData(true)]
+    [InlineData(false)]
+    [Trait(Traits.Container, "SqlServer")]
+    public Task SqlServerChildStartCancellationProcessRestart(bool continuationFirst) =>
+        RunProcessRestartAsync(RestartDatabase.SqlServer, nameof(ChildStartCancellationWorker), continuationFirst);
+
+    private static async Task RunProcessRestartAsync(RestartDatabase provider, string method, bool schedule)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(5));
@@ -46,16 +60,14 @@ public sealed partial class DagChildRecoveryTests
         try
         {
             var seedPid = await RunRestartWorkerAsync("seed", provider, database.GetConnectionString(), directory.FullName,
-                loseAcknowledgement, token);
+                method, schedule, token);
             var recoveryPid = await RunRestartWorkerAsync("recover", provider, database.GetConnectionString(), directory.FullName,
-                loseAcknowledgement, token);
+                method, schedule, token);
             recoveryPid.Should().NotBe(seedPid);
-            var observation = JsonSerializer.Deserialize<RecoveryObservation>(
-                await File.ReadAllTextAsync(Path.Combine(directory.FullName, "recovered.json"), token))!;
-            observation.WorkerPid.Should().Be(recoveryPid);
-            TestContext.Current.TestOutputHelper!.WriteLine(
-                $"{provider}: killed worker {seedPid}, recovered in {recoveryPid}. ChildJoined={observation.JoinCount}, " +
-                $"B retained={observation.SiblingChildId:D}, attempt={observation.Attempt}, notice={observation.NoticeState}.");
+            var result = await File.ReadAllTextAsync(Path.Combine(directory.FullName, "recovered.json"), token);
+            using var observation = JsonDocument.Parse(result);
+            observation.RootElement.GetProperty("WorkerPid").GetInt32().Should().Be(recoveryPid);
+            TestContext.Current.TestOutputHelper!.WriteLine($"{provider}: killed worker {seedPid}, recovered: {result}.");
         }
         finally
         {
@@ -64,7 +76,7 @@ public sealed partial class DagChildRecoveryTests
     }
 
     private static async Task<int> RunRestartWorkerAsync(string phase, RestartDatabase provider, string connection, string directory,
-        bool loseAcknowledgement, CancellationToken token)
+        string method, bool schedule, CancellationToken token)
     {
         var start = new ProcessStartInfo("dotnet")
         {
@@ -74,12 +86,12 @@ public sealed partial class DagChildRecoveryTests
         start.ArgumentList.Add("-explicit");
         start.ArgumentList.Add("only");
         start.ArgumentList.Add("-method");
-        start.ArgumentList.Add($"{typeof(DagChildRecoveryTests).FullName}.{nameof(DatabaseRestartWorker)}");
+        start.ArgumentList.Add($"{typeof(DagChildRecoveryTests).FullName}.{method}");
         start.Environment["ORCA_DAG_RESTART_PROVIDER"] = provider.ToString();
         start.Environment["ORCA_DAG_RESTART_PHASE"] = phase;
         start.Environment["ORCA_DAG_RESTART_CONNECTION"] = connection;
         start.Environment["ORCA_DAG_RESTART_DIRECTORY"] = directory;
-        start.Environment["ORCA_DAG_RESTART_LOST_ACK"] = loseAcknowledgement.ToString();
+        start.Environment["ORCA_DAG_RESTART_SCHEDULE"] = schedule.ToString();
         using var worker = Process.Start(start) ?? throw new InvalidOperationException("Failed to launch DAG worker.");
         var stdout = worker.StandardOutput.ReadToEndAsync(token);
         var stderr = worker.StandardError.ReadToEndAsync(token);
@@ -94,8 +106,8 @@ public sealed partial class DagChildRecoveryTests
                 if (worker.HasExited)
                     throw new InvalidOperationException($"Seed exited before the crash boundary: {await stdout} {await stderr}");
 
-                var coordinates = JsonSerializer.Deserialize<RestartCoordinates>(await File.ReadAllTextAsync(marker, token))!;
-                coordinates.SeedPid.Should().Be(worker.Id);
+                using var coordinates = JsonDocument.Parse(await File.ReadAllTextAsync(marker, token));
+                coordinates.RootElement.GetProperty("SeedPid").GetInt32().Should().Be(worker.Id);
                 worker.Kill(entireProcessTree: true);
             }
             await worker.WaitForExitAsync(token);
