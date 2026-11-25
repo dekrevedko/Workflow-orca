@@ -12,18 +12,22 @@ namespace OrcaCore.Hosting.Tests;
 public sealed partial class LeaseConfirmationRaceTests
 {
     [Theory(Explicit = true)]
-    [InlineData(true)]
-    [InlineData(false)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
     [Trait(Traits.Container, "PostgreSql")]
-    public Task PostgreSqlProcessRestart(bool stale) => RunConfirmationRestartAsync("PostgreSql", stale);
+    public Task PostgreSqlProcessRestart(bool stale, bool keepWinnerAlive = false) =>
+        RunConfirmationRestartAsync("PostgreSql", stale, keepWinnerAlive);
 
     [Theory(Explicit = true)]
-    [InlineData(true)]
-    [InlineData(false)]
+    [InlineData(true, false)]
+    [InlineData(false, false)]
+    [InlineData(true, true)]
     [Trait(Traits.Container, "SqlServer")]
-    public Task SqlServerProcessRestart(bool stale) => RunConfirmationRestartAsync("SqlServer", stale);
+    public Task SqlServerProcessRestart(bool stale, bool keepWinnerAlive = false) =>
+        RunConfirmationRestartAsync("SqlServer", stale, keepWinnerAlive);
 
-    private static async Task RunConfirmationRestartAsync(string provider, bool stale)
+    private static async Task RunConfirmationRestartAsync(string provider, bool stale, bool keepWinnerAlive)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(5));
@@ -39,7 +43,7 @@ public sealed partial class LeaseConfirmationRaceTests
         try
         {
             ConfirmationWorker Start(string phase) =>
-                new(phase, provider, database.GetConnectionString(), directory.FullName, stale);
+                new(phase, provider, database.GetConnectionString(), directory.FullName, stale, keepWinnerAlive);
 
             await using var winner = Start("winner");
             await winner.WaitForMarkerAsync("seed.json", token);
@@ -49,7 +53,8 @@ public sealed partial class LeaseConfirmationRaceTests
 
             await File.WriteAllTextAsync(Path.Combine(directory.FullName, "allow-winner"), "", token);
             await winner.WaitForMarkerAsync("committed.json", token);
-            await winner.KillAsync();
+            if (!keepWinnerAlive)
+                await winner.KillAsync();
 
             await using var fresh = stale ? null : Start("contender");
             var contender = early ?? fresh!;
@@ -57,11 +62,26 @@ public sealed partial class LeaseConfirmationRaceTests
                 await File.WriteAllTextAsync(Path.Combine(directory.FullName, "allow-contender"), "", token);
             await contender.ExpectPassAsync("contender.json", token);
 
+            var winnerResult = "Killed after governance commit";
+            if (keepWinnerAlive)
+            {
+                await File.WriteAllTextAsync(Path.Combine(directory.FullName, "allow-winner-return"), "", token);
+                winnerResult = await winner.ExpectPassAsync("winner-returned.json", token);
+            }
+
             await using var verifier = Start("verify");
             var result = await verifier.ExpectPassAsync("verified.json", token);
             new[] { winner.Id, contender.Id, verifier.Id }.Should().OnlyHaveUniqueItems();
-            TestContext.Current.TestOutputHelper!.WriteLine(
-                $"{provider}, stale={stale}. Killed A={winner.Id}; B={contender.Id}; fresh verification={result}");
+            var output = TestContext.Current.TestOutputHelper!;
+            output.WriteLine($"{provider}, stale={stale}, keepWinnerAlive={keepWinnerAlive}. " +
+                $"A={winner.Id} ({winnerResult}), B={contender.Id}, fresh verification={result}");
+            if (!keepWinnerAlive)
+            {
+                await using var repair = Start("repair");
+                var legacyResult = await repair.ExpectPassAsync("legacy-repair.json", token);
+                new[] { winner.Id, contender.Id, verifier.Id }.Should().NotContain(repair.Id);
+                output.WriteLine($"Synthetic legacy tombstone repair={legacyResult}");
+            }
         }
         finally
         {
@@ -76,7 +96,7 @@ public sealed partial class LeaseConfirmationRaceTests
         private readonly Task<string> stdout;
         private readonly Task<string> stderr;
 
-        public ConfirmationWorker(string phase, string provider, string connection, string directory, bool stale)
+        public ConfirmationWorker(string phase, string provider, string connection, string directory, bool stale, bool keepWinnerAlive)
         {
             this.directory = directory;
             var start = new ProcessStartInfo("dotnet")
@@ -94,6 +114,7 @@ public sealed partial class LeaseConfirmationRaceTests
             start.Environment["ORCA_CONFIRM_CONNECTION"] = connection;
             start.Environment["ORCA_CONFIRM_DIRECTORY"] = directory;
             start.Environment["ORCA_CONFIRM_STALE"] = stale.ToString();
+            start.Environment["ORCA_CONFIRM_KEEP_WINNER_ALIVE"] = keepWinnerAlive.ToString();
             process = Process.Start(start) ?? throw new InvalidOperationException("Could not start confirmation worker.");
             stdout = process.StandardOutput.ReadToEndAsync();
             stderr = process.StandardError.ReadToEndAsync();
@@ -147,7 +168,7 @@ public sealed partial class LeaseConfirmationRaceTests
         }
     }
 
-    public static bool IsWorker => Environment.GetEnvironmentVariable("ORCA_CONFIRM_PHASE") is "winner" or "contender" or "verify";
+    public static bool IsWorker => Environment.GetEnvironmentVariable("ORCA_CONFIRM_PHASE") is "winner" or "contender" or "verify" or "repair";
 
     [Fact(Explicit = true, SkipUnless = nameof(IsWorker), Skip = "Invoked by the confirmation restart controller.")]
     public Task DatabaseWorker() => RunConfirmationScenarioAsync(
@@ -156,5 +177,6 @@ public sealed partial class LeaseConfirmationRaceTests
         Environment.GetEnvironmentVariable("ORCA_CONFIRM_CONNECTION")!,
         Environment.GetEnvironmentVariable("ORCA_CONFIRM_DIRECTORY")!,
         bool.Parse(Environment.GetEnvironmentVariable("ORCA_CONFIRM_STALE")!),
+        bool.Parse(Environment.GetEnvironmentVariable("ORCA_CONFIRM_KEEP_WINNER_ALIVE")!),
         TestContext.Current.CancellationToken);
 }

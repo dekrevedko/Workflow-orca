@@ -88,9 +88,13 @@ jobs:
           dotnet run --project tests/OrcaCore.Hosting.Tests -c Release -- -explicit only -method $method -showLiveOutput -xml restart.xml
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $cases = @(([xml](Get-Content -Raw restart.xml)).SelectNodes('//test'))
-          if ($cases.Count -ne 2) { throw "Expected both confirmation restart schedules for $method." }
-          foreach ($stale in 'True', 'False') {
-            $name = "${method}(stale: $stale)"
+          $expectedNames = @(
+            "${method}(stale: True, keepWinnerAlive: False)"
+            "${method}(stale: False, keepWinnerAlive: False)"
+            "${method}(stale: True, keepWinnerAlive: True)"
+          )
+          if ($cases.Count -ne $expectedNames.Count) { throw "Expected three confirmation schedules for $method." }
+          foreach ($name in $expectedNames) {
             if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
               throw "Missing passing test $name."
             }

@@ -27,9 +27,11 @@ public sealed partial class LeaseConfirmationRaceTests
 
     private sealed record Committed(int WorkerPid, Guid PromotedTicket, long Version, string Checksum);
     private sealed record Contender(int WorkerPid, string Status, string[] OwnerJournal);
+    private sealed record ConfirmationReplays(string WinnerReplay, string ContenderReplay,
+        string OtherTokenWithWinningId, string OtherTokenWithLosingId);
 
     private static async Task RunConfirmationScenarioAsync(string phase, string provider, string connection,
-        string directory, bool stale, CancellationToken token)
+        string directory, bool stale, bool keepWinnerAlive, CancellationToken token)
     {
         var workflow = Workflow.Durable<int>(DefinitionId.Parse("d85c8ea3-b738-4cc2-a66d-04102a5762f5"), DefinitionVersion.Initial)
             .Init<int>(value => value)
@@ -50,14 +52,22 @@ public sealed partial class LeaseConfirmationRaceTests
                 var version = Assert.IsType<ResourceGovernanceAppendResult.Committed>(result).Version;
                 Assert.Equal(setup.GovernanceVersion + 1, version);
                 var promoted = await AssertTransferAsync(host, setup, token);
-                await AssertGapAsync(host, setup, token);
+                var originalVersion = await AssertGapAsync(host, setup, token);
                 await WritePhaseAsync(directory, "committed.json",
                     new Committed(Environment.ProcessId, promoted.TicketId, version, record.Checksum), token);
-                // The provider has committed. Withhold its response so the winning call cannot write a tombstone.
-                await Task.Delay(Timeout.InfiniteTimeSpan, token);
+                // The controller either kills A here or releases it only after B has published the tombstone and exited.
+                await AwaitSignalAsync(directory, "allow-winner-return", token);
+                Assert.True(keepWinnerAlive);
+                var published = await ReadCheckpointAsync(host, setup.Owner, token);
+                Assert.Equal(originalVersion.Value + 1, published.StreamVersion.Value);
+                Assert.Equal("Released", Obligation(published).LeasePhase);
+                Assert.Equal(WinnerId.Value, Obligation(published).AcceptedConfirmationId);
             };
-            await recovery.ConfirmProtectedWorkStoppedAsync(LeaseProtectionToken.Parse(setup.OwnerToken), WinnerId, token);
-            throw new InvalidOperationException("Winner returned past the crash boundary.");
+            var winnerStatus = await recovery.ConfirmProtectedWorkStoppedAsync(LeaseProtectionToken.Parse(setup.OwnerToken), WinnerId, token);
+            Assert.True(keepWinnerAlive);
+            Assert.Equal(ProtectedWorkStopConfirmationStatus.Released, winnerStatus);
+            await WritePhaseAsync(directory, "winner-returned.json", new { WorkerPid = Environment.ProcessId, Status = winnerStatus.ToString() }, token);
+            return;
         }
 
         var seed = await ReadPhaseAsync<Seed>(directory, "seed.json", token);
@@ -94,8 +104,16 @@ public sealed partial class LeaseConfirmationRaceTests
             return;
         }
 
-        if (phase != "verify") throw new ArgumentOutOfRangeException(nameof(phase));
-        await VerifyConfirmationAsync(host, seed, directory, stale, token);
+        if (phase == "verify")
+        {
+            await VerifyConfirmationAsync(host, seed, directory, token);
+            if (!keepWinnerAlive)
+                await SeedLegacySplitTombstoneAsync(host, seed, token);
+            return;
+        }
+
+        if (phase != "repair") throw new ArgumentOutOfRangeException(nameof(phase));
+        await VerifyLegacySplitRepairAsync(host, seed, directory, stale ? ContenderId : WinnerId, token);
     }
 
     private static async Task<Seed> SeedConfirmationAsync(ServiceProvider host, DurableWorkflowDefinition<int, int> workflow,
@@ -148,7 +166,7 @@ public sealed partial class LeaseConfirmationRaceTests
             EventIds(ownerJournal), EventIds(waiterJournal));
     }
 
-    private static async Task VerifyConfirmationAsync(ServiceProvider host, Seed seed, string directory, bool stale, CancellationToken token)
+    private static async Task VerifyConfirmationAsync(ServiceProvider host, Seed seed, string directory, CancellationToken token)
     {
         var committed = await ReadPhaseAsync<Committed>(directory, "committed.json", token);
         var contender = await ReadPhaseAsync<Contender>(directory, "contender.json", token);
@@ -181,6 +199,8 @@ public sealed partial class LeaseConfirmationRaceTests
         Assert.Equal(seed.OwnerKey, lease.HolderKey);
         Assert.Equal(seed.OwnerTicket, Guid.Parse(Assert.Single(lease.LeaseTickets).TicketId));
         var workflowId = lease.AcceptedConfirmationId;
+        Assert.Equal(WinnerId.Value, providerId);
+        Assert.Equal(providerId, workflowId);
         var diagnostics = await host.GetRequiredService<IDurableResourceLeaseDiagnostics>().GetAsync(occurrence, token);
         Assert.Equal(DurableResourceLeaseObligationStatus.Released, diagnostics!.Status);
         Assert.Equal(workflowId, diagnostics.AcceptedConfirmationId!.Value);
@@ -192,13 +212,7 @@ public sealed partial class LeaseConfirmationRaceTests
         // position, and the governance receipt identifies the physical reservation that was released.
         Assert.IsType<WorkflowExecutionPositionChangedEvent>(Assert.Single(tail));
 
-        var recovery = host.GetRequiredService<IDurableResourceLeaseRecovery>();
-        foreach (var id in new[] { WinnerId, ContenderId })
-            Assert.Equal(ProtectedWorkStopConfirmationStatus.AlreadyConfirmed,
-                await recovery.ConfirmProtectedWorkStoppedAsync(occurrence, id, token));
-        Assert.Equal(ProtectedWorkStopConfirmationStatus.ConfirmationConflict,
-            await recovery.ConfirmProtectedWorkStoppedAsync(UnknownToken, WinnerId, token));
-        var unknownWithContender = await recovery.ConfirmProtectedWorkStoppedAsync(UnknownToken, ContenderId, token);
+        var replays = await AssertConfirmationReplaysAsync(host, occurrence, token);
 
         var replayedCheckpoint = await ReadCheckpointAsync(host, seed.Owner, token);
         Assert.Equal(checkpoint.StreamVersion, replayedCheckpoint.StreamVersion);
@@ -209,22 +223,109 @@ public sealed partial class LeaseConfirmationRaceTests
         Assert.Equal(committed.Version, (await governance.LoadLatestAsync(Partition, token)).Version);
         Assert.Equal(promoted.TicketId, (await AssertTransferAsync(host, seed, token)).TicketId);
 
-        // The contract oracle is equality of the independently read persisted IDs in every schedule.
-        // The stale case characterizes the current defect and its observable false conflict after restart.
-        bool agreement = string.Equals(providerId, workflowId, StringComparison.Ordinal);
-        Assert.Equal(WinnerId.Value, providerId);
-        Assert.Equal(stale ? ContenderId.Value : WinnerId.Value, workflowId);
-        Assert.Equal(!stale, agreement);
-        Assert.Equal(stale ? ProtectedWorkStopConfirmationStatus.ConfirmationConflict : ProtectedWorkStopConfirmationStatus.TokenNotFound,
-            unknownWithContender);
         await WritePhaseAsync(directory, "verified.json", new
         {
             WorkerPid = Environment.ProcessId, ProviderConfirmationId = providerId, WorkflowConfirmationId = workflowId,
-            Agreement = agreement, Outcome = agreement ? "Canonical agreement" : "Counterexample: losing ID persisted",
+            DiagnosticConfirmationId = diagnostics.AcceptedConfirmationId.Value,
+            Agreement = providerId == workflowId, Outcome = "Canonical agreement",
             seed.Owner, seed.OwnerTicket, seed.OwnerToken, seed.Waiter, seed.WaiterId, seed.WaiterToken,
             PromotedTicket = promoted.TicketId, promoted.ProviderGeneration, GrantCount = promotedTicketIds.Count,
             ConfirmationGovernanceVersion = journal.Version, WorkflowVersion = checkpoint.StreamVersion.Value,
-            WorkflowConfirmationEvents = EventIds(tail), contender.Status, OtherTokenWithLosingId = unknownWithContender.ToString()
+            WorkflowConfirmationEvents = EventIds(tail), contender.Status, replays.WinnerReplay, replays.ContenderReplay,
+            replays.OtherTokenWithWinningId, replays.OtherTokenWithLosingId
+        }, token);
+    }
+
+    private static async Task<ConfirmationReplays> AssertConfirmationReplaysAsync(ServiceProvider host,
+        LeaseProtectionToken occurrence, CancellationToken token)
+    {
+        var recovery = host.GetRequiredService<IDurableResourceLeaseRecovery>();
+        var winnerReplay = await recovery.ConfirmProtectedWorkStoppedAsync(occurrence, WinnerId, token);
+        var contenderReplay = await recovery.ConfirmProtectedWorkStoppedAsync(occurrence, ContenderId, token);
+        var otherWithWinner = await recovery.ConfirmProtectedWorkStoppedAsync(UnknownToken, WinnerId, token);
+        var otherWithContender = await recovery.ConfirmProtectedWorkStoppedAsync(UnknownToken, ContenderId, token);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.AlreadyConfirmed, winnerReplay);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.AlreadyConfirmed, contenderReplay);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.ConfirmationConflict, otherWithWinner);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.TokenNotFound, otherWithContender);
+        return new(winnerReplay.ToString(), contenderReplay.ToString(), otherWithWinner.ToString(), otherWithContender.ToString());
+    }
+
+    // The process race has already passed. Recreate a checkpoint written by the former driver
+    // while retaining the exact governance receipt, transferred reservation and workflow event stream.
+    private static async Task SeedLegacySplitTombstoneAsync(ServiceProvider host, Seed seed, CancellationToken token)
+    {
+        var checkpoint = await ReadCheckpointAsync(host, seed.Owner, token);
+        var envelope = DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload);
+        var obligations = envelope.OwnedObligations.ToArray();
+        var index = Array.FindIndex(obligations, item => item.ProtectionToken == seed.OwnerToken);
+        var released = obligations[index];
+        Assert.Equal("Released", released.LeasePhase);
+        Assert.Equal(WinnerId.Value, released.AcceptedConfirmationId);
+        obligations[index] = released with { AcceptedConfirmationId = ContenderId.Value };
+        var legacy = envelope with { OwnedObligations = obligations };
+        var written = await host.GetRequiredService<IWorkflowEventStore>().AppendAsync(new ProviderCommitBatch
+        {
+            StreamId = new(checkpoint.InstanceId), ExpectedVersion = checkpoint.StreamVersion,
+            Checkpoint = checkpoint with { Payload = legacy.Serialize() }
+        }, token);
+        Assert.True(written.IsSuccess);
+        Assert.Equal(checkpoint.StreamVersion, written.Value.NewVersion);
+    }
+
+    private static async Task VerifyLegacySplitRepairAsync(ServiceProvider host, Seed seed, string directory,
+        StopConfirmationId repairId, CancellationToken token)
+    {
+        var committed = await ReadPhaseAsync<Committed>(directory, "committed.json", token);
+        var contender = await ReadPhaseAsync<Contender>(directory, "contender.json", token);
+        var occurrence = LeaseProtectionToken.Parse(seed.OwnerToken);
+        var before = await ReadCheckpointAsync(host, seed.Owner, token);
+        var legacy = Obligation(before);
+        Assert.Equal(seed.OwnerToken, legacy.ProtectionToken);
+        Assert.Equal("Released", legacy.LeasePhase);
+        Assert.Equal(ContenderId.Value, legacy.AcceptedConfirmationId);
+        Assert.Equal(committed.PromotedTicket, (await AssertTransferAsync(host, seed, token)).TicketId);
+
+        var recovery = host.GetRequiredService<IDurableResourceLeaseRecovery>();
+        var otherWithContender = await recovery.ConfirmProtectedWorkStoppedAsync(UnknownToken, ContenderId, token);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.TokenNotFound, otherWithContender);
+        var unchanged = await ReadCheckpointAsync(host, seed.Owner, token);
+        Assert.Equal(before.StreamVersion, unchanged.StreamVersion);
+        Assert.Equal(before.Payload, unchanged.Payload);
+        Assert.Equal(contender.OwnerJournal, EventIds(await ReadJournalAsync(host, seed.Owner, token)));
+
+        var status = await recovery.ConfirmProtectedWorkStoppedAsync(occurrence, repairId, token);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.AlreadyConfirmed, status);
+        var repaired = await ReadCheckpointAsync(host, seed.Owner, token);
+        var lease = Obligation(repaired);
+        Assert.Equal("Released", lease.LeasePhase);
+        Assert.Equal(WinnerId.Value, lease.AcceptedConfirmationId);
+        Assert.Equal(before.StreamVersion.Value + 1, repaired.StreamVersion.Value);
+        var diagnostics = await host.GetRequiredService<IDurableResourceLeaseDiagnostics>().GetAsync(occurrence, token);
+        Assert.Equal(DurableResourceLeaseObligationStatus.Released, diagnostics!.Status);
+        Assert.Equal(WinnerId.Value, diagnostics.AcceptedConfirmationId!.Value);
+        var journal = await ReadJournalAsync(host, seed.Owner, token);
+        Assert.Equal(contender.OwnerJournal, EventIds(journal.Take(contender.OwnerJournal.Length)));
+        Assert.IsType<WorkflowExecutionPositionChangedEvent>(Assert.Single(journal.Skip(contender.OwnerJournal.Length)));
+
+        var replays = await AssertConfirmationReplaysAsync(host, occurrence, token);
+        var replayed = await ReadCheckpointAsync(host, seed.Owner, token);
+        Assert.Equal(repaired.StreamVersion, replayed.StreamVersion);
+        Assert.Equal(repaired.Payload, replayed.Payload);
+        Assert.Equal(EventIds(journal), EventIds(await ReadJournalAsync(host, seed.Owner, token)));
+        Assert.Equal(seed.WaiterVersion, (await ReadCheckpointAsync(host, seed.Waiter, token)).StreamVersion.Value);
+        Assert.Equal(seed.WaiterJournal, EventIds(await ReadJournalAsync(host, seed.Waiter, token)));
+        var head = await host.GetRequiredService<IDurableResourceGovernanceStore>().LoadLatestAsync(Partition, token);
+        Assert.Equal(committed.Version, head.Version);
+        var promoted = await AssertTransferAsync(host, seed, token);
+        Assert.Equal(committed.PromotedTicket, promoted.TicketId);
+        await WritePhaseAsync(directory, "legacy-repair.json", new
+        {
+            WorkerPid = Environment.ProcessId, SeededWorkflowId = legacy.AcceptedConfirmationId,
+            UnrelatedTokenBeforeRepair = otherWithContender.ToString(), RepairCaller = repairId.Value, RepairStatus = status.ToString(),
+            RepairedWorkflowId = lease.AcceptedConfirmationId, DiagnosticConfirmationId = diagnostics.AcceptedConfirmationId.Value,
+            CorrectiveEvents = journal.Count - contender.OwnerJournal.Length, GovernanceVersion = head.Version,
+            PromotedTicket = promoted.TicketId, Replays = replays
         }, token);
     }
 
@@ -252,7 +353,7 @@ public sealed partial class LeaseConfirmationRaceTests
         return promoted;
     }
 
-    private static async Task AssertGapAsync(ServiceProvider host, Seed seed, CancellationToken token)
+    private static async Task<StreamVersion> AssertGapAsync(ServiceProvider host, Seed seed, CancellationToken token)
     {
         var checkpoint = await ReadCheckpointAsync(host, seed.Owner, token);
         var lease = Obligation(checkpoint);
@@ -260,6 +361,7 @@ public sealed partial class LeaseConfirmationRaceTests
         Assert.Equal("Quarantined", lease.LeasePhase);
         Assert.Null(lease.AcceptedConfirmationId);
         Assert.Equal(seed.OwnerJournal, EventIds(await ReadJournalAsync(host, seed.Owner, token)));
+        return checkpoint.StreamVersion;
     }
 
     private static Task CheckProposal(Seed seed, long expected, IReadOnlyDictionary<InstanceId, long> checks,
