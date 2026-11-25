@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Safety1",
+    "kind": "normal",
+    "config": "Safety1.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Progress1",
+    "kind": "normal",
+    "config": "Progress1.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Safety2",
+    "kind": "normal",
+    "config": "Safety2.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Progress2",
+    "kind": "normal",
+    "config": "Progress2.cfg",
+    "expected": ""
+  },
+  {
+    "name": "ReplayBeforeDeadline",
+    "kind": "witness",
+    "config": "ReplayBeforeDeadline.cfg",
+    "expected": "NoReplayBefore"
+  },
+  {
+    "name": "RecoverAtDeadline",
+    "kind": "witness",
+    "config": "RecoverAtDeadline.cfg",
+    "expected": "NoExpiredRead"
+  },
+  {
+    "name": "LateBodyAfterRetry",
+    "kind": "witness",
+    "config": "LateBodyAfterRetry.cfg",
+    "expected": "NoLateReturn"
+  },
+  {
+    "name": "LostSuccessAck",
+    "kind": "witness",
+    "config": "LostSuccessAck.cfg",
+    "expected": "NoLostAckRead"
+  },
+  {
+    "name": "TimeoutWinsCAS",
+    "kind": "witness",
+    "config": "TimeoutWinsCAS.cfg",
+    "expected": "NoStaleSuccess"
+  },
+  {
+    "name": "SkipCAS",
+    "kind": "mutation",
+    "config": "SkipCAS.cfg",
+    "expected": "UniqueWinner"
+  },
+  {
+    "name": "RefreshDeadline",
+    "kind": "mutation",
+    "config": "RefreshDeadline.cfg",
+    "expected": "AttemptIdentity"
+  },
+  {
+    "name": "PublishLateBytes",
+    "kind": "mutation",
+    "config": "PublishLateBytes.cfg",
+    "expected": "CommittedState"
+  },
+  {
+    "name": "ExtraRetry",
+    "kind": "mutation",
+    "config": "ExtraRetry.cfg",
+    "expected": "PolicyBudget"
+  },
+  {
+    "name": "NoClock",
+    "kind": "assumption",
+    "config": "NoClock.cfg",
+    "expected": "Settles"
+  },
+  {
+    "name": "NoRecovery",
+    "kind": "assumption",
+    "config": "NoRecovery.cfg",
+    "expected": "Settles"
+  }
+]

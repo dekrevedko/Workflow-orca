@@ -1,0 +1,105 @@
+name: Durable step outcome recovery
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/durable-step-outcome.yml'
+      - 'verification/tla/durable-step-outcome/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - 'openspec/specs/durable-runtime/**'
+      - 'openspec/specs/workflow-contracts/**'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.Hosting.Tests/DurableStepOutcomeTests*'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/durable-step-outcome.yml'
+      - 'verification/tla/durable-step-outcome/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - 'openspec/specs/durable-runtime/**'
+      - 'openspec/specs/workflow-contracts/**'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.Hosting.Tests/DurableStepOutcomeTests*'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check step outcomes with private Java
+        shell: pwsh
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/durable-step-outcome -ModuleName DurableStepOutcome -CheckLivenessAtEnd -OutputDirectory .codex-run/step-model
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: step-outcome-model
+          include-hidden-files: true
+          path: |
+            .codex-run/step-model/*.json
+            .codex-run/step-model/*/tlc.log
+            .codex-run/step-model/*/*.cfg
+            .codex-run/step-model/*/*.tla
+
+  database-restart:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [PostgreSql, SqlServer]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Exercise both commit orders and retry budgets
+        shell: pwsh
+        env:
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          $method = "OrcaCore.Hosting.Tests.DurableStepOutcomeTests.$($env:PROVIDER)ProcessRestart"
+          dotnet run --project tests/OrcaCore.Hosting.Tests -c Release -- -explicit only -method $method -showLiveOutput -xml restart.xml
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $cases = @(([xml](Get-Content -Raw restart.xml)).SelectNodes('//test'))
+          if ($cases.Count -ne 4) { throw "Expected four restart cases for $method." }
+          foreach ($lostAck in 'False', 'True') {
+            foreach ($budget in 1, 2) {
+              $name = "${method}(loseAcknowledgement: $lostAck, maxAttempts: $budget)"
+              if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
+                throw "Missing passing test $name."
+              }
+            }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: step-outcome-${{ matrix.provider }}
+          path: restart.xml
+          if-no-files-found: error
