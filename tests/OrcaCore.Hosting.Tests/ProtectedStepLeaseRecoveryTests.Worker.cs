@@ -34,7 +34,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             .End(state => state.Value).Build();
 
     private static async Task<ServiceProvider> HostAsync(string provider, string connection, ProtectedStep step,
-        DurableWorkflowDefinition<int, int> definition, CancellationToken token)
+        DurableWorkflowDefinition<int, int> definition, CancellationToken token, DagEventStoreProbe? probe = null)
     {
         var services = new ServiceCollection();
         Type options;
@@ -48,6 +48,15 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             Assert.Equal("SqlServer", provider);
             services.AddOrcaCoreSqlServerDurableProvider(new(connection, "protected_step"));
             options = typeof(SqlServerDurableProviderOptions);
+        }
+        if (probe is not null)
+        {
+            var port = services.Single(descriptor => descriptor.ServiceType == typeof(IWorkflowEventStore));
+            services.AddSingleton<IWorkflowEventStore>(sp =>
+            {
+                probe.Inner = (IWorkflowEventStore)port.ImplementationFactory!(sp);
+                return probe;
+            });
         }
         services.AddSingleton(step);
         services.AddOrcaCoreDurableEngine(new DurableEngineHostOptions

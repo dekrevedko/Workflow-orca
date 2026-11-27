@@ -70,9 +70,11 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
                 SELECT revision, @lease, @operation, @attempt, @pid,
                     CASE WHEN fenced_token = @lease THEN 0 ELSE 1 END,
                     CASE WHEN fenced_token = @lease THEN 0 ELSE 1 END
-                FROM test_job_resource WHERE id = 1
+                FROM test_job_resource WHERE id = 1 AND NOT EXISTS
+                    (SELECT 1 FROM test_job_submission WHERE lease_token = @lease AND operation_id = @operation)
                 """;
-            Assert.Equal(1, await command.ExecuteNonQueryAsync(token));
+            // A replay of the same logical operation observes its existing job under the resource row lock.
+            Assert.InRange(await command.ExecuteNonQueryAsync(token), 0, 1);
             await transaction.CommitAsync(token);
         }
 
@@ -83,9 +85,10 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             await using var command = connection.CreateCommand();
             Add(command, "@lease", work.Lease);
             Add(command, "@operation", work.Operation);
+            // Every returning submitter finishes or observes the same accepted job already finished.
             command.CommandText = """
                 UPDATE test_job_submission SET active = 0
-                WHERE lease_token = @lease AND operation_id = @operation AND accepted = 1 AND active = 1
+                WHERE lease_token = @lease AND operation_id = @operation AND accepted = 1
                 """;
             Assert.Equal(1, await command.ExecuteNonQueryAsync(token));
         }

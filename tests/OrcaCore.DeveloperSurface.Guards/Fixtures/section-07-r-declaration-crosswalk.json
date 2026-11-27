@@ -3,9 +3,9 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 426,
+    "physicalFiles": 427,
     "physicalDeclarations": 1786,
-    "activeFiles": 270,
+    "activeFiles": 271,
     "activeDeclarations": 1098,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
@@ -2080,6 +2080,12 @@
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "compile-excluded",
       "declarations": 11
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.CompetingWakes.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 0
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.JobResource.cs",

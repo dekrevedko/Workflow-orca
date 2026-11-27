@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 using DotNet.Testcontainers.Containers;
 using Microsoft.Extensions.DependencyInjection;
@@ -24,6 +25,8 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
     [Theory(Explicit = true)]
     [InlineData("Stopped", "Redrive")]
     [InlineData("Stopped", "GrantEvent")]
+    [InlineData("Stopped", "RedriveWins")]
+    [InlineData("Stopped", "GrantEventWins")]
     [InlineData("Fenced", "Redrive")]
     [InlineData("Fenced", "GrantEvent")]
     [InlineData("EmptyLookup", "Redrive")]
@@ -34,6 +37,8 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
     [Theory(Explicit = true)]
     [InlineData("Stopped", "Redrive")]
     [InlineData("Stopped", "GrantEvent")]
+    [InlineData("Stopped", "RedriveWins")]
+    [InlineData("Stopped", "GrantEventWins")]
     [InlineData("Fenced", "Redrive")]
     [InlineData("Fenced", "GrantEvent")]
     [InlineData("EmptyLookup", "Redrive")]
@@ -73,13 +78,14 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         Assert.True(joinedBeforeConfirmation || fenced || unsafeCaller);
         var activeB = new TaskCompletionSource<Admission>(TaskCreationOptions.RunContinuationsAsynchronously);
         var finishB = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var bodyEntries = 0;
+        var competing = wakePath is "RedriveWins" or "GrantEventWins";
+        var bodyEntries = new ConcurrentQueue<Admission>();
         var step = new ProtectedStep(async b =>
         {
-            Assert.Equal(1, Interlocked.Increment(ref bodyEntries));
+            bodyEntries.Enqueue(b);
             Assert.NotEqual(a.Instance, b.Instance);
             await resource.SubmitAsync(b, token);
-            activeB.SetResult(b);
+            activeB.TrySetResult(b);
             await finishB.Task.WaitAsync(token);
             await resource.FinishAsync(b, token);
         });
@@ -110,9 +116,9 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
 
         // First-call resolution on a fresh facade re-drives SQL. A second lookup on the
         // same facade returns its cached binding without running another execution segment.
-        async Task<InstanceId> StartWaiterAsync()
+        async Task<InstanceId> StartWaiterAsync(DagEventStoreProbe? probe = null)
         {
-            await using var executor = await HostAsync(provider, connection, step, definition, token);
+            await using var executor = await HostAsync(provider, connection, step, definition, token, probe);
             var fresh = executor.GetRequiredService<IWorkflowDefinitionRegistry>().GetRequiredHandle(definition.Reference);
             return (await fresh.StartOrGetAsync(2, StartIdempotencyKey.Create("waiter"), token)).GetHandleOrThrow().InstanceId;
         }
@@ -137,14 +143,14 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         Assert.Equal(CorrelationId.Create(waiting.HolderKey), registered.CorrelationId);
         Assert.Equal(queued.RegistrationSequence, registered.WaitSequence);
 
-        async Task DeliverGrantAsync(EventId eventId)
+        async Task DeliverGrantAsync(EventId eventId, ServiceProvider? executor = null)
         {
             var message = WorkflowInboundEvent.Create(
                 WorkflowEventContract.Create(EventName.Create("ResourcePoolGranted"), EventContractVersion.Initial),
                 eventId, registered.CorrelationId, null, DateTimeOffset.UtcNow,
                 new WorkflowEventRoute.Correlation(definition.DefinitionId));
             Assert.IsType<WorkflowEventAcceptanceResult.Accepted>(
-                await host.GetRequiredService<IWorkflowEventIngress>().AcceptAsync(message, token));
+                await (executor ?? host).GetRequiredService<IWorkflowEventIngress>().AcceptAsync(message, token));
         }
 
         WorkflowResumeConsumedEvent AssertGrantConsumed(IReadOnlyList<WorkflowEvent> events, EventId eventId)
@@ -264,7 +270,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             Assert.Empty(earlyEvents.OfType<WorkflowResourcePoolAcquiredEvent>());
             Assert.Empty(Lease(requeued).LeaseTickets);
             await CheckQuarantineAsync();
-            Assert.Equal(0, bodyEntries);
+            Assert.Empty(bodyEntries);
             output.WriteLine($"Premature grant {earlyGrant} consumed for wait {registered.WaitId}. A retained its ticket and B requeued.");
         }
 
@@ -301,7 +307,20 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         var beforeWake = (await JournalAsync(host, waiter, token)).Count;
         async Task WakeWaiterAsync()
         {
-            if (wakePath == "GrantEvent")
+            if (competing)
+            {
+                var queuedVersion = (await CheckpointAsync(host, waiter, token)).StreamVersion;
+                async Task IngressAsync(DagEventStoreProbe probe)
+                {
+                    await using var executor = await HostAsync(provider, connection, step, definition, token, probe);
+                    executor.GetRequiredService<IWorkflowDefinitionRegistry>().GetRequiredHandle(definition.Reference);
+                    await DeliverGrantAsync(grant, executor);
+                }
+                await RacePromotedWaiterAsync(waiter, queuedVersion, registered.WaitId, grant, successor,
+                    wakePath, IngressAsync, async probe => Assert.Equal(waiter, await StartWaiterAsync(probe)),
+                    () => finishB.TrySetResult(), token);
+            }
+            else if (wakePath == "GrantEvent")
             {
                 await DeliverGrantAsync(grant);
                 // Ingress may return at a segment budget. Require its match before continuing.
@@ -326,6 +345,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
                 }
             }
         }
+        EventId admissionEventId;
         var wake = WakeWaiterAsync();
         try
         {
@@ -347,7 +367,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             var bJournal = await JournalAsync(host, waiter, token);
             var wakeEvents = bJournal.Skip(beforeWake).ToArray();
             var acquisition = Assert.Single(bJournal.OfType<WorkflowResourcePoolAcquiredEvent>());
-            if (wakePath == "GrantEvent")
+            if (wakePath is "GrantEvent" or "GrantEventWins")
             {
                 var consumed = AssertGrantConsumed(wakeEvents, grant);
                 Assert.Equal(consumed.CommandId, acquisition.CommandId);
@@ -356,6 +376,8 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             else
             {
                 Assert.Empty(wakeEvents.OfType<WorkflowWaitMatchedEvent>());
+                Assert.Empty(wakeEvents.OfType<WorkflowResumeConsumedEvent>());
+                Assert.Equal(registered.WaitId, Assert.Single(wakeEvents.OfType<WorkflowWaitCancelledEvent>()).WaitId);
             }
             Assert.Empty(admission.RuntimeState.ActiveWaits);
             Assert.Empty(admission.RuntimeState.PendingResumes);
@@ -372,7 +394,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             Assert.Equal(queued.RegistrationSequence, bHeld.RegistrationSequence);
             Assert.Equal(queued.LeaseRequirements.ToArray(), bHeld.LeaseRequirements.ToArray());
             Assert.Null(bHeld.AcceptedConfirmationId);
-            Assert.Single(bJournal.SkipWhile(e => e != acquisition).OfType<WorkflowExecutionPositionChangedEvent>());
+            admissionEventId = Assert.Single(bJournal.SkipWhile(e => e != acquisition).OfType<WorkflowExecutionPositionChangedEvent>()).EventId;
             Assert.Equal(new DurableLeaseTicketState
             {
                 TicketId = successor.TicketId.ToString("N"),
@@ -445,8 +467,11 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         Assert.Empty(completed.RuntimeState.ActiveWaits);
         Assert.Empty(completed.RuntimeState.PendingResumes);
         var finalJournal = await JournalAsync(host, waiter, token);
-        Assert.Single(finalJournal.OfType<WorkflowResourcePoolAcquiredEvent>());
-        Assert.Single(finalJournal.OfType<WorkflowStepCompletedEvent>(), e => e.StepPath == "root/1/lease/0");
+        var acquired = Assert.Single(finalJournal.OfType<WorkflowResourcePoolAcquiredEvent>());
+        var protectedStep = Assert.Single(finalJournal.OfType<WorkflowStepCompletedEvent>(), e => e.StepPath == "root/1/lease/0");
+        var throughBody = finalJournal.SkipWhile(e => e != acquired).TakeWhile(e => e != protectedStep);
+        Assert.Equal(admissionEventId, Assert.Single(throughBody.OfType<WorkflowExecutionPositionChangedEvent>()).EventId);
+        Assert.Equal(WorkflowInstanceStatus.Completed, Assert.Single(finalJournal.OfType<WorkflowTerminalEvent>()).Status);
         var released = Assert.Single(finalJournal.OfType<WorkflowResourcePoolReleasedEvent>());
         Assert.Equal(successor.HolderKey, released.HolderKey);
         Assert.Equal(successor, Assert.Single(released.Tickets));
@@ -454,9 +479,19 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         Assert.Empty(emptyPool.HeldTickets);
         Assert.Empty(emptyPool.QueuedWaiters);
         Assert.Equal(1, emptyPool.AvailableCapacity);
-        Assert.Equal(1, bodyEntries);
-        Assert.DoesNotContain(await resource.ReadAsync(token), job => job.Active);
-        output.WriteLine($"B completed via {wakePath} with one admission, one submission and output 99. " +
+        var firstBody = await activeB.Task;
+        Assert.All(bodyEntries, entry => Assert.Equal(firstBody, entry));
+        if (!competing) Assert.Single(bodyEntries);
+        var finalJobs = await resource.ReadAsync(token);
+        Assert.DoesNotContain(finalJobs, job => job.Active);
+        AssertJob(firstBody, Assert.Single(finalJobs, job => job.Lease == firstBody.Lease), true, false);
+        if (competing)
+        {
+            var inbox = await host.GetRequiredService<IWorkflowInboxStore>().GetByEventIdAsync(grant, token);
+            Assert.True(inbox.HasValue);
+            Assert.Equal(wakePath == "GrantEventWins" ? InboxRecordState.Applied : InboxRecordState.Received, inbox.Value.State);
+        }
+        output.WriteLine($"B completed via {wakePath}: physicalBodyEntries={bodyEntries.Count}, durableAdmissions=1, externalJobsCreated=1, output=99. " +
             $"Released ticket {successor.TicketId}, pool available={emptyPool.AvailableCapacity}, active jobs=0.");
     }
 
