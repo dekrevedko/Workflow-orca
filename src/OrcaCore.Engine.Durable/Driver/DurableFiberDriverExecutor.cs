@@ -140,6 +140,13 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
 
             var fiber = execution.Fibers[selected.Value];
             var instruction = plan.GetInstruction(fiber.InstructionId);
+            if (!HasRequiredLease(instruction, fiber, ownedObligations))
+            {
+                return await ParkAsync(context, DurableParkReason.Poison,
+                    $"Protected instruction '{instruction.Path}' has no active lease obligation for fiber '{fiber.Id}'.",
+                    cancellationToken, currentVersion).ConfigureAwait(false);
+            }
+
             if (quantumBudget.ShouldRotate(fiber.Id, instruction.Kind))
             {
                 return await CommitForcedRotationAsync(

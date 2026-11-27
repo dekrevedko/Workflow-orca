@@ -13,10 +13,11 @@ namespace OrcaCore.Hosting.Tests;
 public sealed partial class ProtectedStepLeaseRecoveryTests
 {
     private sealed record Admission(Guid Instance, string Lease, string Operation, int Attempt, int Pid);
-    private sealed class ProtectedStep(Func<Admission, Task> run) : IStep<int>
+    private sealed class ProtectedStep(Func<Admission, Task> run, Action? onEntry = null) : IStep<int>
     {
         public async ValueTask<StepResult> ExecuteAsync(StepContext<int> context, CancellationToken cancellationToken)
         {
+            onEntry?.Invoke();
             // This submitter deliberately ignores its workflow cancellation token.
             Assert.NotNull(context.ResourceLease);
             var admission = new Admission(context.Execution.WorkflowInstanceId.Value, context.ResourceLease.ProtectionToken.Value,
@@ -82,6 +83,12 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         var directory = Environment.GetEnvironmentVariable("ORCA_PROTECTED_STEP_DIRECTORY")!;
         var provider = Environment.GetEnvironmentVariable("ORCA_PROTECTED_STEP_PROVIDER")!;
         var connection = Environment.GetEnvironmentVariable("ORCA_PROTECTED_STEP_CONNECTION")!;
+        if (Environment.GetEnvironmentVariable("ORCA_PROTECTED_STEP_CUT") is { } cut)
+        {
+            await SeedMissingObligationAsync(provider, connection, directory, cut, token);
+            return;
+        }
+
         var resource = new JobResource(provider, connection);
         Admission? entered = null;
         var step = new ProtectedStep(async admission =>
@@ -113,7 +120,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         private readonly string directory;
         private readonly Task<string> output;
         private readonly Task<string> errors;
-        internal OwnerProcess(string provider, string connection, string directory)
+        internal OwnerProcess(string provider, string connection, string directory, string? cut = null)
         {
             this.directory = directory;
             var info = new ProcessStartInfo("dotnet")
@@ -126,6 +133,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             info.Environment["ORCA_PROTECTED_STEP_DIRECTORY"] = directory;
             info.Environment["ORCA_PROTECTED_STEP_PROVIDER"] = provider;
             info.Environment["ORCA_PROTECTED_STEP_CONNECTION"] = connection;
+            if (cut is not null) info.Environment["ORCA_PROTECTED_STEP_CUT"] = cut;
             process = Process.Start(info)!;
             output = process.StandardOutput.ReadToEndAsync();
             errors = process.StandardError.ReadToEndAsync();
@@ -133,16 +141,24 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
 
         internal async Task<Admission> AtGateAsync(CancellationToken token)
         {
-            var path = Path.Combine(directory, "admitted.json");
+            var path = await WaitForFileAsync("admitted.json", token);
+            var admission = JsonSerializer.Deserialize<Admission>(await File.ReadAllTextAsync(path, token))!;
+            Assert.Equal(process.Id, admission.Pid);
+            Assert.NotEqual(Environment.ProcessId, process.Id);
+            return admission;
+        }
+
+        internal int Id => process.Id;
+
+        internal async Task<string> WaitForFileAsync(string name, CancellationToken token)
+        {
+            var path = Path.Combine(directory, name);
             while (!File.Exists(path))
             {
                 if (process.HasExited) throw new InvalidOperationException($"Worker exited before gate: {await output} {await errors}");
                 await Task.Delay(25, token);
             }
-            var admission = JsonSerializer.Deserialize<Admission>(await File.ReadAllTextAsync(path, token))!;
-            Assert.Equal(process.Id, admission.Pid);
-            Assert.NotEqual(Environment.ProcessId, process.Id);
-            return admission;
+            return path;
         }
 
         internal async Task ResumeAndJoinAsync(Admission admission, CancellationToken token)
@@ -155,13 +171,18 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
                 await File.ReadAllTextAsync(Path.Combine(directory, "returned.json"), token)));
         }
 
+        internal async Task KillAndJoinAsync()
+        {
+            Assert.False(process.HasExited);
+            process.Kill(entireProcessTree: true);
+            await process.WaitForExitAsync();
+            Assert.NotEqual(0, process.ExitCode);
+        }
+
         public async ValueTask DisposeAsync()
         {
             if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-                await process.WaitForExitAsync();
-            }
+                await KillAndJoinAsync();
             process.Dispose();
         }
     }

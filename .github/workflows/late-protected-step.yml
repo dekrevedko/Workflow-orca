@@ -169,9 +169,27 @@ jobs:
               }
             }
           }
+      - name: Restart historical checkpoints missing their scoped obligation
+        shell: pwsh
+        env:
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          $method = "OrcaCore.Hosting.Tests.ProtectedStepLeaseRecoveryTests.$($env:PROVIDER)MissingObligationRestart"
+          dotnet run --project tests/OrcaCore.Hosting.Tests -c Release --no-build -- -explicit only -method $method -showLiveOutput -xml missing-obligation.xml
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $cases = @(([xml](Get-Content -Raw missing-obligation.xml)).SelectNodes('//test'))
+          if ($cases.Count -ne 2) { throw "Expected two historical checkpoint cuts for $method." }
+          foreach ($afterAdmission in 'True', 'False') {
+            $name = "${method}(afterAdmission: $afterAdmission)"
+            if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
+              throw "Missing passing test $name."
+            }
+          }
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: late-protected-step-${{ matrix.provider }}
-          path: protected.xml
+          path: |
+            protected.xml
+            missing-obligation.xml
           if-no-files-found: error
