@@ -43,7 +43,8 @@ public sealed partial class DagChildRecoveryTests
     public Task SqlServerChildStartCancellationProcessRestart(bool continuationFirst) =>
         RunProcessRestartAsync(RestartDatabase.SqlServer, nameof(ChildStartCancellationWorker), continuationFirst);
 
-    private static async Task RunProcessRestartAsync(RestartDatabase provider, string method, bool schedule)
+    private static async Task RunProcessRestartAsync(RestartDatabase provider, string method, bool schedule,
+        string? seedMethod = null)
     {
         using var deadline = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         deadline.CancelAfter(TimeSpan.FromMinutes(5));
@@ -60,7 +61,7 @@ public sealed partial class DagChildRecoveryTests
         try
         {
             var seedPid = await RunRestartWorkerAsync("seed", provider, database.GetConnectionString(), directory.FullName,
-                method, schedule, token);
+                seedMethod ?? method, schedule, token);
             var recoveryPid = await RunRestartWorkerAsync("recover", provider, database.GetConnectionString(), directory.FullName,
                 method, schedule, token);
             recoveryPid.Should().NotBe(seedPid);
@@ -111,7 +112,7 @@ public sealed partial class DagChildRecoveryTests
                 worker.Kill(entireProcessTree: true);
             }
             await worker.WaitForExitAsync(token);
-            if (phase == "recover")
+            if (phase != "seed")
                 worker.ExitCode.Should().Be(0, "{0} {1}", await stdout, await stderr);
             return worker.Id;
         }

@@ -20,16 +20,23 @@ public sealed partial class DagChildRecoveryTests
 
     private sealed record ChildStartSeed(int SeedPid, Guid RunId, Guid ChildId, Guid StartId, Guid CancelId, Guid ContinueId);
 
-    private sealed class MarkerStep(string path) : IStep<int>
+    private sealed class MarkerStep(string path, Action? afterEntry = null, Action<StepExecutionContext, StepResult>? returning = null) : IStep<int>
     {
         public async ValueTask<StepResult> ExecuteAsync(StepContext<int> context, CancellationToken token)
         {
             // Count physical body entry even if a stale dispatch supplied an already-cancelled token.
             await File.AppendAllLinesAsync(path, [$"{Environment.ProcessId} {context.Execution.WorkflowInstanceId}"], CancellationToken.None);
+            afterEntry?.Invoke();
             context.ReplaceState(context.State + 1);
-            return new StepResult.Completed();
+            var result = new StepResult.Completed();
+            returning?.Invoke(context.Execution, result);
+            return result;
         }
     }
+
+    private static DurableWorkflowDefinition<int, int> MarkerDefinition() =>
+        Workflow.Durable<int>(DefinitionId.Parse("8fcfe3b1-51d9-4af7-9c1e-b170645835a6"), DefinitionVersion.Initial)
+            .Init<int>(value => value).Then<MarkerStep>().End(state => state.Value).Build();
 
     [Fact(Explicit = true, SkipUnless = nameof(IsRestartWorker), Skip = "Invoked by the SQL child-start restart tests.")]
     public async Task ChildStartCancellationWorker()
@@ -39,8 +46,7 @@ public sealed partial class DagChildRecoveryTests
         var marker = Path.Combine(directory, "seed.json");
         var calls = Path.Combine(directory, "step-calls");
         var seeding = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PHASE") == "seed";
-        var definition = Workflow.Durable<int>(DefinitionId.Parse("8fcfe3b1-51d9-4af7-9c1e-b170645835a6"), DefinitionVersion.Initial)
-            .Init<int>(value => value).Then<MarkerStep>().End(state => state.Value).Build();
+        var definition = MarkerDefinition();
 
         var committed = new TaskCompletionSource<ProviderCommitBatch>(TaskCreationOptions.RunContinuationsAsynchronously);
         using var resume = new ManualResetEventSlim();
@@ -123,6 +129,17 @@ public sealed partial class DagChildRecoveryTests
     private static async Task RecoverChildStartAsync(ServiceProvider services, ChildStartSeed seed, bool continuationFirst,
         string calls, string directory, CancellationToken token)
     {
+        var barrier = await CheckSeedForRecoveryAsync(services, seed, calls, token);
+        if (continuationFirst) await DrainContinuationAsync(services, seed.ContinueId, token);
+        var cancellation = await ReclaimOwningCancelAsync(services, seed, continuationFirst, token);
+        if (!continuationFirst) await DrainContinuationAsync(services, seed.ContinueId, token);
+        await VerifyJoinAndReplayAsync(services, seed, barrier, cancellation, continuationFirst,
+            continuationFirst ? Environment.ProcessId : null, calls, directory, token);
+    }
+
+    private static async Task<DagRunSnapshotV1> CheckSeedForRecoveryAsync(ServiceProvider services, ChildStartSeed seed,
+        string calls, CancellationToken token)
+    {
         var events = services.GetRequiredService<IWorkflowEventStore>();
         var outbox = services.GetRequiredService<IWorkflowOutboxStore>();
         var child = InstanceId.Parse(seed.ChildId.ToString("D"));
@@ -132,9 +149,15 @@ public sealed partial class DagChildRecoveryTests
         File.Exists(calls).Should().BeFalse();
         (await outbox.GetStateAsync(new(seed.ContinueId), token)).Value.Should().Be(OutboxRecordState.Pending);
         (await outbox.GetStateAsync(new(seed.CancelId), token)).Value.Should().Be(OutboxRecordState.Claimed);
+        return barrier;
+    }
 
-        if (continuationFirst) await DrainContinuationAsync(services, seed.ContinueId, token);
+    private sealed record RecoveredCancel(IReadOnlyList<OutboxWrite> Held, RecordingChildHandler Recorder, DurableDagChildPump Pump);
 
+    private static async Task<RecoveredCancel> ReclaimOwningCancelAsync(ServiceProvider services, ChildStartSeed seed,
+        bool continuationFirst, CancellationToken token)
+    {
+        var outbox = services.GetRequiredService<IWorkflowOutboxStore>();
         // Keep the late start and any already-committed join out of the DAG pump's claim set.
         var held = await outbox.ClaimAsync(Request() with
         {
@@ -154,9 +177,21 @@ public sealed partial class DagChildRecoveryTests
         cancel.DispatchAttempt.Should().Be(2);
         (await outbox.GetStateAsync(cancel.OutboxRecordId, token)).Value.Should().Be(OutboxRecordState.Dispatched);
 
-        if (!continuationFirst) await DrainContinuationAsync(services, seed.ContinueId, token);
+        return new(held, recorder, pump);
+    }
+
+    private static async Task VerifyJoinAndReplayAsync(ServiceProvider services, ChildStartSeed seed, DagRunSnapshotV1 barrier,
+        RecoveredCancel cancellation, bool continuationFirst, int? bodyPid, string calls, string directory, CancellationToken token,
+        OverlapObservation? overlap = null)
+    {
+        var (held, recorder, pump) = cancellation;
+        var cancel = recorder.Handled.Single();
+        var events = services.GetRequiredService<IWorkflowEventStore>();
+        var outbox = services.GetRequiredService<IWorkflowOutboxStore>();
+        var handler = services.GetRequiredService<IDurableDagChildHandler>();
+        var child = InstanceId.Parse(seed.ChildId.ToString("D"));
         var actualCalls = File.Exists(calls) ? await File.ReadAllLinesAsync(calls, token) : [];
-        actualCalls.Should().Equal(continuationFirst ? [$"{Environment.ProcessId} {child}"] : Array.Empty<string>());
+        actualCalls.Should().Equal(bodyPid.HasValue ? [$"{bodyPid} {child}"] : Array.Empty<string>());
         var childHistory = await events.LoadTailAsync(new(child), StreamVersion.Empty, token);
         var terminal = childHistory.OfType<WorkflowTerminalEvent>().Should().ContainSingle().Which;
         terminal.Status.Should().Be(continuationFirst ? WorkflowInstanceStatus.Completed : WorkflowInstanceStatus.Cancelled);
@@ -206,7 +241,7 @@ public sealed partial class DagChildRecoveryTests
 
         await File.WriteAllTextAsync(Path.Combine(directory, "recovered.json"), JsonSerializer.Serialize(new
         {
-            WorkerPid = Environment.ProcessId, continuationFirst, seed.RunId, seed.ChildId, FirstStepCalls = actualCalls.Length,
+            WorkerPid = Environment.ProcessId, continuationFirst = overlap is null ? (bool?)continuationFirst : null, overlap, seed.RunId, seed.ChildId, FirstStepCalls = actualCalls.Length,
             ChildTerminal = terminal.Status.ToString(), CancelAttempt = cancel.DispatchAttempt, JoinedAs = node.State.ToString(),
             ParentTerminal = run.State.ToString(), ParentVersion = run.StreamVersion.Value
         }), token);

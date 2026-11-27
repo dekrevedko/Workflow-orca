@@ -79,8 +79,16 @@ jobs:
         include:
           - check: postgres-child-start-restart
             method: PostgreSqlChildStartCancellationProcessRestart
+            argument: continuationFirst
           - check: sqlserver-child-start-restart
             method: SqlServerChildStartCancellationProcessRestart
+            argument: continuationFirst
+          - check: postgres-child-start-overlap
+            method: PostgreSqlChildStartCancellationOverlap
+            argument: insideBody
+          - check: sqlserver-child-start-overlap
+            method: SqlServerChildStartCancellationOverlap
+            argument: insideBody
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -94,13 +102,14 @@ jobs:
         shell: pwsh
         env:
           TEST_METHOD: ${{ matrix.method }}
+          TEST_ARGUMENT: ${{ matrix.argument }}
         run: |
           $report = [xml](Get-Content -Raw restart.xml)
           $cases = @($report.SelectNodes('//test'))
           $method = "OrcaCore.Hosting.Tests.DagChildRecoveryTests.$env:TEST_METHOD"
           if ($cases.Count -ne 2) { throw "Expected two tests for $method, found $($cases.Count)." }
           foreach ($order in 'True', 'False') {
-            $name = "${method}(continuationFirst: $order)"
+            $name = "${method}(${env:TEST_ARGUMENT}: $order)"
             if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
               throw "Missing passing result for $name."
             }
