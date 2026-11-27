@@ -1,0 +1,127 @@
+name: Late protected step and lease release
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/late-protected-step.yml'
+      - 'verification/tla/late-protected-step-lease-release/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - 'openspec/specs/durable-runtime/**'
+      - 'openspec/specs/management-and-querying/**'
+      - 'openspec/specs/runtime-resource-governance/**'
+      - 'docs/specs/09-requirements-management-operations.md'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'Directory.*'
+      - 'global.json'
+  push:
+    branches: [master]
+    paths:
+      - '.github/workflows/late-protected-step.yml'
+      - 'verification/tla/late-protected-step-lease-release/**'
+      - 'verification/tla/toolchain.json'
+      - 'scripts/verification/**'
+      - 'openspec/specs/durable-runtime/**'
+      - 'openspec/specs/management-and-querying/**'
+      - 'openspec/specs/runtime-resource-governance/**'
+      - 'docs/specs/09-requirements-management-operations.md'
+      - 'docs/specs/16-requirements-durable-driver.md'
+      - 'src/OrcaCore.Abstractions/**'
+      - 'src/OrcaCore.Core/**'
+      - 'src/OrcaCore.Engine.Durable/**'
+      - 'src/OrcaCore.Runtime.Protocol/**'
+      - 'src/OrcaCore.Durable.Hosting/**'
+      - 'src/OrcaCore.Provider.Abstractions/**'
+      - 'src/OrcaCore.Providers.PostgreSql/**'
+      - 'src/OrcaCore.Providers.SqlServer/**'
+      - 'tests/OrcaCore.Hosting.Tests/**'
+      - 'Directory.*'
+      - 'global.json'
+
+permissions:
+  contents: read
+
+jobs:
+  model:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check late submission, stop proof and fencing with private Java
+        shell: pwsh
+        run: ./scripts/verification/Invoke-TlaModelCheck.ps1 -ModelDirectory verification/tla/late-protected-step-lease-release -ModuleName LateProtectedStep -CheckLivenessAtEnd -OutputDirectory .codex-run/protected-model
+      - name: Verify proof obligations and negative controls
+        shell: pwsh
+        run: |
+          $required = @{
+            Safety = 'normal:'
+            Progress = 'normal:'
+            AfterProof = 'normal:'
+            LateSubmitRetained = 'witness:NoLateAcceptedWitness'
+            FencedLateSubmit = 'witness:NoFencedLateSubmitWitness'
+            EmptyLookupRelease = 'mutation:ExternalExclusion'
+            NoExternalResolution = 'assumption:EventualReuse'
+          }
+          $rows = (Get-Content -Raw .codex-run/protected-model/results.json | ConvertFrom-Json).results
+          foreach ($name in $required.Keys) {
+            $status = if ($required[$name] -eq 'normal:') { 'passed' } else { 'expected-counterexample' }
+            $matches = @($rows | Where-Object {
+              $_.profile -ceq $name -and $_.status -ceq $status -and "$($_.kind):$($_.expected)" -ceq $required[$name]
+            })
+            if ($matches.Count -ne 1) { throw "Missing verified outcome for $name." }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late-protected-step-model
+          include-hidden-files: true
+          path: |
+            .codex-run/protected-model/*.json
+            .codex-run/protected-model/*/tlc.log
+            .codex-run/protected-model/*/*.cfg
+            .codex-run/protected-model/*/*.tla
+
+  database:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [PostgreSql, SqlServer]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - name: Exercise trusted stop, fencing and unsafe empty lookup on SQL
+        shell: pwsh
+        env:
+          PROVIDER: ${{ matrix.provider }}
+        run: |
+          $method = "OrcaCore.Hosting.Tests.ProtectedStepLeaseRecoveryTests.$($env:PROVIDER)LateProtectedStep"
+          dotnet run --project tests/OrcaCore.Hosting.Tests -c Release -- -explicit only -method $method -showLiveOutput -xml protected.xml
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $cases = @(([xml](Get-Content -Raw protected.xml)).SelectNodes('//test'))
+          if ($cases.Count -ne 3) { throw "Expected three protected-resource cases for $method." }
+          foreach ($schedule in 'Stopped', 'Fenced', 'EmptyLookup') {
+            $name = '{0}(schedule: \"{1}\")' -f $method, $schedule
+            if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
+              throw "Missing passing test $name."
+            }
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: late-protected-step-${{ matrix.provider }}
+          path: protected.xml
+          if-no-files-found: error
