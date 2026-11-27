@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 426,
-    "physicalDeclarations": 1785,
+    "physicalDeclarations": 1786,
     "activeFiles": 270,
-    "activeDeclarations": 1097,
+    "activeDeclarations": 1098,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -2343,7 +2343,7 @@
       "source": "tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
-      "declarations": 1
+      "declarations": 2
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.ContinuationLease.cs",

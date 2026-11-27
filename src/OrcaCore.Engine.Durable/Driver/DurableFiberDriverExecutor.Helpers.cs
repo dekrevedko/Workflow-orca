@@ -1075,9 +1075,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         DurableWorkflowAggregate aggregate,
         CompiledWorkflowPlan plan,
         out bool recovered,
-        out HashSet<string>? activatingLeases)
+        out bool activatedScopedGrant)
     {
-        activatingLeases = null;
+        activatedScopedGrant = false;
         var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers);
         var resumed = new List<FiberId>();
         recovered = false;
@@ -1113,7 +1113,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 var tickets = CommittedLeaseTickets(aggregate, obligation.HolderKey!);
                 if (tickets.Length != 0)
                 {
-                    (activatingLeases ??= new(StringComparer.Ordinal)).Add(obligation.ObligationId);
+                    activatedScopedGrant = true;
                     ownedObligations[index] = ActivateLease(obligation, tickets);
                     nextInstruction = RequiredNext(plan.GetInstruction(fiber.InstructionId));
                 }

@@ -16,8 +16,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         TState state,
         List<DurableOwnedObligationState> ownedObligations,
         StreamVersion currentVersion,
-        CancellationToken cancellationToken,
-        IReadOnlySet<string>? activatingLeases = null)
+        CancellationToken cancellationToken)
     {
         var changed = false;
         for (var index = 0; index < ownedObligations.Count; index++)
@@ -61,20 +60,23 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 var token = LeaseProtectionToken.Parse(
                     obligation.ProtectionToken ??
                     throw new InvalidOperationException("A live lease has no protection token."));
-                var released = await context.Processor.GetResourceReleaseEvidenceAsync(
-                    token,
-                    cancellationToken).ConfigureAwait(false);
-                // A receipt can close a detached or exiting occurrence. A recovered
-                // acquisition still needs a live ticket before its body can enter.
-                if (released.HasValue && activatingLeases?.Contains(obligation.ObligationId) != true)
+                // Only a detached obligation can adopt a stop-confirmation receipt.
+                // An active owner must still hold its exact tickets before dispatch.
+                if (obligation.LeasePhase == nameof(DurableLeaseObligationPhase.Quarantined))
                 {
-                    ownedObligations[index] = obligation with
+                    var released = await context.Processor.GetResourceReleaseEvidenceAsync(
+                        token, cancellationToken).ConfigureAwait(false);
+                    if (released.HasValue && DurableResourceLeaseRecovery.CanCloseQuarantinedLease(
+                        context.InstanceId, obligation, committedTickets, released.Value))
                     {
-                        LeasePhase = nameof(DurableLeaseObligationPhase.Released),
-                        AcceptedConfirmationId = released.Value.ConfirmationId?.Value
-                    };
-                    changed = true;
-                    continue;
+                        ownedObligations[index] = obligation with
+                        {
+                            LeasePhase = nameof(DurableLeaseObligationPhase.Released),
+                            AcceptedConfirmationId = released.Value.ConfirmationId?.Value
+                        };
+                        changed = true;
+                        continue;
+                    }
                 }
 
                 var failure = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.LeaseLost(token, missing);

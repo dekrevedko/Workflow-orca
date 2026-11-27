@@ -197,19 +197,19 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             recoveredAggregate,
             plan,
             out var recoveredSuspension,
-            out var activatingLeases);
+            out var activatedScopedGrant);
         if (!recoveredSuspension)
         {
             return new SuspensionRecoveryResult(execution, currentVersion, commands, null);
         }
 
-        if (activatingLeases is not null)
+        if (activatedScopedGrant)
         {
             // A restart may observe the workflow grant after the provider ticket has
             // disappeared. Reconcile before committing Held or dispatching the body.
             var reconciliation = await ReconcileLeaseTicketsAsync(
                 context with { Aggregate = recoveredAggregate }, execution, state, ownedObligations,
-                currentVersion, cancellationToken, activatingLeases).ConfigureAwait(false);
+                currentVersion, cancellationToken).ConfigureAwait(false);
             if (reconciliation is not null)
             {
                 return new SuspensionRecoveryResult(execution, currentVersion, commands, reconciliation);
