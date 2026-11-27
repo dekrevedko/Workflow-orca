@@ -99,7 +99,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             await File.WriteAllTextAsync(path + ".tmp", JsonSerializer.Serialize(admission), token);
             File.Move(path + ".tmp", path);
             while (!File.Exists(Path.Combine(directory, "submit")))
-                await Task.Delay(25, token);
+                await Task.Delay(TimeSpan.FromMilliseconds(25), TimeProvider.System, token);
             await resource.SubmitAsync(admission, token);
         });
         var definition = Definition();
@@ -156,7 +156,7 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
             while (!File.Exists(path))
             {
                 if (process.HasExited) throw new InvalidOperationException($"Worker exited before gate: {await output} {await errors}");
-                await Task.Delay(25, token);
+                await Task.Delay(TimeSpan.FromMilliseconds(25), TimeProvider.System, token);
             }
             return path;
         }
