@@ -290,6 +290,86 @@ public sealed partial class DurableResourceLeaseBarrierCertificationTests
         Assert.Equal(occurrence, Assert.Single(steps.Invocations));
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConfirmationWithDifferentReleasedTicket_PreservesWorkflowQuarantine(bool staleConfirmer)
+    {
+        var token = TestContext.Current.CancellationToken;
+        using var provider = InMemoryProviderPorts.Create();
+        var events = provider.EventStore;
+        var pool = new ResourcePoolDefinition("database", 1, TimeSpan.FromMinutes(5));
+        await provider.ResourcePoolStore.UpsertPoolAsync(pool, token);
+        var definition = Definition(ResourcePoolName.Create(pool.Name));
+        var gate = new RecordingGate(true);
+        var processor = new DurableCommandProcessor(events, provider.ResourcePoolStore) { LeaseCertificationGate = gate };
+        var runtime = new DurableWorkflowRuntime(processor, new DurableDefinitionRegistry(new Services()), TimeProvider.System);
+        runtime.RegisterDefinition(definition);
+        await Assert.ThrowsAsync<HostStopped>(() => runtime.StartOrGetAsync<string, State>("receipt-identity",
+            definition.DefinitionId, definition.DefinitionVersion, "start", token));
+        var activation = gate.Facts[^1];
+        var instance = activation.InstanceId;
+        var occurrence = activation.LeaseProtectionToken;
+        Assert.Equal(DurableCommandOutcome.Committed, (await processor.ProcessAsync(new CancelWorkflowCommand
+        {
+            CommandId = CommandId.New(), InstanceId = instance, RequestedAt = DateTimeOffset.UtcNow
+        }, token)).Outcome);
+        var quarantined = (await events.LoadCheckpointAsync(instance, token)).Value;
+        var lease = Assert.Single(DurableExecutionEnvelopeV2.Deserialize(quarantined.Payload).OwnedObligations);
+        Assert.Equal("Quarantined", lease.LeasePhase);
+        Assert.Null(lease.AcceptedConfirmationId);
+        var history = await events.LoadTailAsync(new(instance), StreamVersion.Empty, token);
+        var original = Assert.Single(Assert.Single(history.OfType<WorkflowResourcePoolAcquiredEvent>()).Tickets);
+        Assert.Equal(Persisted(original), Assert.Single(lease.LeaseTickets));
+
+        // A replacement provider retained the occurrence coordinates but owns a different ticket.
+        using var replacementProvider = InMemoryProviderPorts.Create();
+        var replacement = replacementProvider.ResourcePoolStore;
+        await replacement.UpsertPoolAsync(pool, token);
+        var actual = Assert.Single((await replacement.AcquireAsync(new ResourcePoolAcquireRequest(instance,
+            original.HolderKey, [new(pool.Name, original.Count)], original.AcquiredAt, original.ExpiresAt)
+        {
+            FiberId = original.FiberId, ScopeId = original.ScopeId, ProtectionToken = occurrence
+        }, token)).Tickets);
+        Assert.NotEqual(original.TicketId, actual.TicketId);
+        Assert.Equal(original.ProviderGeneration, actual.ProviderGeneration);
+
+        var caller = StopConfirmationId.Create("caller");
+        var winner = staleConfirmer ? StopConfirmationId.Create("winner") : caller;
+        var competitorReleased = false;
+        var observed = new DagEventStoreProbe
+        {
+            Inner = events,
+            AfterCheckpointRead = async cancellation =>
+            {
+                if (!staleConfirmer || competitorReleased) return;
+                // The stale caller has already read an empty receipt. Commit its rival at this boundary.
+                competitorReleased = true;
+                Assert.Equal(ResourcePoolStopConfirmationStatus.Released, await replacement.ConfirmAndReleaseAsync(
+                    new(instance, original.HolderKey, occurrence, winner, DateTimeOffset.UtcNow), cancellation));
+            }
+        };
+        Assert.False((await replacement.GetReleaseEvidenceAsync(occurrence, token)).HasValue);
+        var recovery = new DurableResourceLeaseRecovery(new DurableCommandProcessor(observed, replacement),
+            provider.ProjectionStore);
+        Assert.Equal(staleConfirmer ? ProtectedWorkStopConfirmationStatus.AlreadyConfirmed : ProtectedWorkStopConfirmationStatus.Released,
+            await recovery.ConfirmProtectedWorkStoppedAsync(occurrence, caller, token));
+        Assert.Equal(staleConfirmer, competitorReleased);
+        var receipt = (await replacement.GetReleaseEvidenceAsync(occurrence, token)).Value;
+        Assert.Equal(winner, receipt.ConfirmationId);
+        Assert.Equal(actual, Assert.Single(receipt.ReleasedTickets));
+        Assert.Empty((await replacement.GetPoolAsync(pool.Name, token)).Value.HeldTickets);
+        Assert.Equal(occurrence, (await replacement.GetConfirmationBindingAsync(winner, token)).Value);
+        Assert.Equal(!staleConfirmer, (await replacement.GetConfirmationBindingAsync(caller, token)).HasValue);
+        var checkpoint = (await events.LoadCheckpointAsync(instance, token)).Value;
+        Assert.Equal("Quarantined", Assert.Single(DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload).OwnedObligations).LeasePhase);
+        Assert.Equal(quarantined.Payload, checkpoint.Payload);
+        Assert.Equal(ProtectedWorkStopConfirmationStatus.AlreadyConfirmed,
+            await recovery.ConfirmProtectedWorkStoppedAsync(occurrence, caller, token));
+        Assert.Equal(quarantined.Payload, (await events.LoadCheckpointAsync(instance, token)).Value.Payload);
+        Assert.Empty(await events.LoadTailAsync(new(instance), quarantined.StreamVersion, token));
+    }
+
     private static DurableWorkflowDefinition<string> Definition(ResourcePoolName pool) =>
         Workflow.Durable<State>(DefinitionId.New(), DefinitionVersion.Initial)
             .Init<string>(_ => new State())
