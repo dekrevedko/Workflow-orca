@@ -183,18 +183,37 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             commands++;
             recoveredAggregate = await ReloadAggregateAsync(context, cancellationToken)
                 .ConfigureAwait(false);
+            if (recoveredAggregate.StreamVersion != currentVersion)
+            {
+                return new SuspensionRecoveryResult(execution, currentVersion, commands,
+                    new DurableSegmentResult(DurableSegmentOutcome.Conflict,
+                        "Scoped resource promotion stream moved before recovery."));
+            }
         }
 
         execution = RecoverCommittedSuspensions(
             execution,
             ownedObligations,
-            recoveredAggregate.WaitState,
-            recoveredAggregate.TimerState,
+            recoveredAggregate,
             plan,
-            out var recoveredSuspension);
+            out var recoveredSuspension,
+            out var activatingLeases);
         if (!recoveredSuspension)
         {
             return new SuspensionRecoveryResult(execution, currentVersion, commands, null);
+        }
+
+        if (activatingLeases is not null)
+        {
+            // A restart may observe the workflow grant after the provider ticket has
+            // disappeared. Reconcile before committing Held or dispatching the body.
+            var reconciliation = await ReconcileLeaseTicketsAsync(
+                context with { Aggregate = recoveredAggregate }, execution, state, ownedObligations,
+                currentVersion, cancellationToken, activatingLeases).ConfigureAwait(false);
+            if (reconciliation is not null)
+            {
+                return new SuspensionRecoveryResult(execution, currentVersion, commands, reconciliation);
+            }
         }
 
         var recovered = await context.Processor.ProcessAsync(

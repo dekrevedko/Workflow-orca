@@ -105,7 +105,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
 
         var obligation = ownedObligations.FirstOrDefault(candidate =>
             candidate.ObligationId == consumed.ToString());
-        if (obligation is not null)
+        // A scoped grant reuses the lexical obligation ID for its wake. Consuming that
+        // wait leaves the resource obligation alive through the protected scope.
+        if (obligation is not null &&
+            !(obligation.Kind == DurableOwnedObligationKind.Resource && obligation.ProtectionToken is not null))
         {
             ownedObligations.Remove(obligation);
         }

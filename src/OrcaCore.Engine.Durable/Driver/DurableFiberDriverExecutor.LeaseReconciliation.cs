@@ -16,7 +16,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         TState state,
         List<DurableOwnedObligationState> ownedObligations,
         StreamVersion currentVersion,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlySet<string>? activatingLeases = null)
     {
         var changed = false;
         for (var index = 0; index < ownedObligations.Count; index++)
@@ -33,18 +34,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 continue;
             }
 
-            var actual = await context.Processor.GetResourceTicketsAsync(
-                context.InstanceId,
-                obligation.HolderKey,
-                cancellationToken).ConfigureAwait(false);
-            var committedTickets = context.Aggregate.ResourcePoolState.ActiveTickets
-                .Where(ticket => string.Equals(
-                    ticket.HolderKey,
-                    obligation.HolderKey,
-                    StringComparison.Ordinal))
-                .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
-                .ThenBy(ticket => ticket.ProviderGeneration)
-                .ToArray();
+            var committedTickets = CommittedLeaseTickets(context.Aggregate, obligation.HolderKey);
             if (committedTickets.Length == 0)
             {
                 // A normal release event may have won while an older envelope is being
@@ -53,12 +43,19 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 continue;
             }
 
+            if (!CoversLeaseRequest(obligation, committedTickets))
+            {
+                return await ParkAsync(context, DurableParkReason.Poison,
+                    $"Scoped grant for '{obligation.HolderKey}' is missing its committed tickets.",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            var actual = await context.Processor.GetResourceTicketsAsync(
+                context.InstanceId, obligation.HolderKey, cancellationToken).ConfigureAwait(false);
             var expected = obligation.LeaseTickets.Count == 0
                 ? committedTickets.Select(ToPersistedTicket).ToArray()
                 : obligation.LeaseTickets;
-            var missing = expected.Count == 0
-                ? MissingRequiredPools(obligation.LeaseRequirements, actual)
-                : MissingExactPools(expected, actual);
+            var missing = MissingExactPools(expected, actual);
             if (missing.Count > 0)
             {
                 var token = LeaseProtectionToken.Parse(
@@ -67,7 +64,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 var released = await context.Processor.GetResourceReleaseEvidenceAsync(
                     token,
                     cancellationToken).ConfigureAwait(false);
-                if (released.HasValue)
+                // A receipt can close a detached or exiting occurrence. A recovered
+                // acquisition still needs a live ticket before its body can enter.
+                if (released.HasValue && activatingLeases?.Contains(obligation.ObligationId) != true)
                 {
                     ownedObligations[index] = obligation with
                     {
@@ -101,16 +100,21 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     : Conflict(committed);
             }
 
-            var persistedTickets = actual.Select(ToPersistedTicket).ToArray();
+            // Governance can update review metadata. The workflow grant defines which
+            // ticket identities belong in this occurrence, including on an old empty checkpoint.
+            var persistedTickets = actual.Where(ticket => expected.Any(fact =>
+                    string.Equals(fact.TicketId, ticket.TicketId.ToString("N"), StringComparison.Ordinal)))
+                .Select(ToPersistedTicket)
+                .ToArray();
             var phase = obligation.LeasePhase;
             if (string.Equals(phase, nameof(DurableLeaseObligationPhase.Held), StringComparison.Ordinal) &&
-                actual.Any(ticket => ticket.ReviewMarked))
+                persistedTickets.Any(ticket => ticket.ReviewMarked))
             {
                 phase = nameof(DurableLeaseObligationPhase.ReviewMarked);
             }
 
             if (!string.Equals(phase, obligation.LeasePhase, StringComparison.Ordinal) ||
-                !TicketFactsEqual(expected, persistedTickets))
+                !TicketFactsEqual(obligation.LeaseTickets, persistedTickets))
             {
                 ownedObligations[index] = obligation with
                 {
@@ -141,6 +145,27 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             ? DurableSegmentResult.PolicyBoundary
             : Conflict(checkpoint);
     }
+
+    private static ResourcePoolTicket[] CommittedLeaseTickets(DurableWorkflowAggregate aggregate, string holderKey) =>
+        aggregate.ResourcePoolState.ActiveTickets
+            .Where(ticket => ticket.HolderInstanceId.Equals(aggregate.InstanceId) &&
+                string.Equals(ticket.HolderKey, holderKey, StringComparison.Ordinal))
+            .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
+            .ThenBy(ticket => ticket.ProviderGeneration)
+            .ToArray();
+
+    private static bool CoversLeaseRequest(DurableOwnedObligationState lease, ResourcePoolTicket[] tickets) =>
+        tickets.Length != 0 &&
+        tickets.All(ticket => lease.LeaseRequirements.Any(requirement =>
+            string.Equals(requirement.PoolName, ticket.PoolName, StringComparison.Ordinal))) &&
+        MissingRequiredPools(lease.LeaseRequirements, tickets).Count == 0;
+
+    private static DurableOwnedObligationState ActivateLease(
+        DurableOwnedObligationState lease, ResourcePoolTicket[] tickets) => lease with
+        {
+            LeasePhase = nameof(DurableLeaseObligationPhase.Held),
+            LeaseTickets = tickets.Select(ToPersistedTicket).ToArray()
+        };
 
     private static IReadOnlyList<ResourcePoolName> MissingRequiredPools(
         IReadOnlyList<ResourcePoolRequirement> requirements,

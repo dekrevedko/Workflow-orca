@@ -549,30 +549,15 @@ internal sealed partial class DurableFiberDriverExecutor<TState> : IDurableDrive
                         continue;
                     }
 
-                    var acquiredLeaseTickets = reloaded.ResourcePoolState.ActiveTickets
-                        .Where(ticket =>
-                            string.Equals(
-                                ticket.HolderKey,
-                                lease.HolderKey,
-                                StringComparison.Ordinal))
-                        .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
-                        .ThenBy(ticket => ticket.ProviderGeneration)
-                        .ToArray();
-                    ownedObligations[leaseIndex] = lease with
+                    var acquiredLeaseTickets = CommittedLeaseTickets(reloaded, lease.HolderKey!);
+                    if (!CoversLeaseRequest(lease, acquiredLeaseTickets))
                     {
-                        LeasePhase = nameof(DurableLeaseObligationPhase.Held),
-                        LeaseTickets = acquiredLeaseTickets
-                            .Select(ticket => new DurableLeaseTicketState
-                            {
-                                TicketId = ticket.TicketId.ToString("N"),
-                                PoolName = ticket.PoolName,
-                                Units = ticket.Count,
-                                ProviderGeneration = ticket.ProviderGeneration,
-                                ReviewDeadline = ticket.ReviewDeadline,
-                                ReviewMarked = ticket.ReviewMarked
-                            })
-                            .ToArray()
-                    };
+                        return await ParkAsync(context with { Aggregate = reloaded }, DurableParkReason.Poison,
+                            $"Scoped grant for '{lease.HolderKey}' is missing its committed tickets.",
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    ownedObligations[leaseIndex] = ActivateLease(lease, acquiredLeaseTickets);
                     RemoveConsumedObligation(ownedObligations, consumedWaitId);
                     var advanced = FiberReducer.Resume(blocked) with
                     {
