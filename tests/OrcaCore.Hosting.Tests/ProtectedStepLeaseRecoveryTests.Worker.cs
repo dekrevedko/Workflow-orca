@@ -18,7 +18,8 @@ public sealed partial class ProtectedStepLeaseRecoveryTests
         public async ValueTask<StepResult> ExecuteAsync(StepContext<int> context, CancellationToken cancellationToken)
         {
             // This submitter deliberately ignores its workflow cancellation token.
-            var admission = new Admission(context.Execution.WorkflowInstanceId.Value, context.ResourceLease!.ProtectionToken.Value,
+            Assert.NotNull(context.ResourceLease);
+            var admission = new Admission(context.Execution.WorkflowInstanceId.Value, context.ResourceLease.ProtectionToken.Value,
                 context.Execution.OperationId.Value, context.Execution.AttemptNumber, Environment.ProcessId);
             await run(admission);
             context.ReplaceState(99);

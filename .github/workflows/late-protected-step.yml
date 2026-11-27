@@ -112,11 +112,13 @@ jobs:
           dotnet run --project tests/OrcaCore.Hosting.Tests -c Release -- -explicit only -method $method -showLiveOutput -xml protected.xml
           if ($LASTEXITCODE) { exit $LASTEXITCODE }
           $cases = @(([xml](Get-Content -Raw protected.xml)).SelectNodes('//test'))
-          if ($cases.Count -ne 3) { throw "Expected three protected-resource cases for $method." }
+          if ($cases.Count -ne 6) { throw "Expected six protected-resource cases for $method." }
           foreach ($schedule in 'Stopped', 'Fenced', 'EmptyLookup') {
-            $name = '{0}(schedule: \"{1}\")' -f $method, $schedule
-            if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
-              throw "Missing passing test $name."
+            foreach ($wakePath in 'Redrive', 'GrantEvent') {
+              $name = '{0}(schedule: \"{1}\", wakePath: \"{2}\")' -f $method, $schedule, $wakePath
+              if (@($cases | Where-Object { $_.name -ceq $name -and $_.result -ceq 'Pass' }).Count -ne 1) {
+                throw "Missing passing test $name."
+              }
             }
           }
       - uses: actions/upload-artifact@v4
