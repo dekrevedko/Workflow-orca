@@ -1,0 +1,68 @@
+[
+  {
+    "name": "Source",
+    "kind": "normal",
+    "config": "Source.cfg",
+    "expected": ""
+  },
+  {
+    "name": "BodyAfterBarrier",
+    "kind": "witness",
+    "config": "BodyAfterBarrier.cfg",
+    "expected": "NoPostBarrierBody"
+  },
+  {
+    "name": "ContinuationFirst",
+    "kind": "witness",
+    "config": "ContinuationFirst.cfg",
+    "expected": "NoContinuationFirst"
+  },
+  {
+    "name": "CancellationFirst",
+    "kind": "witness",
+    "config": "CancellationFirst.cfg",
+    "expected": "NoCancellationFirst"
+  },
+  {
+    "name": "CancellationInBody",
+    "kind": "witness",
+    "config": "CancellationInBody.cfg",
+    "expected": "NoCancellationInBody"
+  },
+  {
+    "name": "LateBodyEntry",
+    "kind": "witness",
+    "config": "LateBodyEntry.cfg",
+    "expected": "NoLateBodyEntry"
+  },
+  {
+    "name": "EarlyParent",
+    "kind": "mutation",
+    "config": "EarlyParent.cfg",
+    "expected": "ParentWaits"
+  },
+  {
+    "name": "StaleAdmission",
+    "kind": "mutation",
+    "config": "StaleAdmission.cfg",
+    "expected": "SiblingClosed"
+  },
+  {
+    "name": "DuplicateChild",
+    "kind": "mutation",
+    "config": "DuplicateChild.cfg",
+    "expected": "OneStart"
+  },
+  {
+    "name": "DriveCancelled",
+    "kind": "mutation",
+    "config": "DriveCancelled.cfg",
+    "expected": "ChildCancelStopsNewAttempt"
+  },
+  {
+    "name": "StaleSuccess",
+    "kind": "mutation",
+    "config": "StaleSuccess.cfg",
+    "expected": "ChildCancellationWins"
+  }
+]

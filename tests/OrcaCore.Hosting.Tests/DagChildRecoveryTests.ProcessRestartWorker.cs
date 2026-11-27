@@ -23,9 +23,29 @@ public sealed partial class DagChildRecoveryTests
     {
         var token = TestContext.Current.CancellationToken;
         var directory = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_DIRECTORY")!;
-        var loseAck = bool.Parse(Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_LOST_ACK")!);
+        var loseAck = bool.Parse(Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_SCHEDULE")!);
         var workflow = Workflow.Durable<int>(DefinitionId.Parse("824a2e15-67cb-4fa6-8695-725c7266cd28"), DefinitionVersion.Initial)
             .Init<int>(value => value).End(state => state.Value).Build();
+        await using var services = await CreateRestartServicesAsync(workflow, token);
+
+        var marker = Path.Combine(directory, "seed.json");
+        if (Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PHASE") == "seed")
+        {
+            var coordinates = await SeedRestartAsync(services, workflow, loseAck, token);
+            await File.WriteAllTextAsync(marker + ".tmp", JsonSerializer.Serialize(coordinates), token);
+            File.Move(marker + ".tmp", marker);
+            await Task.Delay(Timeout.Infinite, token); // The controller hard-kills this process.
+            return;
+        }
+        var seed = JsonSerializer.Deserialize<RestartCoordinates>(await File.ReadAllTextAsync(marker, token))!;
+        seed.SeedPid.Should().NotBe(Environment.ProcessId);
+        var observation = await VerifyAfterRestartAsync(services, seed, loseAck, token);
+        await File.WriteAllTextAsync(Path.Combine(directory, "recovered.json"), JsonSerializer.Serialize(observation), token);
+    }
+
+    private static async Task<ServiceProvider> CreateRestartServicesAsync(DurableWorkflowDefinition<int, int> workflow,
+        CancellationToken token, Action<IServiceCollection>? configure = null)
+    {
         var collection = new ServiceCollection();
         var connection = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_CONNECTION")!;
         var provider = Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PROVIDER");
@@ -43,29 +63,17 @@ public sealed partial class DagChildRecoveryTests
             default:
                 throw new InvalidOperationException($"Unknown DAG restart provider '{provider}'.");
         }
+        configure?.Invoke(collection);
         collection.AddOrcaCoreDurableEngine(new DurableEngineHostOptions
         {
             StructuredExecution = new StructuredExecutionHostOptions { MaxConcurrentExecutionPathsPerInstance = 2, StepThrottles = [] },
             ResourcePools = new DurableResourcePoolOptions { PartitionId = ResourceGovernancePartitionId.Create("dag-restart"), Pools = [] }
         }).AddWorkflow(workflow);
-        await using var services = collection.BuildServiceProvider();
+        var services = collection.BuildServiceProvider();
         // Initialize the provider schema while keeping competing background pumps stopped.
         await services.GetServices<IHostedService>().Single(service =>
             service.GetType().Assembly == providerOptions.Assembly).StartAsync(token);
-
-        var marker = Path.Combine(directory, "seed.json");
-        if (Environment.GetEnvironmentVariable("ORCA_DAG_RESTART_PHASE") == "seed")
-        {
-            var coordinates = await SeedRestartAsync(services, workflow, loseAck, token);
-            await File.WriteAllTextAsync(marker + ".tmp", JsonSerializer.Serialize(coordinates), token);
-            File.Move(marker + ".tmp", marker);
-            await Task.Delay(Timeout.Infinite, token); // The controller hard-kills this process.
-            return;
-        }
-        var seed = JsonSerializer.Deserialize<RestartCoordinates>(await File.ReadAllTextAsync(marker, token))!;
-        seed.SeedPid.Should().NotBe(Environment.ProcessId);
-        var observation = await VerifyAfterRestartAsync(services, seed, loseAck, token);
-        await File.WriteAllTextAsync(Path.Combine(directory, "recovered.json"), JsonSerializer.Serialize(observation), token);
+        return services;
     }
 
     private static async Task<RestartCoordinates> SeedRestartAsync(ServiceProvider services,

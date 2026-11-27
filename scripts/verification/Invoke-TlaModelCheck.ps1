@@ -40,8 +40,11 @@ if ($ModuleName -eq 'DurableStepOutcome') {
 if ($ModuleName -eq 'ResourceGrant') {
     $sourceFiles += @('.github/workflows/durable-resource-grant.yml', 'docs/specs/10-provider-model-and-extensibility.md', 'docs/specs/12-acceptance-criteria.md', 'docs/implementation/00-stack-decisions.md')
 }
-if ($ModuleName -eq 'DagChildJoin') {
+if ($ModuleName -in @('DagChildJoin', 'DagChildStartCancellation')) {
     $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- src/OrcaCore.Runtime.Protocol src/OrcaCore.Durable.Hosting src/OrcaCore.Providers.PostgreSql src/OrcaCore.Providers.SqlServer tests/OrcaCore.Hosting.Tests docs/specs/08-requirements-composition.md .github/workflows/dag-child-join.yml)
+}
+if ($ModuleName -eq 'DagChildStartCancellation') {
+    $sourceFiles += @('.github/workflows/dag-child-start-cancellation.yml', 'openspec/specs/durable-persistence-and-outbox/spec.md')
 }
 if ($ModuleName -eq 'ResourcePoolResize') {
     $sourceFiles += @(& git -C $repo ls-files --cached --others --exclude-standard -- openspec/changes/grant-fifo-waiters-on-pool-upsize)

@@ -46,8 +46,7 @@ internal static class DagPumpRunFixture
         (await store.AppendAsync(Batch(run, [created], null, []), token)).IsSuccess.Should().BeTrue();
         var fence = (await store.AcquireDagRunLeaseAsync(new(runId, Guid.NewGuid(), Guid.NewGuid(),
             DagRunLeasePurposeV1.Admission, null, TimeSpan.FromSeconds(5)), token)).Fence!;
-        var child = Guid.ParseExact(Convert.ToHexStringLower(SHA256.HashData(
-            Encoding.UTF8.GetBytes($"orcacore-dag-child-v1\n{runId:D}\n0\n")))[..32], "N");
+        var child = ChildId(runId, 0);
         var node = run.Nodes[0] with { State = DagNodeStateV1.StartAuthorized, ChildInstanceId = InstanceId.Parse(child.ToString("D")), Input = value, StartedAt = time };
         run = run with { StreamVersion = new(2), Nodes = new[] { node }.Concat(run.Nodes.Skip(1)).ToArray() };
         var start = ChildWrite("dag-child-start-v1", runId);
@@ -68,6 +67,9 @@ internal static class DagPumpRunFixture
         }
         return (run, start);
     }
+
+    internal static Guid ChildId(Guid runId, int ordinal) => Guid.ParseExact(Convert.ToHexStringLower(SHA256.HashData(
+        Encoding.UTF8.GetBytes(FormattableString.Invariant($"orcacore-dag-child-v1\n{runId:D}\n{ordinal}\n"))))[..32], "N");
 
     internal static OutboxWrite ChildWrite(string kind, Guid runId) => new(OutboxRecordId.New(), kind,
         Encoding.UTF8.GetBytes($"{{\"version\":1,\"runId\":\"{runId:D}\",\"ordinal\":0}}")) { DagRunOwner = runId };

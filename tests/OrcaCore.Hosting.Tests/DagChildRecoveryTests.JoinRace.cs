@@ -148,6 +148,14 @@ public sealed partial class DagChildRecoveryTests
     private static async Task<DagRunSnapshotV1> StartTwoIndependentChildrenAsync(
         IServiceProvider services, DurableWorkflowDefinition<int, int> workflow, CancellationToken token)
     {
+        var run = await AdmitIndependentChildrenAsync(services, workflow, 2, token);
+        (await services.GetRequiredService<DurableDagChildPump>().PumpOnceAsync(Request(), token)).Should().Be(2);
+        return run;
+    }
+
+    private static async Task<DagRunSnapshotV1> AdmitIndependentChildrenAsync(IServiceProvider services,
+        DurableWorkflowDefinition<int, int> workflow, int capacity, CancellationToken token)
+    {
         var plan = new DagRunBindingV1(DefinitionId.New(), DefinitionVersion.Initial, new string('A', 64));
         var child = new DagRunBindingV1(workflow.DefinitionId, workflow.DefinitionVersion, workflow.DefinitionFingerprint.Value);
         var key = services.GetRequiredService<DurableDagRunInputCatalog>().Install(plan, typeof(int));
@@ -168,12 +176,11 @@ public sealed partial class DagChildRecoveryTests
             var turn = (await bridge.BeginTurnAsync(new(id, Guid.NewGuid(), DurableDagTurnPurposeV1.Admission), token)).Turn!;
             try
             {
-                (await bridge.AdmitPreparedMappingAsync(receipt, turn.Fence, turn.Version, 2, token)).Outcome
-                    .Should().Be(DurableDagMutationOutcomeV1.Committed);
+                (await bridge.AdmitPreparedMappingAsync(receipt, turn.Fence, turn.Version, capacity, token)).Outcome
+                    .Should().Be(ordinal < capacity ? DurableDagMutationOutcomeV1.Committed : DurableDagMutationOutcomeV1.CapacityDeferred);
             }
             finally { await bridge.EndTurnAsync(turn, token); }
         }
-        (await services.GetRequiredService<DurableDagChildPump>().PumpOnceAsync(Request(), token)).Should().Be(2);
         return (await store.ReadAsync(id, token))!;
     }
 
