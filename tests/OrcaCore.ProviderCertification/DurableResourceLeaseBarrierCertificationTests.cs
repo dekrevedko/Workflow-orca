@@ -15,7 +15,7 @@ using Xunit;
 
 namespace OrcaCore.ProviderCertification;
 
-public sealed class DurableResourceLeaseBarrierCertificationTests
+public sealed partial class DurableResourceLeaseBarrierCertificationTests
 {
     public enum Schedule
     {
@@ -296,20 +296,22 @@ public sealed class DurableResourceLeaseBarrierCertificationTests
             .AcquireResources(ResourceLeaseRequest.Create(ResourceLeaseRequirement.Require(pool)), lease => lease.Then<LeasedStep>())
             .End().Build();
 
-    private static void AssertHeld(CheckpointWrite checkpoint, DurableOwnedObligationState expected, ResourcePoolTicket ticket)
+    private static void AssertHeld(CheckpointWrite checkpoint, DurableOwnedObligationState expected, params ResourcePoolTicket[] tickets)
     {
         var lease = Assert.Single(DurableExecutionEnvelopeV2.Deserialize(checkpoint.Payload).OwnedObligations);
         Assert.Equal("Held", lease.LeasePhase);
         Assert.Equal(expected.ObligationId, lease.ObligationId);
         Assert.Equal(expected.ProtectionToken, lease.ProtectionToken);
-        Assert.Equal(ticket.HolderKey, lease.HolderKey);
-        Assert.Equal(new DurableLeaseTicketState
-        {
-            TicketId = ticket.TicketId.ToString("N"), PoolName = ticket.PoolName,
-            Units = ticket.Count, ProviderGeneration = ticket.ProviderGeneration,
-            ReviewDeadline = ticket.ReviewDeadline, ReviewMarked = ticket.ReviewMarked
-        }, Assert.Single(lease.LeaseTickets));
+        Assert.All(tickets, ticket => Assert.Equal(ticket.HolderKey, lease.HolderKey));
+        Assert.Equal(tickets.Select(Persisted), lease.LeaseTickets);
     }
+
+    private static DurableLeaseTicketState Persisted(ResourcePoolTicket ticket) => new()
+    {
+        TicketId = ticket.TicketId.ToString("N"), PoolName = ticket.PoolName,
+        Units = ticket.Count, ProviderGeneration = ticket.ProviderGeneration,
+        ReviewDeadline = ticket.ReviewDeadline, ReviewMarked = ticket.ReviewMarked
+    };
 
     private sealed class HostStopped : Exception;
 

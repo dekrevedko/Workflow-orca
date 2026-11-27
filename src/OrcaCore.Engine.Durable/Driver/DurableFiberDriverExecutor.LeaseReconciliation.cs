@@ -82,7 +82,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 var failure = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.LeaseLost(token, missing);
                 ownedObligations[index] = obligation with
                 {
-                    LeasePhase = nameof(DurableLeaseObligationPhase.LeaseLost)
+                    LeasePhase = nameof(DurableLeaseObligationPhase.LeaseLost),
+                    LeaseTickets = expected
                 };
                 var committed = await context.Processor.ProcessAsync(
                     new DurableStepFailedCommand(
@@ -90,7 +91,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                         context.InstanceId,
                         context.TimeProvider.GetUtcNow(),
                         "lease-reconciliation",
-                        $"{failure.Code}: {failure.Message} Expected=[{Describe(expected)}] Actual=[{Describe(actual)}]",
+                        $"{failure.Code}: {failure.Message} Expected=[{Describe(expected)}] Actual=[{Describe(actual)}] " +
+                        $"MissingPools=[{string.Join(",", failure.MissingPools.Select(pool => pool.Value))}]",
                         BuildEnvelope(context, execution, state, ownedObligations))
                     {
                         ExpectedStreamVersion = currentVersion,
