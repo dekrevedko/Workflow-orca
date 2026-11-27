@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 423,
-    "physicalDeclarations": 1783,
-    "activeFiles": 267,
-    "activeDeclarations": 1095,
+    "physicalFiles": 425,
+    "physicalDeclarations": 1786,
+    "activeFiles": 269,
+    "activeDeclarations": 1098,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -2068,6 +2068,18 @@
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
       "declarations": 9
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.ProcessRestart.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 3
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/LeaseConfirmationRaceTests.Scenarios.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 0
     },
     {
       "source": "tests/OrcaCore.Hosting.Tests/OperationalTelemetryAndMaintenanceTests.cs",
