@@ -13,6 +13,7 @@ Use TLA+ when a requirement depends on the order of operations across callers, l
 | [Durable step completion and timeout recovery](durable-step-outcome/README.md) | Can a late success or a stale timeout overwrite the winning step outcome after acknowledgement loss? | Bounded checks for one and two attempts and process-restart probes on both SQL providers. |
 | [DAG child join and parent cancellation](dag-child-join/README.md) | Can later parent cancellation change how a child's terminal fact is first joined or replayed? | Source and reference checks pass. Both restart schedules preserve the independent cancellation and acknowledge one join on PostgreSQL and SQL Server. |
 | [Durable resource grant rollback](durable-resource-grant/README.md) | Can a losing workflow append release the winning worker's ticket? | The winner retains its ticket. TLC and both SQL providers exercise adoption, exact compensation, and stale admission after closure. |
+| [Late protected step and lease release](late-protected-step-lease-release/README.md) | Can a cancelled holder submit after its ticket transfers to a waiter? | Causal stop, resource fencing, and an unsafe empty-lookup control on PostgreSQL and SQL Server |
 | [Resource pool resize](resource-pool-resize/README.md) | Can an upward resize strand the partition FIFO or promote a closed owner? | The resize and eligible grants commit together under the partition and workflow fences. |
 
 Run the checks from the repository root with PowerShell 7 on Windows or Linux x64.

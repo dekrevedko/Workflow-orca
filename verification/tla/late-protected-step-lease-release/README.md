@@ -28,6 +28,23 @@ The model separates the workflow journal, the governance receipt and tickets, an
 
 The three complete checks each exhausted 227 distinct states. The unsafe empty-lookup control reached simultaneous use in eight states. It deliberately holds A until B starts to expose that ordering; the safety check explores all modeled orders. Bounds are one admitted attempt, one delayed submission by A, one B reservation and job, one irreversible A fence, and one confirmation identity with replay. [Module](LateProtectedStep.tla) / [Profile manifest](profiles.json)
 
+## SQL evidence and limits
+
+A runs in its own process against a fresh database. The controller observes A's committed attempt admission, B's queued occurrence, A's terminal cancellation, and the exact quarantined ticket. A SQL table owned by the test resource records each submission and its active state independently of OrcaCore. Every submit checks its token against the resource fence in a serialized transaction. Finishing an accepted job is a separate operation.
+
+| SQL schedule | PostgreSQL 17 and SQL Server 2022 observations |
+|---|---|
+| `Stopped` | After cancellation and an empty lookup, A submitted and its process exited. The job remained active. A kept its ticket and B stayed queued until the job finished and the controller confirmed stop. B then ran under one generation-2 ticket. |
+| `Fenced` | The resource revoked A's token with zero active A jobs. The controller confirmed release while A was still paused. B began work with one generation-2 ticket. When A resumed, the resource rejected its stale submit and B stayed active. |
+| `EmptyLookup` (unsafe caller) | The controller confirmed on the strength of the empty lookup alone. B began work. A then submitted successfully, leaving two active jobs while the provider held only B's ticket. |
+
+The bounded stop proof uses one submitter, a joined process with no pending submission, and a terminal external job. The fence proof relies on every submit path at the resource enforcing the same durable revocation. OrcaCore accepts a trusted caller's confirmation. A deployment must establish the applicable proof at its own resource boundary. The tests explicitly re-drive B through a fresh registry after promotion. [Provider scenarios](../../../tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.cs), [protected worker](../../../tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.Worker.cs), and [resource transactions](../../../tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.JobResource.cs)
+
+### Two grant-recovery findings
+
+* **Missing tickets in the restored obligation.** In both safe schedules on both providers, B's attempt-admission checkpoint recorded `Held` and the right protection token but zero tickets. B's acquisition event and live governance record agreed on the same generation-2 ticket, and its protected job ran. The clean re-drive sets `Held` without copying the tickets into the obligation. The canonical contract requires the obligation to retain its exact tickets. The test reports the checkpoint count so a correction remains visible. [Driver recovery](../../../src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Helpers.cs) and [lease contract](../../../openspec/specs/durable-runtime/spec.md#requirement-durable-leases-are-lexical-occurrence-owned-obligations)
+* **Missing lease context after correlated grant ingress.** A separate diagnostic delivered the correlated `ResourcePoolGranted` event through public ingress after B's reservation committed. Under both safe orders on both providers, B matched and consumed the wait and recorded an acquisition. At body entry, reading `context.ResourceLease.ProtectionToken` failed with a null lease context. The journal recorded release and terminal failure. The scoped resume carries the held obligation forward with its wait ID. The next driver stage removes the obligation by that same ID. The automated SQL rows use the fresh-registry path described above. [Scoped resume](../../../src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.Helpers.cs), [obligation removal](../../../src/OrcaCore.Engine.Durable/Driver/DurableFiberDriverExecutor.cs), and [DR-AC-022](../../../docs/specs/16-requirements-durable-driver.md)
+
 ## Reproduction
 
 Run TLC from the repository root using the pinned private JRE. The explicit SQL suites require Docker.
