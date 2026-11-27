@@ -33,10 +33,17 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
             .ToArray();
         recordedDeletedPaths.Should().HaveCount(expectedCounts.GetProperty("physicallyDeletedPaths").GetInt32());
         recordedDeletedPaths.Should().OnlyHaveUniqueItems();
-        recordedDeletedPaths.Should().Equal(ReadPhysicalDeletions(
-            root,
-            ledger.GetProperty("recoveryCheckpoint").GetString()!,
-            ledger.GetProperty("productionTarget").GetString()!));
+        var snapshots = new List<string> { RequiredString(ledger, "recoveryCheckpoint") };
+        snapshots.AddRange(RequiredStrings(ledger, "intermediateProductionTargets"));
+        snapshots.Add(RequiredString(ledger, "productionTarget"));
+        snapshots.Should().OnlyHaveUniqueItems();
+        for (var i = 1; i < snapshots.Count; i++)
+        {
+            snapshots[i].Should().MatchRegex("^[0-9a-f]{40}$");
+            GitIsAncestor(root, snapshots[i - 1], snapshots[i]).Should().BeTrue(
+                "the inventory must retain the reviewed production snapshots in ancestry order");
+        }
+        recordedDeletedPaths.Should().Equal(ReadPhysicalDeletions(root, snapshots));
 
         var recordedCompileRemoves = ReadCompileRemoves(families);
         recordedCompileRemoves.Should().HaveCount(expectedCounts.GetProperty("compileExcludedEntries").GetInt32());
@@ -318,12 +325,9 @@ public sealed class ProductionDeletionLedgerInfrastructureGuards
     private static JsonDocument LoadLedger(string root) =>
         JsonDocument.Parse(File.ReadAllText(Path.Combine(root, LedgerPath)));
 
-    private static string[] ReadPhysicalDeletions(
-        string root,
-        string recoveryCheckpoint,
-        string productionTarget)
+    private static string[] ReadPhysicalDeletions(string root, IEnumerable<string> snapshots)
     {
-        return new[] { recoveryCheckpoint, productionTarget }
+        return snapshots
             .SelectMany(commit => RunGit(root, "ls-tree", "-r", "--name-only", commit, "--", "src", "samples"))
             .Distinct(StringComparer.Ordinal)
             .Where(path => path.EndsWith(".cs", StringComparison.OrdinalIgnoreCase) ||

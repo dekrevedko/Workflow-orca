@@ -10,7 +10,7 @@
     {
       "id": "OrcaCore.Core",
       "project": "src/OrcaCore.Core/OrcaCore.Core.csproj",
-      "sourceSha256": "ba0d07b7ec401a9f7e285ad8901b34db483cb5fbf6f1831e7d1ebd6e02728153"
+      "sourceSha256": "e47d27f711e1ba9d7eaf1bbb709e7ce0c6149d376967b8d99b72e37bb4892f65"
     },
     {
       "id": "OrcaCore.Dag",
@@ -30,12 +30,12 @@
     {
       "id": "OrcaCore.Engine.Durable",
       "project": "src/OrcaCore.Engine.Durable/OrcaCore.Engine.Durable.csproj",
-      "sourceSha256": "447c7ea1a53ec067a075815e5ef16b338e26a933186d5d30807b10be2fe2d188"
+      "sourceSha256": "a4663491891250fd9326da47628d69085c35b95dfaac34fb55d85305cad93650"
     },
     {
       "id": "OrcaCore.Engine.Ephemeral",
       "project": "src/OrcaCore.Engine.Ephemeral/OrcaCore.Engine.Ephemeral.csproj",
-      "sourceSha256": "847d10f49d65e1e2b713880d52dfc91aee1eb65804fab969aa10acf654b613f7"
+      "sourceSha256": "a6305e48dc61f56aa50805e41188e588ca3433091b022f755fec39e6fa1f3c48"
     },
     {
       "id": "OrcaCore.Provider.Abstractions",

@@ -134,6 +134,16 @@ internal sealed record CompiledInstruction(
 
     public Delegate? Operation { get; init; }
 
+    public Type? InputType { get; init; }
+
+    internal TState CreateInitialState<TState>(object? input) =>
+        Operation is Func<object?, TState> create
+            ? create(input)
+            : throw new InvalidOperationException($"Init at '{Path}' has no state factory for '{typeof(TState)}'.");
+
+    internal string? ResolveOutcome<TState>(TState state) =>
+        FixedOutcomeName ?? ((Func<TState, string?>?)Operation)?.Invoke(state);
+
     public Type? StepType { get; init; }
 
     public Type? OutputType { get; init; }

@@ -4,9 +4,9 @@
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
     "physicalFiles": 425,
-    "physicalDeclarations": 1779,
+    "physicalDeclarations": 1785,
     "activeFiles": 269,
-    "activeDeclarations": 1091,
+    "activeDeclarations": 1097,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -1725,7 +1725,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionPublicTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 35
+      "declarations": 39
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Execution/StructuredFiberExecutionTests.cs",
@@ -1767,7 +1767,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowCatalogTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 5
+      "declarations": 6
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Facade/EphemeralWorkflowFacadeTests.cs",
@@ -1839,7 +1839,7 @@
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/ContinuationOwnershipTests.cs",
       "ownerProject": "tests/OrcaCore.Engine.Ephemeral.Tests/OrcaCore.Engine.Ephemeral.Tests.csproj",
       "status": "active",
-      "declarations": 3
+      "declarations": 4
     },
     {
       "source": "tests/OrcaCore.Engine.Ephemeral.Tests/Ownership/PhysicalOwnershipTests.cs",

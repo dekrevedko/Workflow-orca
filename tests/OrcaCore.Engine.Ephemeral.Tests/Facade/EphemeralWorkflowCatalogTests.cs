@@ -1,5 +1,8 @@
+using System.Collections;
+using System.Reflection;
 using AwesomeAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using OrcaCore.Engine.Ephemeral.Internal;
 using OrcaCore.Hosting;
 using Xunit;
 
@@ -7,6 +10,82 @@ namespace OrcaCore.Engine.Ephemeral.Tests.Facade;
 
 public sealed class EphemeralWorkflowCatalogTests
 {
+    public enum MalformedInit { EmptyPlan, LateInit, WrongKind, MissingInputType, MissingFactory, WrongFactoryType }
+
+    [Theory]
+    [InlineData(MalformedInit.EmptyPlan)]
+    [InlineData(MalformedInit.LateInit)]
+    [InlineData(MalformedInit.WrongKind)]
+    [InlineData(MalformedInit.MissingInputType)]
+    [InlineData(MalformedInit.MissingFactory)]
+    [InlineData(MalformedInit.WrongFactoryType)]
+    public async Task RegistrationRejectsMalformedCompiledInitWithoutBindingTheDefinition(MalformedInit malformation)
+    {
+        using var provider = CreateServices().BuildServiceProvider();
+        var registry = provider.GetRequiredService<IWorkflowDefinitionRegistry>();
+        var definitionId = DefinitionId.New();
+        var calls = 0;
+        EphemeralWorkflowDefinition<int> Build() =>
+            Workflow.Ephemeral<int>(definitionId, DefinitionVersion.Initial)
+                .Init<int>(value => { calls++; return value + 1; }).End().Build();
+        var malformed = Build();
+        DamageCompiledInit(malformed, malformation);
+
+        var error = Assert.Throws<WorkflowDefinitionException>(() => registry.Register(malformed));
+        Assert.Contains("compiled Init", Assert.Single(error.Diagnostics).Message, StringComparison.Ordinal);
+        Assert.Throws<WorkflowDefinitionNotRegisteredException>(() => registry.GetRequiredHandle(malformed.Reference));
+        Assert.Equal(0, calls);
+
+        var control = Build();
+        var handle = registry.Register(control).GetHandleOrThrow();
+        Assert.Same(handle, registry.GetRequiredHandle(control.Reference));
+        Assert.Equal(0, calls);
+        var token = TestContext.Current.CancellationToken;
+        var started = (await handle.StartOrGetAsync(41, StartIdempotencyKey.Create("check-init"), token)).GetHandleOrThrow();
+        Assert.Equal(42, await started.GetStateAsync<int>(token));
+        Assert.Equal(1, calls);
+    }
+
+    private static void DamageCompiledInit(EphemeralWorkflowDefinition<int> definition, MalformedInit malformation)
+    {
+        // The public builder only emits valid plans. Damage this disposable definition at the
+        // compiler/engine boundary so registration and lookup still use the public API.
+        const BindingFlags instancePrivate = BindingFlags.Instance | BindingFlags.NonPublic;
+        var runtime = EphemeralContractAdapter.RuntimeDefinition(definition);
+        var plan = runtime.GetType().GetProperty("CompiledPlan", instancePrivate)!.GetValue(runtime)!;
+        var table = plan.GetType().GetField("<Instructions>k__BackingField", instancePrivate)!;
+        var instructions = (IList)table.GetValue(plan)!;
+        var init = instructions[0]!;
+        var instructionType = init.GetType();
+        switch (malformation)
+        {
+            case MalformedInit.EmptyPlan:
+                table.SetValue(plan, Array.CreateInstance(instructionType, 0));
+                break;
+            case MalformedInit.LateInit:
+                var reversed = Array.CreateInstance(instructionType, instructions.Count);
+                instructions.CopyTo(reversed, 0);
+                Array.Reverse(reversed);
+                table.SetValue(plan, reversed);
+                break;
+            case MalformedInit.WrongKind:
+                var kind = instructionType.GetProperty("Kind")!;
+                kind.SetValue(init, kind.GetValue(instructions[1]));
+                break;
+            case MalformedInit.MissingInputType:
+                instructionType.GetProperty("InputType")!.SetValue(init, null);
+                break;
+            case MalformedInit.MissingFactory:
+                instructionType.GetProperty("Operation")!.SetValue(init, null);
+                break;
+            case MalformedInit.WrongFactoryType:
+                instructionType.GetProperty("Operation")!.SetValue(init, (Func<object?, string>)(_ => "wrong state"));
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(malformation));
+        }
+    }
+
     [Fact]
     public void Builder_StagesBothDefinitionShapesAndExactReferencesResolve()
     {

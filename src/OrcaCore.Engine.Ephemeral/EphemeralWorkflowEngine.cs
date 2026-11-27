@@ -47,7 +47,6 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
     private readonly EphemeralTimerService timerService;
     private readonly TimeProvider timeProvider;
     private readonly YieldContinuationScheduler yieldContinuationScheduler;
-    private readonly InterpreterFactory interpreterFactory;
     private readonly IServiceProvider? serviceProvider;
 
     internal event Action<InstanceId>? InstanceCommitted;
@@ -129,13 +128,6 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
         timerService = new EphemeralTimerService(timeProvider);
         timerService.HostLifetime = HostLifetime;
         yieldContinuationScheduler = new YieldContinuationScheduler(executionLane);
-        interpreterFactory = new InterpreterFactory(
-            timeProvider,
-            timerService,
-            governance,
-            yieldContinuationScheduler,
-            options,
-            serviceProvider);
         timerService.SetDueDispatcher(FireDueTimersCoreAsync);
         HostLifetime.Attach(applicationStopping);
     }
@@ -242,6 +234,18 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 "(RunChild/RunChildren) and cannot be registered on the ephemeral engine.");
         }
 
+        if (plan.Instructions.Count == 0 ||
+            plan.Instructions[0] is not
+            {
+                Kind: global::OrcaCore.Core.Compilation.CompiledInstructionKind.Init,
+                InputType: not null,
+                Operation: Func<object?, TState>
+            })
+        {
+            throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
+                $"Workflow definition '{definition.DefinitionId}' requires a compiled Init instruction.");
+        }
+
         if (definition.Policies.Retry is not null)
         {
             throw global::OrcaCore.Engine.Ephemeral.Internal.EphemeralContractAdapter.DefinitionException(
@@ -343,8 +347,15 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 async laneCancellationToken =>
                 {
                     HostLifetime.RequireOpen();
-                    var interpreter = interpreterFactory.Create<TState>();
-                    instance = await interpreter.RunAsync(
+                    var adapter = new InMemoryExecutionStateAdapter<TState>(
+                        timeProvider,
+                        new SuspensionScheduler<TState>(timeProvider, timerService),
+                        governance,
+                        yieldContinuationScheduler,
+                        committed => CommitSnapshot(committed),
+                        options,
+                        serviceProvider);
+                    instance = await adapter.RunAsync(
                         definition,
                         input,
                         instanceId,
@@ -358,7 +369,6 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                             CommitSnapshot(initializedInstance.ToSnapshot());
                             if (HostLifetime.IsStopping) initializedInstance.SignalCancellation();
                         },
-                        committed => CommitSnapshot(committed),
                         laneCancellationToken).ConfigureAwait(false);
 
                     return CommitSnapshot(instance.ToSnapshot());
@@ -369,7 +379,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
             snapshot = instance is null
                 ? snapshot
                 : await yieldContinuationScheduler
-                    .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed), cancellationToken)
+                    .ReadSnapshotOnLaneAsync(instance, instanceId, cancellationToken)
                     .ConfigureAwait(false);
             commandStopwatch.Stop();
             activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());
@@ -589,7 +599,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 if (registeredInstance is IWorkflowInstance instance)
                 {
                     snapshot = await yieldContinuationScheduler
-                        .DrainAsync(instance, timer.InstanceId, committed => CommitSnapshot(committed), cancellationToken)
+                        .ReadSnapshotOnLaneAsync(instance, timer.InstanceId, cancellationToken)
                         .ConfigureAwait(false);
                 }
 
@@ -665,8 +675,7 @@ internal sealed class EphemeralWorkflowEngine : IDisposable
                 cancellationToken).ConfigureAwait(false);
 
         snapshot = await yieldContinuationScheduler
-            .DrainAsync(instance, instanceId, committed => CommitSnapshot(committed),
-                CancellationToken.None)
+            .ReadSnapshotOnLaneAsync(instance, instanceId, CancellationToken.None)
             .ConfigureAwait(false);
         commandStopwatch.Stop();
         activity?.SetTag(OrcaCoreDiagnostics.InstanceIdKey, snapshot.InstanceId.ToString());
