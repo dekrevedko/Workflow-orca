@@ -1,0 +1,92 @@
+[
+  {
+    "name": "Source",
+    "kind": "normal",
+    "config": "Source.cfg",
+    "expected": ""
+  },
+  {
+    "name": "HistoricalAccounting",
+    "kind": "normal",
+    "config": "HistoricalAccounting.cfg",
+    "expected": ""
+  },
+  {
+    "name": "HistoricalCrashAgreement",
+    "kind": "witness",
+    "config": "HistoricalCrashAgreement.cfg",
+    "expected": "CrashedStaleAgreement"
+  },
+  {
+    "name": "HistoricalPersistentSplit",
+    "kind": "witness",
+    "config": "HistoricalPersistentSplit.cfg",
+    "expected": "NoPersistentSplit"
+  },
+  {
+    "name": "SourceStale",
+    "kind": "witness",
+    "config": "SourceStale.cfg",
+    "expected": "NoStaleRepair"
+  },
+  {
+    "name": "SourceFresh",
+    "kind": "witness",
+    "config": "SourceFresh.cfg",
+    "expected": "NoFreshRepair"
+  },
+  {
+    "name": "SourceRetry",
+    "kind": "witness",
+    "config": "SourceRetry.cfg",
+    "expected": "NoSameIdRetry"
+  },
+  {
+    "name": "SourceRecovery",
+    "kind": "witness",
+    "config": "SourceRecovery.cfg",
+    "expected": "NoGapRecovery"
+  },
+  {
+    "name": "SourceCasRetry",
+    "kind": "witness",
+    "config": "SourceCasRetry.cfg",
+    "expected": "NoCasRetry"
+  },
+  {
+    "name": "SourceLiveWinnerCasRetry",
+    "kind": "witness",
+    "config": "SourceLiveWinnerCasRetry.cfg",
+    "expected": "NoLiveWinnerCasRetry"
+  },
+  {
+    "name": "SourceBWinner",
+    "kind": "witness",
+    "config": "SourceBWinner.cfg",
+    "expected": "NoBWinner"
+  },
+  {
+    "name": "SourceStaleBWinner",
+    "kind": "witness",
+    "config": "SourceStaleBWinner.cfg",
+    "expected": "NoStaleBWinnerRepair"
+  },
+  {
+    "name": "DoubleGrant",
+    "kind": "mutation",
+    "config": "DoubleGrant.cfg",
+    "expected": "ExactlyOneTransfer"
+  },
+  {
+    "name": "DropUnit",
+    "kind": "mutation",
+    "config": "DropUnit.cfg",
+    "expected": "CapacityConserved"
+  },
+  {
+    "name": "DisabledRecovery",
+    "kind": "assumption",
+    "config": "DisabledRecovery.cfg",
+    "expected": "GapCloses"
+  }
+]
