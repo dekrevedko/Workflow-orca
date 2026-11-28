@@ -94,8 +94,73 @@ public sealed class InMemoryProviderCertificationTests : ContinueAsNewCertificat
     private sealed class DagCertificationTimeProvider : TimeProvider
     {
         private DateTimeOffset now = DateTimeOffset.UtcNow;
-        public override DateTimeOffset GetUtcNow() => now;
+        internal Action? BeforeNextRead;
+        public override DateTimeOffset GetUtcNow()
+        {
+            Interlocked.Exchange(ref BeforeNextRead, null)?.Invoke();
+            return now;
+        }
         internal void Advance(TimeSpan duration) => now += duration;
+    }
+
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DagFirstUsableWake_CursorAndAppendSerialize(bool cursorFirst)
+    {
+        var clock = new DagCertificationTimeProvider();
+        using var provider = InMemoryProviderPorts.Create(clock);
+        await DagRunCertification.WakeCursorRaceAsync(provider.EventStore, provider.EventStore, cursorFirst,
+            clock.GetUtcNow, clock.Advance, async (_, first, second, token) =>
+            {
+                var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                using var release = new ManualResetEventSlim();
+                // Both synchronous operations sample this clock inside the same provider monitor.
+                clock.BeforeNextRead = () => { entered.TrySetResult(); release.Wait(token); };
+                var held = Task.Run(first, token);
+                Task? contender = null;
+                try
+                {
+                    await entered.Task.WaitAsync(token);
+                    var attempting = new TaskCompletionSource<Thread>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    contender = Task.Factory.StartNew(() =>
+                    {
+                        attempting.SetResult(Thread.CurrentThread);
+                        return second();
+                    }, token, TaskCreationOptions.LongRunning, TaskScheduler.Default).Unwrap();
+                    var thread = await attempting.Task.WaitAsync(token);
+                    while (!contender.IsCompleted &&
+                           (thread.ThreadState & ThreadState.WaitSleepJoin) == 0)
+                    {
+                        token.ThrowIfCancellationRequested();
+                        await Task.Yield();
+                    }
+                    contender.IsCompleted.Should().BeFalse("the contender must wait for the provider lock");
+                }
+                finally
+                {
+                    release.Set();
+                    await Task.WhenAll(held, contender ?? Task.CompletedTask);
+                }
+            }, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task DagFirstUsableWake_DeliveryRetainsPayloadClaimLeaseAndHistory()
+    {
+        var clock = new DagCertificationTimeProvider();
+        using var provider = InMemoryProviderPorts.Create(clock);
+        await DagRunCertification.WakeDeliveryAsync(provider.EventStore, clock.GetUtcNow, clock.Advance, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DagFirstUsableWake_CollidingCandidateRollsBack(bool previouslyStored)
+    {
+        using var provider = InMemoryProviderPorts.Create();
+        await DagRunCertification.WakeCollisionAsync(provider.EventStore, previouslyStored, TestContext.Current.CancellationToken);
     }
 
     [Fact]

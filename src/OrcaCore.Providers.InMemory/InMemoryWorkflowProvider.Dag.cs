@@ -50,17 +50,14 @@ internal sealed partial class InMemoryWorkflowProvider
             var result = DagRunStoreRules.Append(candidate, batch, timeProvider.GetUtcNow(),
                 previous?.CreationSequence ?? checked(dagCreationSequence + 1), out var updated);
             if (result.IsFailure || updated is null) return Task.FromResult(result);
-            foreach (var write in updated.NewOutbox)
-                if (outbox.TryGetValue(write.OutboxRecordId, out var existing) &&
-                    (existing.Write.Kind != write.Kind || existing.Write.DagRunOwner != write.DagRunOwner ||
-                     existing.Write.RecipientHostId != write.RecipientHostId ||
-                     existing.Write.DagRunSubscriptionId != write.DagRunSubscriptionId ||
-                     !existing.Write.Payload.AsSpan().SequenceEqual(write.Payload)))
-                    return Task.FromResult(DagRunStoreRules.Failure("DAG_INTEGRITY_CONFLICT",
-                        "outbox identity collision"));
-            foreach (var write in updated.NewOutbox)
-                outbox.TryAdd(write.OutboxRecordId, new InMemoryOutboxRecord(InstanceId.Parse(id.ToString("D")),
-                    DagRunStoreRules.Clone(write), OutboxRecordState.Pending));
+            try
+            {
+                DagRunStoreRules.ApplyDagOutbox(updated, outbox);
+            }
+            catch (InvalidDataException exception)
+            {
+                return Task.FromResult(DagRunStoreRules.Failure("DAG_INTEGRITY_CONFLICT", exception.Message));
+            }
             updated.NewOutbox.Clear();
             dagRuns[id] = updated;
             if (previous is null) dagCreationSequence = updated.CreationSequence;

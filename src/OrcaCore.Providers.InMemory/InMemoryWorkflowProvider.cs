@@ -4,6 +4,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Providers.Dag.Internal;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
 namespace OrcaCore.Providers.InMemory;
@@ -31,7 +32,7 @@ internal sealed partial class InMemoryWorkflowProvider :
     private long nextInboxAcceptanceSequence;
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<string, InboxStartIntentRecord> startIntents = new(StringComparer.Ordinal);
-    private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
+    private readonly Dictionary<OutboxRecordId, StoredOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
     private readonly List<ProjectionHistoryWrite> history = [];
@@ -88,6 +89,9 @@ internal sealed partial class InMemoryWorkflowProvider :
             if (dagRuns.ContainsKey(batch.StreamId.InstanceId.Value))
                 return Task.FromResult(global::OrcaCore.Abstractions.Providers.Dag.Internal.DagRunStoreRules.Failure(
                     "DAG_INTEGRITY_CONFLICT", "DAG run owns this aggregate identity"));
+            if (batch.OutboxRecords.Any(write => outbox.TryGetValue(write.OutboxRecordId, out var row) &&
+                    row.ObserverVersion.HasValue))
+                return Task.FromResult(DagRunStoreRules.Failure("DAG_INTEGRITY_CONFLICT", "outbox identity collision"));
             var conflictingEventId = batch.InboxOperations
                 .Where(operation => operation.EnvelopeFingerprint is not null)
                 .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
@@ -166,7 +170,7 @@ internal sealed partial class InMemoryWorkflowProvider :
             MaterializePendingStarts(batch.StartIdempotencyOperations);
             foreach (var record in batch.OutboxRecords)
             {
-                outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
+                outbox[record.OutboxRecordId] = new StoredOutboxRecord(
                     batch.StreamId.InstanceId,
                     CloneOutboxWrite(record) with { DispatchAttempt = 0 },
                     OutboxRecordState.Pending);
@@ -910,9 +914,10 @@ internal sealed partial class InMemoryWorkflowProvider :
                 .ToArray();
             foreach (var record in claimed)
             {
-                outbox[record.OutboxRecordId] = outbox[record.OutboxRecordId] with
+                var stored = outbox[record.OutboxRecordId];
+                outbox[record.OutboxRecordId] = stored with
                 {
-                    Write = record,
+                    Write = stored.Write with { DispatchAttempt = record.DispatchAttempt },
                     State = OutboxRecordState.Claimed,
                     ClaimedUntil = request.ClaimedAt.Add(request.LeaseDuration)
                 };
@@ -1956,7 +1961,7 @@ internal sealed partial class InMemoryWorkflowProvider :
         }
     }
 
-    private static bool IsOutboxClaimable(InMemoryOutboxRecord record, DateTimeOffset claimedAt)
+    private static bool IsOutboxClaimable(StoredOutboxRecord record, DateTimeOffset claimedAt)
     {
         return record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable ||
             (record.State == OutboxRecordState.Claimed &&
@@ -1970,14 +1975,6 @@ internal sealed partial class InMemoryWorkflowProvider :
             throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
         }
     }
-
-    private sealed record InMemoryOutboxRecord(
-        InstanceId InstanceId,
-        OutboxWrite Write,
-        OutboxRecordState State,
-        DateTimeOffset? ClaimedUntil = null,
-        string? PoisonCode = null,
-        string? PoisonDetail = null);
 
     private sealed record InMemoryTimerSchedule(TimerScheduleRequest Request, DateTimeOffset? ClaimedUntil);
 }

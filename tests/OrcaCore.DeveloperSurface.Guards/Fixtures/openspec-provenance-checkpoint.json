@@ -1,9 +1,9 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 243,
-  "recordBytes": 65048,
-  "recordSha256": "84625e3e0b80802c992b2ce60efe3c2ffb4720f2b8016b21d72db5626e82a5f6",
+  "recordCount": 244,
+  "recordBytes": 65321,
+  "recordSha256": "32a946b918cbf9517b245246619afa0038ff3d3ec108504de09ce1cf660c5e65",
   "semanticApprovalEligible": true,
   "pendingCanonicalOperations": [],
   "activeNewCapabilitiesOutsideCanonical": [
@@ -176,11 +176,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 56,
-  "capabilityDirectoryBytes": 4476,
-  "capabilityDirectorySha256": "d62e1d0e7373df4085a4f156b59b46d6fe3d2400f2fc53e0b24151ccf27043ae",
-  "artifactPath": "openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/artifacts/archive-openspec-provenance-2026-11-23.md",
-  "artifactNormalizedSha256": "15057728f91b7fd4da00cdac7264652f699817c9403fb9897dba559f905748fc",
+  "capabilityDirectoryCount": 57,
+  "capabilityDirectoryBytes": 4560,
+  "capabilityDirectorySha256": "1a552a3e8a29ca807733252ccf5e4fd94a73c1cc457a26539510d6ca701b8621",
+  "artifactPath": "openspec/changes/retain-first-usable-dag-wake/artifacts/sync-openspec-provenance-2026-11-27.md",
+  "artifactNormalizedSha256": "fb3fadfd05a5a79d843330d350651ac739c1c0b14f9034d8e1b3e701e7f17c27",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
@@ -189,8 +189,8 @@
     },
     {
       "path": "openspec/specs/durable-persistence-and-outbox/spec.md",
-      "bytes": 21896,
-      "sha256": "3ac341bc16c216425967b1efe180fd17b8c935e63990b70863ecc01b036a6e55"
+      "bytes": 24816,
+      "sha256": "fd4d8e8db85c16408c4f9264d0a17906217d39168ae4bbe52998c70e67bcfc04"
     },
     {
       "path": "openspec/specs/durable-runtime/spec.md",
@@ -261,5 +261,5 @@
   "canonicalContentRecordFormat": "path\\tLF-normalized UTF-8 bytes\\tSHA-256; ordinal path order, LF rows and one final LF",
   "canonicalContentCount": 15,
   "canonicalContentBytes": 1763,
-  "canonicalContentSha256": "dd6bc5d37dfa6ec407cdec628201377243a9d57f0f2b6a2cdec9e2bf88999a36"
+  "canonicalContentSha256": "0549416a948032a3b03021737dfffa1ec3ae1adcbfed6d0ad2636b93408c9831"
 }

@@ -9,7 +9,7 @@ begin
         [updated_at] datetimeoffset(7) not null,
         constraint [pk_orcacore_provider_state] primary key ([state_key]),
         constraint [ck_orcacore_provider_state_revision] check ([state_revision] >= 0),
-        constraint [ck_orcacore_provider_state_payload_format] check ([payload_format] = 1),
+        constraint [ck_orcacore_provider_state_payload_format] check ([payload_format] = 2),
         constraint [ck_orcacore_provider_state_payload_json] check (isjson([payload_json]) = 1)
     );
 end;

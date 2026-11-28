@@ -377,3 +377,20 @@ baselines change only with task 3 source. Contract text is not an installed API.
 
 ### PR-024a Position-fact and checkpoint-lineage certification
 Every retained durable provider SHALL certify the additive workflow position event, atomic expected-version fencing of position-only yield and fiber-failure commits, and checkpoint parent/root lineage on insert, replacement and clearing. Tests SHALL use two independently constructed stores/runtimes against the same database/schema for checkpoint/tail and post-tail publication races. Full provider suites supplement these cases; a single store object or in-memory success alone is insufficient evidence. PostgreSQL qualification includes the reviewed lineage columns/read/upsert change. SQL Server correctness does not qualify its whole-document/history scaling or change the separately selected support scope. Fresh-store tests do not certify migration of an already-journaled initial schema.
+
+### PR-012a First usable addressed DAG wake
+
+For each run, boot recipient and subscription, the outbox SHALL retain at most one live
+provider-generated addressed ready notice. An append SHALL use the cursor and expiry of the
+accepted registration. A behind-head renewal returns `AlreadyChanged` without changing them.
+If the live notice's version exceeds that cursor, the append preserves its payload, state,
+identity, dispatch attempt and lease. Otherwise it replaces the obsolete live notice under the
+same ID and fences late acknowledgement, release and poison. With no live notice, the append
+creates a fresh one. The notice wakes the exact recipient to read the latest committed checkpoint.
+
+This rule supersedes the per-append addressed notice and per-version deduplication rule in
+[RC-3 section 6](../../openspec/changes/admit-durable-dag-run-progression/artifacts/task-1-1-run-contract-rc-3-remediation-2026-10-05.md).
+Caller-supplied writes, unaddressed progression, child work and settled or poisoned evidence keep
+their separate ownership. An identity collision rolls back the entire append. The
+[provider requirement](../../openspec/specs/durable-persistence-and-outbox/spec.md#requirement-addressed-dag-observers-retain-their-first-usable-wake)
+defines both commit orders and applies to InMemory, PostgreSQL and SQL Server.
