@@ -105,7 +105,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
 
         var obligation = ownedObligations.FirstOrDefault(candidate =>
             candidate.ObligationId == consumed.ToString());
-        if (obligation is not null)
+        // A scoped grant reuses the lexical obligation ID for its wake. Consuming that
+        // wait leaves the resource obligation alive through the protected scope.
+        if (obligation is not null &&
+            !(obligation.Kind == DurableOwnedObligationKind.Resource && obligation.ProtectionToken is not null))
         {
             ownedObligations.Remove(obligation);
         }
@@ -189,8 +192,10 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         DurableDriverContext context,
         DurableParkReason reason,
         string diagnostic,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        StreamVersion? position = null)
     {
+        var version = position ?? context.Aggregate.StreamVersion;
         var result = await context.Processor.ProcessAsync(
             new DurableParkCommand(
                 CommandId.New(),
@@ -199,9 +204,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 reason,
                 diagnostic,
                 FailedAttemptCount: 1,
-                context.Aggregate.StreamVersion)
+                version)
             {
-                ExpectedStreamVersion = context.Aggregate.StreamVersion
+                ExpectedStreamVersion = version
             },
             cancellationToken).ConfigureAwait(false);
         return result.Outcome == DurableCommandOutcome.Committed

@@ -53,9 +53,13 @@ internal sealed class DurableResourceLeaseRecovery(
             if (retainedRelease.HasValue &&
                 retainedRelease.Value.ConfirmationId is not null)
             {
+                // An already released tombstone may carry a losing confirmation ID from an older writer.
+                // Closing a still-detached lease requires evidence for its complete original grant.
                 if (target is not null &&
-                    (target.Obligation.AcceptedConfirmationId != retainedRelease.Value.ConfirmationId.Value ||
-                     target.Obligation.LeasePhase != nameof(DurableLeaseObligationPhase.Released)))
+                    ((target.Obligation.LeasePhase == nameof(DurableLeaseObligationPhase.Released) &&
+                      target.Obligation.AcceptedConfirmationId != retainedRelease.Value.ConfirmationId.Value) ||
+                     CanCloseQuarantinedLease(target.InstanceId, target.Obligation,
+                         target.ActiveTickets, retainedRelease.Value)))
                 {
                     var closed = await CommitReleasedTombstoneAsync(
                         target,
@@ -112,7 +116,6 @@ internal sealed class DurableResourceLeaseRecovery(
                     confirmationId,
                     timeProvider.GetUtcNow()),
                 cancellationToken).ConfigureAwait(false);
-            var acceptedId = confirmationId;
             switch (providerResult)
             {
                 case ResourcePoolStopConfirmationStatus.ConfirmationConflict:
@@ -120,16 +123,6 @@ internal sealed class DurableResourceLeaseRecovery(
                 case ResourcePoolStopConfirmationStatus.TokenNotFound:
                     return ProtectedWorkStopConfirmationStatus.TokenNotFound;
                 case ResourcePoolStopConfirmationStatus.AlreadyConfirmed:
-                    // A different caller may have released this token after we read the checkpoint.
-                    var winner = await processor.GetResourceReleaseEvidenceAsync(
-                        protectionToken, cancellationToken).ConfigureAwait(false);
-                    if (!winner.HasValue || winner.Value.ConfirmationId is null)
-                    {
-                        // Reevaluate retention and workflow state before attempting any publication.
-                        continue;
-                    }
-
-                    acceptedId = winner.Value.ConfirmationId;
                     break;
                 case ResourcePoolStopConfirmationStatus.Released:
                     releasedByThisCall = true;
@@ -139,9 +132,25 @@ internal sealed class DurableResourceLeaseRecovery(
                         $"Unknown provider stop-confirmation result '{providerResult}'.");
             }
 
+            var winner = await processor.GetResourceReleaseEvidenceAsync(
+                protectionToken, cancellationToken).ConfigureAwait(false);
+            if (!winner.HasValue || winner.Value.ConfirmationId is null)
+            {
+                continue;
+            }
+
+            // Both provider outcomes describe governance. Only a receipt for the original
+            // grant authorizes closing this workflow's quarantined obligation.
+            if (!CanCloseQuarantinedLease(target.InstanceId, target.Obligation, target.ActiveTickets, winner.Value))
+            {
+                return releasedByThisCall
+                    ? ProtectedWorkStopConfirmationStatus.Released
+                    : ProtectedWorkStopConfirmationStatus.AlreadyConfirmed;
+            }
+
             var commit = await CommitReleasedTombstoneAsync(
                 target,
-                acceptedId.Value,
+                winner.Value.ConfirmationId.Value,
                 cancellationToken).ConfigureAwait(false);
             if (commit == DurableCommandOutcome.Committed)
             {
@@ -228,10 +237,7 @@ internal sealed class DurableResourceLeaseRecovery(
             var candidates = (await LoadLeaseRecordsAsync(cancellationToken).ConfigureAwait(false))
                 .Where(record =>
                     record.InstanceId.Equals(instanceId) &&
-                    record.Obligation.LeasePhase is not (
-                        nameof(DurableLeaseObligationPhase.Released) or
-                        nameof(DurableLeaseObligationPhase.CancelledBeforeGrant) or
-                        nameof(DurableLeaseObligationPhase.LeaseLost)))
+                    record.Obligation.LeasePhase == nameof(DurableLeaseObligationPhase.Quarantined))
                 .ToArray();
             foreach (var candidate in candidates)
             {
@@ -242,10 +248,9 @@ internal sealed class DurableResourceLeaseRecovery(
                 var evidence = await processor.GetResourceReleaseEvidenceAsync(
                     token,
                     cancellationToken).ConfigureAwait(false);
-                if (!evidence.HasValue || evidence.Value.ReleasedTickets.Count == 0 ||
-                    candidate.Obligation.LeasePhase is nameof(DurableLeaseObligationPhase.Queued) or nameof(DurableLeaseObligationPhase.PendingCommit))
+                if (!evidence.HasValue || !CanCloseQuarantinedLease(candidate.InstanceId, candidate.Obligation,
+                    candidate.ActiveTickets, evidence.Value))
                 {
-                    // Pre-activation compensation publishes the exact governance receipt on the recovery path.
                     continue;
                 }
 
@@ -273,6 +278,29 @@ internal sealed class DurableResourceLeaseRecovery(
 
         throw new InvalidOperationException(
             "Lease release-gap reconciliation could not serialize after repeated conflicts.");
+    }
+
+    internal static bool CanCloseQuarantinedLease(
+        InstanceId instanceId, DurableOwnedObligationState obligation,
+        IReadOnlyList<ResourcePoolTicket> workflowTickets, ResourcePoolReleaseEvidence receipt)
+    {
+        if (obligation.LeasePhase != nameof(DurableLeaseObligationPhase.Quarantined) ||
+            !instanceId.Equals(receipt.HolderInstanceId) ||
+            !string.Equals(obligation.HolderKey, receipt.HolderKey, StringComparison.Ordinal) ||
+            !string.Equals(obligation.ProtectionToken, receipt.ProtectionToken?.Value, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        // Older checkpoints retained ticket identities only in the workflow acquisition.
+        var expected = obligation.LeaseTickets.Count > 0
+            ? obligation.LeaseTickets.Select(t => (t.TicketId, t.PoolName, t.Units, t.ProviderGeneration)).ToHashSet()
+            : workflowTickets.Where(t => t.HolderInstanceId.Equals(instanceId) && t.HolderKey == receipt.HolderKey)
+                .Select(t => (t.TicketId.ToString("N"), t.PoolName, t.Count, t.ProviderGeneration)).ToHashSet();
+        return expected.Count > 0 && expected.Count == receipt.ReleasedTickets.Count &&
+            receipt.ReleasedTickets.All(t => t.HolderInstanceId.Equals(instanceId) && t.HolderKey == receipt.HolderKey) &&
+            expected.SetEquals(receipt.ReleasedTickets.Select(t =>
+                (t.TicketId.ToString("N"), t.PoolName, t.Count, t.ProviderGeneration)));
     }
 
     private async Task<IReadOnlyList<LeaseRecord>> LoadLeaseRecordsAsync(
@@ -303,6 +331,7 @@ internal sealed class DurableResourceLeaseRecovery(
                         checkpoint.Value.StreamVersion,
                         envelope,
                         obligation,
+                        checkpoint.Value.RuntimeState.ActiveResourceTickets,
                         index));
                 }
             }
@@ -316,5 +345,6 @@ internal sealed class DurableResourceLeaseRecovery(
         StreamVersion StreamVersion,
         DurableExecutionEnvelopeV2 Envelope,
         DurableOwnedObligationState Obligation,
+        IReadOnlyList<ResourcePoolTicket> ActiveTickets,
         int ObligationIndex);
 }

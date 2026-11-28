@@ -1,0 +1,62 @@
+[
+  {
+    "name": "Safety",
+    "kind": "normal",
+    "config": "Safety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Progress",
+    "kind": "normal",
+    "config": "Progress.cfg",
+    "expected": ""
+  },
+  {
+    "name": "MatchFirstIngress",
+    "kind": "witness",
+    "config": "MatchFirstIngress.cfg",
+    "expected": "NoMatchFirstIngress"
+  },
+  {
+    "name": "MatchFirstRedrive",
+    "kind": "witness",
+    "config": "MatchFirstRedrive.cfg",
+    "expected": "NoMatchFirstRedrive"
+  },
+  {
+    "name": "DirectFirst",
+    "kind": "witness",
+    "config": "DirectFirst.cfg",
+    "expected": "NoDirectFirst"
+  },
+  {
+    "name": "LateIngress",
+    "kind": "witness",
+    "config": "LateIngress.cfg",
+    "expected": "NoLateIngress"
+  },
+  {
+    "name": "MissingResumeConsumption",
+    "kind": "mutation",
+    "config": "MissingResumeConsumption.cfg",
+    "expected": "NoOrphanResume"
+  },
+  {
+    "name": "UnfencedDirect",
+    "kind": "mutation",
+    "config": "UnfencedDirect.cfg",
+    "expected": "SingleAcquisition"
+  },
+  {
+    "name": "UnfencedAttempt",
+    "kind": "mutation",
+    "config": "UnfencedAttempt.cfg",
+    "expected": "SingleAdmission"
+  },
+  {
+    "name": "UnscheduledWork",
+    "kind": "assumption",
+    "config": "UnscheduledWork.cfg",
+    "expected": "ResumeEventuallyConsumed"
+  }
+]

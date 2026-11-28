@@ -10,7 +10,7 @@ namespace OrcaCore.Hosting.Tests;
 
 // A provider-port barrier, not a scheduler hook. Both commits reach the real provider
 // while the caller is stopped after its subscription is registered and before recheck.
-internal sealed class DagEventStoreProbe : IWorkflowEventStore
+internal class DagEventStoreProbe : IWorkflowEventStore
 {
     internal IWorkflowEventStore Inner { get; set; } = null!;
     internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -49,7 +49,7 @@ internal sealed class DagEventStoreProbe : IWorkflowEventStore
         if (AfterCheckpointRead is not null) await AfterCheckpointRead(token);
         return current;
     }
-    public async Task<Result<AppendEventsResult>> AppendAsync(ProviderCommitBatch batch, CancellationToken token)
+    public virtual async Task<Result<AppendEventsResult>> AppendAsync(ProviderCommitBatch batch, CancellationToken token)
     {
         BeforeAppend?.Invoke(batch);
         var result = await Inner.AppendAsync(batch, token);

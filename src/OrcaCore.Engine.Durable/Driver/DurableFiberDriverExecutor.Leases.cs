@@ -60,19 +60,37 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             obligation.FiberId == fiber.Id.Value &&
             obligation.ProtectionToken is not null);
 
+    private static DurableOwnedObligationState? FindActiveScopedLease(
+        FiberRecord fiber, IEnumerable<DurableOwnedObligationState> obligations)
+    {
+        var lease = FindScopedLease(fiber, obligations);
+        return lease?.LeasePhase is nameof(DurableLeaseObligationPhase.Held) or
+            nameof(DurableLeaseObligationPhase.ReviewMarked) or nameof(DurableLeaseObligationPhase.AmbiguousHeld)
+            ? lease : null;
+    }
+
+    private static bool HasRequiredLease(
+        CompiledInstruction instruction, FiberRecord fiber, IEnumerable<DurableOwnedObligationState> obligations)
+    {
+        // Both root and branch compilers lower lease bodies beneath the acquisition path.
+        // That path survives even when an older checkpoint has lost the lexical obligation.
+        var bodyStart = instruction.Path.LastIndexOf("/lease/", StringComparison.Ordinal);
+        if (bodyStart < 0)
+        {
+            return true;
+        }
+
+        var lease = FindActiveScopedLease(fiber, obligations);
+        return lease is not null && lease.ScopeId == fiber.OwningScopeId?.Value &&
+            instruction.Path.AsSpan(0, bodyStart).SequenceEqual(lease.AuthoredPath.AsSpan());
+    }
+
     private static ResourceLeaseExecutionContext? ResolveLeaseExecutionContext(
         FiberRecord fiber,
         IEnumerable<DurableOwnedObligationState> obligations)
     {
-        var lease = FindScopedLease(fiber, obligations);
-        return lease is null ||
-               lease.LeasePhase is not (
-                   nameof(DurableLeaseObligationPhase.Held) or
-                   nameof(DurableLeaseObligationPhase.ReviewMarked) or
-                   nameof(DurableLeaseObligationPhase.AmbiguousHeld))
-            ? null
-            : StepContextContracts.CreateLease(
-                LeaseProtectionToken.Parse(lease.ProtectionToken!));
+        var lease = FindActiveScopedLease(fiber, obligations);
+        return lease is null ? null : StepContextContracts.CreateLease(LeaseProtectionToken.Parse(lease.ProtectionToken!));
     }
 
     private static string LeaseOccurrenceKey(

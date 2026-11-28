@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 425,
-    "physicalDeclarations": 1786,
-    "activeFiles": 269,
-    "activeDeclarations": 1098,
+    "physicalFiles": 432,
+    "physicalDeclarations": 1795,
+    "activeFiles": 276,
+    "activeDeclarations": 1107,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -2094,6 +2094,36 @@
       "declarations": 11
     },
     {
+      "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.CompetingWakes.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.JobResource.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.MissingObligation.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.Worker.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.Hosting.Tests/ProtectedStepLeaseRecoveryTests.cs",
+      "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
+      "status": "active",
+      "declarations": 2
+    },
+    {
       "source": "tests/OrcaCore.Hosting.Tests/PublicSurfaceBoundaryTests.cs",
       "ownerProject": "tests/OrcaCore.Hosting.Tests/OrcaCore.Hosting.Tests.csproj",
       "status": "active",
@@ -2334,10 +2364,22 @@
       "declarations": 0
     },
     {
-      "source": "tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.cs",
+      "source": "tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.MissingObligation.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
       "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.TwoPools.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 1
+    },
+    {
+      "source": "tests/OrcaCore.ProviderCertification/DurableResourceLeaseBarrierCertificationTests.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 3
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/EventStoreCertificationTests.ContinuationLease.cs",
