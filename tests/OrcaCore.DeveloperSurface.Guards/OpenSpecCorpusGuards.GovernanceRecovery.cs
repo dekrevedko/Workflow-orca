@@ -30,6 +30,7 @@ public sealed partial class OpenSpecCorpusGuards
 
     private static void ProjectRecoveryRegistry(JsonObject current)
     {
+        ProjectSqlSupportRegistry(current);
         var row = current["latestGovernanceRecovery"]!.AsObject();
         row.Count.Should().Be(10);
         row["implementationCheckpoint"]!.GetValue<string>().Should().Be(RecoveryImplementation);
@@ -133,6 +134,7 @@ public sealed partial class OpenSpecCorpusGuards
     // positions by applying the recovery edits to the reviewed grant files.
     internal static string BeforeScopedGrantAdmission(string root, string path, string current)
     {
+        current = BeforeSqlSupport(root, path, current);
         if (path == "docs/specs/04-requirements-core-runtime.md")
         {
             // CR-003 now describes compiled execution as already required by CR-002 and CR-015.

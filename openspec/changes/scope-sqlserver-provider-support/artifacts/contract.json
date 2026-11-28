@@ -1,0 +1,342 @@
+{
+  "change": "scope-sqlserver-provider-support",
+  "base": "2e1afcc2f70e71e6554074a785984c8ccb64b121",
+  "successors": [
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Hosting registration selects execution mode explicitly",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "91f117b7e81c829f7c5082ce3e47234607b0938d64f1b5e86b1d5edb819d8e08",
+      "afterSha256": "14de075885e49f2be6da2f73c97aa2cd86965908960d966223000dd08b1a7362"
+    },
+    {
+      "capability": "developer-facing-surface",
+      "requirement": "Provider registration names the adapter role",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "65d6e36333681b467298f09bc8d442c73a2ee81298f53bf451840c6ad734afd3",
+      "afterSha256": "2a7f0e4aac0592b84983b9bde121509713d6213057139658dded55b9862941c8"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "First-release provider ownership and schemas are exact",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "admit-durable-dag-run-progression",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "30ffcff973c7aac408396c002180b75d995b60493163b8f62ba0455df73260db",
+      "afterSha256": "6b20fa2d5ceb7f73f3f199e737c44eb437951943578dc4894141f1e95fe69368"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Operational projections expose durable messaging pressure",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "6049a80f81c2f2a3f244c0b574c639984b9c0a17a066923c13804308fadcca07",
+      "afterSha256": "20bf15f41de49181dd040736f584a04e1eb53489e108239006cde6995ddf6adf"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "requirement": "Provider implementations certify messaging ownership parity",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "64879aefa79f5db5168019f3ad7737ab2107448e5e6812c5b019e4fec3acaeaa",
+      "afterSha256": "a68b309d05d8736fee3612083a8e5e653696ac525fc83a3bd4270896f2d73d25"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Provider invariants are explicit",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "recover-latest-governance-state",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "ddb7bb4006231c57abad380bbf4774f5705fcd75ec2b55d09993a0ffba9686dc",
+      "afterSha256": "81ef5ab6564eda292d570d7489f00324e1769052c058cfd096dd6b0013868dfe"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Package consumer smoke tests guard dependency experience",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "20ad206dc0abe543d7bba9cd40ab5953d5e281e437e1efb0c6738464fc7b1169",
+      "afterSha256": "af32ea801a7863b59118f6672b9349f66b53f6745ca14a957f1c8e8fe0879dbf"
+    },
+    {
+      "capability": "quality-and-verification",
+      "requirement": "Durable messaging is verified across every ownership boundary",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "f22a807b2c9a6b41e90f54b25e1773ea4f327cf692daa706dccab139cfbd8c84",
+      "afterSha256": "9da249ce136da88d5afdcc2c96403db51820c12da9e2d8002e70a42a2ea6373d"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Documented application packages are sufficient",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "e1b4f7b078e596a94320ecae15858c9f6622f8a1fe5e5956ad6c8c614ab98560",
+      "afterSha256": "19d381ea74b0dfa9d79c0f48874fd73270e63e043180a9ac577efe52be95cdc2"
+    },
+    {
+      "capability": "repository-foundation",
+      "requirement": "Package topology and ownership are exact",
+      "ownerChain": [
+        "reshape-developer-facing-interfaces",
+        "scope-sqlserver-provider-support"
+      ],
+      "beforeSha256": "b615002756c853821063abdc6fbd832aef741b1aacfb3ba08add002829137107",
+      "afterSha256": "05dab37dbe22b00e5aa31722ec8fbd0415b53a3551a7165429c4ff245c0e326e"
+    }
+  ],
+  "documents": [
+    {
+      "path": "README.md",
+      "beforeSha256": "52177a41dcae989a98916a771cf6ec6248b99b72d26c961f0bef136a77c0fece",
+      "afterSha256": "33074cf4f31f89a8ed9b82530722a21d510f55f6b633a2765b849f8dfc88cf19",
+      "edits": [
+        {
+          "before": "PostgreSQL or SQL Server for persisted execution and recovery.",
+          "after": "PostgreSQL for the v1 production storage target or experimental SQL Server for persisted execution and recovery."
+        }
+      ]
+    },
+    {
+      "path": "CLAUDE.md",
+      "beforeSha256": "2ed3489d3479d03003d39096c0da8b864d73a7fd913f6385448c8a57097bf0c4",
+      "afterSha256": "406d4ecec8a361ef2ce089c076dc12b05a9aa83fbb23a38f6c24e9b764126c29",
+      "edits": [
+        {
+          "before": "PostgreSQL and SQL Server in v1",
+          "after": "production-target PostgreSQL and experimental SQL Server in v1"
+        },
+        {
+          "before": "OrcaCore.Providers.SqlServer    — production provider",
+          "after": "OrcaCore.Providers.SqlServer    — experimental provider"
+        }
+      ]
+    },
+    {
+      "path": "docs/README.md",
+      "beforeSha256": "5c6862ef75001cece8133387f7d5b79783f617cb0666334b744af39b9555d283",
+      "afterSha256": "d1bf64691df93f396f98c549cb4748ae40f52f94370ce6825323007c241f9acc",
+      "edits": [
+        {
+          "before": "Production provider; owns `AddOrcaCoreSqlServer",
+          "after": "Experimental provider; owns `AddOrcaCoreSqlServer"
+        },
+        {
+          "before": "SqlServer` owns production",
+          "after": "SqlServer` owns experimental"
+        }
+      ]
+    },
+    {
+      "path": "docs/packages.md",
+      "beforeSha256": "473ef855cd9197e2b5752f92591f24bcacc15ab7c98c36065843ded8f012de88",
+      "afterSha256": "a2d1c94ac24f1089514e2ff08de9bb47bc89b4de3303b0a9d69e17d0f0904bb7",
+      "edits": [
+        {
+          "before": "## Install in another project",
+          "after": "The next release retains both relational packages. PostgreSQL is the v1 production storage target. SQL Server is experimental and has no qualified scale envelope. Both run the real-storage correctness suites.\n\n## Install in another project"
+        }
+      ]
+    },
+    {
+      "path": "docs/production-readiness.md",
+      "beforeSha256": "272481d0af594537d06f5098cb1bef5f0df62590119087ccc07d2e1d040054a9",
+      "afterSha256": "dc852f1d22efb48703bc0b829ba6a61f2d6387124300c097fdfb66d0c938f9df",
+      "edits": [
+        {
+          "before": "## Durable source verification",
+          "after": "## Durable storage support\n\nPostgreSQL is the v1 production storage target. SQL Server is experimental. Ordinary workflow and governance mutations serialize within each shared document, and a read can transfer unrelated workflow state or retained governance history. DAG streams use dedicated relational tables. Both providers run the complete correctness and restart lanes. SQL Server has no qualified scale envelope.\n\n## Durable source verification"
+        },
+        {
+          "before": "certified production role through `AddOrcaCoreSqlServer",
+          "after": "certified experimental role through `AddOrcaCoreSqlServer"
+        }
+      ]
+    },
+    {
+      "path": "docs/implementation/00-stack-decisions.md",
+      "beforeSha256": "5f90c98457871ea563590011f16fa44f381252dc8c88e619fdb59825b2fea8d8",
+      "afterSha256": "571dad16a5fd7100097d57ee1be209d1ad8756b69a73c2b59e016e703cf223d8",
+      "edits": [
+        {
+          "before": "Production durable-store plugins | **PostgreSQL** (`Npgsql`) and **SQL Server**",
+          "after": "Durable-store plugins | **PostgreSQL** (production target, `Npgsql`) and **experimental SQL Server**"
+        },
+        {
+          "before": "exact v1 production-provider container lanes",
+          "after": "two v1 relational-provider container lanes"
+        },
+        {
+          "before": "SqlServer` owns production",
+          "after": "SqlServer` owns experimental"
+        }
+      ]
+    },
+    {
+      "path": "docs/implementation/01-solution-architecture.md",
+      "beforeSha256": "cb6e8d2a9a5663e14f14041b41201395608e9fbf1eacc791e9c0d0d45363682b",
+      "afterSha256": "9bdd41cab970752c7cb97ee5139f87b4c84c58a61e47a576a09eabefbfab114f",
+      "edits": [
+        {
+          "before": "SqlServer ← complete certified production",
+          "after": "SqlServer ← complete certified experimental"
+        },
+        {
+          "before": "SqlServer` owns its production",
+          "after": "SqlServer` owns its experimental"
+        },
+        {
+          "before": "The production calls are",
+          "after": "The relational provider calls are"
+        },
+        {
+          "before": "production durable hosts add",
+          "after": "durable hosts select a relational provider with"
+        }
+      ]
+    },
+    {
+      "path": "docs/implementation/02-engineering-conventions.md",
+      "beforeSha256": "44f2c645a8c4dbcd2f8b774cfcdd689d69cbdfb1435a6cf2153cb405c593f78d",
+      "afterSha256": "45c582910972becd1b52f1e4f5699665c55507eac4a88b5e9b722ccf87c9b9a4",
+      "edits": [
+        {
+          "before": "SqlServer` owns production",
+          "after": "SqlServer` owns experimental"
+        }
+      ]
+    },
+    {
+      "path": "docs/project-technical-overview.md",
+      "beforeSha256": "c2c837223cd25bdaffec8fcab999b6ba0c38c2171ee7673fe1f79c014103a5c4",
+      "afterSha256": "f30bbc501d5c362c3dc7e4989da2d5d54348af6d79430a3272c6dbb29ebf84a7",
+      "edits": [
+        {
+          "before": "SQL Server is the third first-release provider",
+          "after": "SQL Server is the experimental first-release provider"
+        },
+        {
+          "before": "SqlServer` owns production",
+          "after": "SqlServer` owns experimental"
+        },
+        {
+          "before": "PostgreSQL and SQL Server production role sets",
+          "after": "production-target PostgreSQL and experimental SQL Server role sets"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/06-requirements-durable-execution.md",
+      "beforeSha256": "c17dd46db77ee4b59047895f308c4771bc6e35fd17372d4be71916a0d9033644",
+      "afterSha256": "f53580060d45599b8c6c2edfdd560825de3e46dc53a0ee492dffdf287fc8e57c",
+      "edits": [
+        {
+          "before": "### DU-001 Durability is explicit",
+          "after": "### DU-001 Durability is explicit\nThe v1 provider support tiers are defined in PR-040. Both relational stores SHALL retain the durable correctness obligations below."
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/10-provider-model-and-extensibility.md",
+      "beforeSha256": "d7621f80a439273455be275fdb399d8f4d44b74866ba7fc47f0f6b308d80ce09",
+      "afterSha256": "24b01f8df02f85a4234e64b45cbedb2c1283d4dbc8e26549be0230ef987749a6",
+      "edits": [
+        {
+          "before": "- production `AddOrcaCoreSqlServer",
+          "after": "- experimental `AddOrcaCoreSqlServer"
+        },
+        {
+          "before": "complete certified production role.",
+          "after": "complete certified durable role. PostgreSQL is the v1 production storage target. SQL Server is experimental and has no qualified scale envelope."
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/11-non-functional-requirements.md",
+      "beforeSha256": "2d7e2307f8af07f4102d2fb60ed78f9a0f6245f480aa5dfc6816299277f247e6",
+      "afterSha256": "bda1ddc861ef0447b575cd8897c9081649ffc7dac0e3d3a217f910a8216046e7",
+      "edits": [
+        {
+          "before": "### NF-030 Performance philosophy",
+          "after": "### NF-030 Performance philosophy\nPromotion of experimental SQL Server SHALL require a separately reviewed storage change and measurements of independent-stream contention, governance recovery I/O as history grows, and tail latency under a declared workload."
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/12-acceptance-criteria.md",
+      "beforeSha256": "745eb32557b1a966af11bae22792940c3d9f8136029c40a91730b56fec4e3939",
+      "afterSha256": "d45cea724d04d73b17c552d29d1bc175861f9a0558ad8fa1911c175aa9f0c33b",
+      "edits": [
+        {
+          "before": "PostgreSqlDurableProviderOptions)`, production",
+          "after": "PostgreSqlDurableProviderOptions)`, experimental"
+        },
+        {
+          "before": "Each production provider supplies one complete certified role.",
+          "after": "PostgreSQL and experimental SQL Server each supply one complete certified role."
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/13-phasing-and-open-questions.md",
+      "beforeSha256": "3317dd0466877681cab62e523b529af4020ac4afec2ab3119bbb9db78452ead4",
+      "afterSha256": "69b9065234144bbec437c27b343bcfb469ccc24abb782ea96d1cced231432ec5",
+      "edits": [
+        {
+          "before": "SQL Server production\n  provider",
+          "after": "experimental SQL Server\n  provider"
+        },
+        {
+          "before": "the two v1 production durable storage providers",
+          "after": "the two v1 relational storage providers, with PostgreSQL the production target and SQL Server experimental"
+        }
+      ]
+    },
+    {
+      "path": "docs/specs/17-selected-mode-capability-matrix.md",
+      "beforeSha256": "513928c6cca802945521e43d68101feff4fe1dd0386c99295f2b65b01a7e9a34",
+      "afterSha256": "af43a23ab0ef0ea353931dec7a90f83b72351535b05851ba5806be479c3ae57e",
+      "edits": [
+        {
+          "before": "`OrcaCore.Providers.SqlServer` | Production complete certified",
+          "after": "`OrcaCore.Providers.SqlServer` | Experimental complete certified"
+        },
+        {
+          "before": "complete independently certified production role set.",
+          "after": "complete independently certified durable role set. PostgreSQL is the v1 production target and SQL Server is experimental."
+        }
+      ]
+    },
+    {
+      "path": "docs/prerelease-notes.md",
+      "beforeSha256": "6b919e616f4f5dc5d8af28a45f215e8171bcb19f81d02b7c41fae5e3b848ddd7",
+      "afterSha256": "2d384d86fc7203a74cec1876886320e4e219f77272e4418fc9cda6ad320864c4",
+      "edits": [
+        {
+          "before": "## Unreleased — durable resource governance",
+          "after": "## Unreleased — SQL Server support\n\nPostgreSQL is the v1 production storage target. The SQL Server package stays available as an experimental provider with real-database correctness certification and no qualified scale envelope. Its ordinary workflow and governance stores use shared documents. DAG storage uses separate relational tables.\n\n## Unreleased — durable resource governance"
+        }
+      ]
+    }
+  ]
+}

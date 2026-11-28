@@ -1,11 +1,36 @@
 {
   "schemaVersion": 6,
   "recordFormat": "change\\tcapability\\tcapability-kind\\toperation\\trequirement\\tstate\\tdelta-block-sha256\\tcanonical-block-sha256-or-dash",
-  "recordCount": 243,
-  "recordBytes": 65048,
-  "recordSha256": "84625e3e0b80802c992b2ce60efe3c2ffb4720f2b8016b21d72db5626e82a5f6",
-  "semanticApprovalEligible": true,
-  "pendingCanonicalOperations": [],
+  "recordCount": 253,
+  "recordBytes": 67833,
+  "recordSha256": "197c9ea04cd338f64fc46a3be31a4112a6f72eb9a76c5de838b2d8884200decd",
+  "semanticApprovalEligible": false,
+  "pendingCanonicalOperations": [
+    {
+      "capability": "developer-facing-surface",
+      "count": 2,
+      "turnsGreenChange": "scope-sqlserver-provider-support",
+      "turnsGreenTask": "1.2"
+    },
+    {
+      "capability": "durable-persistence-and-outbox",
+      "count": 3,
+      "turnsGreenChange": "scope-sqlserver-provider-support",
+      "turnsGreenTask": "1.2"
+    },
+    {
+      "capability": "quality-and-verification",
+      "count": 3,
+      "turnsGreenChange": "scope-sqlserver-provider-support",
+      "turnsGreenTask": "1.2"
+    },
+    {
+      "capability": "repository-foundation",
+      "count": 2,
+      "turnsGreenChange": "scope-sqlserver-provider-support",
+      "turnsGreenTask": "1.2"
+    }
+  ],
   "activeNewCapabilitiesOutsideCanonical": [
     {
       "capability": "spec-driven-planning",
@@ -176,11 +201,11 @@
     }
   ],
   "capabilityDirectoryRecordFormat": "repository-relative active openspec/changes/*/specs/*/ path with forward slashes and one trailing slash",
-  "capabilityDirectoryCount": 56,
-  "capabilityDirectoryBytes": 4476,
-  "capabilityDirectorySha256": "d62e1d0e7373df4085a4f156b59b46d6fe3d2400f2fc53e0b24151ccf27043ae",
-  "artifactPath": "openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/artifacts/archive-openspec-provenance-2026-11-23.md",
-  "artifactNormalizedSha256": "15057728f91b7fd4da00cdac7264652f699817c9403fb9897dba559f905748fc",
+  "capabilityDirectoryCount": 60,
+  "capabilityDirectoryBytes": 4807,
+  "capabilityDirectorySha256": "94ac5b9d1c64cf73a5c97f1fd05f9938cebcb03e7fb1028225fb50bffdcfaaba",
+  "artifactPath": "openspec/changes/scope-sqlserver-provider-support/artifacts/proposed-openspec-provenance-2026-11-27.md",
+  "artifactNormalizedSha256": "b5c4c07345d25e28fe0cd5c61dbda17932682f7bde817fdb88ca1d4a6b3ae043",
   "canonicalContents": [
     {
       "path": "openspec/specs/developer-facing-surface/spec.md",
