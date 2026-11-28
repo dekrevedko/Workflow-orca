@@ -1,3 +1,11 @@
+## Unreleased — DAG package verification
+
+The candidate-package check runs a public DAG using five direct package references
+and the in-memory provider. It reopens a run, verifies that a dependent node returns
+`42`, and observes a child's cancellation from a second run handle. Full DAG
+progression and SQL certification remain with the DAG track.
+[Consumer](../tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/Program.cs) · [Package check](../eng/Test-Packages.ps1)
+
 ## Unreleased — durable resource governance
 
 Custom durable providers must implement `IDurableResourceGovernanceStore.LoadLatestAsync`.

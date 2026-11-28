@@ -34,10 +34,12 @@ if (@($contract.packages).Count -ne 12) { throw 'Expected the twelve-package man
 $consumer = Join-Path ([IO.Path]::GetTempPath()) "orcacore-consumer-$([Guid]::NewGuid().ToString('N'))"
 New-Item -ItemType Directory -Path $consumer | Out-Null
 
-$references = ($contract.packages | ForEach-Object {
-    "    <PackageReference Include=`"$($_.id)`" Version=`"$Version`" />"
-}) -join "`n"
-@"
+function New-ConsumerProject([string] $Directory, [string[]] $PackageIds) {
+    New-Item -ItemType Directory -Path $Directory | Out-Null
+    $references = ($PackageIds | ForEach-Object {
+        "    <PackageReference Include=`"$_`" Version=`"$Version`" />"
+    }) -join "`n"
+    @"
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -50,8 +52,11 @@ $references = ($contract.packages | ForEach-Object {
 $references
   </ItemGroup>
 </Project>
-"@ | Set-Content -LiteralPath (Join-Path $consumer 'Consumer.csproj') -Encoding utf8NoBOM
+"@ | Set-Content -LiteralPath (Join-Path $Directory 'Consumer.csproj') -Encoding utf8NoBOM
+}
 
+$ephemeral = Join-Path $consumer 'Ephemeral'
+New-ConsumerProject $ephemeral $contract.packages.id
 $config = [xml]'<configuration><packageSources><clear /></packageSources></configuration>'
 $sources = @()
 if ($GitHubPackages) { $sources += @{ key = 'github'; value = $githubSource } }
@@ -63,9 +68,10 @@ foreach ($source in $sources) {
     $entry.SetAttribute('value', $source.value)
     [void]$config.configuration.packageSources.AppendChild($entry)
 }
-if ($GitHubPackages) {
+if (-not $NuGetOrg) {
+    $orcaSource = if ($GitHubPackages) { 'github' } else { 'release' }
     $mapping = $config.CreateElement('packageSourceMapping')
-    foreach ($source in @(@{ key = 'github'; patterns = @('OrcaCore', 'OrcaCore.*') }, @{ key = 'nuget.org'; patterns = @('*') })) {
+    foreach ($source in @(@{ key = $orcaSource; patterns = @('OrcaCore', 'OrcaCore.*') }, @{ key = 'nuget.org'; patterns = @('*') })) {
         $mapped = $config.CreateElement('packageSource')
         $mapped.SetAttribute('key', $source.key)
         foreach ($pattern in $source.patterns) {
@@ -80,14 +86,14 @@ if ($GitHubPackages) {
 $config.Save((Join-Path $consumer 'NuGet.Config'))
 $example = Get-Content -Raw (Join-Path $repoRoot 'samples/OrcaCore.Examples/ExampleRunner.cs')
 $example = "using OrcaCore;`n" + $example
-$example | Set-Content -LiteralPath (Join-Path $consumer 'ExampleRunner.cs') -Encoding utf8NoBOM
+$example | Set-Content -LiteralPath (Join-Path $ephemeral 'ExampleRunner.cs') -Encoding utf8NoBOM
 @'
 await OrcaCore.Examples.ExampleRunner.RunAllAsync(CancellationToken.None);
-'@ | Set-Content -LiteralPath (Join-Path $consumer 'Program.cs') -Encoding utf8NoBOM
+'@ | Set-Content -LiteralPath (Join-Path $ephemeral 'Program.cs') -Encoding utf8NoBOM
 
 Push-Location $consumer
 try {
-    & dotnet restore Consumer.csproj --configfile NuGet.Config --packages packages --no-http-cache --nologo
+    & dotnet restore Ephemeral/Consumer.csproj --configfile NuGet.Config --packages packages --no-http-cache --nologo
     if ($LASTEXITCODE -ne 0) { throw 'Clean package-only restore failed.' }
     if ($GitHubPackages) {
         if ($releaseHashes.Count -ne 12) { throw 'Expected exactly twelve release checksums.' }
@@ -102,10 +108,27 @@ try {
             Write-Output "GitHub source and release SHA-256 verified: $name"
         }
     }
-    $run = & dotnet run --project Consumer.csproj -c Release --no-restore
+    $run = & dotnet run --project Ephemeral/Consumer.csproj -c Release --no-restore
     if ($LASTEXITCODE -ne 0) { throw 'Package consumer build/execution failed.' }
     $run | Write-Output
     if ($run -notcontains '  result: 42') { throw 'The packaged workflow returned an unexpected result.' }
+
+    if (-not ($NuGetOrg -or $GitHubPackages)) {
+        # Exercise the current facade on candidate packages. Previously published previews have older APIs.
+        $dagFixture = Join-Path $repoRoot 'tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting'
+        $dagDirectory = Join-Path $consumer 'Dag'
+        $project = [xml](Get-Content -LiteralPath (Join-Path $dagFixture 'DagHosting.csproj') -Raw)
+        New-ConsumerProject $dagDirectory $project.Project.ItemGroup.PackageReference.Include
+        Copy-Item -LiteralPath (Join-Path $dagFixture 'Program.cs') -Destination $dagDirectory
+        & dotnet restore Dag/Consumer.csproj --configfile NuGet.Config --packages packages --no-http-cache --nologo
+        if ($LASTEXITCODE -ne 0) { throw 'DAG package-only restore failed.' }
+        $dagRun = & dotnet run --project Dag/Consumer.csproj -c Release --no-restore
+        if ($LASTEXITCODE -ne 0) { throw 'DAG package consumer build/execution failed.' }
+        $dagRun | Write-Output
+        if ($dagRun -notcontains 'Packed DAG verified: dependent output 42 and cancelled child.') {
+            throw 'The packaged DAG consumer did not finish both journeys.'
+        }
+    }
 }
 finally { Pop-Location }
 Write-Output "All twelve packages restored into a fresh cache; typed workflow executed from '$consumer'."
