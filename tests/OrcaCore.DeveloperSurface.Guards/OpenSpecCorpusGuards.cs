@@ -306,7 +306,7 @@ public sealed partial class OpenSpecCorpusGuards
     private const string RuntimeViewReshapeHandoffSha256 =
         "0b8672532ffd7574bd4f94694d4b4bf6cb6c5db3992298792139999e4d6b0cbf";
     private const string CurrentOpenSpecProvenanceSha256 =
-        "e3e224ed8a26c66858815f915085de8d0acebbc298811d45db419acdd77bb8fd";
+        "d3aaa6f9d0bcebc89607dda8eea5898403462fa589fa4c37a484b0277d45b55e";
     private const string HistoricalCanonicalSourceCommit =
         "ba2478e995023b0712c44705174c2b0e3262f213";
     private const string HistoricalCanonicalRemovalCatalogSha256 =
@@ -351,16 +351,18 @@ public sealed partial class OpenSpecCorpusGuards
         "131d22bea736b6c7c4ac8a310ef1db72c992dcc867776b664c01fe2988d57be6";
     private const string PublicAuthoringCompanionSha256 =
         "6f5f5bc5b3d31fbac2918c0ab090aaaa3320a203c24324c4f636e334038d3536";
-    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 51;
+    private const int SupersededOpenSpecProvenanceArtifactCatalogCount = 54;
     private const string SupersededOpenSpecProvenanceArtifactCatalogSha256 =
-        "3494eac457a5faaedb4d1199aa5c2aa44fdd4e964325a24d30251e72274bd896";
+        "9acfd5fa3474b34ad8b4f1612c0689e7cc17d798217e62595950f3f0f044cd67";
     private static readonly (string Path, string NormalizedSha256)[]
         SupersededOpenSpecProvenanceArtifacts =
         [
+            ("openspec/changes/retain-first-usable-dag-wake/artifacts/sync-openspec-provenance-2026-11-27.md",
+                "fb3fadfd05a5a79d843330d350651ac739c1c0b14f9034d8e1b3e701e7f17c27"),
+            ("openspec/changes/scope-sqlserver-provider-support/artifacts/sync-openspec-provenance-2026-11-27.md",
+                "e3e224ed8a26c66858815f915085de8d0acebbc298811d45db419acdd77bb8fd"),
             ("openspec/changes/scope-sqlserver-provider-support/artifacts/proposed-openspec-provenance-2026-11-27.md",
                 "b5c4c07345d25e28fe0cd5c61dbda17932682f7bde817fdb88ca1d4a6b3ae043"),
-            ("openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/artifacts/archive-openspec-provenance-2026-11-23.md",
-                "15057728f91b7fd4da00cdac7264652f699817c9403fb9897dba559f905748fc"),
             ("openspec/changes/harmonize-downstream-capability-specs/artifacts/task-4-2-openspec-provenance-record-2026-08-18.md",
                 "9e8709096f8f3efcb8ea1ee040d1ec6f13e997a320eb6fbb7f724ec708ae2958"),
             ("openspec/changes/harmonize-downstream-capability-specs/artifacts/task-6-6-openspec-provenance-refresh-2026-09-13.md",
@@ -458,7 +460,11 @@ public sealed partial class OpenSpecCorpusGuards
             ("openspec/changes/grant-fifo-waiters-on-pool-upsize/artifacts/proposed-openspec-provenance-2026-11-23.md",
                 "29a2392456bd07224c4b997623c107fe7cd0a09c2c9e77c5dd9b6531396e69c8"),
             ("openspec/changes/grant-fifo-waiters-on-pool-upsize/artifacts/sync-openspec-provenance-2026-11-23.md",
-                "55733bbfd71dcd02e1ed87008a6a252028d827c784276079a50fabe36f782419")
+                "55733bbfd71dcd02e1ed87008a6a252028d827c784276079a50fabe36f782419"),
+            ("openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/artifacts/archive-openspec-provenance-2026-11-23.md",
+                "15057728f91b7fd4da00cdac7264652f699817c9403fb9897dba559f905748fc"),
+            ("openspec/changes/retain-first-usable-dag-wake/artifacts/proposed-openspec-provenance-2026-11-27.md",
+                "8f068d57fa53db9e52c006e1c6769348aa19a65dae2a7bd2eede8fdc7e5f46a1")
         ];
     private const string EmptyCorePublicApiBaseline =
         "# orcacore-public-api-v1\nassembly OrcaCore.Core\n";
@@ -1738,6 +1744,7 @@ public sealed partial class OpenSpecCorpusGuards
             "tests/OrcaCore.DeveloperSurface.Guards/Fixtures/post-gate-amendment-path.json");
         var support = ReadSqlSupportContract(root);
         var beforeSupport = PriorAmendmentCanonical(root, canonicalRequirements, support, SqlSupportSynchronized);
+        ValidateAddressedWakeApproval(root);
         var recovery = ReadRecoveryContract(root);
         var beforeRecovery = PriorAmendmentCanonical(root, beforeSupport, recovery, RecoverySynchronized);
         var observation = ReadObservationContract(root);

@@ -14,7 +14,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "6ffb608ed69c2d8f850051f05a7ffa19d8655bc25044e644f4f6452d126c9435";
+    private const string CanonicalContentRecordSha256 = "6ff822b228d1881d84c66a295f330e220a3a2fc4592b11687a2200f912e1344f";
     private const string BeforeFifoResizeRecordSha256 = "08287a8f89ccac61836c134f52496c7f819785c9ff6db2bb4fb4c3053a1c2f69";
     private const string RecoveryOnlyRecordSha256 = "a966d44cf259a0a42a65897e641a1cff5ef0ba62de26d7da9841c066e5aaf681";
     private const string ScopedGrantOnlyRecordSha256 = "da20aac016a38f50b49a0351014c8f3586e3758f46f097a70723cf267435ee87";
@@ -59,7 +59,8 @@ public sealed class DagStreamIdentitySliceGuards
         var beforeSqlSupport = beforePilot.Select(row =>
         {
             var live = Normalize(File.ReadAllText(Path.Combine(root, row.Path)));
-            return Content(row.Path, OpenSpecCorpusGuards.BeforeSqlSupport(root, row.Path, live));
+            var beforeWake = OpenSpecCorpusGuards.BeforeAddressedWake(root, row.Path, live);
+            return Content(row.Path, OpenSpecCorpusGuards.BeforeSqlSupport(root, row.Path, beforeWake));
         }).ToArray();
         Hash(ContentRecord(beforeSqlSupport)).Should().Be("d044dffd8b055221650774485085fa1e9198ed5785e80e0ab32f595e7fda26db");
         const string deltaPath = "openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/specs/wait-ownership-model-verification/spec.md";

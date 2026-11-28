@@ -50,7 +50,8 @@ public sealed partial class OpenSpecCorpusGuards
         ValidateTaskReference(root, new(SqlSupportChange, "1.1", state));
         ValidateTaskReference(root, new(SqlSupportChange, "1.2", state));
         ValidateTaskReference(root, new(SqlSupportChange, "2.1", state));
-        return ValidateAmendmentOwners(root, active, contract, SqlSupportChange, SqlSupportSynchronized, (_, text) => text);
+        return ValidateAmendmentOwners(root, active, contract, SqlSupportChange, SqlSupportSynchronized,
+            (path, text) => BeforeAddressedWake(root, path, text));
     }
 
     internal static string BeforeSqlSupport(string root, string path, string current)

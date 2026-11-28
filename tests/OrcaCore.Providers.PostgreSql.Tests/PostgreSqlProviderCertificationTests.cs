@@ -213,6 +213,79 @@ public sealed class PostgreSqlProviderCertificationTests : ContinueAsNewCertific
         await DagRunCertification.ObserverCleanupAsync(certificationStore, certificationStore, () => time, duration => time += duration, TestContext.Current.CancellationToken);
     }
 
+
+    [Theory]
+    [InlineData(DagRunCertification.WakeOrder.CursorFirst)]
+    [InlineData(DagRunCertification.WakeOrder.AppendBeforeCursor)]
+    [InlineData(DagRunCertification.WakeOrder.AckFirst)]
+    [InlineData(DagRunCertification.WakeOrder.AppendBeforeAck)]
+    public async Task DagFirstUsableWake_OperationsSerialize(DagRunCertification.WakeOrder order)
+    {
+        var token = TestContext.Current.CancellationToken;
+        var tag = Guid.NewGuid().ToString("N");
+        var barrierName = "wake-barrier-" + tag;
+        var readerName = "wake-reader-" + tag;
+        var writerName = "wake-writer-" + tag;
+
+        string Connection(string name) => new NpgsqlConnectionStringBuilder(container.GetConnectionString()) { ApplicationName = name }.ConnectionString;
+        await using var writer = new PostgreSqlWorkflowStore(Connection(writerName));
+        await using var reader = new PostgreSqlWorkflowStore(Connection(readerName));
+        await writer.InitializeAsync(token);
+        await reader.InitializeAsync(token);
+        await using var barrier = new NpgsqlConnection(Connection(barrierName));
+        await using var monitor = new NpgsqlConnection(container.GetConnectionString());
+        const string lockRow = "select run_id from dag_runs where run_id=@id for update";
+        const string subscriptions = "dag_run_subscriptions";
+        const string detectBlock = """
+            select 1 from pg_stat_activity waiter join pg_stat_activity holder
+                on holder.pid=any(pg_blocking_pids(waiter.pid))
+            where waiter.application_name=@waiter and holder.application_name=@holder
+            """;
+
+        var now = DagRunCertification.WakeTestTime();
+        writer.DagTransactionClock.TestUtcNow = reader.DagTransactionClock.TestUtcNow = () => now;
+        var readerFirst = order is DagRunCertification.WakeOrder.CursorFirst or DagRunCertification.WakeOrder.AckFirst;
+        Task Block(string statement, Guid id, Func<Task> first, Func<Task> second, CancellationToken ct) =>
+            DagRunCertification.ExerciseRelationalWakeOrderAsync(barrier, monitor, statement, id, detectBlock,
+                barrierName, readerFirst ? readerName : writerName, readerFirst ? writerName : readerName, first, second, ct);
+        if (order is DagRunCertification.WakeOrder.CursorFirst or DagRunCertification.WakeOrder.AppendBeforeCursor)
+        {
+            await DagRunCertification.WakeCursorRaceAsync(writer, reader, readerFirst, () => now, duration => now += duration,
+                async (sub, first, second, ct) =>
+                {
+                    await Block(lockRow, sub.RunId, first, second, ct);
+                    await DagRunCertification.AssertWakeCursorStoredAsync(monitor, subscriptions, sub.SubscriptionId,
+                        readerFirst ? 3 : 1, now.AddSeconds(readerFirst ? 9 : 30), ct);
+                }, token);
+            return;
+        }
+        // Ack first holds a place in the wake's row-lock queue. To hold append first after
+        // its FOR UPDATE of that wake, temporarily occupy the separate child-write ID.
+        const string holdClaim = "select outbox_record_id from orcacore_outbox where outbox_record_id=@id for update";
+        const string holdChild = """
+            insert into orcacore_outbox(outbox_record_id,instance_id,kind,payload,state)
+            values (@id,@id,'test-blocker',''::bytea,'Pending') returning outbox_record_id
+            """;
+        await DagRunCertification.WakeSettlementRaceAsync(writer, reader, readerFirst, now,
+            (wake, child, first, second, ct) => Block(readerFirst ? holdClaim : holdChild,
+                readerFirst ? wake : child, first, second, ct), token);
+    }
+
+    [Fact]
+    public Task DagFirstUsableWake_DeliveryRetainsPayloadClaimLeaseAndHistory()
+    {
+        var now = DagRunCertification.WakeTestTime();
+        var store = certificationStore!;
+        store.DagTransactionClock.TestUtcNow = () => now;
+        return DagRunCertification.WakeDeliveryAsync(store, () => now, duration => now += duration, TestContext.Current.CancellationToken);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task DagFirstUsableWake_CollidingCandidateRollsBack(bool previouslyStored) =>
+        DagRunCertification.WakeCollisionAsync(certificationStore!, previouslyStored, TestContext.Current.CancellationToken);
+
     [Fact]
     public async Task DagConcurrentLeaseRequests_SerializeAcrossStoreInstances()
     {

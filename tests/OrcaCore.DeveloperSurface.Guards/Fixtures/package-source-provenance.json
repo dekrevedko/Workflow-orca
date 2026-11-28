@@ -40,22 +40,22 @@
     {
       "id": "OrcaCore.Provider.Abstractions",
       "project": "src/OrcaCore.Provider.Abstractions/OrcaCore.Provider.Abstractions.csproj",
-      "sourceSha256": "bcab501cd1fc55ec613d23e99610d151d1ee7859a5484e165f1b914f68c74347"
+      "sourceSha256": "ad543619cf07fc709b90c5c5cb4fe553543ef263de582be5ba7fb1894918f592"
     },
     {
       "id": "OrcaCore.Providers.InMemory",
       "project": "src/OrcaCore.Providers.InMemory/OrcaCore.Providers.InMemory.csproj",
-      "sourceSha256": "3897ae277ed922aa89a695f4dbe25a8cfb2054e1090286c3db92b3206ed1bad3"
+      "sourceSha256": "590054bccfeff483411bf87a31d59e8a47ea3f90b1d7cf4d3ee8790fc62d0ba7"
     },
     {
       "id": "OrcaCore.Providers.PostgreSql",
       "project": "src/OrcaCore.Providers.PostgreSql/OrcaCore.Providers.PostgreSql.csproj",
-      "sourceSha256": "05b4d8107c044e93f8ef6a81a29c6f8a9dae00d02b7068fc7a0c1ad82a9b2fc6"
+      "sourceSha256": "5c707825633ea30c7b1b2f28f546b33745524e75a90c220fe7d74e054cd2331e"
     },
     {
       "id": "OrcaCore.Providers.SqlServer",
       "project": "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj",
-      "sourceSha256": "3d9de6654df01cccba06bc058dac150243d2932c309dddafec3661ceb120e1d8"
+      "sourceSha256": "bfdb16cdf35771e8e01cb8338f1548d7bc94d176b8850b5641f0999c38ac3162"
     },
     {
       "id": "OrcaCore.Runtime.Protocol",

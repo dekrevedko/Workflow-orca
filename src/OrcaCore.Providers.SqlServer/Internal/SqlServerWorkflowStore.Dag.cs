@@ -133,12 +133,11 @@ internal sealed partial class SqlServerWorkflowStore
         public async Task<bool> WorkflowExistsAsync(Guid id, CancellationToken cancellationToken) =>
             (await ReadAsync(cancellationToken).ConfigureAwait(false)).ContainsWorkflow(id);
 
-        public async Task AddOutboxAsync(Guid runId,
-            IReadOnlyList<global::OrcaCore.Abstractions.Providers.OutboxWrite> writes,
+        public async Task AddOutboxAsync(DagRunStoredState run,
             CancellationToken cancellationToken)
         {
             var engine = await ReadAsync(cancellationToken).ConfigureAwait(false);
-            engine.AddDagOutbox(runId, writes);
+            if (!engine.AddDagOutbox(run)) return;
             await owner.SavePayloadAsync(connection, transaction, SqlServerStateDocumentStore.WorkflowStateKey,
                 Capture(engine), cancellationToken).ConfigureAwait(false);
         }

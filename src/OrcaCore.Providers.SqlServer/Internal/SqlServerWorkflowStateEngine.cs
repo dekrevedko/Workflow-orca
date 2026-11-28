@@ -4,6 +4,7 @@ using OrcaCore.Abstractions.Errors;
 using OrcaCore.Abstractions.Ids;
 using OrcaCore.Abstractions.Primitives;
 using OrcaCore.Abstractions.Providers;
+using OrcaCore.Abstractions.Providers.Dag.Internal;
 using OrcaCore.Abstractions.Serialization;
 using DurableWorkflowEvent = global::OrcaCore.Abstractions.Durable.WorkflowEvent;
 
@@ -26,18 +27,7 @@ internal sealed class SqlServerWorkflowStateEngine :
 
     internal bool ContainsWorkflow(Guid id) => streams.Any(stream => stream.Key.InstanceId.Value == id && stream.Value.Count != 0);
 
-    internal void AddDagOutbox(Guid runId, IReadOnlyList<OutboxWrite> writes)
-    {
-        foreach (var write in writes)
-            if (outbox.TryGetValue(write.OutboxRecordId, out var old) &&
-                (old.Write.Kind != write.Kind || old.Write.DagRunOwner != write.DagRunOwner ||
-                 old.Write.RecipientHostId != write.RecipientHostId || old.Write.DagRunSubscriptionId != write.DagRunSubscriptionId ||
-                 !old.Write.Payload.AsSpan().SequenceEqual(write.Payload)))
-                throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: outbox identity collision.");
-        foreach (var write in writes)
-            outbox.TryAdd(write.OutboxRecordId, new InMemoryOutboxRecord(InstanceId.Parse(runId.ToString("D")),
-                write with { Payload = write.Payload.ToArray() }, OutboxRecordState.Pending));
-    }
+    internal bool AddDagOutbox(DagRunStoredState run) => DagRunStoreRules.ApplyDagOutbox(run, outbox);
 
     internal bool PruneDagObserver(Guid runId, Guid subscriptionId, Guid recipientId, DateTimeOffset now)
     {
@@ -56,7 +46,7 @@ internal sealed class SqlServerWorkflowStateEngine :
     private long nextInboxAcceptanceSequence;
     private readonly Dictionary<string, StartedWorkflowIdempotencyRecord> startIdempotency = new(StringComparer.Ordinal);
     private readonly Dictionary<string, InboxStartIntentRecord> startIntents = new(StringComparer.Ordinal);
-    private readonly Dictionary<OutboxRecordId, InMemoryOutboxRecord> outbox = [];
+    private readonly Dictionary<OutboxRecordId, StoredOutboxRecord> outbox = [];
     private readonly List<OutboxWrite> dispatched = [];
     private readonly List<ProjectionWrite> projections = [];
     private readonly List<ProjectionHistoryWrite> history = [];
@@ -174,7 +164,7 @@ internal sealed class SqlServerWorkflowStateEngine :
         long NextInboxAcceptanceSequence,
         IReadOnlyList<StartedWorkflowIdempotencyRecord> StartIdempotency,
         IReadOnlyList<InboxStartIntentRecord> StartIntents,
-        IReadOnlyList<InMemoryOutboxRecord> Outbox,
+        IReadOnlyList<StoredOutboxRecord> Outbox,
         IReadOnlyList<OutboxWrite> Dispatched,
         IReadOnlyList<ProjectionWrite> Projections,
         IReadOnlyList<ProjectionHistoryWrite> History,
@@ -223,6 +213,9 @@ internal sealed class SqlServerWorkflowStateEngine :
 
         lock (gate)
         {
+            if (batch.OutboxRecords.Any(write => outbox.TryGetValue(write.OutboxRecordId, out var row) &&
+                    row.ObserverVersion.HasValue))
+                return Task.FromResult(DagRunStoreRules.Failure("DAG_INTEGRITY_CONFLICT", "outbox identity collision"));
             var conflictingEventId = batch.InboxOperations
                 .Where(operation => operation.EnvelopeFingerprint is not null)
                 .Where(operation => inbox.TryGetValue(operation.EventId, out var existing) &&
@@ -301,7 +294,7 @@ internal sealed class SqlServerWorkflowStateEngine :
             MaterializePendingStarts(batch.StartIdempotencyOperations);
             foreach (var record in batch.OutboxRecords)
             {
-                outbox[record.OutboxRecordId] = new InMemoryOutboxRecord(
+                outbox[record.OutboxRecordId] = new StoredOutboxRecord(
                     batch.StreamId.InstanceId,
                     CloneOutboxWrite(record) with { DispatchAttempt = 0 },
                     OutboxRecordState.Pending);
@@ -2079,7 +2072,7 @@ internal sealed class SqlServerWorkflowStateEngine :
         }
     }
 
-    private static bool IsOutboxClaimable(InMemoryOutboxRecord record, DateTimeOffset claimedAt)
+    private static bool IsOutboxClaimable(StoredOutboxRecord record, DateTimeOffset claimedAt)
     {
         return record.State is OutboxRecordState.Pending or OutboxRecordState.Retryable ||
             (record.State == OutboxRecordState.Claimed &&
@@ -2093,14 +2086,6 @@ internal sealed class SqlServerWorkflowStateEngine :
             throw new ArgumentOutOfRangeException(nameof(leaseDuration), leaseDuration, "Lease duration must be positive.");
         }
     }
-
-    internal sealed record InMemoryOutboxRecord(
-        InstanceId InstanceId,
-        OutboxWrite Write,
-        OutboxRecordState State,
-        DateTimeOffset? ClaimedUntil = null,
-        string? PoisonCode = null,
-        string? PoisonDetail = null);
 
     internal sealed record InMemoryTimerSchedule(TimerScheduleRequest Request, DateTimeOffset? ClaimedUntil);
 }
