@@ -8,5 +8,5 @@
 
 ## 3. Certification
 
-- [ ] 3.1 Force both orders of cursor renewal and append on in-memory, real PostgreSQL and real SQL Server. Check claim settlement, authoritative reads and stored pressure.
-- [ ] 3.2 Run the affected provider and repository guards, independently review the evidence and checkpoint it.
+- [x] 3.1 Force both orders of cursor renewal and append on in-memory, real PostgreSQL and real SQL Server. Check claim settlement, authoritative reads and stored pressure.
+- [x] 3.2 Run the affected provider and repository guards, independently review the evidence and checkpoint it.

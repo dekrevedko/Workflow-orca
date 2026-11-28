@@ -7,6 +7,7 @@ public sealed partial class OpenSpecCorpusGuards
 {
     private const string AddressedWakeChange = "retain-first-usable-dag-wake";
     private const string AddressedWakeProposal = "20203c48db381b7e995f0dd07a1c4122eff82b36";
+    private const string AddressedWakeImplementation = "bc4ab313a124874481312d2b738a796f36ceca6c";
     private const string AddressedWakeCanonical = "openspec/specs/durable-persistence-and-outbox/spec.md";
     private const string AddressedWakeNumbered = "docs/specs/10-provider-model-and-extensibility.md";
     private const string AddressedWakeRoot = "openspec/changes/" + AddressedWakeChange + "/";
@@ -19,7 +20,11 @@ public sealed partial class OpenSpecCorpusGuards
         var verdict = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, AddressedWakeRoot, "artifacts/contract-approval.md")));
         Sha256(verdict).Should().Be("22b364e9745174f70e64be08e2eff74f491de0983af53c938e84cbd054a047f3");
         RunGit(root, "merge-base", "--is-ancestor", AddressedWakeProposal, "HEAD").ExitCode.Should().Be(0);
-        ValidateTaskReference(root, new(AddressedWakeChange, "1.1", CompleteTaskState));
+        RunGit(root, "merge-base", "--is-ancestor", AddressedWakeImplementation, "HEAD").ExitCode.Should().Be(0);
+        var evidence = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, AddressedWakeRoot, "artifacts/qualification.md")));
+        Sha256(evidence).Should().Be("f0907a72346661ba07be6b7d7b34206ab5bef6cc465d99857a2079469614cba6");
+        foreach (var task in new[] { "1.1", "2.1", "3.1", "3.2" })
+            ValidateTaskReference(root, new(AddressedWakeChange, task, CompleteTaskState));
         foreach (var path in new[] { AddressedWakeCanonical, AddressedWakeNumbered })
             BeforeAddressedWake(root, path, NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
     }
@@ -27,7 +32,7 @@ public sealed partial class OpenSpecCorpusGuards
     private static void ProjectAddressedWakeRegistry(JsonObject registry)
     {
         var row = registry["firstUsableAddressedWake"]!.AsObject();
-        Sha256(row.ToJsonString()).Should().Be("1ebb032e59abc4e4cf992166f961f64a229b8f685fcfff9c8a418eb91fab1bd4",
+        Sha256(row.ToJsonString()).Should().Be("214e0e86c7f6a5f2c23b5de8fa58285f505618afe5df31f77bdf53bf6c6953d5",
             "only the approved addressed-wake contract row may be removed for historical checks");
         registry.Remove("firstUsableAddressedWake");
     }
