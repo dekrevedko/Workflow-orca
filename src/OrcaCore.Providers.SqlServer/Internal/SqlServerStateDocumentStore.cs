@@ -9,7 +9,7 @@ internal sealed class SqlServerStateDocumentStore
     internal const string WorkflowStateKey = "workflow";
     internal const string ResourcePoolStateKey = "resource-pools";
     internal const string ResourceGovernanceStateKey = "resource-governance";
-    private const int PayloadFormat = 1;
+    private const int PayloadFormat = 2;
     private const int StateKeyMaxLength = 128;
     private const string StateLockPrefix = "orcacore:state:";
     private const string StateTable = "orcacore_provider_state";

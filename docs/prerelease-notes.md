@@ -1,3 +1,11 @@
+## Unreleased — addressed DAG wakes
+
+A pending DAG observer keeps its first deliverable notice until its subscription
+cursor catches up. On delivery the host reads the latest committed run state.
+Use a fresh PostgreSQL schema or SQL Server provider schema for this prerelease.
+Both providers changed their first-create migration, and an existing migration
+journal from the preceding format will fail its digest check.
+
 ## Unreleased — DAG package verification
 
 The candidate-package check runs a public DAG using five direct package references

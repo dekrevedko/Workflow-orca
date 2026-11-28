@@ -26,8 +26,20 @@ internal sealed class DagRunStoredState
     internal Dictionary<Guid, DagRunOperationReceipt> Operations { get; } = [];
     internal Dictionary<Guid, DagRunLeaseRow> Requests { get; } = [];
     internal Dictionary<Guid, DagRunObserverRow> Observers { get; } = [];
-    internal List<OutboxWrite> NewOutbox { get; } = [];
+    internal List<DagOutboxIntent> NewOutbox { get; } = [];
 }
+
+// Only the provider constructs an intent with an observer cursor.
+internal sealed record DagOutboxIntent(OutboxWrite Write, long? ObserverCursor = null);
+
+internal sealed record StoredOutboxRecord(
+    InstanceId InstanceId,
+    OutboxWrite Write,
+    OutboxRecordState State,
+    DateTimeOffset? ClaimedUntil = null,
+    string? PoisonCode = null,
+    string? PoisonDetail = null,
+    long? ObserverVersion = null);
 
 internal sealed record DagRunOperationReceipt(
     Guid OperationId,
@@ -181,8 +193,14 @@ internal static class DagRunStoreRules
                 append.OperationFingerprint, expected.StreamVersion.Value, "Committed", admitted?.Ordinal,
                 admitted?.ChildInstanceId?.Value, admitted?.InputWrite?.Fingerprint));
             if (request is not null) updated.Requests[request.RequestId] = request with { AppendCommitted = true };
-            updated.NewOutbox.AddRange(batch.OutboxRecords.Select(Clone));
+            updated.NewOutbox.AddRange(batch.OutboxRecords.Select(write => new DagOutboxIntent(Clone(write))));
             AddNotifications(updated, now);
+            if (batch.OutboxRecords.Count > 0)
+            {
+                var supplied = batch.OutboxRecords.Select(write => write.OutboxRecordId).ToHashSet();
+                if (updated.NewOutbox.Skip(batch.OutboxRecords.Count).Any(intent => supplied.Contains(intent.Write.OutboxRecordId)))
+                    return Failure("DAG_INTEGRITY_CONFLICT", "generated and caller-supplied outbox identity collision");
+            }
             return Result<AppendEventsResult>.Success(new AppendEventsResult(expected.StreamVersion));
         }
         catch (InvalidDataException exception)
@@ -494,10 +512,61 @@ internal static class DagRunStoreRules
         foreach (var observer in state.Observers.Values.Where(o => o.ExpiresAt > now &&
                                                                    o.Subscription.AfterVersion.Value <
                                                                    state.Snapshot.StreamVersion.Value))
-            state.NewOutbox.Add(Notice(state.Snapshot, observer.Subscription));
+            state.NewOutbox.Add(new DagOutboxIntent(Notice(state.Snapshot, observer.Subscription),
+                observer.Subscription.AfterVersion.Value));
         if (state.Snapshot.State == DagRunStateV1.Running &&
             state.Snapshot.Nodes.Any(n => n.State == DagNodeStateV1.Ready))
-            state.NewOutbox.Add(Notice(state.Snapshot, null));
+            state.NewOutbox.Add(new DagOutboxIntent(Notice(state.Snapshot, null)));
+    }
+
+    // The in-memory provider and SQL Server document store both commit a dictionary of records.
+    // Prepare all changes before publishing any, including collisions on candidates we would skip.
+    internal static bool ApplyDagOutbox(DagRunStoredState run, Dictionary<OutboxRecordId, StoredOutboxRecord> outbox)
+    {
+        if (run.NewOutbox.Count == 0) return false;
+        var runId = run.Snapshot.RunId;
+        var live = run.NewOutbox.Any(intent => intent.ObserverCursor.HasValue)
+            ? outbox.Values.Where(row => row.ObserverVersion.HasValue && row.Write.DagRunOwner == runId &&
+                    row.State is OutboxRecordState.Pending or OutboxRecordState.Retryable or OutboxRecordState.Claimed)
+                .ToDictionary(row => (row.Write.RecipientHostId, row.Write.DagRunSubscriptionId))
+            : null;
+        var changes = new Dictionary<OutboxRecordId, StoredOutboxRecord>();
+        var owner = InstanceId.Parse(runId.ToString("D"));
+        foreach (var intent in run.NewOutbox)
+        {
+            var write = intent.Write;
+            if (outbox.TryGetValue(write.OutboxRecordId, out var existing) ||
+                changes.TryGetValue(write.OutboxRecordId, out existing))
+            {
+                if (intent.ObserverCursor.HasValue || existing.ObserverVersion.HasValue ||
+                    existing.Write.Kind != write.Kind || existing.Write.DagRunOwner != write.DagRunOwner ||
+                    existing.Write.RecipientHostId != write.RecipientHostId ||
+                    existing.Write.DagRunSubscriptionId != write.DagRunSubscriptionId ||
+                    !existing.Write.Payload.AsSpan().SequenceEqual(write.Payload))
+                    throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: outbox identity collision.");
+                continue;
+            }
+
+            if (intent.ObserverCursor is long cursor &&
+                live!.TryGetValue((write.RecipientHostId, write.DagRunSubscriptionId), out var slot))
+            {
+                if (slot.ObserverVersion > cursor) continue;
+                changes.Add(slot.Write.OutboxRecordId, slot with
+                {
+                    Write = slot.Write with { Payload = write.Payload },
+                    ObserverVersion = run.Snapshot.StreamVersion.Value,
+                    State = OutboxRecordState.Pending,
+                    ClaimedUntil = null
+                });
+                continue;
+            }
+
+            changes.Add(write.OutboxRecordId, new StoredOutboxRecord(owner, write, OutboxRecordState.Pending,
+                ObserverVersion: intent.ObserverCursor.HasValue ? run.Snapshot.StreamVersion.Value : null));
+        }
+
+        foreach (var change in changes) outbox[change.Key] = change.Value;
+        return changes.Count > 0;
     }
 
     private static OutboxWrite Notice(DagRunSnapshotV1 snapshot, DagRunSubscriptionV1? subscription)

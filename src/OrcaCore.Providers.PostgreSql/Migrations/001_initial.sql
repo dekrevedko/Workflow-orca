@@ -144,6 +144,9 @@ create table if not exists orcacore_outbox (
     dag_run_owner uuid null,
     recipient_host_id uuid null,
     dag_run_subscription_id uuid null,
+    observer_version bigint null check (observer_version is null or
+        (observer_version > 0 and kind = 'dag-run-ready-v1' and dag_run_owner is not null
+         and recipient_host_id is not null and dag_run_subscription_id is not null)),
     instance_id uuid not null,
     kind text not null,
     payload bytea not null,
@@ -353,4 +356,7 @@ create index if not exists ix_dag_run_subscriptions_expiry on dag_run_subscripti
 create index if not exists ix_dag_run_subscriptions_run on dag_run_subscriptions (run_id,recipient_host_id);
 
 create index if not exists ix_orcacore_outbox_dag_recipient on orcacore_outbox (kind,state,recipient_host_id,claimed_until);
+create unique index if not exists ix_orcacore_outbox_live_observer
+    on orcacore_outbox (dag_run_owner,recipient_host_id,dag_run_subscription_id)
+    where observer_version is not null and state in ('Pending','Retryable','Claimed');
 create index if not exists ix_orcacore_outbox_dag_observer on orcacore_outbox (dag_run_owner,dag_run_subscription_id,recipient_host_id);

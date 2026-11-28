@@ -3,10 +3,10 @@
   "sourceBaseline": "d76192f089dd07f68e310c21fe4e5a38dd93cf7f",
   "targetBase": "287fbde74681c015235d76f6498c031addfd9ac1",
   "accounting": {
-    "physicalFiles": 432,
-    "physicalDeclarations": 1795,
-    "activeFiles": 276,
-    "activeDeclarations": 1107,
+    "physicalFiles": 434,
+    "physicalDeclarations": 1804,
+    "activeFiles": 278,
+    "activeDeclarations": 1116,
     "compileExcludedFiles": 131,
     "compileExcludedDeclarations": 688,
     "outOfBandFixtureFiles": 25,
@@ -934,6 +934,12 @@
       "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
       "status": "active",
       "declarations": 16
+    },
+    {
+      "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.AddressedDagWake.cs",
+      "ownerProject": "tests/OrcaCore.DeveloperSurface.Guards/OrcaCore.DeveloperSurface.Guards.csproj",
+      "status": "active",
+      "declarations": 0
     },
     {
       "source": "tests/OrcaCore.DeveloperSurface.Guards/OpenSpecCorpusGuards.GovernanceRecovery.cs",
@@ -2322,6 +2328,12 @@
       "declarations": 0
     },
     {
+      "source": "tests/OrcaCore.ProviderCertification/DagRunCertification.FirstUsableWake.cs",
+      "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
+      "status": "active",
+      "declarations": 0
+    },
+    {
       "source": "tests/OrcaCore.ProviderCertification/DagRunCertification.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
@@ -2403,7 +2415,7 @@
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.ProviderCertification/OrcaCore.ProviderCertification.csproj",
       "status": "active",
-      "declarations": 19
+      "declarations": 22
     },
     {
       "source": "tests/OrcaCore.ProviderCertification/InMemoryProviderPorts.cs",
@@ -2481,7 +2493,7 @@
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.PostgreSql.Tests/OrcaCore.Providers.PostgreSql.Tests.csproj",
       "status": "active",
-      "declarations": 54
+      "declarations": 57
     },
     {
       "source": "tests/OrcaCore.Providers.PostgreSql.Tests/PostgreSqlResourceGovernanceCertificationTests.cs",
@@ -2535,7 +2547,7 @@
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderCertificationTests.cs",
       "ownerProject": "tests/OrcaCore.Providers.SqlServer.Tests/OrcaCore.Providers.SqlServer.Tests.csproj",
       "status": "active",
-      "declarations": 28
+      "declarations": 31
     },
     {
       "source": "tests/OrcaCore.Providers.SqlServer.Tests/SqlServerProviderInfrastructureTests.cs",

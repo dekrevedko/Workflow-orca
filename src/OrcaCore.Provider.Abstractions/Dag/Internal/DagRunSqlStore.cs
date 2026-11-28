@@ -18,7 +18,7 @@ internal sealed class DagTransactionClock
 internal interface IDagRunWorkflowTransaction
 {
     Task<bool> WorkflowExistsAsync(Guid id, CancellationToken cancellationToken);
-    Task AddOutboxAsync(Guid runId, IReadOnlyList<OutboxWrite> writes, CancellationToken cancellationToken);
+    Task AddOutboxAsync(DagRunStoredState run, CancellationToken cancellationToken);
     Task<bool> PruneObserverAsync(DagRunObserverRow observer, DateTimeOffset now, CancellationToken cancellationToken);
 }
 
@@ -176,14 +176,22 @@ internal sealed class DagRunSqlStore(
         }, cancellationToken).ConfigureAwait(false);
     }
 
-    internal Task<DagRunSubscribeResultV1> SubscribeAsync(DagRunSubscriptionV1 subscription,
+    internal async Task<DagRunSubscribeResultV1> SubscribeAsync(DagRunSubscriptionV1 subscription,
         CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(subscription);
         // Validate even when the run is absent, before any connection is opened.
         _ = DagRunStoreRules.Subscribe(null, subscription, default);
-        return ChangeAsync(subscription.RunId, null, null, (state, now, _) =>
-            Task.FromResult((DagRunStoreRules.Subscribe(state, subscription, now), state)), cancellationToken);
+        try
+        {
+            return await ChangeAsync(subscription.RunId, null, null, (state, now, _) =>
+                Task.FromResult((DagRunStoreRules.Subscribe(state, subscription, now), state)),
+                cancellationToken, subscription).ConfigureAwait(false);
+        }
+        catch (DbException exception) when (uniqueViolation(exception))
+        {
+            throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: subscription identity changed.", exception);
+        }
     }
 
     internal async Task<Option<DagRunCheckpointV1>> LoadCheckpointAsync(WorkflowStreamId streamId,
@@ -266,7 +274,7 @@ internal sealed class DagRunSqlStore(
     private async Task<T> ChangeAsync<T>(Guid runId, Guid? requestId, Guid? operationId,
         Func<DagRunStoredState?, DateTimeOffset, IDagRunWorkflowTransaction, Task<(T Result, DagRunStoredState? State)>>
             operation,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, DagRunSubscriptionV1? registration = null)
     {
         if (runId == Guid.Empty) throw new ArgumentException("DAG run identity is empty.", nameof(runId));
         await using var connection = await OpenAsync(cancellationToken).ConfigureAwait(false);
@@ -285,6 +293,17 @@ internal sealed class DagRunSqlStore(
 
         var state = await ReadStateAsync(connection, transaction, runId, requestId, operationId, cancellationToken)
             .ConfigureAwait(false);
+        if (registration is not null && (state is null || (state.Snapshot.StreamVersion.Value > registration.AfterVersion.Value &&
+                !state.Observers.ContainsKey(registration.SubscriptionId))))
+        {
+            // New registrations at the head use the global primary key in SaveStateAsync.
+            // A missing run or a behind-head caller can return without attempting an insert.
+            await using var owner = Command(connection, transaction,
+                $"select 1 from {Table("dag_run_subscriptions")} where subscription_id=@subscriptionId and run_id<>@runId",
+                ("subscriptionId", registration.SubscriptionId), ("runId", runId));
+            if (await owner.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null)
+                throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: subscription identity changed.");
+        }
         // Read the transaction clock only AFTER ownership locks, including the absent-run advisory lock.
         var now = clock.TestUtcNow?.Invoke() ??
                   await DatabaseTimeAsync(connection, transaction, cancellationToken).ConfigureAwait(false);
@@ -297,7 +316,7 @@ internal sealed class DagRunSqlStore(
             await SaveStateAsync(connection, transaction, updated, beforeVersion, knownRequests, knownOperations,
                 cancellationToken).ConfigureAwait(false);
             if (updated.NewOutbox.Count != 0)
-                await workflow.AddOutboxAsync(runId, updated.NewOutbox, cancellationToken).ConfigureAwait(false);
+                await workflow.AddOutboxAsync(updated, cancellationToken).ConfigureAwait(false);
             if (result is DagRunLeaseResultV1 { QueueSequence: long.MaxValue } lease)
                 result = (T)(object)(lease with { QueueSequence = updated.Requests[requestId!.Value].QueueSequence });
         }
@@ -447,7 +466,7 @@ internal sealed class DagRunSqlStore(
                     ? DbType.Guid
                     : name is "grantedAt" or "expiresAt" or "hardDeadline" or "completedAt" or "readyAt" or "startedAt"
                         ? DbType.DateTimeOffset
-                        : name == "grantedToken"
+                        : name is "grantedToken" or "observerVersion"
                             ? DbType.Int64
                             : name.EndsWith("Bytes", StringComparison.Ordinal)
                                 ? DbType.Binary
@@ -744,29 +763,78 @@ internal sealed class DagRunSqlStore(
             return await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is not null;
         }
 
-        public async Task AddOutboxAsync(Guid runId, IReadOnlyList<OutboxWrite> writes,
-            CancellationToken cancellationToken)
+        public async Task AddOutboxAsync(DagRunStoredState run, CancellationToken cancellationToken)
         {
-            foreach (var write in writes)
+            var slots = await LockObserverNoticesAsync(run, cancellationToken).ConfigureAwait(false);
+            foreach (var intent in run.NewOutbox)
             {
-                var parameters = new (string, object?)[]
+                var write = intent.Write;
+                if (intent.ObserverCursor is long cursor &&
+                    slots.TryGetValue((write.RecipientHostId!.Value, write.DagRunSubscriptionId!.Value), out var slot))
                 {
-                    ("outboxId", write.OutboxRecordId.Value), ("runId", runId),
+                    if (slot.Version <= cursor)
+                        await ExecuteAsync(connection, transaction, """
+                            update orcacore_outbox
+                            set payload=@payload, observer_version=@version, state='Pending', claimed_until=null
+                            where outbox_record_id=@slotId
+                            """, cancellationToken, ("payload", write.Payload), ("version", run.Snapshot.StreamVersion.Value),
+                            ("slotId", slot.Id)).ConfigureAwait(false);
+                    continue;
+                }
+
+                var args = new (string, object?)[]
+                {
+                    ("outboxId", write.OutboxRecordId.Value), ("runId", run.Snapshot.RunId),
                     ("kind", write.Kind), ("recordBytes", write.Payload), ("recipientId", write.RecipientHostId),
-                    ("subscriptionId", write.DagRunSubscriptionId)
+                    ("subscriptionId", write.DagRunSubscriptionId),
+                    ("observerVersion", intent.ObserverCursor.HasValue ? run.Snapshot.StreamVersion.Value : (long?)null)
                 };
-                var count = await ExecuteAsync(connection, transaction,
-                    "insert into orcacore_outbox(outbox_record_id,instance_id,kind,payload,state,dag_run_owner,recipient_host_id,dag_run_subscription_id) " +
-                    "values (@outboxId,@runId,@kind,@recordBytes,'Pending',@runId,@recipientId,@subscriptionId) on conflict(outbox_record_id) do nothing",
-                    cancellationToken, parameters).ConfigureAwait(false);
+                var count = await ExecuteAsync(connection, transaction, """
+                    insert into orcacore_outbox
+                        (outbox_record_id,instance_id,kind,payload,state,dag_run_owner,recipient_host_id,dag_run_subscription_id,observer_version)
+                    values (@outboxId,@runId,@kind,@recordBytes,'Pending',@runId,@recipientId,@subscriptionId,@observerVersion)
+                    on conflict (outbox_record_id) do nothing
+                    """, cancellationToken, args).ConfigureAwait(false);
                 if (count != 0) continue;
-                await using var command = Command(connection, transaction,
-                    "select 1 from orcacore_outbox where outbox_record_id=@outboxId and dag_run_owner=@runId and kind=@kind and payload=@recordBytes " +
-                    "and recipient_host_id is not distinct from @recipientId and dag_run_subscription_id is not distinct from @subscriptionId",
-                    parameters);
+                if (intent.ObserverCursor.HasValue)
+                    throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: outbox identity collision.");
+                await using var command = Command(connection, transaction, """
+                    select 1 from orcacore_outbox where outbox_record_id=@outboxId and dag_run_owner=@runId
+                      and observer_version is null and kind=@kind and payload=@recordBytes
+                      and recipient_host_id is not distinct from @recipientId
+                      and dag_run_subscription_id is not distinct from @subscriptionId
+                    """, args);
                 if (await command.ExecuteScalarAsync(cancellationToken).ConfigureAwait(false) is null)
                     throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: outbox identity collision.");
             }
+        }
+
+        private async Task<Dictionary<(Guid Host, Guid Subscription), (Guid Id, long Version)>> LockObserverNoticesAsync(
+            DagRunStoredState run, CancellationToken cancellationToken)
+        {
+            var slots = new Dictionary<(Guid, Guid), (Guid, long)>();
+            var candidates = run.NewOutbox.Where(intent => intent.ObserverCursor.HasValue)
+                .Select(intent => intent.Write.OutboxRecordId.Value).ToHashSet();
+            if (candidates.Count == 0) return slots;
+
+            // Settlement locks the outbox independently of the run. Observe the winning state
+            // and hold it until commit, including when preserving an existing claim unchanged.
+            await using var command = Command(connection, transaction, """
+                select outbox_record_id,recipient_host_id,dag_run_subscription_id,observer_version
+                from orcacore_outbox
+                where (dag_run_owner=@runId and observer_version is not null and state in ('Pending','Retryable','Claimed'))
+                   or outbox_record_id=any(@ids)
+                order by outbox_record_id for update
+                """, ("runId", run.Snapshot.RunId), ("ids", candidates.ToArray()));
+            await using var reader = await command.ExecuteReaderAsync(cancellationToken).ConfigureAwait(false);
+            while (await reader.ReadAsync(cancellationToken).ConfigureAwait(false))
+            {
+                var id = reader.GetGuid(0);
+                if (candidates.Contains(id))
+                    throw new InvalidDataException("DAG_INTEGRITY_CONFLICT: outbox identity collision.");
+                slots.Add((reader.GetGuid(1), reader.GetGuid(2)), (id, reader.GetInt64(3)));
+            }
+            return slots;
         }
 
         public async Task<bool> PruneObserverAsync(DagRunObserverRow observer, DateTimeOffset now,

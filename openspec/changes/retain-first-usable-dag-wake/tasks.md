@@ -1,10 +1,10 @@
 ## 1. Contract
 
-- [ ] 1.1 Independently review the cursor, claim and identity rules, synchronize the approved `durable-persistence-and-outbox` (1) delta and record its numbered provider obligation.
+- [x] 1.1 Independently review the cursor, claim and identity rules, synchronize the approved `durable-persistence-and-outbox` (1) delta and record its numbered provider obligation.
 
 ## 2. Provider implementation
 
-- [ ] 2.1 Implement the atomic rule on all three providers. Review the transaction, collision, fencing and first-create schema boundaries.
+- [x] 2.1 Implement the atomic rule on all three providers. Review the transaction, collision, fencing and first-create schema boundaries.
 
 ## 3. Certification
 
