@@ -99,6 +99,54 @@ public sealed class DagSchedulerTests
     }
 
     [Fact]
+    public async Task FullRun_ReleasesItsMapperThreadWhileAnotherRootIsReady()
+    {
+        using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        timeout.CancelAfter(TimeSpan.FromSeconds(60));
+        var token = timeout.Token;
+        var releaseChild = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var firstMapper = new TaskCompletionSource<Thread>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var nextMapper = new TaskCompletionSource<Thread>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var child = Workflow.Durable<int>(DefinitionId.New(), DefinitionVersion.Initial)
+            .Init<int>(value => value).Then<GatedChildStep>().End(state => state.Value).Build();
+        var plan = global::OrcaCore.Dag.Dag.Define<int>(DefinitionId.New(), DefinitionVersion.Initial);
+        plan.Node(DagNodeId.Create("first"), child.Reference).MapInput(input =>
+        {
+            firstMapper.SetResult(Thread.CurrentThread);
+            return input.RunInput;
+        });
+        plan.Node(DagNodeId.Create("next"), child.Reference).MapInput(input =>
+        {
+            nextMapper.SetResult(Thread.CurrentThread);
+            return input.RunInput;
+        });
+
+        using var host = CreateHost(child, 1, configure: services => services.AddSingleton(new GatedChildStep(releaseChild.Task)));
+        await host.StartAsync(token);
+        try
+        {
+            var bridge = host.Services.GetRequiredService<DurableDagRunBridge>();
+            var run = (await CreateRunAsync(host, plan.Build(), 42, token)).RunId.Value;
+            var original = await firstMapper.Task.WaitAsync(token);
+            var snapshot = (await bridge.ReadAsync(run, token))!;
+            while (snapshot.Nodes[0].State != DagNodeStateV1.StartAuthorized)
+                snapshot = await bridge.WaitForChangeAsync(run, snapshot.StreamVersion, token);
+            Assert.Equal(DagNodeStateV1.Ready, snapshot.Nodes[1].State);
+            Assert.True(original.Join(TimeSpan.FromSeconds(15)), "the worker should exit while the first child holds capacity");
+            Assert.False(nextMapper.Task.IsCompleted);
+
+            releaseChild.SetResult();
+            Assert.Equal(DagRunStateV1.Succeeded, (await bridge.WaitForTerminalAsync(run, token)).State);
+            Assert.NotSame(original, await nextMapper.Task.WaitAsync(token));
+        }
+        finally
+        {
+            releaseChild.TrySetResult();
+            await StopHostAsync(host);
+        }
+    }
+
+    [Fact]
     public async Task ShippedHost_DiscardsHigherReceiptWhenAChildJoinMakesLowerOrdinalReady()
     {
         using var timeout = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);

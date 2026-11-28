@@ -143,13 +143,15 @@ public sealed class SqlServerProviderCertificationTests : ContinueAsNewCertifica
             certificationStore!, other, certificationStore!, afterTail);
     }
 
-    [Fact]
-    public Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake()
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public Task DagScheduler_CachedNoReadyRunRecoversRemoteJoinAfterLostWake(bool restartScheduler)
     {
         var schema = SqlServerContainerFixture.CreateSchemaName();
         return DagRunCertification.RemoteJoinAfterLostWakeAsync(
             () => new ServiceCollection().AddOrcaCoreSqlServerDurableProvider(new(container.ConnectionString, schema)),
-            TestContext.Current.CancellationToken);
+            restartScheduler, TestContext.Current.CancellationToken);
     }
 
     [Fact]

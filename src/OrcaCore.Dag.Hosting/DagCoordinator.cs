@@ -82,7 +82,11 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
                         seen.Add(run.RunId);
                         if (Definitions.Find(run.Definition) is null) continue;
                         if (lanes.TryGetValue(run.RunId, out var lane) &&
-                            Volatile.Read(ref lane.CachedVersion) == run.StreamVersion.Value && lane.CanSkipUnchanged) continue;
+                            Volatile.Read(ref lane.CachedVersion) == run.StreamVersion.Value && lane.CanSkipUnchanged)
+                        {
+                            lane.RetireIdleWorker();
+                            continue;
+                        }
                         await EnqueueDiscoveryAsync(run.RunId, token).ConfigureAwait(false);
                     }
                     if (page.Count < DiscoveryPageSize) break;
@@ -172,6 +176,7 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
         }
         if (lane.Prepared is { } prepared && ready?.Ordinal != prepared.Node.Identity.AuthoredOrdinal)
             lane.Prepared = null; // Resolution or mandatory new-lower-ordinal invalidation.
+        if (ready is null || full) lane.OfferIdleWorker();
         if (ready is null)
         {
             // A child join that makes a node ready advances the discovered stream version.
@@ -187,8 +192,7 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
         else if (!full)
         {
             var ordinal = ready.Ordinal;
-            lane.Worker ??= new EvaluationWorker(this);
-            lane.Work = lane.Worker.Submit(() => Evaluate(plan, runId, ordinal, token));
+            lane.Work = lane.StartMapping(this, () => Evaluate(plan, runId, ordinal, token));
             WakeWhenFinished(runId, lane, lane.Work);
         }
     }
@@ -284,14 +288,14 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
         // A retired worker stays associated with its run until the physical
         // mapper returns; do not replace a cancelled but still executing lane.
         lane.Retired = true;
-        lane.Worker?.Retire();
+        lane.RetireWorkers();
         lane.Prepared = null;
         if (lane.Work is not { IsCompleted: false }) lanes.TryRemove(runId, out _);
     }
 
     public void Dispose()
     {
-        foreach (var lane in lanes.Values) lane.Worker?.Retire();
+        foreach (var lane in lanes.Values) lane.RetireWorkers();
         meter.Dispose();
     }
 
@@ -300,9 +304,37 @@ internal sealed class DagCoordinator : IDurableDagReadySinkV1, IDurableDagProgre
         internal long CachedVersion;
         internal volatile bool CanSkipUnchanged;
         internal bool Retired { get; set; }
-        internal EvaluationWorker? Worker { get; set; }
+        private EvaluationWorker? worker;
+        private EvaluationWorker? idleWorker;
         internal Task<DurableDagPreparedMappingV1?>? Work { get; set; }
         internal DurableDagPreparedMappingV1? Prepared { get; set; }
+
+        internal Task<DurableDagPreparedMappingV1?> StartMapping(DagCoordinator owner, Func<DurableDagPreparedMappingV1> map)
+        {
+            worker ??= Interlocked.Exchange(ref idleWorker, null) ?? new EvaluationWorker(owner);
+            return worker.Submit(map);
+        }
+
+        internal void OfferIdleWorker()
+        {
+            // The dispatcher offers its worker only after mapping returns and the run is
+            // waiting on children. Discovery or the next mapping can claim it.
+            if (worker is null) return;
+            Volatile.Write(ref idleWorker, worker);
+            worker = null;
+        }
+
+        internal void RetireIdleWorker()
+        {
+            if (Volatile.Read(ref idleWorker) is not null)
+                Interlocked.Exchange(ref idleWorker, null)?.Retire();
+        }
+
+        internal void RetireWorkers()
+        {
+            worker?.Retire();
+            RetireIdleWorker();
+        }
     }
 
     private sealed record Wake(Guid RunId, DurableDagReadyNoticeV1? Notice)
