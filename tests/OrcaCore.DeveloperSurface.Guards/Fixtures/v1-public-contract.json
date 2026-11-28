@@ -12,9 +12,9 @@
     { "id": "OrcaCore.Provider.Abstractions", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol"] },
     { "id": "OrcaCore.Engine.Durable", "tier":"Engine", "dependencies": ["OrcaCore", "OrcaCore.Core", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
     { "id": "OrcaCore.Durable.Hosting", "tier":"DurableHosting", "dependencies": ["OrcaCore", "OrcaCore.Engine.Durable", "OrcaCore.Provider.Abstractions"] },
-    { "id": "OrcaCore.Providers.InMemory", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
-    { "id": "OrcaCore.Providers.PostgreSql", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
-    { "id": "OrcaCore.Providers.SqlServer", "tier":"ProviderAuthoring", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Providers.InMemory", "tier":"ProviderAuthoring", "supportTier":"Development", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Providers.PostgreSql", "tier":"ProviderAuthoring", "supportTier":"ProductionTarget", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
+    { "id": "OrcaCore.Providers.SqlServer", "tier":"ProviderAuthoring", "supportTier":"Experimental", "dependencies": ["OrcaCore", "OrcaCore.Runtime.Protocol", "OrcaCore.Provider.Abstractions"] },
     { "id": "OrcaCore.Dag", "tier":"Dag", "dependencies": ["OrcaCore"] },
     { "id": "OrcaCore.Dag.Hosting", "tier":"DagHosting", "dependencies": ["OrcaCore.Dag", "OrcaCore.Durable.Hosting"] }
   ],

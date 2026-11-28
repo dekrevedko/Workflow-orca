@@ -11,7 +11,7 @@ using OrcaCore.Providers.SqlServer.Internal;
 
 namespace OrcaCore.Providers.SqlServer;
 
-/// <summary>Programmatic options for the production SQL Server durable provider role.</summary>
+/// <summary>Programmatic options for the experimental SQL Server durable provider role.</summary>
 public sealed class SqlServerDurableProviderOptions
 {
     /// <summary>Creates one immutable provider profile.</summary>
@@ -30,7 +30,7 @@ public sealed class SqlServerDurableProviderOptions
     public string Schema { get; }
 }
 
-/// <summary>Registers the production SQL Server durable provider role.</summary>
+/// <summary>Registers the experimental SQL Server durable provider role.</summary>
 public static class OrcaCoreSqlServerProviderServiceCollectionExtensions
 {
     private const string ProviderRoleName = OrcaCoreDiagnostics.SqlServerProviderName;

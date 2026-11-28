@@ -2357,7 +2357,7 @@ dependency-only meta-package. The exhaustive first-release manifest is:
 | `OrcaCore.Durable.Hosting` | Durable engine/ingress roles, options, management/recovery/diagnostics, `OrcaCoreDurableEngineServiceCollectionExtensions` | `OrcaCore`, `OrcaCore.Engine.Durable`, `OrcaCore.Provider.Abstractions` | yes |
 | `OrcaCore.Providers.InMemory` | Development/test complete durable provider role | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
 | `OrcaCore.Providers.PostgreSql` | Production complete certified durable provider role and options | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
-| `OrcaCore.Providers.SqlServer` | Production complete certified durable provider role and options | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
+| `OrcaCore.Providers.SqlServer` | Experimental complete certified durable provider role and options | `OrcaCore`, `OrcaCore.Runtime.Protocol`, `OrcaCore.Provider.Abstractions` | yes |
 | `OrcaCore.Dag` | Public typed DAG authoring/operation contracts; no visualization surface | `OrcaCore` | yes |
 | `OrcaCore.Dag.Hosting` | DAG coordinator/registry/options and sole durable child friend bridge | `OrcaCore.Dag`, `OrcaCore.Durable.Hosting` | yes |
 
@@ -2542,7 +2542,7 @@ is rejected. `AddOrcaCoreEphemeralEngine` registers only process-local wait matc
 ingress contract; the durable engine/ingress role registers `IWorkflowEventIngress`.
 The in-memory durable provider is development/test-only and makes no process-restart claim.
 `AddOrcaCorePostgreSqlDurableProvider` and `AddOrcaCoreSqlServerDurableProvider` each supply one
-complete independently certified production role set. Each provider's required nonblank
+complete independently certified durable role set. PostgreSQL is the v1 production target and SQL Server is experimental. Each provider's required nonblank
 `ConnectionString` and `Schema` are copied and validated before any partial service registration.
 Applications never register individual runtime-protocol ports.
 `AddOrcaCoreDag` requires the durable-engine role and adds only the DAG coordinator/registry. There

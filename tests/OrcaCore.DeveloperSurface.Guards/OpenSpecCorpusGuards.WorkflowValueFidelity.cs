@@ -143,6 +143,7 @@ public sealed partial class OpenSpecCorpusGuards
     {
         if (path is "README.md" or "docs/production-readiness.md")
         {
+            current = BeforeSqlSupport(root, path, current);
             // Validate the reviewed status refresh before checking its parent against earlier approvals.
             const string statusRefresh = "80495420c75e762f2841c450e55f4b2eac73c9f1";
             const string beforeQualification = "80a6a922450a328d3d065fdc400474d7eae9cf94";

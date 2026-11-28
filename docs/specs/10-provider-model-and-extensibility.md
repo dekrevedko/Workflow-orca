@@ -230,7 +230,7 @@ Hosting SHALL expose exactly these reviewed entry points:
 - callback-only `AddOrcaCoreDurableEventIngress()`;
 - development/test-only `AddOrcaCoreInMemoryDurableProvider()`;
 - production `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`;
-- production `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`; and
+- experimental `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`; and
 - `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)`.
 
 Registration is idempotent only for the same role/options; conflicting duplicates fail startup.
@@ -247,7 +247,7 @@ registers its implementation, and the durable engine consumes it when an authore
 `Publish`. Callback-only ingress persists events and hands off continuations but registers no
 definition registry, worker, timer/reconciler, dispatcher implementation, or DAG coordinator. The
 in-memory durable provider makes no restart claim; PostgreSQL and SQL Server each supply one
-complete certified production role. There is no catch-all registration, second hosted-service toggle,
+complete certified durable role. PostgreSQL is the v1 production storage target. SQL Server is experimental and has no qualified scale envelope. There is no catch-all registration, second hosted-service toggle,
 implicit mode selection, serializer hook, binder facade, or application registration of individual
 provider runtime-protocol ports.
 

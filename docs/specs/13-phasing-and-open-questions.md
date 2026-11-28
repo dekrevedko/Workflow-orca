@@ -133,7 +133,7 @@ semantics. Any such change requires an explicit document-17/OpenSpec amendment f
   cancellation request, and termination; events use instance/correlation routes. Bulk fluent
   management, pause/resume, failed-instance retry, history query, archive, and purge are deferred.
 - **Role-based hosting.** Ephemeral engine, durable engine, callback-only durable ingress,
-  dev/test in-memory durable provider, PostgreSQL production provider, SQL Server production
+  dev/test in-memory durable provider, PostgreSQL production provider, experimental SQL Server
   provider, and DAG hosting have distinct entry points/options; there is no catch-all mode selector
   or serializer hook.
 - **Integration direction is outward.** Kubernetes, AWS, jobs, watchers, reconcilers, and their
@@ -199,7 +199,7 @@ assemblies after the refactor.
 Broker-SDK-specific OrcaCore packages and the old Redis projection-only adapter are also removed,
 not deferred v1 placeholders. Applications or outward companion projects adapt
 `IWorkflowEventDispatcher` to RabbitMQ, ZeroMQ, or another transport. PostgreSQL and SQL Server are
-the two v1 production durable storage providers. Any later storage provider re-enters only through
+the two v1 relational storage providers, with PostgreSQL the production target and SQL Server experimental. Any later storage provider re-enters only through
 the registry row above and must implement the complete provider contract rather than revive one of
 the provisional project shapes.
 

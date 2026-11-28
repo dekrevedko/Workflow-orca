@@ -18,7 +18,7 @@ src/
   providers/
     OrcaCore.Providers.InMemory ← complete development/test durable provider role
     OrcaCore.Providers.PostgreSql ← complete certified production durable provider role
-    OrcaCore.Providers.SqlServer ← complete certified production durable provider role
+    OrcaCore.Providers.SqlServer ← complete certified experimental durable provider role
   OrcaCore.Dag                  ← optional public typed DAG authoring/validation only
   OrcaCore.Dag.Hosting          ← only DAG-to-durable bridge; consumes the named versioned
                                   internal child start/join seam from Durable.Hosting
@@ -48,7 +48,7 @@ Public ownership is exact: `OrcaCore.Engine.Ephemeral` owns the ephemeral extens
 `OrcaCore.Durable.Hosting` owns the durable engine/ingress extension class, durable host options,
 and advanced durable management/recovery facade; `OrcaCore.Providers.InMemory` owns its
 development/test provider extension; `OrcaCore.Providers.PostgreSql` owns its production provider
-extension/options; `OrcaCore.Providers.SqlServer` owns its production provider extension/options;
+extension/options; `OrcaCore.Providers.SqlServer` owns its experimental provider extension/options;
 `OrcaCore.Dag` owns typed DAG authoring/validation; and
 `OrcaCore.Dag.Hosting` owns DAG options, registration, coordination, and the sole durable friend
 bridge. `OrcaCore.Core` and `OrcaCore.Engine.Durable` own implementation internals;
@@ -101,7 +101,7 @@ friend is compiled in the independently approved Task 8.2 checkpoint
   `OrcaCore.Provider.Abstractions`; an
   application composition root may reference explicit provider-registration packages and wire
   them through DI. This is the "program to interfaces" rule made structural.
-- Provider roles are **explicitly registered** by their owning package. The production calls are
+- Provider roles are **explicitly registered** by their owning package. The relational provider calls are
   exactly
   `OrcaCore.Providers.PostgreSql.OrcaCorePostgreSqlProviderServiceCollectionExtensions.AddOrcaCorePostgreSqlDurableProvider(IServiceCollection, PostgreSqlDurableProviderOptions)` and
   `OrcaCore.Providers.SqlServer.OrcaCoreSqlServerProviderServiceCollectionExtensions.AddOrcaCoreSqlServerDurableProvider(IServiceCollection, SqlServerDurableProviderOptions)`.
@@ -155,7 +155,7 @@ compilation.
   `AddOrcaCoreEphemeralEngine(EphemeralEngineHostOptions)` or
   `AddOrcaCoreDurableEngine(DurableEngineHostOptions)`; callback-only hosts call
   `AddOrcaCoreDurableEventIngress()`. Development/tests may add
-  `AddOrcaCoreInMemoryDurableProvider()`, production durable hosts add
+  `AddOrcaCoreInMemoryDurableProvider()`, durable hosts select a relational provider with
   either `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)` or
   `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`, and DAG hosts add
   `OrcaCore.Dag.Hosting.AddOrcaCoreDag(DagHostOptions)` on top of the durable-engine role.

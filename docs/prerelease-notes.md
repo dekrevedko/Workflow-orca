@@ -6,6 +6,10 @@ and the in-memory provider. It reopens a run, verifies that a dependent node ret
 progression and SQL certification remain with the DAG track.
 [Consumer](../tests/OrcaCore.DeveloperSurface.Guards/PackageFixtures/DagHosting/Program.cs) · [Package check](../eng/Test-Packages.ps1)
 
+## Unreleased — SQL Server support
+
+PostgreSQL is the v1 production storage target. The SQL Server package stays available as an experimental provider with real-database correctness certification and no qualified scale envelope. Its ordinary workflow and governance stores use shared documents. DAG storage uses separate relational tables.
+
 ## Unreleased — durable resource governance
 
 Custom durable providers must implement `IDurableResourceGovernanceStore.LoadLatestAsync`.

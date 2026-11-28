@@ -116,13 +116,12 @@ reported as successfully archived.
 - **THEN** no `Archive`, `Purge`, retention-policy, or provider-cleanup member appears on ordinary workflow definitions, references, handles, or snapshots
 
 ### Requirement: First-release provider ownership and schemas are exact
-The first release SHALL ship exactly the InMemory development provider plus PostgreSQL and SQL Server
-production providers named by the package manifest. Provisional RabbitMQ, Redis, shared Relational,
+The first release SHALL ship exactly the InMemory development provider, the PostgreSQL production target and the experimental SQL Server provider named by the package manifest. Provisional RabbitMQ, Redis, shared Relational,
 and ZeroMQ provider projects, inactive tests, SDK dependencies, packages, and orphan source roots
 SHALL be absent. Broker-specific mapping SHALL remain application/companion-owned through
 `IWorkflowEventDispatcher`. PostgreSQL and SQL Server SHALL each implement the complete current split
 provider ports, including operational and maintenance ownership, without depending on one another or
-reviving the deleted provisional SQL Server shape. Each production provider's first-create schema
+reviving the deleted provisional SQL Server shape. Each shipped relational provider's first-create schema
 SHALL contain its complete current table/index/sequence shape, its migration journal SHALL bind an
 applied id to a canonical content digest, and its migrations SHALL contain no compatibility
 `ALTER TABLE` upgrade DDL or renamed equivalent.
@@ -132,6 +131,12 @@ InMemory, PostgreSQL and SQL Server SHALL implement identical typed DAG stream/r
 The complete first-create schema SHALL additionally contain dag_run_lease_requests with stable FIFO sequence, exact boot-owner/request/purpose, live-waiter expiry, absolute grant deadline, consumed receipt retention and one live request per owner/run. All providers SHALL enforce no same-owner bypass and no renewal beyond the absolute deadline. Real-storage DG-P14/DG-P15 SHALL prove remote child joins/cancellation progress behind a continuously renewing owner, with cancellation triggered by another DAG-role host and child cancellation consumed on a role-free host; DG-P16/DG-P17/DG-P18 SHALL prove release-before-idle, orphan-observer cleanup and compact-event/checkpoint parity.
 
 The runtime SHALL evaluate mapping outside turn ownership, retain prepared immutable results and use short fenced recheck-and-append only. Provider transaction time SHALL use the explicit production DB-clock/internal certification-clock seam. Same-host requests SHALL use local arrival FIFO, with OwnerBusy for a second distinct live provider request. Real-storage DG-P19–24 SHALL certify slow valid mapper admission, distinct isolated run evaluation bounds, zero look-ahead and authored-order admission, exact pressure, local/provider arbitration, cross-run slow/stuck isolation and acknowledged/lost/poisoned ready-hint recovery. MaxConcurrentNodes SHALL NOT become a host-global mapper bound.
+
+SQL Server SHALL continue to implement and certify the full durable role on real storage. Its ordinary workflow and governance paths read shared state documents and serialize mutations within the corresponding schema and state key. DAG streams use separate relational tables. SQL Server has no qualified operating envelope. Promotion SHALL require a separately reviewed storage change and qualification of independent-stream contention, recovery I/O as history grows, and tail latency under a declared workload.
+
+#### Scenario: An application selects a v1 durable store
+- **WHEN** an application needs durable execution covered by the v1 production storage target
+- **THEN** the package guidance identifies PostgreSQL and discloses the experimental tier and document-storage limits of SQL Server
 
 #### Scenario: Repository provider set is inspected
 - **WHEN** project, package, source-root, SDK-version, migration, and future-registry guards run
@@ -157,7 +162,7 @@ stuck-state using a runtime-owned observation time and positive inactivity thres
 a side-effect-free statistics snapshot; providers SHALL mark stale pending, running, or
 cancellation-requested instances as stuck without classifying an ordinary external wait solely by
 age. Durable projections SHALL persist only stuck fields produced by the durable runtime and SHALL
-NOT retain unowned step-level stuck fields. Each relational production provider's periodic pressure
+NOT retain unowned step-level stuck fields. Each shipped relational provider's periodic pressure
 collection SHALL derive event growth and checkpoint lag from a transactionally maintained
 stream-head/checkpoint join that includes stream-only artifacts, and SHALL NOT aggregate the
 append-only event relation on every host sweep.
@@ -179,9 +184,9 @@ append-only event relation on every host sweep.
 - **THEN** provider pressure includes its stream growth and checkpoint lag through the maintained stream head
 
 ### Requirement: Provider implementations certify messaging ownership parity
-The in-memory development provider and every shipped durable production provider SHALL implement
+The in-memory development provider and both shipped relational providers SHALL implement
 the same logical route inbox, target inbox, fanout snapshot, pending start-intent, continuation,
-external outbox, poison, and retention ownership contracts. Production-provider certification
+external outbox, poison, and retention ownership contracts. Certification of each shipped relational provider
 SHALL exercise restart and competing-host boundaries against real storage; in-memory-only success
 SHALL NOT establish durable support.
 

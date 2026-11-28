@@ -132,12 +132,12 @@ program and exercised indirectly by many criteria here, without a dedicated AC e
 - **AC-026** *Hosting roles are explicit* - Compile/startup fixtures expose only
   `AddOrcaCoreEphemeralEngine`, `AddOrcaCoreDurableEngine`, callback-only
   `AddOrcaCoreDurableEventIngress`, dev/test `AddOrcaCoreInMemoryDurableProvider`, production
-  `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, production
+  `AddOrcaCorePostgreSqlDurableProvider(PostgreSqlDurableProviderOptions)`, experimental
   `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`, and
   `OrcaCore.Dag.Hosting.AddOrcaCoreDag`. Durable-engine/callback roles own
   `IWorkflowEventIngress`; the durable hosting assembly owns the `IWorkflowEventDispatcher` port,
   the application registers its implementation, and the durable engine consumes it for authored
-  `Publish`. Each production provider supplies one complete certified role. Conflicting roles,
+  `Publish`. PostgreSQL and experimental SQL Server each supply one complete certified role. Conflicting roles,
   incomplete providers, DAG without durable engine, catch-all registration, individual port
   registration, and serializer replacement fail or are absent. [PR-040]
 

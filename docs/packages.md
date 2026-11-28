@@ -14,6 +14,8 @@ Preview.3 includes issue #13's bounded ephemeral native support. The
 release assets, source commit, registry checks and six native cells. The original
 preview.2 assessment remains historical; it does not gain support retroactively.
 
+The next release retains both relational packages. PostgreSQL is the v1 production storage target. SQL Server is experimental and has no qualified scale envelope. Both run the real-storage correctness suites.
+
 ## Install in another project
 
 Install the engine role you need directly from NuGet.org:

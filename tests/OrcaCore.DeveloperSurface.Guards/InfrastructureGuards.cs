@@ -85,7 +85,7 @@ public sealed class InfrastructureGuards
             "docs",
             "implementation",
             "00-stack-decisions.md"));
-        stackDecisions.Should().Contain("**PostgreSQL** (`Npgsql`) and **SQL Server** (`Microsoft.Data.SqlClient`)");
+        stackDecisions.Should().Contain("**PostgreSQL** (production target, `Npgsql`) and **experimental SQL Server** (`Microsoft.Data.SqlClient`)");
         stackDecisions.Should().Contain("AddOrcaCoreSqlServerDurableProvider");
 
         var solutionArchitecture = File.ReadAllText(Path.Combine(
@@ -136,7 +136,7 @@ public sealed class InfrastructureGuards
         var docsGuide = File.ReadAllText(Path.Combine(root, "docs", "README.md"));
         docsGuide.Should().Contain("OrcaCore.Providers.SqlServer`");
         var technicalOverview = File.ReadAllText(Path.Combine(root, "docs", "project-technical-overview.md"));
-        technicalOverview.Should().Contain("third first-release provider");
+        technicalOverview.Should().Contain("experimental first-release provider");
         EnumerateNonBuildFiles(Path.Combine(root, "src", "OrcaCore.Providers.SqlServer"))
             .Should().NotBeEmpty("the approved SQL Server provider must own current production source");
         EnumerateNonBuildFiles(Path.Combine(root, "tests", "OrcaCore.Providers.SqlServer.Tests"))
