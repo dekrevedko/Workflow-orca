@@ -55,7 +55,7 @@
     {
       "id": "OrcaCore.Providers.SqlServer",
       "project": "src/OrcaCore.Providers.SqlServer/OrcaCore.Providers.SqlServer.csproj",
-      "sourceSha256": "692542851fd09d56476be738a7254a6e24e7576bd9f6e2f21755eeacdd5d91f7"
+      "sourceSha256": "bfdb16cdf35771e8e01cb8338f1548d7bc94d176b8850b5641f0999c38ac3162"
     },
     {
       "id": "OrcaCore.Runtime.Protocol",

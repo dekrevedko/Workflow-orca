@@ -65,7 +65,7 @@ their internal compiler/execution kernel and exports no application API:
 | Engine | Project | Persistence | Use case |
 |--------|---------|-------------|----------|
 | Ephemeral | `OrcaCore.Engine.Ephemeral` | In-memory only; lost on restart | Development, testing, short-lived coordination |
-| Durable | `OrcaCore.Engine.Durable` | Pluggable split provider ports (PostgreSQL and SQL Server in v1) | Production, long-running, crash-tolerant |
+| Durable | `OrcaCore.Engine.Durable` | Pluggable split provider ports (production-target PostgreSQL and experimental SQL Server in v1) | Production, long-running, crash-tolerant |
 
 ### Project structure (`src/`)
 
@@ -85,7 +85,7 @@ OrcaCore.Engine.Durable    — durable aggregates, outbox, checkpoint/replay, ro
 OrcaCore.Durable.Hosting   — owns AddOrcaCoreDurableEngine, AddOrcaCoreDurableEventIngress
 OrcaCore.Providers.InMemory     — dev/test provider; owns AddOrcaCoreInMemoryDurableProvider
 OrcaCore.Providers.PostgreSql   — production provider; owns AddOrcaCorePostgreSqlDurableProvider
-OrcaCore.Providers.SqlServer    — production provider; owns AddOrcaCoreSqlServerDurableProvider
+OrcaCore.Providers.SqlServer    — experimental provider; owns AddOrcaCoreSqlServerDurableProvider
 OrcaCore.Dag               — typed DAG planning/operation contracts
 OrcaCore.Dag.Hosting       — sole DAG-to-durable bridge; owns AddOrcaCoreDag
 ```

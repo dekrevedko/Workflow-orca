@@ -29,7 +29,7 @@ compiler/execution kernel in `OrcaCore.Core`:
    a workflow segment until it completes or yields a restart-safe continuation.
 
 PostgreSQL, SQL Server, and the development/test in-memory provider implement the current
-durable-provider source roles. SQL Server is the third first-release provider and implements the
+durable-provider source roles. SQL Server is the experimental first-release provider and implements the
 complete current split ports with SQL Server-native migration and real-storage certification; the
 deleted provisional SQL Server shape was replaced rather than restored. Broker, Redis, and shared Relational
 source/test roots remain removed, and durable storage providers beyond PostgreSQL and SQL Server
@@ -95,7 +95,7 @@ Microsoft hosting uses role-specific owners and entry points: `OrcaCore.Engine.E
 `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
 callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
 `AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
-`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns experimental
 `AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
 are programmatically constructed, copied, and validated without a binder facade. There is no v1
 catch-all registration or separate hosted-service switch. Workflow-authored `Publish` commits
@@ -132,7 +132,7 @@ are independently approved in issue #2 and included in `0.1.0-preview.2`.
 | Durable engine | `src/OrcaCore.Engine.Durable/` | Internal aggregate decisions, replay, checkpoint interpretation, command handling, outbox materialization, and continuation signals. |
 | Durable hosting | `src/OrcaCore.Durable.Hosting/` | Public durable engine/ingress registration, management and diagnostics facades, plus internal hosted pumps and operational sweeps. |
 | Provider contract and protocol | `src/OrcaCore.Provider.Abstractions/`, `src/OrcaCore.Runtime.Protocol/` | Advanced split provider ports/commit records and advanced durable wire/storage records; neither is an ordinary application surface. |
-| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/`, `src/OrcaCore.Providers.SqlServer/` | Development/test in-memory registration plus complete independently certified PostgreSQL and SQL Server production role sets. |
+| V1 providers | `src/OrcaCore.Providers.InMemory/`, `src/OrcaCore.Providers.PostgreSql/`, `src/OrcaCore.Providers.SqlServer/` | Development/test in-memory registration plus complete independently certified production-target PostgreSQL and experimental SQL Server role sets. |
 | DAG boundary | `src/OrcaCore.Dag/`, `src/OrcaCore.Dag.Hosting/` | Reserved v1 DAG packages; Section 8 implementation remains gated. |
 | Tests | `tests/` | Unit, acceptance, hosting, provider certification, integration, and support fixtures. |
 | Samples | `samples/` | Public-API console examples, generic host, and Blazor operations dashboard. |

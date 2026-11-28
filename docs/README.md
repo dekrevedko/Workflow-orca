@@ -50,7 +50,7 @@ The solution file is [`OrcaCore.slnx`](../OrcaCore.slnx). The main projects are:
 | [`OrcaCore.Durable.Hosting`](../src/OrcaCore.Durable.Hosting) | Owns `AddOrcaCoreDurableEngine` and callback-only `AddOrcaCoreDurableEventIngress`. |
 | [`OrcaCore.Providers.InMemory`](../src/OrcaCore.Providers.InMemory) | Development/test provider; owns `AddOrcaCoreInMemoryDurableProvider`. |
 | [`OrcaCore.Providers.PostgreSql`](../src/OrcaCore.Providers.PostgreSql) | Production provider; owns `AddOrcaCorePostgreSqlDurableProvider`. |
-| [`OrcaCore.Providers.SqlServer`](../src/OrcaCore.Providers.SqlServer) | Production provider; owns `AddOrcaCoreSqlServerDurableProvider` and its SQL Server-native migration journal. |
+| [`OrcaCore.Providers.SqlServer`](../src/OrcaCore.Providers.SqlServer) | Experimental provider; owns `AddOrcaCoreSqlServerDurableProvider` and its SQL Server-native migration journal. |
 | [`OrcaCore.Dag`](../src/OrcaCore.Dag) | Typed DAG planning and operation contracts. |
 | [`OrcaCore.Dag.Hosting`](../src/OrcaCore.Dag.Hosting) | Sole DAG-to-durable bridge; owns `AddOrcaCoreDag`. |
 | *removed / future* | The catch-all hosting, RabbitMQ, Redis, shared Relational, and ZeroMQ project roots are absent. The deleted provisional SQL Server shape was replaced by a complete current-port provider rather than restored. Broker adapters are application/companion-owned, and durable storage providers beyond PostgreSQL and SQL Server require a future amendment. |
@@ -82,7 +82,7 @@ Microsoft hosting is role-specific: `OrcaCore.Engine.Ephemeral` owns
 `AddOrcaCoreEphemeralEngine`; `OrcaCore.Durable.Hosting` owns `AddOrcaCoreDurableEngine` and
 callback-only `AddOrcaCoreDurableEventIngress`; `OrcaCore.Providers.InMemory` owns development/test
 `AddOrcaCoreInMemoryDurableProvider`; `OrcaCore.Providers.PostgreSql` owns production
-`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns production
+`AddOrcaCorePostgreSqlDurableProvider`; `OrcaCore.Providers.SqlServer` owns experimental
 `AddOrcaCoreSqlServerDurableProvider`; and `OrcaCore.Dag.Hosting` owns `AddOrcaCoreDag`. Options
 are constructed programmatically, copied, and validated at registration; no binder facade is part
 of v1. There is no catch-all `AddOrcaCore` or separate hosted-service toggle.

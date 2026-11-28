@@ -35,9 +35,11 @@ public sealed class SqlServerProviderContractGuards
             "repository-foundation",
             "spec.md"));
 
-        developerSurface.Should().Contain("production `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`");
+        developerSurface.Should().Contain("experimental `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`");
         developerSurface.Should().Contain("`OrcaCore.Providers.SqlServer`");
-        durablePersistence.Should().Contain("only the three approved v1 providers remain");
+        durablePersistence.Should().Contain("only the three approved v1 providers remain")
+            .And.Contain("SQL Server has no qualified operating envelope");
+        quality.Should().Contain("Both shipped relational providers SHALL pass the complete shared provider-certification suite");
         quality.Should().Contain("Each of the exact 12 packaged assemblies SHALL");
         quality.Should().NotContain("Each of the exact 11 packaged assemblies SHALL");
         repository.Should().Contain("`Microsoft.Data.SqlClient` SHALL remain in `OrcaCore.Providers.SqlServer`");
@@ -69,6 +71,17 @@ public sealed class SqlServerProviderContractGuards
 
         contract.Should().Contain("\"id\": \"OrcaCore.Providers.SqlServer\"");
         contract.Should().Contain("\"assembly\":\"OrcaCore.Providers.SqlServer\"");
+        using var manifest = System.Text.Json.JsonDocument.Parse(contract);
+        var tiers = manifest.RootElement.GetProperty("packages").EnumerateArray()
+            .Where(package => package.TryGetProperty("supportTier", out _))
+            .ToDictionary(package => package.GetProperty("id").GetString()!,
+                package => package.GetProperty("supportTier").GetString());
+        tiers.Should().BeEquivalentTo(new Dictionary<string, string>
+        {
+            ["OrcaCore.Providers.InMemory"] = "Development",
+            ["OrcaCore.Providers.PostgreSql"] = "ProductionTarget",
+            ["OrcaCore.Providers.SqlServer"] = "Experimental"
+        });
         PublicSurfaceCatalog.TargetAssemblies.Select(assembly => assembly.Name)
             .Should().Contain("OrcaCore.Providers.SqlServer");
     }

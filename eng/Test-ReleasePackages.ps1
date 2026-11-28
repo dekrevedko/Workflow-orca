@@ -41,6 +41,10 @@ foreach ($package in $packages) {
         $reader = [IO.StreamReader]::new($entries[0].Open())
         try { [xml]$nuspec = $reader.ReadToEnd() } finally { $reader.Dispose() }
         $metadata = $nuspec.package.metadata
+        $entry = $contract.packages | Where-Object id -CEQ $metadata.id
+        if ($entry.supportTier -ceq 'Experimental' -and $metadata.description -notmatch '\bexperimental\b') {
+            throw "The experimental support tier is missing from the package description for $($metadata.id)."
+        }
         if ($metadata.version -cne $Version) { throw "Unexpected version in $($package.Name)." }
         if ($metadata.repository.commit -cne $SourceCommit) { throw "Unexpected source commit in $($package.Name)." }
         if ($metadata.repository.url -cne 'https://github.com/dekrevedko/Workflow-orca') {

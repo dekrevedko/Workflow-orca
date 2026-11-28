@@ -7,6 +7,7 @@ Durable mode changes **guarantees**, not business semantics.
 ## 6.1 Mode contract
 
 ### DU-001 Durability is explicit
+The v1 provider support tiers are defined in PR-040. Both relational stores SHALL retain the durable correctness obligations below.
 Durable mode SHALL be active only when a persistence provider is configured. Ephemeral mode
 SHALL be an explicit, honest mode: instances are lost on process exit; durable rehydration,
 durable waits/timers, durable history, and post-restart inspection are unavailable and

@@ -14,7 +14,7 @@ namespace OrcaCore.DeveloperSurface.Guards;
 public sealed class DagStreamIdentitySliceGuards
 {
     private const string FingerprintAmendmentRegistrySha256 = "88af7f6095c69698eea6a1162c8557df21fb3ef8898e29a230e45ec14d15d8ac";
-    private const string CanonicalContentRecordSha256 = "0549416a948032a3b03021737dfffa1ec3ae1adcbfed6d0ad2636b93408c9831";
+    private const string CanonicalContentRecordSha256 = "6ff822b228d1881d84c66a295f330e220a3a2fc4592b11687a2200f912e1344f";
     private const string BeforeFifoResizeRecordSha256 = "08287a8f89ccac61836c134f52496c7f819785c9ff6db2bb4fb4c3053a1c2f69";
     private const string RecoveryOnlyRecordSha256 = "a966d44cf259a0a42a65897e641a1cff5ef0ba62de26d7da9841c066e5aaf681";
     private const string ScopedGrantOnlyRecordSha256 = "da20aac016a38f50b49a0351014c8f3586e3758f46f097a70723cf267435ee87";
@@ -56,12 +56,13 @@ public sealed class DagStreamIdentitySliceGuards
 
         const string pilotPath = "openspec/specs/wait-ownership-model-verification/spec.md";
         var beforePilot = actual.Where(row => row.Path != pilotPath).ToArray();
-        const string persistence = "openspec/specs/durable-persistence-and-outbox/spec.md";
-        var persistenceIndex = Array.FindIndex(beforePilot, row => row.Path == persistence);
-        var currentPersistence = Normalize(File.ReadAllText(Path.Combine(root, persistence)));
-        beforePilot[persistenceIndex] = Content(persistence,
-            OpenSpecCorpusGuards.BeforeAddressedWake(root, persistence, currentPersistence));
-        Hash(ContentRecord(beforePilot)).Should().Be("d044dffd8b055221650774485085fa1e9198ed5785e80e0ab32f595e7fda26db");
+        var beforeSqlSupport = beforePilot.Select(row =>
+        {
+            var live = Normalize(File.ReadAllText(Path.Combine(root, row.Path)));
+            var beforeWake = OpenSpecCorpusGuards.BeforeAddressedWake(root, row.Path, live);
+            return Content(row.Path, OpenSpecCorpusGuards.BeforeSqlSupport(root, row.Path, beforeWake));
+        }).ToArray();
+        Hash(ContentRecord(beforeSqlSupport)).Should().Be("d044dffd8b055221650774485085fa1e9198ed5785e80e0ab32f595e7fda26db");
         const string deltaPath = "openspec/changes/archive/2026-11-23-verify-ephemeral-wait-ownership-with-tla/specs/wait-ownership-model-verification/spec.md";
         var archived = Normalize(File.ReadAllText(Path.Combine(root, deltaPath)));
         Hash(archived).Should().Be("6e7fc12cff3640cc2d958978d317e503ae0b9613bdf788767bfc9f9cfba93ee2", "the six archived requirements retain the reviewed delta");
@@ -89,10 +90,10 @@ public sealed class DagStreamIdentitySliceGuards
         const string grantPath = "openspec/specs/durable-runtime/spec.md";
         var grantIndex = Array.FindIndex(beforePilot, row => row.Path == grantPath);
         var liveGrant = Normalize(File.ReadAllText(Path.Combine(root, grantPath)));
-        var beforeResize = beforePilot.ToArray();
+        var beforeResize = beforeSqlSupport.ToArray();
         beforeResize[grantIndex] = Content(grantPath, OpenSpecCorpusGuards.BeforeFifoResizeSynchronization(root, liveGrant));
         Hash(ContentRecord(beforeResize)).Should().Be(BeforeFifoResizeRecordSha256);
-        var recoveryOnly = beforePilot.ToArray();
+        var recoveryOnly = beforeSqlSupport.ToArray();
         recoveryOnly[grantIndex] = Content(grantPath, OpenSpecCorpusGuards.BeforeScopedGrantAdmission(root, grantPath, liveGrant));
         Hash(ContentRecord(recoveryOnly)).Should().Be(RecoveryOnlyRecordSha256);
         var grantOnly = beforeRecovery.ToArray();

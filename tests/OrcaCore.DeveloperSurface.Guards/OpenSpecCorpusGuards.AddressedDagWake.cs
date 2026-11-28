@@ -10,6 +10,7 @@ public sealed partial class OpenSpecCorpusGuards
     private const string AddressedWakeImplementation = "bc4ab313a124874481312d2b738a796f36ceca6c";
     private const string AddressedWakeCanonical = "openspec/specs/durable-persistence-and-outbox/spec.md";
     private const string AddressedWakeNumbered = "docs/specs/10-provider-model-and-extensibility.md";
+    private const string PrereleaseNotes = "docs/prerelease-notes.md";
     private const string AddressedWakeRoot = "openspec/changes/" + AddressedWakeChange + "/";
 
     private static void ValidateAddressedWakeApproval(string root)
@@ -25,8 +26,12 @@ public sealed partial class OpenSpecCorpusGuards
         Sha256(evidence).Should().Be("f0907a72346661ba07be6b7d7b34206ab5bef6cc465d99857a2079469614cba6");
         foreach (var task in new[] { "1.1", "2.1", "3.1", "3.2" })
             ValidateTaskReference(root, new(AddressedWakeChange, task, CompleteTaskState));
-        foreach (var path in new[] { AddressedWakeCanonical, AddressedWakeNumbered })
-            BeforeAddressedWake(root, path, NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path))));
+        foreach (var path in new[] { AddressedWakeCanonical, AddressedWakeNumbered, PrereleaseNotes })
+        {
+            var current = NormalizeLineEndings(File.ReadAllText(Path.Combine(root, path)));
+            var beforeWake = BeforeAddressedWake(root, path, current);
+            BeforeSqlSupport(root, path, beforeWake).Should().Be(DagFacadeApprovedHistory.TextAt(root, AddressedWakeProposal, path));
+        }
     }
 
     private static void ProjectAddressedWakeRegistry(JsonObject registry)
@@ -39,23 +44,32 @@ public sealed partial class OpenSpecCorpusGuards
 
     internal static string BeforeAddressedWake(string root, string path, string current)
     {
-        if (path is not (AddressedWakeCanonical or AddressedWakeNumbered)) return current;
-        var previous = DagFacadeApprovedHistory.TextAt(root, AddressedWakeProposal, path);
-        if (path == AddressedWakeNumbered)
-        {
-            current.Should().StartWith(previous);
-            Sha256(current[previous.Length..]).Should().Be("96bf75b4bb9d649b240b057a4abe4054a6b98f2b14fb12a358bb45fbddcb249a",
-                "only the approved PR-012a suffix may follow the historical provider document");
-        }
-        else
+        if (path is not (AddressedWakeCanonical or AddressedWakeNumbered or PrereleaseNotes)) return current;
+        if (path == AddressedWakeCanonical)
         {
             const string header = "## ADDED Requirements\n\n";
             var delta = DagFacadeApprovedHistory.TextAt(root, AddressedWakeProposal,
                 AddressedWakeRoot + "specs/durable-persistence-and-outbox/spec.md");
             delta.Should().StartWith(header);
-            current.Should().Be(previous + "\n" + delta[header.Length..],
-                "the addressed-wake requirement must be synchronized verbatim");
+            var suffix = "\n" + delta[header.Length..];
+            current.Should().EndWith(suffix, "the addressed-wake requirement must be synchronized verbatim");
+            return current[..^suffix.Length];
         }
-        return previous;
+
+        var previous = DagFacadeApprovedHistory.TextAt(root, AddressedWakeProposal, path);
+        var approved = DagFacadeApprovedHistory.TextAt(root, AddressedWakeImplementation, path);
+        if (path == PrereleaseNotes)
+        {
+            approved.Should().EndWith(previous);
+            var prefix = approved[..^previous.Length];
+            current.Should().StartWith(prefix);
+            return current[prefix.Length..];
+        }
+
+        approved.Should().StartWith(previous);
+        var numberedSuffix = approved[previous.Length..];
+        Sha256(numberedSuffix).Should().Be("96bf75b4bb9d649b240b057a4abe4054a6b98f2b14fb12a358bb45fbddcb249a");
+        current.Should().EndWith(numberedSuffix, "only the approved PR-012a suffix may be projected");
+        return current[..^numberedSuffix.Length];
     }
 }

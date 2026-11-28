@@ -78,6 +78,7 @@ or replace orchestration semantics.
 ## 11.4 Performance and scalability posture
 
 ### NF-030 Performance philosophy
+Promotion of experimental SQL Server SHALL require a separately reviewed storage change and measurements of independent-stream contention, governance recovery I/O as history grows, and tail latency under a declared workload.
 Semantic correctness precedes optimization; but designs SHALL avoid known scalability traps:
 unbounded history loading (checkpoints, DU-010), fanout without batching/pagination paths,
 per-query business-payload deserialization (projections), and hot-path payload predicate

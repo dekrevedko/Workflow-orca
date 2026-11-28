@@ -1,0 +1,9 @@
+# Provider support qualification
+
+The reviewed proposal is `764cee80`. Ten requirement blocks across four capabilities now match their approved deltas. The provider-role matrix, installation guidance, and SQL Server registration summaries use the same tier. Package IDs, dependency edges, signatures and database code are preserved.
+
+A Release build with .NET SDK 10.0.403 and warnings as errors passed. Strict OpenSpec validation passed 35 items. The canonical ownership check reported 253 rows, 44 superseded operations and zero pending canonical operations. See the [synchronized provenance](sync-openspec-provenance-2026-11-27.md).
+
+The exact local feed and the prerelease pack script each produced twelve packages. Both SQL Server archives carried the experimental description, including the shared-document cost and lack of a qualified scale envelope. The release-package check validated the manifest, checksums, repository identity and support label. Removing the label from a disposable archive and updating its checksum caused the check to reject the package. The external consumer restored all twelve candidate packages into a fresh cache, ran a typed workflow and observed the expected DAG output and child cancellation. The local prerelease was built from the reviewed proposal plus the pending integration edits; no package was published.
+
+To repeat on a clean checkout, build `OrcaCore.slnx` in Release with warnings as errors, run `pack-exact-package-feed.ps1` with `-OutputDirectory artifacts/phase0-packages -NoBuild`, and run the Infrastructure disposition. Pack a local prerelease with `eng/Pack-Packages.ps1`, verify it with `eng/Test-ReleasePackages.ps1` using the checkout's commit, and run `eng/Test-Packages.ps1` against that feed. Runtime qualification continues to use the existing PostgreSQL and SQL Server lanes. This change establishes a support designation and adds no new storage-performance qualification.

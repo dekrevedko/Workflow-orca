@@ -2,6 +2,7 @@
   <PropertyGroup>
     <AssemblyName>OrcaCore.Providers.SqlServer</AssemblyName>
     <PackageId>OrcaCore.Providers.SqlServer</PackageId>
+    <PackageDescription>Experimental SQL Server durable provider for OrcaCore. Certified for real-database correctness. Workflow and governance storage use shared documents. No scale envelope is qualified.</PackageDescription>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.Data.SqlClient" />

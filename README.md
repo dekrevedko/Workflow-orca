@@ -12,7 +12,7 @@
 
 Build workflow logic in C#, keep execution inside your application, and choose the lifetime
 your workload needs: **ephemeral** for process-local coordination, or **durable** with
-PostgreSQL or SQL Server for persisted execution and recovery.
+PostgreSQL for the v1 production storage target or experimental SQL Server for persisted execution and recovery.
 
 > **Available on NuGet.org:** [v0.1.0-preview.3](https://www.nuget.org/packages/OrcaCore.Engine.Ephemeral/0.1.0-preview.3)
 > ships twelve installable packages. This is a pre-production preview; see [current status](#current-status)

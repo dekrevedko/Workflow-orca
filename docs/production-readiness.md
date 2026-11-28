@@ -24,6 +24,10 @@ tracks runtime progression and host concurrency work under 8.5 and 8.7.
 [DAG facade](https://github.com/dekrevedko/Workflow-orca/pull/27) ·
 [Implementation tasks](../openspec/changes/reshape-developer-facing-interfaces/tasks.md)
 
+## Durable storage support
+
+PostgreSQL is the v1 production storage target. SQL Server is experimental. Ordinary workflow and governance mutations serialize within each shared document, and a read can transfer unrelated workflow state or retained governance history. DAG streams use dedicated relational tables. Both providers run the complete correctness and restart lanes. SQL Server has no qualified scale envelope.
+
 ## Durable source verification
 
 - **Ownership across restart.** A stale continuation claim cannot release a replacement's lease.
@@ -185,7 +189,7 @@ role-specific OrcaCore registration:
   constructed get-only `ConnectionString` and `Schema` are copied and rejected when null, empty,
   or whitespace before any partial provider services become visible; there is no raw-string or
   configuration-binding overload. `OrcaCore.Providers.SqlServer` owns the equivalent complete
-  certified production role through `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`.
+  certified experimental role through `AddOrcaCoreSqlServerDurableProvider(SqlServerDurableProviderOptions)`.
 - Provider/operator services own retained operational statistics and maintenance/retention through
   `IWorkflowOperationalStore` and `IWorkflowProviderMaintenanceStore`; applications receive no
   broad enumeration/statistics or public archive/purge surface.
