@@ -1072,11 +1072,12 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
     private static StructuredExecutionState RecoverCommittedSuspensions(
         StructuredExecutionState execution,
         IList<DurableOwnedObligationState> ownedObligations,
-        DurableWaitState waitState,
-        DurableTimerState timerState,
+        DurableWorkflowAggregate aggregate,
         CompiledWorkflowPlan plan,
-        out bool recovered)
+        out bool recovered,
+        out bool activatedScopedGrant)
     {
+        activatedScopedGrant = false;
         var fibers = new Dictionary<FiberId, FiberRecord>(execution.Fibers);
         var resumed = new List<FiberId>();
         recovered = false;
@@ -1084,9 +1085,9 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
         {
             var obligation = ownedObligations[index];
             var isCommittedResourceGrant = obligation.Kind == DurableOwnedObligationKind.Resource &&
-                !waitState.HasWait(WaitId.Parse(obligation.ObligationId));
+                !aggregate.WaitState.HasWait(WaitId.Parse(obligation.ObligationId));
             var isFiredTimer = obligation.Kind == DurableOwnedObligationKind.Timer &&
-                timerState.FindActive(new TimerId(Guid.Parse(obligation.ObligationId))) is null;
+                aggregate.TimerState.FindActive(new TimerId(Guid.Parse(obligation.ObligationId))) is null;
             if (!isCommittedResourceGrant && !isFiredTimer)
             {
                 continue;
@@ -1104,25 +1105,33 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 continue;
             }
 
-            var instruction = plan.GetInstruction(fiber.InstructionId);
-            fibers[fiberId] = FiberReducer.Resume(fiber) with
-            {
-                InstructionId = blocked.Reason == FiberBlockedReason.Retry
-                    ? fiber.InstructionId
-                    : RequiredNext(instruction),
-                RetryNotBefore = null
-            };
+            var nextInstruction = fiber.InstructionId;
             if (isCommittedResourceGrant && obligation.ProtectionToken is not null)
             {
-                ownedObligations[index] = obligation with
+                // A vanished wait is only a wake. Recover the lexical scope from the
+                // acquisition event, or re-run the same acquire before admitting its body.
+                var tickets = CommittedLeaseTickets(aggregate, obligation.HolderKey!);
+                if (tickets.Length != 0)
                 {
-                    LeasePhase = nameof(DurableLeaseObligationPhase.Held)
-                };
+                    activatedScopedGrant = true;
+                    ownedObligations[index] = ActivateLease(obligation, tickets);
+                    nextInstruction = RequiredNext(plan.GetInstruction(fiber.InstructionId));
+                }
             }
             else
             {
                 ownedObligations.RemoveAt(index);
+                if (blocked.Reason != FiberBlockedReason.Retry)
+                {
+                    nextInstruction = RequiredNext(plan.GetInstruction(fiber.InstructionId));
+                }
             }
+
+            fibers[fiberId] = FiberReducer.Resume(fiber) with
+            {
+                InstructionId = nextInstruction,
+                RetryNotBefore = null
+            };
             resumed.Add(fiberId);
             recovered = true;
         }

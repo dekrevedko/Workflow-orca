@@ -1,0 +1,44 @@
+[
+  {
+    "name": "Safety",
+    "kind": "normal",
+    "config": "Safety.cfg",
+    "expected": ""
+  },
+  {
+    "name": "Progress",
+    "kind": "normal",
+    "config": "Progress.cfg",
+    "expected": ""
+  },
+  {
+    "name": "AfterProof",
+    "kind": "normal",
+    "config": "AfterProof.cfg",
+    "expected": ""
+  },
+  {
+    "name": "LateSubmitRetained",
+    "kind": "witness",
+    "config": "LateSubmitRetained.cfg",
+    "expected": "NoLateAcceptedWitness"
+  },
+  {
+    "name": "FencedLateSubmit",
+    "kind": "witness",
+    "config": "FencedLateSubmit.cfg",
+    "expected": "NoFencedLateSubmitWitness"
+  },
+  {
+    "name": "EmptyLookupRelease",
+    "kind": "mutation",
+    "config": "EmptyLookupRelease.cfg",
+    "expected": "ExternalExclusion"
+  },
+  {
+    "name": "NoExternalResolution",
+    "kind": "assumption",
+    "config": "NoExternalResolution.cfg",
+    "expected": "EventualReuse"
+  }
+]

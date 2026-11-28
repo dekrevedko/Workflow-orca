@@ -33,18 +33,7 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 continue;
             }
 
-            var actual = await context.Processor.GetResourceTicketsAsync(
-                context.InstanceId,
-                obligation.HolderKey,
-                cancellationToken).ConfigureAwait(false);
-            var committedTickets = context.Aggregate.ResourcePoolState.ActiveTickets
-                .Where(ticket => string.Equals(
-                    ticket.HolderKey,
-                    obligation.HolderKey,
-                    StringComparison.Ordinal))
-                .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
-                .ThenBy(ticket => ticket.ProviderGeneration)
-                .ToArray();
+            var committedTickets = CommittedLeaseTickets(context.Aggregate, obligation.HolderKey);
             if (committedTickets.Length == 0)
             {
                 // A normal release event may have won while an older envelope is being
@@ -53,35 +42,48 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                 continue;
             }
 
+            if (!CoversLeaseRequest(obligation, committedTickets))
+            {
+                return await ParkAsync(context, DurableParkReason.Poison,
+                    $"Scoped grant for '{obligation.HolderKey}' is missing its committed tickets.",
+                    cancellationToken).ConfigureAwait(false);
+            }
+
+            var actual = await context.Processor.GetResourceTicketsAsync(
+                context.InstanceId, obligation.HolderKey, cancellationToken).ConfigureAwait(false);
             var expected = obligation.LeaseTickets.Count == 0
                 ? committedTickets.Select(ToPersistedTicket).ToArray()
                 : obligation.LeaseTickets;
-            var missing = expected.Count == 0
-                ? MissingRequiredPools(obligation.LeaseRequirements, actual)
-                : MissingExactPools(expected, actual);
+            var missing = MissingExactPools(expected, actual);
             if (missing.Count > 0)
             {
                 var token = LeaseProtectionToken.Parse(
                     obligation.ProtectionToken ??
                     throw new InvalidOperationException("A live lease has no protection token."));
-                var released = await context.Processor.GetResourceReleaseEvidenceAsync(
-                    token,
-                    cancellationToken).ConfigureAwait(false);
-                if (released.HasValue)
+                // Only a detached obligation can adopt a stop-confirmation receipt.
+                // An active owner must still hold its exact tickets before dispatch.
+                if (obligation.LeasePhase == nameof(DurableLeaseObligationPhase.Quarantined))
                 {
-                    ownedObligations[index] = obligation with
+                    var released = await context.Processor.GetResourceReleaseEvidenceAsync(
+                        token, cancellationToken).ConfigureAwait(false);
+                    if (released.HasValue && DurableResourceLeaseRecovery.CanCloseQuarantinedLease(
+                        context.InstanceId, obligation, committedTickets, released.Value))
                     {
-                        LeasePhase = nameof(DurableLeaseObligationPhase.Released),
-                        AcceptedConfirmationId = released.Value.ConfirmationId?.Value
-                    };
-                    changed = true;
-                    continue;
+                        ownedObligations[index] = obligation with
+                        {
+                            LeasePhase = nameof(DurableLeaseObligationPhase.Released),
+                            AcceptedConfirmationId = released.Value.ConfirmationId?.Value
+                        };
+                        changed = true;
+                        continue;
+                    }
                 }
 
                 var failure = global::OrcaCore.Engine.Durable.Internal.DurableContractAdapter.LeaseLost(token, missing);
                 ownedObligations[index] = obligation with
                 {
-                    LeasePhase = nameof(DurableLeaseObligationPhase.LeaseLost)
+                    LeasePhase = nameof(DurableLeaseObligationPhase.LeaseLost),
+                    LeaseTickets = expected
                 };
                 var committed = await context.Processor.ProcessAsync(
                     new DurableStepFailedCommand(
@@ -89,7 +91,8 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                         context.InstanceId,
                         context.TimeProvider.GetUtcNow(),
                         "lease-reconciliation",
-                        $"{failure.Code}: {failure.Message} Expected=[{Describe(expected)}] Actual=[{Describe(actual)}]",
+                        $"{failure.Code}: {failure.Message} Expected=[{Describe(expected)}] Actual=[{Describe(actual)}] " +
+                        $"MissingPools=[{string.Join(",", failure.MissingPools.Select(pool => pool.Value))}]",
                         BuildEnvelope(context, execution, state, ownedObligations))
                     {
                         ExpectedStreamVersion = currentVersion,
@@ -101,16 +104,21 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
                     : Conflict(committed);
             }
 
-            var persistedTickets = actual.Select(ToPersistedTicket).ToArray();
+            // Governance can update review metadata. The workflow grant defines which
+            // ticket identities belong in this occurrence, including on an old empty checkpoint.
+            var persistedTickets = actual.Where(ticket => expected.Any(fact =>
+                    string.Equals(fact.TicketId, ticket.TicketId.ToString("N"), StringComparison.Ordinal)))
+                .Select(ToPersistedTicket)
+                .ToArray();
             var phase = obligation.LeasePhase;
             if (string.Equals(phase, nameof(DurableLeaseObligationPhase.Held), StringComparison.Ordinal) &&
-                actual.Any(ticket => ticket.ReviewMarked))
+                persistedTickets.Any(ticket => ticket.ReviewMarked))
             {
                 phase = nameof(DurableLeaseObligationPhase.ReviewMarked);
             }
 
             if (!string.Equals(phase, obligation.LeasePhase, StringComparison.Ordinal) ||
-                !TicketFactsEqual(expected, persistedTickets))
+                !TicketFactsEqual(obligation.LeaseTickets, persistedTickets))
             {
                 ownedObligations[index] = obligation with
                 {
@@ -141,6 +149,27 @@ internal sealed partial class DurableFiberDriverExecutor<TState>
             ? DurableSegmentResult.PolicyBoundary
             : Conflict(checkpoint);
     }
+
+    private static ResourcePoolTicket[] CommittedLeaseTickets(DurableWorkflowAggregate aggregate, string holderKey) =>
+        aggregate.ResourcePoolState.ActiveTickets
+            .Where(ticket => ticket.HolderInstanceId.Equals(aggregate.InstanceId) &&
+                string.Equals(ticket.HolderKey, holderKey, StringComparison.Ordinal))
+            .OrderBy(ticket => ticket.PoolName, StringComparer.Ordinal)
+            .ThenBy(ticket => ticket.ProviderGeneration)
+            .ToArray();
+
+    private static bool CoversLeaseRequest(DurableOwnedObligationState lease, ResourcePoolTicket[] tickets) =>
+        tickets.Length != 0 &&
+        tickets.All(ticket => lease.LeaseRequirements.Any(requirement =>
+            string.Equals(requirement.PoolName, ticket.PoolName, StringComparison.Ordinal))) &&
+        MissingRequiredPools(lease.LeaseRequirements, tickets).Count == 0;
+
+    private static DurableOwnedObligationState ActivateLease(
+        DurableOwnedObligationState lease, ResourcePoolTicket[] tickets) => lease with
+        {
+            LeasePhase = nameof(DurableLeaseObligationPhase.Held),
+            LeaseTickets = tickets.Select(ToPersistedTicket).ToArray()
+        };
 
     private static IReadOnlyList<ResourcePoolName> MissingRequiredPools(
         IReadOnlyList<ResourcePoolRequirement> requirements,
